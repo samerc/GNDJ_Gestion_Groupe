@@ -1,4 +1,4 @@
-// Checkbox list of the assistants chef de groupe (active group-level role) the CG can name "Responsable du camp":
+// Checkbox list of the assistants chef de groupe (active group-level role) the CG can name "Chef de commission":
 // they lead that camp with full rights on it. Used when creating a camp and on the camp's Commission tab.
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
@@ -6,7 +6,7 @@ import { useCampCommissionCandidates } from '@/services/camp-service'
 import { Input } from '@/components/ui/input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 
-export function ResponsablesPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+export function ChefsPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
   const { data: candidates, isLoading } = useCampCommissionCandidates(true, true)
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {

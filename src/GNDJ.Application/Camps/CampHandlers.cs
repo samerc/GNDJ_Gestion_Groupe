@@ -123,7 +123,7 @@ public class GetCampQueryHandler(IApplicationDbContext context, ICurrentUserServ
 // set each other member's rights per area. Only maîtrise
 // (members holding an active leadership role) can be on a commission — never a regular member.
 public record CampCommissionMemberDto(Guid MemberId, string FirstName, string LastName, string? Roles,
-    bool IsResponsable, string FamillesAccess, string JeuxAccess, string ParametresAccess);
+    bool IsChef, string FamillesAccess, string JeuxAccess, string ParametresAccess);
 public record GetCampCommissionQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampCommissionMemberDto>>>;
 
 public class GetCampCommissionQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -137,23 +137,23 @@ public class GetCampCommissionQueryHandler(IApplicationDbContext context, ICurre
         var rows = await context.CampCommissionMembers.Where(c => c.CampId == request.CampId)
             .Select(c => new
             {
-                c.MemberId, c.Member.FirstName, c.Member.LastName, c.IsResponsable, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess,
+                c.MemberId, c.Member.FirstName, c.Member.LastName, c.IsChef, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess,
                 // Their current active function(s), for context ("Assistant(e) de Groupe", "ACU Troupe 2"…).
                 Roles = c.Member.Assignments.Where(a => a.EndDate == null && !a.IsDeleted)
                     .Select(a => a.FunctionalRole.Name + " · " + a.Unit.Code).ToList(),
             })
             .ToListAsync(ct);
         return Result<IReadOnlyList<CampCommissionMemberDto>>.Success(rows
-            .OrderByDescending(r => r.IsResponsable).ThenBy(r => r.LastName).ThenBy(r => r.FirstName)
+            .OrderByDescending(r => r.IsChef).ThenBy(r => r.LastName).ThenBy(r => r.FirstName)
             .Select(r => new CampCommissionMemberDto(r.MemberId, r.FirstName, r.LastName, r.Roles.Count == 0 ? null : string.Join(", ", r.Roles),
-                r.IsResponsable, r.FamillesAccess, r.JeuxAccess, r.ParametresAccess))
+                r.IsChef, r.FamillesAccess, r.JeuxAccess, r.ParametresAccess))
             .ToList());
     }
 }
 
 // Maîtrise members who can be put on a commission (active leadership role), for the CG / ACG member picker.
 public record CampCommissionCandidateDto(Guid MemberId, string FirstName, string LastName, string? Roles);
-// GroupLevelOnly = candidates for "Responsable du camp" (ACGs: an active group-level role), else any maîtrise.
+// GroupLevelOnly = candidates for "Chef de commission" (ACGs: an active group-level role), else any maîtrise.
 public record GetCampCommissionCandidatesQuery(bool GroupLevelOnly = false) : IRequest<Result<IReadOnlyList<CampCommissionCandidateDto>>>;
 
 public class GetCampCommissionCandidatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -161,9 +161,9 @@ public class GetCampCommissionCandidatesQueryHandler(IApplicationDbContext conte
 {
     public async ValueTask<Result<IReadOnlyList<CampCommissionCandidateDto>>> Handle(GetCampCommissionCandidatesQuery request, CancellationToken ct)
     {
-        // CG, or a responsable of one of the camps (they pick the commission of their camp).
+        // CG, or a chef de commission of one of the camps (they pick the commission of their camp).
         var allowed = CampAccess.IsAdmin(currentUser) || (currentUser.MemberId is Guid me
-            && await context.CampCommissionMembers.AnyAsync(c => c.MemberId == me && c.IsResponsable && !c.Camp.IsArchived, ct));
+            && await context.CampCommissionMembers.AnyAsync(c => c.MemberId == me && c.IsChef && !c.Camp.IsArchived, ct));
         if (!allowed) return Result<IReadOnlyList<CampCommissionCandidateDto>>.Failure(CampAccess.Denied);
         var rows = await context.MemberAssignments
             .Where(a => a.EndDate == null && !a.IsDeleted && !a.Member.IsDeleted
@@ -178,9 +178,9 @@ public class GetCampCommissionCandidatesQueryHandler(IApplicationDbContext conte
     }
 }
 
-// Replace the commission with this set of members (the CG or a responsable of the camp). Every
-// member must be maîtrise. The responsables always stay (only the CG changes them, via SetCampResponsables). New
-// members start with no access to the areas (a responsable grants it). Takes effect at each member's next sign-in /
+// Replace the commission with this set of members (the CG or a chef de commission of the camp). Every
+// member must be maîtrise. The chefs always stay (only the CG changes them, via SetCampChefs). New
+// members start with no access to the areas (a chef de commission grants it). Takes effect at each member's next sign-in /
 // refresh (≤ 15 min).
 public record SetCampCommissionCommand(Guid CampId, List<Guid> MemberIds) : IRequest<Result<bool>>;
 
@@ -198,13 +198,13 @@ public class SetCampCommissionCommandHandler(IApplicationDbContext context, ICur
     public async ValueTask<Result<bool>> Handle(SetCampCommissionCommand request, CancellationToken ct)
     {
         var me = await CampAccess.ForAsync(context, currentUser, request.CampId, ct);
-        if (!me.CanManageCommission) return Result<bool>.Failure("Réservé au chef de groupe et aux responsables du camp.");
+        if (!me.CanManageCommission) return Result<bool>.Failure("Réservé au chef de groupe et aux chefs de commission.");
         var camp = await context.Camps.Where(c => c.Id == request.CampId).Select(c => new { c.Id, c.Name }).FirstOrDefaultAsync(ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
 
         var existing = await context.CampCommissionMembers.Where(c => c.CampId == camp.Id).ToListAsync(ct);
-        // The responsables can't be removed here (only the CG changes them) → always kept.
-        var wanted = request.MemberIds.Union(existing.Where(e => e.IsResponsable).Select(e => e.MemberId)).Distinct().ToList();
+        // The chefs can't be removed here (only the CG changes them) → always kept.
+        var wanted = request.MemberIds.Union(existing.Where(e => e.IsChef).Select(e => e.MemberId)).Distinct().ToList();
         // Maîtrise is checked only for members being ADDED: someone already on it (e.g. added before the rule, or who
         // since lost their leadership role) must always be removable.
         var added = wanted.Where(id => existing.All(e => e.MemberId != id)).ToList();
@@ -223,7 +223,7 @@ public class SetCampCommissionCommandHandler(IApplicationDbContext context, ICur
     }
 }
 
-// Set one commission member's rights per area (a responsable du camp, or the CG). A responsable's rights are
+// Set one commission member's rights per area (a chef de commission, or the CG). A chef de commission's rights are
 // always full, so they can't be changed here.
 public record SetCampCommissionAccessCommand(Guid CampId, Guid MemberId, string FamillesAccess, string JeuxAccess, string ParametresAccess)
     : IRequest<Result<bool>>;
@@ -244,12 +244,12 @@ public class SetCampCommissionAccessCommandHandler(IApplicationDbContext context
     public async ValueTask<Result<bool>> Handle(SetCampCommissionAccessCommand request, CancellationToken ct)
     {
         var me = await CampAccess.ForAsync(context, currentUser, request.CampId, ct);
-        if (!me.CanSetRights) return Result<bool>.Failure("Réservé aux responsables du camp.");
+        if (!me.CanSetRights) return Result<bool>.Failure("Réservé aux chefs de commission.");
 
         var row = await context.CampCommissionMembers
             .FirstOrDefaultAsync(c => c.CampId == request.CampId && c.MemberId == request.MemberId, ct);
         if (row is null) return Result<bool>.Failure("Ce membre ne fait pas partie de la commission.");
-        if (row.IsResponsable) return Result<bool>.Failure("Un responsable du camp a déjà tous les accès.");
+        if (row.IsChef) return Result<bool>.Failure("Un chef de commission a déjà tous les accès.");
 
         row.FamillesAccess = request.FamillesAccess;
         row.JeuxAccess = request.JeuxAccess;
@@ -265,20 +265,20 @@ public class SetCampCommissionAccessCommandHandler(IApplicationDbContext context
     }
 }
 
-// Choose the camp's responsables (CG only): ACGs (an active group-level role) with full rights on this camp.
+// Choose the camp's chefs (CG only): ACGs (an active group-level role) with full rights on this camp.
 // A member added here joins the commission if needed; one no longer listed stays on the commission as a member.
-public record SetCampResponsablesCommand(Guid CampId, List<Guid> MemberIds) : IRequest<Result<bool>>;
+public record SetCampChefsCommand(Guid CampId, List<Guid> MemberIds) : IRequest<Result<bool>>;
 
-public class SetCampResponsablesCommandValidator : AbstractValidator<SetCampResponsablesCommand>
+public class SetCampChefsCommandValidator : AbstractValidator<SetCampChefsCommand>
 {
-    public SetCampResponsablesCommandValidator()
-        => RuleFor(x => x.MemberIds).NotNull().Must(l => l.Count <= 10).WithMessage("10 responsables au maximum.");
+    public SetCampChefsCommandValidator()
+        => RuleFor(x => x.MemberIds).NotNull().Must(l => l.Count <= 10).WithMessage("10 chefs de commission au maximum.");
 }
 
-public class SetCampResponsablesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
-    : IRequestHandler<SetCampResponsablesCommand, Result<bool>>
+public class SetCampChefsCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<SetCampChefsCommand, Result<bool>>
 {
-    public async ValueTask<Result<bool>> Handle(SetCampResponsablesCommand request, CancellationToken ct)
+    public async ValueTask<Result<bool>> Handle(SetCampChefsCommand request, CancellationToken ct)
     {
         if (!CampAccess.IsAdmin(currentUser)) return Result<bool>.Failure(CampAccess.AdminOnly);
         var camp = await context.Camps.Where(c => c.Id == request.CampId).Select(c => new { c.Id, c.Name }).FirstOrDefaultAsync(ct);
@@ -287,14 +287,14 @@ public class SetCampResponsablesCommandHandler(IApplicationDbContext context, IC
         if (await CampCommissionRules.CheckGroupLevelAsync(context, wanted, ct) is { } error) return Result<bool>.Failure(error);
 
         var existing = await context.CampCommissionMembers.Where(c => c.CampId == camp.Id).ToListAsync(ct);
-        foreach (var e in existing) e.IsResponsable = wanted.Contains(e.MemberId);
+        foreach (var e in existing) e.IsChef = wanted.Contains(e.MemberId);
         foreach (var id in wanted.Where(id => existing.All(e => e.MemberId != id)))
-            context.CampCommissionMembers.Add(new CampCommissionMember { CampId = camp.Id, MemberId = id, IsResponsable = true });
+            context.CampCommissionMembers.Add(new CampCommissionMember { CampId = camp.Id, MemberId = id, IsChef = true });
         await context.SaveChangesAsync(ct);
 
-        await audit.LogAsync("SetResponsables", "Camp", camp.Id, newValues: new
+        await audit.LogAsync("SetChefs", "Camp", camp.Id, newValues: new
         {
-            Camp = camp.Name, Responsables = await AuditNames.MembersAsync(context, wanted, ct),
+            Camp = camp.Name, Chefs = await AuditNames.MembersAsync(context, wanted, ct),
         }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
@@ -315,7 +315,7 @@ static class CampCommissionRules
             : $"Seuls les membres de la maîtrise peuvent faire partie de la commission : {await AuditNames.MembersAsync(context, bad, ct)}.";
     }
 
-    // A responsable must be an assistant chef de groupe (an active group-level role).
+    // A chef de commission must be an assistant chef de groupe (an active group-level role).
     public static async Task<string?> CheckGroupLevelAsync(IApplicationDbContext context, List<Guid> ids, CancellationToken ct)
     {
         if (ids.Count == 0) return null;
@@ -324,13 +324,13 @@ static class CampCommissionRules
             .Select(a => a.MemberId).Distinct().ToListAsync(ct);
         var bad = ids.Except(ok).ToList();
         return bad.Count == 0 ? null
-            : $"Les responsables du camp doivent être des assistants chef de groupe : {await AuditNames.MembersAsync(context, bad, ct)}.";
+            : $"Les chefs de commission doivent être des assistants chef de groupe : {await AuditNames.MembersAsync(context, bad, ct)}.";
     }
 }
 
 // ─── Create ──────────────────────────────────────────────────────────────────
-// ResponsableMemberIds = the ACG(s) the CG picks to lead this camp (full rights on it). Optional.
-public record CreateCampCommand(string Name, string ScoutYear, int? FamillesCount, List<Guid>? ResponsableMemberIds = null) : IRequest<Result<Guid>>;
+// ChefMemberIds = the ACG(s) the CG picks to lead this camp (full rights on it). Optional.
+public record CreateCampCommand(string Name, string ScoutYear, int? FamillesCount, List<Guid>? ChefMemberIds = null) : IRequest<Result<Guid>>;
 
 public class CreateCampCommandValidator : AbstractValidator<CreateCampCommand>
 {
@@ -349,13 +349,13 @@ public class CreateCampCommandHandler(IApplicationDbContext context, ICurrentUse
         var defaultCount = await context.Settings.Where(s => s.Key == "camp.familles_count").Select(s => s.Value).FirstOrDefaultAsync(ct);
         var count = request.FamillesCount ?? (int.TryParse(defaultCount, out var d) ? d : 12);
 
-        var responsables = (request.ResponsableMemberIds ?? []).Distinct().ToList();
-        if (await CampCommissionRules.CheckGroupLevelAsync(context, responsables, ct) is { } error) return Result<Guid>.Failure(error);
+        var chefs = (request.ChefMemberIds ?? []).Distinct().ToList();
+        if (await CampCommissionRules.CheckGroupLevelAsync(context, chefs, ct) is { } error) return Result<Guid>.Failure(error);
 
         var camp = new Camp { Name = request.Name.Trim(), ScoutYear = request.ScoutYear.Trim(), FamillesCount = count };
         context.Camps.Add(camp);
-        foreach (var id in responsables)
-            context.CampCommissionMembers.Add(new CampCommissionMember { CampId = camp.Id, MemberId = id, IsResponsable = true });
+        foreach (var id in chefs)
+            context.CampCommissionMembers.Add(new CampCommissionMember { CampId = camp.Id, MemberId = id, IsChef = true });
         await context.SaveChangesAsync(ct);
         return Result<Guid>.Success(camp.Id);
     }

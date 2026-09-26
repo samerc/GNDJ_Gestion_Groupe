@@ -6,10 +6,10 @@ namespace GNDJ.Application.Camps;
 
 // Who sees and does what inside a Camp BP — the single place for the rules (every camp handler asks here):
 //   • Camp admin = super-admin, or camp.manage (the CG, or someone the CG delegated Camp BP to): everything, incl.
-//     creating / archiving / deleting a camp and choosing each camp's responsables.
-//   • Responsable du camp = chef de commission (an ACG the CG picked for THIS camp): full rights on the camp —
+//     creating / archiving / deleting a camp and choosing each camp's chefs.
+//   • Chef de commission (an ACG the CG picked for THIS camp): full rights on the camp —
 //     chooses the Commission BP members, sets their rights, edits every area.
-//   • Other commission member: the Commission tab (read-only) + each area at the level a responsable gave them
+//   • Other commission member: the Commission tab (read-only) + each area at the level a chef de commission gave them
 //     (Familles / Jeux / Paramètres: none | view | edit).
 //   • Anyone else (e.g. a CU from outside the commission): nothing here — only the grading page (/camp), which
 //     is unit-scoped and handled by CampAttendanceHandlers.
@@ -28,7 +28,7 @@ public static class CampAccessLevel
 
 // What the CURRENT user may do in a camp (sent to the camp screen so it shows only the allowed tabs / buttons).
 public record CampMyAccessDto(
-    bool IsAdmin, bool IsCommissionMember, bool IsResponsable,
+    bool IsAdmin, bool IsCommissionMember, bool IsChef,
     string Familles, string Jeux, string Parametres,
     bool CanManageCommission, bool CanSetRights);
 
@@ -48,12 +48,12 @@ public static class CampAccess
         var row = u.MemberId is Guid mid
             ? await context.CampCommissionMembers
                 .Where(c => c.CampId == campId && c.MemberId == mid && !c.Camp.IsArchived)
-                .Select(c => new { c.IsResponsable, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess })
+                .Select(c => new { c.IsChef, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess })
                 .FirstOrDefaultAsync(ct)
             : null;
         if (row is null)
             return new CampMyAccessDto(false, false, false, CampAccessLevel.None, CampAccessLevel.None, CampAccessLevel.None, false, false);
-        if (row.IsResponsable)
+        if (row.IsChef)
             return new CampMyAccessDto(false, true, true, CampAccessLevel.Edit, CampAccessLevel.Edit, CampAccessLevel.Edit, true, true);
         return new CampMyAccessDto(false, true, false, row.FamillesAccess, row.JeuxAccess, row.ParametresAccess, false, false);
     }

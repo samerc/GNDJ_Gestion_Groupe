@@ -1,7 +1,7 @@
 // "Commission" tab of a Camp BP. Everyone on the commission sees who is on it and what each member may do.
-//  • CG: chooses the responsables du camp (= chefs de commission: ACGs with full rights on this camp).
-//  • CG or a responsable: add / remove members (maîtrise only) and set each member's rights per area —
-//    Familles / Jeux / Paramètres: Aucun / Voir / Modifier. Responsables always have full access.
+//  • CG: chooses the chefs de commission (ACGs with full rights on this camp).
+//  • CG or a chef de commission: add / remove members (maîtrise only) and set each member's rights per area —
+//    Familles / Jeux / Paramètres: Aucun / Voir / Modifier. Chefs always have full access.
 //  • Other members: read-only.
 // Changes apply at each member's next sign-in / session refresh (≤ 15 min).
 import { useMemo, useState } from 'react'
@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { UserPlus, X, Users, Search, ShieldCheck, Pencil } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import {
-  useCampCommission, useSetCampCommission, useSetCampCommissionAccess, useCampCommissionCandidates, useSetCampResponsables,
+  useCampCommission, useSetCampCommission, useSetCampCommissionAccess, useCampCommissionCandidates, useSetCampChefs,
   type CampAccessLevel, type CampCommissionMemberDto, type CampMyAccessDto,
 } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { ResponsablesPicker } from './responsables-picker'
+import { ChefsPicker } from './chefs-picker'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 
@@ -36,9 +36,9 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
   const { data: members, isLoading } = useCampCommission(campId)
   const save = useSetCampCommission(campId)
   const setAccess = useSetCampCommissionAccess(campId)
-  const setResp = useSetCampResponsables(campId)
+  const setChefsMut = useSetCampChefs(campId)
   const [picking, setPicking] = useState(false)
-  const [editingResp, setEditingResp] = useState<string[] | null>(null) // CG: responsables being edited
+  const [editingChefs, setEditingChefs] = useState<string[] | null>(null) // CG: chefs being edited
 
   const list = members ?? []
   const ids = list.map((m) => m.memberId)
@@ -59,15 +59,15 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          La Commission BP organise ce camp. Les <b>responsables du camp</b> (chefs de commission, choisis par le chef de
+          La Commission BP organise ce camp. Les <b>chefs de commission</b> (choisis par le chef de
           groupe) ont accès à tout et choisissent ce que chaque autre membre peut voir ou modifier. Seuls les membres de
           la maîtrise peuvent en faire partie. Les changements s'appliquent à la
           prochaine connexion (au plus tard ~15 min) ; l'accès s'arrête quand le camp est archivé.
         </p>
         <div className="flex flex-wrap gap-2">
           {access.isAdmin && (
-            <Button size="sm" variant="outline" onClick={() => setEditingResp(list.filter((m) => m.isResponsable).map((m) => m.memberId))}>
-              <Pencil className="mr-1.5 h-4 w-4" />Responsables du camp
+            <Button size="sm" variant="outline" onClick={() => setEditingChefs(list.filter((m) => m.isChef).map((m) => m.memberId))}>
+              <Pencil className="mr-1.5 h-4 w-4" />Chefs de commission
             </Button>
           )}
           {access.canManageCommission && (
@@ -88,12 +88,12 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-sm font-medium">
                   {m.lastName} {m.firstName}
-                  {m.isResponsable && <Badge variant="outline" className="gap-1 border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300"><ShieldCheck className="h-3 w-3" />Responsable du camp (chef de commission)</Badge>}
+                  {m.isChef && <Badge variant="outline" className="gap-1 border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300"><ShieldCheck className="h-3 w-3" />Chef de commission</Badge>}
                 </p>
                 {m.roles && <p className="truncate text-xs text-muted-foreground">{m.roles}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {m.isResponsable ? (
+                {m.isChef ? (
                   <span className="text-xs text-muted-foreground">Accès complet</span>
                 ) : AREAS.map((a) => (
                   <div key={a.key} className="flex items-center gap-1.5">
@@ -110,7 +110,7 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
                 ))}
                 {access.canManageCommission && (
                   <>
-                    {!m.isResponsable && <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-destructive" disabled={save.isPending}
+                    {!m.isChef && <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-destructive" disabled={save.isPending}
                       onClick={() => update(ids.filter((x) => x !== m.memberId), 'Retiré de la commission')}>
                       <X className="mr-1 h-4 w-4" />Retirer
                     </Button>}
@@ -122,18 +122,18 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
         </div>
       )}
 
-      {editingResp && (
-        <Dialog open onOpenChange={() => setEditingResp(null)}>
+      {editingChefs && (
+        <Dialog open onOpenChange={() => setEditingChefs(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Responsables du camp</DialogTitle>
+              <DialogTitle>Chefs de commission</DialogTitle>
               <DialogDescription>Les assistants chef de groupe qui dirigent ce camp, avec tous les droits dessus.</DialogDescription>
             </DialogHeader>
-            <ResponsablesPicker value={editingResp} onChange={setEditingResp} />
+            <ChefsPicker value={editingChefs} onChange={setEditingChefs} />
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditingResp(null)}>Annuler</Button>
-              <Button disabled={setResp.isPending} onClick={async () => {
-                try { await setResp.mutateAsync(editingResp); toast.success('Responsables enregistrés'); setEditingResp(null) }
+              <Button variant="outline" onClick={() => setEditingChefs(null)}>Annuler</Button>
+              <Button disabled={setChefsMut.isPending} onClick={async () => {
+                try { await setChefsMut.mutateAsync(editingChefs); toast.success('Chefs de commission enregistrés'); setEditingChefs(null) }
                 catch (err) { toast.error(parseApiError(err)) }
               }}>Enregistrer</Button>
             </DialogFooter>

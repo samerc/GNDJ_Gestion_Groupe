@@ -91,9 +91,9 @@ public class CampGame : BaseEntity
 
 // Commission BP of a camp. While the camp is active (not archived), membership opens the camp screens at sign-in
 // (AuthAccess grants camp.grade + camp.commission) — none of the CG's other powers. Roles inside (CampAccess):
-//   • Responsable du camp (IsResponsable) = the "chef de commission": an ACG the CG picks for this camp — full
+//   • Chef de commission (IsChef): an ACG the CG picks for this camp — full
 //     rights on THIS camp (choose the commission members, set their rights, every area). Only the CG changes them.
-//   • Member: a level per area (Familles / Jeux / Paramètres): "none", "view" or "edit", set by a responsable.
+//   • Member: a level per area (Familles / Jeux / Paramètres): "none", "view" or "edit", set by a chef de commission.
 // Only maîtrise can be on a commission; everyone on it sees the Commission tab. Plain table (no soft-delete).
 public class CampCommissionMember
 {
@@ -102,8 +102,8 @@ public class CampCommissionMember
     public Guid MemberId { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
-    // Responsable du camp (chef de commission): full rights on this camp. Chosen by the CG (at creation, or later).
-    public bool IsResponsable { get; set; }
+    // Chef de commission: full rights on this camp. Chosen by the CG (at creation, or later).
+    public bool IsChef { get; set; }
     // Per-area access for a non-chef member: "none" | "view" | "edit" (CampAccessLevel).
     public string FamillesAccess { get; set; } = "none";
     public string JeuxAccess { get; set; } = "none";

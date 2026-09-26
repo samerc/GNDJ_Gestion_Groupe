@@ -90,26 +90,26 @@ public class CampsController : BaseApiController
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> Commission(Guid id) => Res(await Mediator.Send(new GetCampCommissionQuery(id)));
 
-    /// <summary>Maîtrise members who can be named on a commission (groupLevelOnly = ACGs, for the responsables).
-    /// CG or a camp responsable.</summary>
+    /// <summary>Maîtrise members who can be named on a commission (groupLevelOnly = ACGs, for the chefs).
+    /// CG or a camp chef de commission.</summary>
     [HttpGet("commission-candidates")]
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> CommissionCandidates([FromQuery] bool groupLevelOnly = false)
         => Res(await Mediator.Send(new GetCampCommissionCandidatesQuery(groupLevelOnly)));
 
-    /// <summary>Chooses the camp's responsables (ACGs with full rights on it). CG only.</summary>
-    [HttpPut("{id:guid}/responsables")]
+    /// <summary>Chooses the camp's chefs (ACGs with full rights on it). CG only.</summary>
+    [HttpPut("{id:guid}/chefs")]
     [HasPermission(Permissions.CampManage)]
-    public async Task<IActionResult> SetResponsables(Guid id, [FromBody] ResponsablesBody body)
-        => Res(await Mediator.Send(new SetCampResponsablesCommand(id, body.MemberIds ?? [])));
+    public async Task<IActionResult> SetChefs(Guid id, [FromBody] ChefsBody body)
+        => Res(await Mediator.Send(new SetCampChefsCommand(id, body.MemberIds ?? [])));
 
-    /// <summary>Replaces the Commission BP members (CG or a camp responsable — checked in the handler).</summary>
+    /// <summary>Replaces the Commission BP members (CG or a camp chef de commission — checked in the handler).</summary>
     [HttpPut("{id:guid}/commission")]
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> SetCommission(Guid id, [FromBody] CommissionBody body)
         => Res(await Mediator.Send(new SetCampCommissionCommand(id, body.MemberIds ?? [])));
 
-    /// <summary>Sets one commission member's rights per area (a responsable du camp or the CG).</summary>
+    /// <summary>Sets one commission member's rights per area (a chef de commission or the CG).</summary>
     [HttpPut("{id:guid}/commission/{memberId:guid}/access")]
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> SetCommissionAccess(Guid id, Guid memberId, [FromBody] CommissionAccessBody body)
@@ -209,5 +209,5 @@ public class CampsController : BaseApiController
 }
 
 public record CommissionBody(List<Guid>? MemberIds);
-public record ResponsablesBody(List<Guid>? MemberIds);
+public record ChefsBody(List<Guid>? MemberIds);
 public record CommissionAccessBody(string FamillesAccess, string JeuxAccess, string ParametresAccess);

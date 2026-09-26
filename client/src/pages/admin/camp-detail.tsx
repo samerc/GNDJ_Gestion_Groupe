@@ -59,7 +59,7 @@ export default function CampDetailPage() {
 
       {tabs.length === 0 ? (
         <p className="mt-6 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Vous n'avez accès à aucune partie de ce camp. Les responsables du camp choisissent ce que chaque membre peut voir.
+          Vous n'avez accès à aucune partie de ce camp. Les chefs de commission choisissent ce que chaque membre peut voir.
         </p>
       ) : (
         <Tabs defaultValue={tabs[0]}>
@@ -106,7 +106,7 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
 
   return (
     <div className="max-w-2xl space-y-5">
-      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les responsables du camp ne vous ont pas donné le droit de modifier les paramètres.</p>}
+      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les paramètres.</p>}
       <fieldset disabled={readOnly} className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1 sm:col-span-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
@@ -396,7 +396,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
   return (
     <div className="max-w-2xl space-y-3">
-      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les responsables du camp ne vous ont pas donné le droit de modifier les jeux.</p>}
+      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les jeux.</p>}
       {!readOnly && (
         <div className="space-y-1">
           <div className="flex gap-2">
