@@ -6,8 +6,12 @@ namespace GNDJ.Domain.Entities;
 // computed per member. The Note formula is customizable per camp (coefficients below).
 public class Camp : BaseEntity
 {
+    // Name + ScoutYear are set automatically at creation and never change: ScoutYear = the current scout year
+    // (passage.scout_year), Name = "Camp BP <second year>" (2026-2027 → "Camp BP 2027"). One camp per scout year.
     public string Name { get; set; } = string.Empty;
     public string ScoutYear { get; set; } = string.Empty;
+    // The camp's theme — free text, filled by the chef de commission (or anyone with rights on Paramètres).
+    public string? Theme { get; set; }
     public int FamillesCount { get; set; }
     public string Status { get; set; } = CampStatus.Setup; // Setup → Assigned → Closed
     public bool IsArchived { get; set; }

@@ -10,6 +10,7 @@ public class CampConfiguration : IEntityTypeConfiguration<Camp>
     public void Configure(EntityTypeBuilder<Camp> builder)
     {
         builder.ToTable("camps");
+        builder.Property(e => e.Theme).HasMaxLength(200);
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Name).HasMaxLength(150).IsRequired();
         builder.Property(e => e.ScoutYear).HasMaxLength(20).IsRequired();

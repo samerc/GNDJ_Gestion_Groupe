@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-26", "text": "Camp BP : le nom (« Camp BP 2027 ») et l'année scoute sont fixés automatiquement ; nouveau champ Thème ; un seul camp par année scoute ; boutons Archiver / Supprimer regroupés dans « Clôture du camp »."},
       {"date": "2026-09-26", "text": "Camp BP : un seul camp en cours à la fois ; la page s'ouvre directement sur le camp en cours, les anciens camps se choisissent dans une liste déroulante, et « Nouveau camp » n'apparaît que s'il n'y a pas de camp en cours."},
       {"date": "2026-09-26", "text": "Camp BP : chaque jeu a un lieu et un lieu de repli (mauvais temps), choisis dans une liste de lieux (Paramètres → Camp BP). Chaque étapiste voit son jeu (description, lieux, autres étapistes) en haut de la page Camp BP de son unité."},
       {"date": "2026-09-26", "text": "Camp BP : les étapistes ont une page « Mes jeux » (menu) avec la description de chacun de leurs jeux et une fiche PDF à imprimer pour le camp."},

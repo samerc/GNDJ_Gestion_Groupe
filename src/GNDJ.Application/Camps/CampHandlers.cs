@@ -14,10 +14,10 @@ namespace GNDJ.Application.Camps;
 // A camp's lifecycle status is Setup → Assigned (after the draft) → Closed.
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
-public record CampListDto(Guid Id, string Name, string ScoutYear, int FamillesCount, string Status, bool IsArchived,
+public record CampListDto(Guid Id, string Name, string ScoutYear, string? Theme, int FamillesCount, string Status, bool IsArchived,
     int ParticipantCount, int GradedCount, int AssignedCount);
 
-public record CampDto(Guid Id, string Name, string ScoutYear, int FamillesCount, string Status, bool IsArchived,
+public record CampDto(Guid Id, string Name, string ScoutYear, string? Theme, int FamillesCount, string Status, bool IsArchived,
     double NoteForceCoef, double NoteOffset, IReadOnlyList<BranchMultiplierDto> BranchMultipliers,
     int ParticipantCount, int GradedCount, int AssignedCount, int FamilleCreatedCount,
     // What the CALLER may do in this camp (drives which tabs / buttons the camp screen shows).
@@ -78,7 +78,7 @@ public class GetCampsQueryHandler(IApplicationDbContext context) : IRequestHandl
     public async ValueTask<Result<IReadOnlyList<CampListDto>>> Handle(GetCampsQuery request, CancellationToken ct)
     {
         var camps = await context.Camps.OrderByDescending(c => c.IsArchived ? 0 : 1).ThenByDescending(c => c.CreatedAt)
-            .Select(c => new CampListDto(c.Id, c.Name, c.ScoutYear, c.FamillesCount, c.Status, c.IsArchived,
+            .Select(c => new CampListDto(c.Id, c.Name, c.ScoutYear, c.Theme, c.FamillesCount, c.Status, c.IsArchived,
                 c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre),
                 c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre && p.Note != null),
                 c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre && p.FamilleId != null)))
@@ -111,7 +111,7 @@ public class GetCampQueryHandler(IApplicationDbContext context, ICurrentUserServ
             .Select(p => new { p.Note, p.FamilleId }).ToListAsync(ct);
         var familleCount = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted, ct);
 
-        return Result<CampDto>.Success(new CampDto(camp.Id, camp.Name, camp.ScoutYear, camp.FamillesCount, camp.Status, camp.IsArchived,
+        return Result<CampDto>.Success(new CampDto(camp.Id, camp.Name, camp.ScoutYear, camp.Theme, camp.FamillesCount, camp.Status, camp.IsArchived,
             camp.NoteForceCoef, camp.NoteOffset, branchDtos,
             pc.Count, pc.Count(x => x.Note != null), pc.Count(x => x.FamilleId != null), familleCount,
             await CampAccess.ForAsync(context, currentUser, camp.Id, ct)));
@@ -330,14 +330,32 @@ static class CampCommissionRules
 
 // ─── Create ──────────────────────────────────────────────────────────────────
 // ChefMemberIds = the ACG(s) the CG picks to lead this camp (full rights on it). Optional.
-public record CreateCampCommand(string Name, string ScoutYear, int? FamillesCount, List<Guid>? ChefMemberIds = null) : IRequest<Result<Guid>>;
+// Name and scout year are NOT inputs: the camp takes the current scout year (passage.scout_year) and is named
+// "Camp BP <second year>" (CampNaming). One camp per scout year.
+public record CreateCampCommand(int? FamillesCount, List<Guid>? ChefMemberIds = null, string? Theme = null) : IRequest<Result<Guid>>;
 
 public class CreateCampCommandValidator : AbstractValidator<CreateCampCommand>
 {
     public CreateCampCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
-        RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+        RuleFor(x => x.Theme).MaximumLength(200).NoHtml();
+        RuleFor(x => x.FamillesCount).InclusiveBetween(1, 200).When(x => x.FamillesCount.HasValue);
+    }
+}
+
+public static class CampNaming
+{
+    // "2026-2027" → "Camp BP 2027" (the year the camp takes place). Falls back to the whole value.
+    public static string NameFor(string scoutYear)
+    {
+        var parts = scoutYear.Split('-', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return $"Camp BP {(parts.Length > 1 ? parts[^1] : scoutYear.Trim())}";
+    }
+
+    public static async Task<string?> CurrentScoutYearAsync(IApplicationDbContext context, CancellationToken ct)
+    {
+        var y = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct);
+        return string.IsNullOrWhiteSpace(y) ? null : y.Trim();
     }
 }
 
@@ -349,13 +367,21 @@ public class CreateCampCommandHandler(IApplicationDbContext context, ICurrentUse
         // One active camp at a time: the unit Camp BP page, the étapistes' games and the menu all follow "the" live camp.
         if (await context.Camps.AnyAsync(c => !c.IsArchived, ct))
             return Result<Guid>.Failure("Un camp est déjà actif. Archivez-le avant d'en créer un nouveau.");
+        var scoutYear = await CampNaming.CurrentScoutYearAsync(context, ct);
+        if (scoutYear is null) return Result<Guid>.Failure("L'année scoute n'est pas définie (Paramètres → Passage).");
+        if (await context.Camps.AnyAsync(c => c.ScoutYear == scoutYear, ct))
+            return Result<Guid>.Failure($"Il existe déjà un camp pour l'année {scoutYear}.");
         var defaultCount = await context.Settings.Where(s => s.Key == "camp.familles_count").Select(s => s.Value).FirstOrDefaultAsync(ct);
         var count = request.FamillesCount ?? (int.TryParse(defaultCount, out var d) ? d : 12);
 
         var chefs = (request.ChefMemberIds ?? []).Distinct().ToList();
         if (await CampCommissionRules.CheckGroupLevelAsync(context, chefs, ct) is { } error) return Result<Guid>.Failure(error);
 
-        var camp = new Camp { Name = request.Name.Trim(), ScoutYear = request.ScoutYear.Trim(), FamillesCount = count };
+        var camp = new Camp
+        {
+            Name = CampNaming.NameFor(scoutYear), ScoutYear = scoutYear, FamillesCount = count,
+            Theme = string.IsNullOrWhiteSpace(request.Theme) ? null : request.Theme.Trim(),
+        };
         context.Camps.Add(camp);
         foreach (var id in chefs)
             context.CampCommissionMembers.Add(new CampCommissionMember { CampId = camp.Id, MemberId = id, IsChef = true });
@@ -365,7 +391,8 @@ public class CreateCampCommandHandler(IApplicationDbContext context, ICurrentUse
 }
 
 // ─── Update settings / formula ───────────────────────────────────────────────
-public record UpdateCampCommand(Guid Id, string Name, string ScoutYear, int FamillesCount,
+// Name + scout year are fixed (set at creation) — only the theme, familles count and note formula change.
+public record UpdateCampCommand(Guid Id, string? Theme, int FamillesCount,
     double NoteForceCoef, double NoteOffset, IReadOnlyList<BranchMultiplierInput>? BranchMultipliers) : IRequest<Result<bool>>;
 public record BranchMultiplierInput(Guid UnitTypeId, int Multiplier);
 
@@ -373,8 +400,8 @@ public class UpdateCampCommandValidator : AbstractValidator<UpdateCampCommand>
 {
     public UpdateCampCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
-        RuleFor(x => x.ScoutYear).NotEmpty().MaximumLength(20).NoHtml();
+        RuleFor(x => x.Theme).MaximumLength(200).NoHtml();
+        RuleFor(x => x.FamillesCount).InclusiveBetween(1, 200);
     }
 }
 
@@ -386,8 +413,7 @@ public class UpdateCampCommandHandler(IApplicationDbContext context, ICurrentUse
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
 
-        camp.Name = request.Name.Trim();
-        camp.ScoutYear = request.ScoutYear.Trim();
+        camp.Theme = string.IsNullOrWhiteSpace(request.Theme) ? null : request.Theme.Trim();
         camp.FamillesCount = request.FamillesCount;
         camp.NoteForceCoef = request.NoteForceCoef;
         camp.NoteOffset = request.NoteOffset;

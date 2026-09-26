@@ -28,7 +28,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { RichContent } from '@/components/public/rich-content'
 import { GameLocations } from '@/components/camp/my-games-list'
@@ -70,6 +70,7 @@ export default function CampDetailPage() {
               <Tent className="h-6 w-6 text-primary" />{camp.name}
               {camp.isArchived && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Archivé</span>}
             </h1>
+            {camp.theme && <p className="mt-0.5 text-sm italic">Thème : « {camp.theme} »</p>}
             <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
           </div>
           {/* Switch to another camp (the active one first, then the old ones) — like the dashboard year picker. */}
@@ -118,21 +119,22 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   const archive = useArchiveCamp()
   const del = useDeleteCamp()
   const isCg = useIsCampCg() // archive / delete are Chef-de-Groupe-only (not Commission BP)
-  const [form, setForm] = useState({ name: '', scoutYear: '', famillesCount: 0, noteForceCoef: 1, noteOffset: -4 })
+  const [form, setForm] = useState({ theme: '', famillesCount: 0, noteForceCoef: 1, noteOffset: -4 })
   const [deleting, setDeleting] = useState(false)
   const [archiving, setArchiving] = useState(false) // confirm first: archiving is final (a camp is never re-opened)
 
   // Hydrate the settings form when the camp (re)loads — render-phase reset.
-  const [prevCamp, setPrevCamp] = useState(camp)
+  // Start from undefined so the form is filled on the FIRST render too (the camp is usually already cached).
+  const [prevCamp, setPrevCamp] = useState<typeof camp>(undefined)
   if (camp && camp !== prevCamp) {
     setPrevCamp(camp)
-    setForm({ name: camp.name, scoutYear: camp.scoutYear, famillesCount: camp.famillesCount, noteForceCoef: camp.noteForceCoef, noteOffset: camp.noteOffset })
+    setForm({ theme: camp.theme ?? '', famillesCount: camp.famillesCount, noteForceCoef: camp.noteForceCoef, noteOffset: camp.noteOffset })
   }
 
   if (!camp) return null
   const save = async () => {
     try {
-      await update.mutateAsync(form)
+      await update.mutateAsync({ ...form, theme: form.theme.trim() || null })
       toast.success('Paramètres enregistrés')
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -141,11 +143,14 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
     <div className="max-w-2xl space-y-5">
       {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les paramètres.</p>}
       <fieldset disabled={readOnly} className="space-y-5">
+      {/* Name + scout year are fixed at creation (Camp BP <year>); only the theme and the count are edited. */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-1 sm:col-span-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-        <div className="space-y-1"><RequiredLabel required>Année scoute</RequiredLabel><Input value={form.scoutYear} onChange={e => setForm(f => ({ ...f, scoutYear: e.target.value }))} /></div>
+        <div className="space-y-1 sm:col-span-2"><RequiredLabel>Nom</RequiredLabel><Input value={camp.name} disabled readOnly /></div>
+        <div className="space-y-1"><RequiredLabel>Année scoute</RequiredLabel><Input value={camp.scoutYear} disabled readOnly /></div>
+        <div className="space-y-1 sm:col-span-2"><RequiredLabel>Thème</RequiredLabel><Input value={form.theme} maxLength={200} placeholder="Le thème du camp" onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} /></div>
         <div className="space-y-1"><RequiredLabel>Nombre de familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: Number(e.target.value) }))} /></div>
       </div>
+      <p className="-mt-3 text-xs text-muted-foreground">Le nom et l'année scoute sont fixés automatiquement à la création du camp.</p>
 
       <div className="rounded-lg border p-4">
         <h3 className="mb-1 text-sm font-semibold">Formule de la Note</h3>
@@ -168,11 +173,30 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
 
       </fieldset>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {!readOnly && <Button onClick={save} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>}
-        {isCg && !camp.isArchived && <Button variant="outline" onClick={() => setArchiving(true)}>Archiver</Button>}
-        {isCg && <Button variant="ghost" className="text-destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>}
-      </div>
+      {/* Save belongs to the form (right-aligned under it); the irreversible camp actions sit apart below. */}
+      {!readOnly && (
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={update.isPending}><Save className="mr-1.5 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
+        </div>
+      )}
+
+      {isCg && (
+        <div className="rounded-lg border border-destructive/30 p-4">
+          <h3 className="text-sm font-semibold">Clôture du camp</h3>
+          <div className="mt-3 divide-y">
+            {!camp.isArchived && (
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+                <p className="min-w-0 flex-1 text-sm text-muted-foreground"><b className="text-foreground">Archiver</b> — à la fin du camp. Il reste consultable, ne peut plus être réouvert, et un nouveau camp pourra être créé.</p>
+                <Button variant="outline" onClick={() => setArchiving(true)}><Archive className="mr-1.5 h-4 w-4" />Archiver</Button>
+              </div>
+            )}
+            <div className={cn('flex flex-wrap items-center justify-between gap-3', !camp.isArchived && 'pt-3')}>
+              <p className="min-w-0 flex-1 text-sm text-muted-foreground"><b className="text-foreground">Supprimer</b> — efface le camp et toutes ses données (familles, notes, jeux). Irréversible.</p>
+              <Button variant="destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1.5 h-4 w-4" />Supprimer</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog open={archiving} onOpenChange={setArchiving} title="Archiver le camp" variant="destructive"
         description={`Archiver « ${camp.name} » ? Le camp sera clôturé et ne pourra plus être réouvert. Il restera consultable dans la liste des anciens camps, et vous pourrez ensuite créer un nouveau camp.`}

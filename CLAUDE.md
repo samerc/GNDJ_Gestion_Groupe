@@ -6153,4 +6153,9 @@ Every member got their access in 2026, and new chefs are existing members, so th
   refused, no "Désarchiver" button; "Archiver" asks for confirmation). `/admin/camps` redirects (replace) to the active camp; with none it lists old camps + "Nouveau
   camp" (CG). The camp page has a "Camp" dropdown (active first, then old camps) instead of the "Tous les camps" link
   (link kept only when no camp is active).
+- **Automatic name + year, theme:** a camp takes the current `passage.scout_year` at creation and is named
+  `CampNaming.NameFor` = "Camp BP <second year>" (2026-2027 → Camp BP 2027); both are fixed (no longer in
+  Create/UpdateCampCommand). One camp per scout year (create refused otherwise). New `Camp.Theme` (≤200, NoHtml,
+  migration `AddCampTheme`) edited in Paramètres (Parametres edit rights). Patch **031** renames existing camps to the
+  rule. Paramètres tab: Enregistrer right-aligned under the form; Archiver/Supprimer in a separate "Clôture du camp" box.
 

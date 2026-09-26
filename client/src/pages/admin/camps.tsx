@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { ChefsPicker } from '@/components/camp/chefs-picker'
 import { Link, Navigate } from 'react-router'
 import { useCamps, useCreateCamp, type CampListDto } from '@/services/camp-service'
+import { useSetting } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -26,14 +27,17 @@ export default function CampsAdminPage() {
   const create = useCreateCamp()
   const isCg = useIsCampCg() // creating a camp is Chef-de-Groupe-only (Commission BP members run existing camps)
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', scoutYear: '2026-2027', famillesCount: '' })
+  const [form, setForm] = useState({ theme: '', famillesCount: '' })
+  // The camp takes the current scout year and is named after its second year (2026-2027 → Camp BP 2027).
+  const scoutYear = useSetting('passage.scout_year').data?.value?.trim() ?? ''
+  const campName = scoutYear ? `Camp BP ${scoutYear.split('-').pop()?.trim()}` : ''
+  const yearTaken = !!scoutYear && !!camps?.some(c => c.scoutYear === scoutYear)
   const [chefs, setChefs] = useState<string[]>([]) // ACG(s) leading the camp (full rights on it)
 
   const submit = async () => {
-    if (!form.name.trim()) { toast.error('Le nom est requis.'); return }
     try {
-      await create.mutateAsync({ name: form.name, scoutYear: form.scoutYear, famillesCount: form.famillesCount ? Number(form.famillesCount) : null, chefMemberIds: chefs })
-      toast.success('Camp créé'); setOpen(false); setForm({ name: '', scoutYear: '2026-2027', famillesCount: '' }); setChefs([])
+      await create.mutateAsync({ theme: form.theme.trim() || null, famillesCount: form.famillesCount ? Number(form.famillesCount) : null, chefMemberIds: chefs })
+      toast.success('Camp créé'); setOpen(false); setForm({ theme: '', famillesCount: '' }); setChefs([])
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -64,9 +68,15 @@ export default function CampsAdminPage() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Nouveau camp</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Camp BP 2026" /></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1"><RequiredLabel required>Année scoute</RequiredLabel><Input value={form.scoutYear} onChange={e => setForm(f => ({ ...f, scoutYear: e.target.value }))} /></div>
+            {/* Name + year are automatic (current scout year) and can't be changed. */}
+            <div className="rounded-lg border bg-muted/40 px-3 py-2">
+              {scoutYear
+                ? <><p className="font-medium">{campName}</p><p className="text-xs text-muted-foreground">Année scoute {scoutYear} — nom et année sont fixés automatiquement.</p></>
+                : <p className="text-sm text-destructive">L'année scoute n'est pas définie (Paramètres → Passage).</p>}
+            </div>
+            {yearTaken && <p className="text-sm text-destructive">Il existe déjà un camp pour l'année {scoutYear}.</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1 sm:col-span-2"><RequiredLabel>Thème</RequiredLabel><Input value={form.theme} maxLength={200} onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} placeholder="Le thème du camp" /></div>
               <div className="space-y-1"><RequiredLabel>Nb familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: e.target.value }))} placeholder="défaut" /></div>
             </div>
             <div className="space-y-1">
@@ -77,7 +87,7 @@ export default function CampsAdminPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={submit} disabled={create.isPending}>Créer</Button>
+            <Button onClick={submit} disabled={create.isPending || !scoutYear || yearTaken}>Créer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -90,6 +100,7 @@ function CampCard({ camp }: { camp: CampListDto }) {
     <Link to={`/admin/camps/${camp.id}`} className={cn('flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/40', camp.isArchived && 'opacity-60')}>
       <div className="flex-1">
         <p className="font-medium">{camp.name} {camp.isArchived && <span className="text-xs text-muted-foreground">(archivé)</span>}</p>
+        {camp.theme && <p className="text-sm italic text-muted-foreground">« {camp.theme} »</p>}
         <p className="text-sm text-muted-foreground">{camp.scoutYear} · {camp.famillesCount} familles · <span className="font-medium">{STATUS_LABEL[camp.status] ?? camp.status}</span></p>
       </div>
       <div className="hidden text-right text-sm text-muted-foreground sm:block">

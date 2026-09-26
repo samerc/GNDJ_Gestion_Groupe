@@ -5,13 +5,14 @@ import { saveBlob } from '@/lib/download'
 // Camp BP resource: split the group into balanced "familles" (CU grades → CG drafts/assigns/scores).
 // Query keys: ['camps'], ['camp', id], ['camp-attendance'/'-grading'/'-familles'/'-games'/'-leader-candidates'/'-etapiste-candidates', ...].
 
+// name + scoutYear are automatic and fixed ("Camp BP 2027" for 2026-2027); theme is free text.
 export interface CampListDto {
-  id: string; name: string; scoutYear: string; famillesCount: number; status: string; isArchived: boolean
+  id: string; name: string; scoutYear: string; theme: string | null; famillesCount: number; status: string; isArchived: boolean
   participantCount: number; gradedCount: number; assignedCount: number
 }
 export interface BranchMultiplierDto { unitTypeId: string; unitTypeName: string; multiplier: number; defaultYears: number }
 export interface CampDto {
-  id: string; name: string; scoutYear: string; famillesCount: number; status: string; isArchived: boolean
+  id: string; name: string; scoutYear: string; theme: string | null; famillesCount: number; status: string; isArchived: boolean
   noteForceCoef: number; noteOffset: number; branchMultipliers: BranchMultiplierDto[]
   participantCount: number; gradedCount: number; assignedCount: number; familleCreatedCount: number
   myAccess: CampMyAccessDto
@@ -106,7 +107,7 @@ export function useSetCampCommissionAccess(campId: string) {
 export function useCreateCamp() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; scoutYear: string; famillesCount?: number | null; chefMemberIds?: string[] }) => apiClient.post<string>('/camps', data).then(r => r.data),
+    mutationFn: (data: { theme: string | null; famillesCount?: number | null; chefMemberIds?: string[] }) => apiClient.post<string>('/camps', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['camps'] }),
   })
 }
@@ -114,7 +115,7 @@ export function useCreateCamp() {
 export function useUpdateCamp(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; scoutYear: string; famillesCount: number; noteForceCoef: number; noteOffset: number }) =>
+    mutationFn: (data: { theme: string | null; famillesCount: number; noteForceCoef: number; noteOffset: number }) =>
       apiClient.put(`/camps/${id}`, { id, ...data }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp', id] }); qc.invalidateQueries({ queryKey: ['camps'] }) },
   })
