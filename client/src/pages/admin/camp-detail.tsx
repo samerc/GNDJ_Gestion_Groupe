@@ -30,6 +30,10 @@ import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { RichContent } from '@/components/public/rich-content'
+import { GameLocations } from '@/components/camp/my-games-list'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useSettingArray } from '@/services/settings-service'
+import { optionsWithCurrent } from '@/lib/options'
 import { Tip } from '@/components/ui/tooltip'
 import { CampCommissionTab } from '@/components/camp/camp-commission-tab'
 import { useIsCampCg } from '@/components/camp/use-is-camp-cg'
@@ -428,6 +432,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
                     </>}
               </div>
             </div>
+            <div className="mt-1"><GameLocations main={g.mainLocation} backup={g.backupLocation} /></div>
             {hasText(g.description)
               ? <RichContent html={g.description!} className="mt-2 text-sm" />
               : !readOnly && <button type="button" className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline" onClick={() => setEditingGame(g)}>+ Ajouter une description</button>}
@@ -454,10 +459,14 @@ function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampG
   const update = useUpdateGame(campId)
   const [name, setName] = useState(game.name)
   const [description, setDescription] = useState(game.description ?? '')
+  const [mainLocation, setMainLocation] = useState(game.mainLocation ?? '')
+  const [backupLocation, setBackupLocation] = useState(game.backupLocation ?? '')
+  // The places are managed in Paramètres → Camp BP (camp.game_locations); a value no longer in the list stays selectable.
+  const places = useSettingArray('camp.game_locations').map(v => ({ value: v, label: v }))
   const save = async () => {
     if (!name.trim()) { toast.error('Saisissez un nom pour le jeu.'); return }
     try {
-      await update.mutateAsync({ id: game.id, name: name.trim(), description: hasText(description) ? description : null })
+      await update.mutateAsync({ id: game.id, name: name.trim(), description: hasText(description) ? description : null, mainLocation: mainLocation || null, backupLocation: backupLocation || null })
       toast.success('Jeu enregistré'); onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -470,6 +479,13 @@ function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampG
             <RequiredLabel required>Nom</RequiredLabel>
             <Input value={name} onChange={e => setName(e.target.value)} />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <LocationSelect label="Lieu" value={mainLocation} onChange={setMainLocation} options={optionsWithCurrent(places, mainLocation)} />
+            <LocationSelect label="Lieu de repli (mauvais temps)" value={backupLocation} onChange={setBackupLocation} options={optionsWithCurrent(places, backupLocation)} />
+          </div>
+          {places.length === 0 && (
+            <p className="text-xs text-muted-foreground">Aucun lieu défini : ajoutez les lieux des jeux dans Paramètres → Camp BP.</p>
+          )}
           <div className="space-y-1">
             <p className="text-sm font-medium">Description</p>
             <RichTextEditor content={description} onChange={setDescription} placeholder="Déroulement, règles, matériel…" className="min-h-[220px]" />
@@ -481,6 +497,23 @@ function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampG
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// One location picker ("Aucun" = not set). Radix Select can't hold an empty value, hence the sentinel.
+const NO_PLACE = '__none__'
+function LocationSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium">{label}</p>
+      <Select value={value || NO_PLACE} onValueChange={v => onChange(v === NO_PLACE ? '' : v)}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_PLACE}>Aucun</SelectItem>
+          {options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 

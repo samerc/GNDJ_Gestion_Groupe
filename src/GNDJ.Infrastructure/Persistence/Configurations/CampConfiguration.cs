@@ -91,6 +91,8 @@ public class CampGameConfiguration : IEntityTypeConfiguration<CampGame>
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Name).HasMaxLength(150).IsRequired();
         builder.Property(e => e.Description).HasColumnType("text");
+        builder.Property(e => e.MainLocation).HasMaxLength(150);
+        builder.Property(e => e.BackupLocation).HasMaxLength(150);
 
         builder.HasMany(e => e.Etapistes).WithOne(x => x.CampGame).HasForeignKey(x => x.CampGameId).OnDelete(DeleteBehavior.Cascade);
     }

@@ -84,6 +84,11 @@ public class CampGame : BaseEntity
     public Guid CampId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    // Where the game is played: the main place, and a backup place for bad weather. Picked from the
+    // camp.game_locations setting (the same places every year); stored as text so renaming a place later
+    // doesn't break old games.
+    public string? MainLocation { get; set; }
+    public string? BackupLocation { get; set; }
 
     public Camp Camp { get; set; } = null!;
     public ICollection<CampGameEtapiste> Etapistes { get; set; } = [];

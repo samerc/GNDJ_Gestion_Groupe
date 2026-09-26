@@ -12,7 +12,7 @@ namespace GNDJ.Application.Camps;
 // Camp BP — games stage: define the camp's jeux and assign each one its set of étapistes (the leaders
 // who run/score it). Phase 2 (actually scoring the games) is not built yet.
 
-public record CampGameDto(Guid Id, string Name, string? Description, IReadOnlyList<EtapisteDto> Etapistes);
+public record CampGameDto(Guid Id, string Name, string? Description, string? MainLocation, string? BackupLocation, IReadOnlyList<EtapisteDto> Etapistes);
 public record EtapisteDto(Guid MemberId, string FirstName, string LastName, string? UnitName);
 // IsAine = an older youth (routier / caravelle / JEM, not maîtrise) — only offered when the setting
 // camp.etapistes_aines is on, and shown apart in the picker.
@@ -28,7 +28,7 @@ public class GetCampGamesQueryHandler(IApplicationDbContext context, ICurrentUse
         if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, false, ct) is { } denied) return Result<IReadOnlyList<CampGameDto>>.Failure(denied);
         var games = await context.CampGames.Where(g => g.CampId == request.CampId && !g.IsDeleted)
             .OrderBy(g => g.Name)
-            .Select(g => new CampGameDto(g.Id, g.Name, g.Description,
+            .Select(g => new CampGameDto(g.Id, g.Name, g.Description, g.MainLocation, g.BackupLocation,
                 g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
                     e.MemberId, e.Member.FirstName, e.Member.LastName,
                     e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList()))
@@ -37,7 +37,7 @@ public class GetCampGamesQueryHandler(IApplicationDbContext context, ICurrentUse
     }
 }
 
-public record CreateCampGameCommand(Guid CampId, string Name, string? Description) : IRequest<Result<Guid>>;
+public record CreateCampGameCommand(Guid CampId, string Name, string? Description, string? MainLocation = null, string? BackupLocation = null) : IRequest<Result<Guid>>;
 public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCommand>
 {
     public CreateCampGameCommandValidator()
@@ -45,22 +45,32 @@ public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCo
         RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
         // Rich text (TipTap HTML) — sanitized with DOMPurify when displayed, so no NoHtml here (like the CMS bodies).
         RuleFor(x => x.Description).MaximumLength(50000);
+        RuleFor(x => x.MainLocation).MaximumLength(150).NoHtml();
+        RuleFor(x => x.BackupLocation).MaximumLength(150).NoHtml();
     }
 }
 public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<CreateCampGameCommand, Result<Guid>>
 {
+    // Blank → null; otherwise trimmed.
+    internal static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
     public async ValueTask<Result<Guid>> Handle(CreateCampGameCommand request, CancellationToken ct)
     {
         if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<Guid>.Failure(denied);
         if (string.IsNullOrWhiteSpace(request.Name)) return Result<Guid>.Failure("Le nom du jeu est requis.");
-        var g = new CampGame { CampId = request.CampId, Name = request.Name.Trim(), Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim() };
+        var g = new CampGame
+        {
+            CampId = request.CampId, Name = request.Name.Trim(),
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+            MainLocation = Clean(request.MainLocation), BackupLocation = Clean(request.BackupLocation),
+        };
         context.CampGames.Add(g);
         await context.SaveChangesAsync(ct);
         return Result<Guid>.Success(g.Id);
     }
 }
 
-public record UpdateCampGameCommand(Guid Id, string Name, string? Description) : IRequest<Result<bool>>;
+public record UpdateCampGameCommand(Guid Id, string Name, string? Description, string? MainLocation = null, string? BackupLocation = null) : IRequest<Result<bool>>;
 public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCommand>
 {
     public UpdateCampGameCommandValidator()
@@ -68,6 +78,8 @@ public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCo
         RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
         // Rich text (TipTap HTML) — sanitized with DOMPurify when displayed, so no NoHtml here (like the CMS bodies).
         RuleFor(x => x.Description).MaximumLength(50000);
+        RuleFor(x => x.MainLocation).MaximumLength(150).NoHtml();
+        RuleFor(x => x.BackupLocation).MaximumLength(150).NoHtml();
     }
 }
 public class UpdateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateCampGameCommand, Result<bool>>
@@ -80,6 +92,8 @@ public class UpdateCampGameCommandHandler(IApplicationDbContext context, ICurren
         if (string.IsNullOrWhiteSpace(request.Name)) return Result<bool>.Failure("Le nom du jeu est requis.");
         g.Name = request.Name.Trim();
         g.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        g.MainLocation = CreateCampGameCommandHandler.Clean(request.MainLocation);
+        g.BackupLocation = CreateCampGameCommandHandler.Clean(request.BackupLocation);
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }
@@ -176,7 +190,7 @@ static class EtapisteCandidates
 // ─── Étapistes: their own games (read the description to explain the game at the camp) ───
 // The étapistes (heads of a game) may not be on the commission, so they can't open the Jeux tab: this lists the
 // games of live camps where the caller is an étapiste, with the description and the other étapistes.
-public record MyCampGameDto(Guid Id, Guid CampId, string CampName, string Name, string? Description, IReadOnlyList<EtapisteDto> Etapistes);
+public record MyCampGameDto(Guid Id, Guid CampId, string CampName, string Name, string? Description, string? MainLocation, string? BackupLocation, IReadOnlyList<EtapisteDto> Etapistes);
 public record GetMyCampGamesQuery : IRequest<Result<IReadOnlyList<MyCampGameDto>>>;
 public class GetMyCampGamesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetMyCampGamesQuery, Result<IReadOnlyList<MyCampGameDto>>>
 {
@@ -186,7 +200,7 @@ public class GetMyCampGamesQueryHandler(IApplicationDbContext context, ICurrentU
         var games = await context.CampGames
             .Where(g => !g.IsDeleted && !g.Camp.IsDeleted && !g.Camp.IsArchived && g.Etapistes.Any(e => e.MemberId == me && !e.IsDeleted))
             .OrderBy(g => g.Camp.Name).ThenBy(g => g.Name)
-            .Select(g => new MyCampGameDto(g.Id, g.CampId, g.Camp.Name, g.Name, g.Description,
+            .Select(g => new MyCampGameDto(g.Id, g.CampId, g.Camp.Name, g.Name, g.Description, g.MainLocation, g.BackupLocation,
                 g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
                     e.MemberId, e.Member.FirstName, e.Member.LastName,
                     e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList()))
@@ -207,7 +221,7 @@ public class GetCampGamePdfQueryHandler(IApplicationDbContext context, ICurrentU
         var g = await context.CampGames.Where(x => x.Id == request.GameId && !x.IsDeleted && !x.Camp.IsDeleted)
             .Select(x => new
             {
-                x.CampId, CampName = x.Camp.Name, x.Name, x.Description,
+                x.CampId, CampName = x.Camp.Name, x.Name, x.Description, x.MainLocation, x.BackupLocation,
                 Etapistes = x.Etapistes.Where(e => !e.IsDeleted).Select(e => new { e.MemberId, e.Member.FirstName, e.Member.LastName }).ToList(),
             })
             .FirstOrDefaultAsync(ct);
@@ -221,7 +235,9 @@ public class GetCampGamePdfQueryHandler(IApplicationDbContext context, ICurrentU
         var etapistes = g.Etapistes.Count == 0 ? "—"
             : string.Join(", ", g.Etapistes.OrderBy(e => e.LastName).Select(e => $"{e.FirstName} {e.LastName}"));
         var html = $"<h1>{Enc(g.Name)}</h1><p><strong>Camp :</strong> {Enc(g.CampName)}</p>"
-                 + $"<p><strong>Étapistes :</strong> {Enc(etapistes)}</p><hr>"
+                 + $"<p><strong>Étapistes :</strong> {Enc(etapistes)}</p>"
+                 + $"<p><strong>Lieu :</strong> {Enc(g.MainLocation ?? "—")}</p>"
+                 + $"<p><strong>Lieu de repli (mauvais temps) :</strong> {Enc(g.BackupLocation ?? "—")}</p><hr>"
                  + (string.IsNullOrWhiteSpace(g.Description) ? "<p><em>Pas encore de description.</em></p>" : g.Description);
         var pdf = renderer.Render(html, new Dictionary<string, string?>());
         var safe = string.Concat(g.Name.Where(c => !System.IO.Path.GetInvalidFileNameChars().Contains(c))).Trim();

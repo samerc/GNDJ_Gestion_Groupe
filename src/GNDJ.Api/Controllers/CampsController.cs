@@ -183,13 +183,13 @@ public class CampsController : BaseApiController
     /// <summary>Creates a game for the camp. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPost("{id:guid}/games")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> CreateGame(Guid id, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new CreateCampGameCommand(id, body.Name, body.Description)));
-    public record CreateGameBody(string Name, string? Description);
+    public async Task<IActionResult> CreateGame(Guid id, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new CreateCampGameCommand(id, body.Name, body.Description, body.MainLocation, body.BackupLocation)));
+    public record CreateGameBody(string Name, string? Description, string? MainLocation = null, string? BackupLocation = null);
 
     /// <summary>Updates a game's name and description. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPut("games/{gameId:guid}")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> UpdateGame(Guid gameId, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new UpdateCampGameCommand(gameId, body.Name, body.Description)));
+    public async Task<IActionResult> UpdateGame(Guid gameId, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new UpdateCampGameCommand(gameId, body.Name, body.Description, body.MainLocation, body.BackupLocation)));
 
     /// <summary>Deletes a game. Rights checked per area in the handler (CampAccess).</summary>
     [HttpDelete("games/{gameId:guid}")]

@@ -35,7 +35,8 @@ export interface CampFamilleDto {
 }
 export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
-export interface CampGameDto { id: string; name: string; description: string | null; etapistes: EtapisteDto[] }
+// mainLocation / backupLocation (bad weather) are picked from the camp.game_locations setting.
+export interface CampGameDto { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
 // isAine = routier / caravelle / JEM (offered only when the camp.etapistes_aines setting is on); branch = their branch name.
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null; isAine: boolean; branch: string | null }
 
@@ -179,7 +180,7 @@ export function useCreateGame(campId: string) {
 // PUT /camps/games/{gameId} → rename a game / edit its description (rich-text HTML); invalidates ['camp-games', campId].
 export function useUpdateGame(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: ({ id, name, description }: { id: string; name: string; description: string | null }) => apiClient.put(`/camps/games/${id}`, { name, description }), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
 // DELETE /camps/games/{gameId} → delete a game; invalidates ['camp-games', campId].
 export function useDeleteGame(campId: string) {
@@ -202,7 +203,7 @@ async function downloadPdf(url: string, filename: string) {
   saveBlob(r.data, filename, 'application/pdf')
 }
 // ── Étapistes: my games ──
-export interface MyCampGameDto { id: string; campId: string; campName: string; name: string; description: string | null; etapistes: EtapisteDto[] }
+export interface MyCampGameDto { id: string; campId: string; campName: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
 // GET /camps/my-games → games of live camps where I am an étapiste (any signed-in member).
 export const useMyCampGames = () =>
   useQuery({ queryKey: ['camp-my-games'], queryFn: () => apiClient.get<MyCampGameDto[]>('/camps/my-games').then(r => r.data) })

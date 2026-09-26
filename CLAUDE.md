@@ -6142,4 +6142,11 @@ Every member got their access in 2026, and new chefs are existing members, so th
   any signed-in member, own games only) with the formatted description + the other étapistes. **Fiche PDF** per game
   (`GetCampGamePdfQuery`, `GET /camps/games/{id}/pdf`, reuses `IDocumentTemplateRenderer`): allowed for the game's
   étapistes or anyone with Jeux view; also a printer button on each game in the Jeux tab.
+- **Game locations:** `CampGame.MainLocation` + `BackupLocation` (bad weather), migration `AddCampGameLocations`,
+  picked in the game editor from the setting **`camp.game_locations`** (json_array, category camp = CG-editable,
+  auto-seeded `[]`); stored as text (a renamed place stays on old games). Shown on the game card, "Mon jeu", PDF.
+- **Where étapistes read their game:** shared `components/camp/my-games-list.tsx` (`MyGamesList`, `GameLocations`) —
+  at the top of the unit Camp BP page (`/camp`, hidden when the member runs no game) and on `/mes-jeux`. The
+  "Mes jeux" menu link now shows only to étapistes WITHOUT camp.grade (routiers/caravelles/JEM); leaders see it on
+  /camp. Each member sees only their own game(s) + that game's other étapistes.
 

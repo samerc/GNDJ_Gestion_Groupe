@@ -262,7 +262,8 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some(u => u.isGroupLevel)
   // Personal links first (Ma fiche / Mes documents / Trombinoscope) for EVERYONE, then the role-specific nav.
   // Étapistes of a live Camp BP get "Mes jeux" (their games + descriptions) with the personal links.
-  const etapisteNav = user?.isCampEtapiste ? [{ path: '/mes-jeux', label: 'Mes jeux', icon: Tent, permission: null }] : []
+  // Leaders with the unit Camp BP page (camp.grade) see their game at the top of that page instead.
+  const etapisteNav = user?.isCampEtapiste && !hasPermission(PERMISSIONS.CAMP_GRADE) ? [{ path: '/mes-jeux', label: 'Mes jeux', icon: Tent, permission: null }] : []
   const navItems = [...personalNavItems, ...etapisteNav, ...(isManager ? adminNavItems : leaderNavItems)]
 
   // Camp BP placement is DYNAMIC (see below): fetched for anyone who can reach a camp (grade = CU viewer,

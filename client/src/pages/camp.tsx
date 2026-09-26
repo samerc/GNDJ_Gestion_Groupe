@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
+import { MyGamesList } from '@/components/camp/my-games-list'
 import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
 import { Tent, Save, ArrowUp, ArrowDown, Users } from 'lucide-react'
@@ -130,6 +131,9 @@ export default function CampPage() {
         description="Notez vos membres pour le camp — cochez « Ne vient pas » pour les absents, puis renseignez force, année et candidats Père/Mère."
         actions={<Button onClick={save} disabled={!dirty || saveGrades.isPending}><Save className="mr-1.5 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>}
       />
+
+      {/* The member's own game(s) as étapiste — description, other étapistes, locations. Hidden when none. */}
+      <MyGamesList hideWhenEmpty />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="max-w-xs flex-1" />
