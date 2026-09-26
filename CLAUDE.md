@@ -6158,4 +6158,6 @@ Every member got their access in 2026, and new chefs are existing members, so th
   Create/UpdateCampCommand). One camp per scout year (create refused otherwise). New `Camp.Theme` (≤200, NoHtml,
   migration `AddCampTheme`) edited in Paramètres (Parametres edit rights). Patch **031** renames existing camps to the
   rule. Paramètres tab: Enregistrer right-aligned under the form; Archiver/Supprimer in a separate "Clôture du camp" box.
+- "Nouveau camp" is shown ONLY when creation is possible (CG, list loaded, no active camp, no camp yet for the current
+  scout year — an archived one counts); otherwise a note says this year's camp is closed.
 

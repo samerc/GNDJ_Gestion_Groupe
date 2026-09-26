@@ -43,6 +43,9 @@ export default function CampsAdminPage() {
 
   // A camp is active → go straight to it (replace, so "back" doesn't bounce here again).
   const active = camps?.find(c => !c.isArchived)
+  // "Nouveau camp" only when it's actually possible: CG, list loaded (no flash), no active camp (redirected below)
+  // and no camp yet for the current scout year — a closed (archived) camp still counts: one camp per scout year.
+  const canCreate = isCg && !isLoading && !active && !yearTaken
   if (active) return <Navigate to={`/admin/camps/${active.id}`} replace />
 
   return (
@@ -51,15 +54,20 @@ export default function CampsAdminPage() {
         title="Camp BP"
         icon={Tent}
         description="Diviser le groupe en familles équilibrées."
-        actions={isCg ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined}
+        actions={canCreate ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined}
       />
 
       {isLoading ? <LoadingSpinner variant="table" /> :
        (camps ?? []).length === 0 ? (
          <EmptyState icon={Tent} title="Aucun camp" description="Créez-en un pour commencer."
-           action={isCg ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined} />
+           action={canCreate ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined} />
        ) :
        <div className="space-y-2">
+         {isCg && yearTaken && (
+           <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+             Le camp de l'année {scoutYear} est clôturé. Le prochain camp pourra être créé lors de la prochaine année scoute.
+           </p>
+         )}
          <p className="text-sm text-muted-foreground">Aucun camp n'est en cours. Camps précédents :</p>
          {camps!.map(c => <CampCard key={c.id} camp={c} />)}
        </div>}
