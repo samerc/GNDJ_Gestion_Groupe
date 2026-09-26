@@ -207,7 +207,10 @@ public class SetCampCommissionCommandHandler(IApplicationDbContext context, ICur
         var existing = await context.CampCommissionMembers.Where(c => c.CampId == camp.Id).ToListAsync(ct);
         // The responsables can't be removed here (only the CG changes them) → always kept.
         var wanted = request.MemberIds.Union(existing.Where(e => e.IsResponsable).Select(e => e.MemberId)).Distinct().ToList();
-        if (await CampCommissionRules.CheckMaitriseAsync(context, wanted, ct) is { } error) return Result<bool>.Failure(error);
+        // Maîtrise is checked only for members being ADDED: someone already on it (e.g. added before the rule, or who
+        // since lost their leadership role) must always be removable.
+        var added = wanted.Where(id => existing.All(e => e.MemberId != id)).ToList();
+        if (await CampCommissionRules.CheckMaitriseAsync(context, added, ct) is { } error) return Result<bool>.Failure(error);
 
         context.CampCommissionMembers.RemoveRange(existing.Where(e => !wanted.Contains(e.MemberId)));
         foreach (var id in wanted.Where(id => existing.All(e => e.MemberId != id)))
