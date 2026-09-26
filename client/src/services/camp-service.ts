@@ -14,6 +14,7 @@ export interface CampDto {
   id: string; name: string; scoutYear: string; famillesCount: number; status: string; isArchived: boolean
   noteForceCoef: number; noteOffset: number; branchMultipliers: BranchMultiplierDto[]
   participantCount: number; gradedCount: number; assignedCount: number; familleCreatedCount: number
+  myAccess: CampMyAccessDto
 }
 export interface CampAttendeeDto {
   memberId: string; firstName: string; lastName: string; gender: string | null; unitName: string | null
@@ -47,18 +48,54 @@ export const useCamps = (enabled = true) => useQuery({ queryKey: ['camps'], quer
 export const useCamp = (id?: string) => useQuery({ queryKey: ['camp', id], queryFn: () => apiClient.get<CampDto>(`/camps/${id}`).then(r => r.data), enabled: !!id })
 
 // ── Commission BP ──
-export interface CampCommissionMemberDto { memberId: string; firstName: string; lastName: string; roles: string | null }
-// GET /camps/{id}/commission → the members named to run this camp.
+// Access level of a commission member for one area of the camp.
+export type CampAccessLevel = 'none' | 'view' | 'edit'
+// What the CURRENT user may do in this camp (server-computed: CG/ACG = admin, chef de commission, member levels).
+export interface CampMyAccessDto {
+  isAdmin: boolean; isCommissionMember: boolean; isResponsable: boolean; isChef: boolean
+  familles: CampAccessLevel; jeux: CampAccessLevel; parametres: CampAccessLevel
+  canManageCommission: boolean; canSetRights: boolean
+}
+export interface CampCommissionMemberDto {
+  memberId: string; firstName: string; lastName: string; roles: string | null
+  isResponsable: boolean; isChef: boolean; famillesAccess: CampAccessLevel; jeuxAccess: CampAccessLevel; parametresAccess: CampAccessLevel
+}
+export interface CampCommissionCandidateDto { memberId: string; firstName: string; lastName: string; roles: string | null }
+// GET /camps/{id}/commission → the members named to run this camp, with their rights.
 export const useCampCommission = (campId: string) => useQuery({
   queryKey: ['camp', campId, 'commission'],
   queryFn: () => apiClient.get<CampCommissionMemberDto[]>(`/camps/${campId}/commission`).then(r => r.data),
   enabled: !!campId,
 })
-// PUT /camps/{id}/commission → replace the commission (Chef de Groupe only).
+// GET /camps/commission-candidates → maîtrise members who can join a commission; groupLevelOnly = the
+// assistants chef de groupe who can be named "Responsable du camp".
+export const useCampCommissionCandidates = (enabled: boolean, groupLevelOnly = false) => useQuery({
+  queryKey: ['camp', 'commission-candidates', groupLevelOnly],
+  queryFn: () => apiClient.get<CampCommissionCandidateDto[]>('/camps/commission-candidates', { params: { groupLevelOnly } }).then(r => r.data),
+  enabled,
+})
+// PUT /camps/{id}/responsables → the ACGs leading this camp (CG only).
+export function useSetCampResponsables(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (memberIds: string[]) => apiClient.put(`/camps/${campId}/responsables`, { memberIds }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['camp', campId, 'commission'] }),
+  })
+}
+// PUT /camps/{id}/commission → replace the commission + name its chef (CG / ACG only).
 export function useSetCampCommission(campId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (memberIds: string[]) => apiClient.put(`/camps/${campId}/commission`, { memberIds }),
+    mutationFn: (body: { memberIds: string[]; chefMemberId: string | null }) => apiClient.put(`/camps/${campId}/commission`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['camp', campId, 'commission'] }),
+  })
+}
+// PUT /camps/{id}/commission/{memberId}/access → one member's rights per area (chef de commission or CG / ACG).
+export function useSetCampCommissionAccess(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: { memberId: string; famillesAccess: CampAccessLevel; jeuxAccess: CampAccessLevel; parametresAccess: CampAccessLevel }) =>
+      apiClient.put(`/camps/${campId}/commission/${b.memberId}/access`, b),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['camp', campId, 'commission'] }),
   })
 }
@@ -67,7 +104,7 @@ export function useSetCampCommission(campId: string) {
 export function useCreateCamp() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; scoutYear: string; famillesCount?: number | null }) => apiClient.post<string>('/camps', data).then(r => r.data),
+    mutationFn: (data: { name: string; scoutYear: string; famillesCount?: number | null; responsableMemberIds?: string[] }) => apiClient.post<string>('/camps', data).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['camps'] }),
   })
 }

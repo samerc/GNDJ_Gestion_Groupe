@@ -11,11 +11,13 @@ namespace GNDJ.Application.Camps;
 // Kind: "famille" (one), "all" (all familles one per page), "units" (unit list with famille numbers).
 public record GenerateCampReportQuery(Guid CampId, string Kind, int? FamilleNumber) : IRequest<Result<byte[]>>;
 
-public class GenerateCampReportQueryHandler(IApplicationDbContext context, ICampReportService reports)
+public class GenerateCampReportQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser, ICampReportService reports)
     : IRequestHandler<GenerateCampReportQuery, Result<byte[]>>
 {
     public async ValueTask<Result<byte[]>> Handle(GenerateCampReportQuery request, CancellationToken ct)
     {
+        // The printouts show the familles → same right as the Familles tab (view).
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Familles, false, ct) is { } denied) return Result<byte[]>.Failure(denied);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.CampId, ct);
         if (camp is null) return Result<byte[]>.Failure("Camp introuvable.");
 

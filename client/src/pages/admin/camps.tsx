@@ -2,6 +2,7 @@
 // whole group into balanced "familles") with status (Setup→Assigned→Closed) and progress counts; "Nouveau camp"
 // creates one (famillesCount optional → backend default). Each card links to camp-detail for the familles board.
 import { useState } from 'react'
+import { ResponsablesPicker } from '@/components/camp/responsables-picker'
 import { Link } from 'react-router'
 import { useCamps, useCreateCamp, type CampListDto } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
@@ -26,12 +27,13 @@ export default function CampsAdminPage() {
   const isCg = useIsCampCg() // creating a camp is Chef-de-Groupe-only (Commission BP members run existing camps)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ name: '', scoutYear: '2026-2027', famillesCount: '' })
+  const [responsables, setResponsables] = useState<string[]>([]) // ACG(s) leading the camp (full rights on it)
 
   const submit = async () => {
     if (!form.name.trim()) { toast.error('Le nom est requis.'); return }
     try {
-      await create.mutateAsync({ name: form.name, scoutYear: form.scoutYear, famillesCount: form.famillesCount ? Number(form.famillesCount) : null })
-      toast.success('Camp créé'); setOpen(false); setForm({ name: '', scoutYear: '2026-2027', famillesCount: '' })
+      await create.mutateAsync({ name: form.name, scoutYear: form.scoutYear, famillesCount: form.famillesCount ? Number(form.famillesCount) : null, responsableMemberIds: responsables })
+      toast.success('Camp créé'); setOpen(false); setForm({ name: '', scoutYear: '2026-2027', famillesCount: '' }); setResponsables([])
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -52,13 +54,18 @@ export default function CampsAdminPage() {
        <div className="space-y-2">{camps!.map(c => <CampCard key={c.id} camp={c} />)}</div>}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Nouveau camp</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Camp BP 2026" /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><RequiredLabel required>Année scoute</RequiredLabel><Input value={form.scoutYear} onChange={e => setForm(f => ({ ...f, scoutYear: e.target.value }))} /></div>
               <div className="space-y-1"><RequiredLabel>Nb familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: e.target.value }))} placeholder="défaut" /></div>
+            </div>
+            <div className="space-y-1">
+              <RequiredLabel>Responsables du camp</RequiredLabel>
+              <p className="text-xs text-muted-foreground">Les assistants chef de groupe qui dirigent ce camp : ils ont tous les droits sur ce camp (commission, familles, jeux, paramètres).</p>
+              <ResponsablesPicker value={responsables} onChange={setResponsables} />
             </div>
           </div>
           <DialogFooter>

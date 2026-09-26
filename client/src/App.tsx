@@ -242,7 +242,8 @@ export default function App() {
             <Route element={<PermissionRoute permission={PERMISSIONS.CAMP_GRADE} />}>
               <Route path="/camp" element={<CampPage />} />
             </Route>
-            <Route element={<PermissionRoute permission={PERMISSIONS.CAMP_MANAGE} />}>
+            {/* Camp BP screens: CG / ACG (camp.manage) or a Commission BP member (camp.commission); what each sees inside is per camp. */}
+            <Route element={<PermissionRoute permission={[PERMISSIONS.CAMP_MANAGE, PERMISSIONS.CAMP_COMMISSION]} />}>
               <Route path="/admin/camps" element={<CampsAdminPage />} />
               <Route path="/admin/camps/:id" element={<CampDetailPage />} />
             </Route>

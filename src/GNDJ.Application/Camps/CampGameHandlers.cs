@@ -18,10 +18,11 @@ public record EtapisteCandidateDto(Guid MemberId, string FirstName, string LastN
 
 // ─── Games ───────────────────────────────────────────────────────────────────
 public record GetCampGamesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampGameDto>>>;
-public class GetCampGamesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetCampGamesQuery, Result<IReadOnlyList<CampGameDto>>>
+public class GetCampGamesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetCampGamesQuery, Result<IReadOnlyList<CampGameDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<CampGameDto>>> Handle(GetCampGamesQuery request, CancellationToken ct)
     {
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, false, ct) is { } denied) return Result<IReadOnlyList<CampGameDto>>.Failure(denied);
         var games = await context.CampGames.Where(g => g.CampId == request.CampId && !g.IsDeleted)
             .OrderBy(g => g.Name)
             .Select(g => new CampGameDto(g.Id, g.Name, g.Description,
@@ -42,10 +43,11 @@ public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCo
         RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
     }
 }
-public class CreateCampGameCommandHandler(IApplicationDbContext context) : IRequestHandler<CreateCampGameCommand, Result<Guid>>
+public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<CreateCampGameCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateCampGameCommand request, CancellationToken ct)
     {
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<Guid>.Failure(denied);
         if (string.IsNullOrWhiteSpace(request.Name)) return Result<Guid>.Failure("Le nom du jeu est requis.");
         var g = new CampGame { CampId = request.CampId, Name = request.Name.Trim(), Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim() };
         context.CampGames.Add(g);
@@ -63,12 +65,13 @@ public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCo
         RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
     }
 }
-public class UpdateCampGameCommandHandler(IApplicationDbContext context) : IRequestHandler<UpdateCampGameCommand, Result<bool>>
+public class UpdateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateCampGameCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateCampGameCommand request, CancellationToken ct)
     {
         var g = await context.CampGames.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
         if (g is null) return Result<bool>.Failure("Jeu introuvable.");
+        if (await CampAccess.DenyAsync(context, currentUser, g.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<bool>.Failure(denied);
         if (string.IsNullOrWhiteSpace(request.Name)) return Result<bool>.Failure("Le nom du jeu est requis.");
         g.Name = request.Name.Trim();
         g.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
@@ -78,12 +81,13 @@ public class UpdateCampGameCommandHandler(IApplicationDbContext context) : IRequ
 }
 
 public record DeleteCampGameCommand(Guid Id) : IRequest<Result<bool>>;
-public class DeleteCampGameCommandHandler(IApplicationDbContext context) : IRequestHandler<DeleteCampGameCommand, Result<bool>>
+public class DeleteCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<DeleteCampGameCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteCampGameCommand request, CancellationToken ct)
     {
         var g = await context.CampGames.FirstOrDefaultAsync(x => x.Id == request.Id && !x.IsDeleted, ct);
         if (g is null) return Result<bool>.Failure("Jeu introuvable.");
+        if (await CampAccess.DenyAsync(context, currentUser, g.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<bool>.Failure(denied);
         context.CampGames.Remove(g);
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
@@ -92,12 +96,13 @@ public class DeleteCampGameCommandHandler(IApplicationDbContext context) : IRequ
 
 // Set the étapiste set for a game (replace).
 public record SetGameEtapistesCommand(Guid GameId, IReadOnlyList<Guid> MemberIds) : IRequest<Result<bool>>;
-public class SetGameEtapistesCommandHandler(IApplicationDbContext context) : IRequestHandler<SetGameEtapistesCommand, Result<bool>>
+public class SetGameEtapistesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<SetGameEtapistesCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SetGameEtapistesCommand request, CancellationToken ct)
     {
         var game = await context.CampGames.FirstOrDefaultAsync(g => g.Id == request.GameId && !g.IsDeleted, ct);
         if (game is null) return Result<bool>.Failure("Jeu introuvable.");
+        if (await CampAccess.DenyAsync(context, currentUser, game.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<bool>.Failure(denied);
 
         var existing = await context.CampGameEtapistes.Where(e => e.CampGameId == request.GameId && !e.IsDeleted).ToListAsync(ct);
         context.CampGameEtapistes.RemoveRange(existing);
@@ -111,10 +116,11 @@ public class SetGameEtapistesCommandHandler(IApplicationDbContext context) : IRe
 // Candidate étapistes = maîtrise (any branch) + older non-camper youth (routiers/Noyau/JEM/Feu — the
 // branches not in the graded pool). Troupe/Compagnie campers cannot be étapistes.
 public record GetEtapisteCandidatesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<EtapisteCandidateDto>>>;
-public class GetEtapisteCandidatesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetEtapisteCandidatesQuery, Result<IReadOnlyList<EtapisteCandidateDto>>>
+public class GetEtapisteCandidatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetEtapisteCandidatesQuery, Result<IReadOnlyList<EtapisteCandidateDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<EtapisteCandidateDto>>> Handle(GetEtapisteCandidatesQuery request, CancellationToken ct)
     {
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, false, ct) is { } denied) return Result<IReadOnlyList<EtapisteCandidateDto>>.Failure(denied);
         var poolBranches = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.UnitTypeId != null)
             .Select(p => p.UnitTypeId!.Value).Distinct().ToListAsync(ct);

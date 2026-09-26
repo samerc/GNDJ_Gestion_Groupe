@@ -1,4 +1,6 @@
-// Camp BP detail / management page ("/admin/camps/:id", perm camp.manage — CG/super-admin). Three tabs:
+// Camp BP detail / management page ("/admin/camps/:id" — CG / ACG, or a Commission BP member). The tabs shown
+// come from camp.myAccess (server-computed): an area at "view" is read-only, at "none" it is hidden; the
+// Commission tab shows to everyone on the commission. Tabs:
 //  - FamillesTab: the familles board. CG runs the balanced randomized draft (useRunDraft), then fine-tunes by
 //    picking two familles (slots A/B) and drag-dropping members between the two columns (onto a column = move,
 //    onto a member = swap); assigns Père/Mère per famille (gender-restricted).
@@ -38,6 +40,15 @@ export default function CampDetailPage() {
   if (isLoading) return <LoadingSpinner variant="detail" />
   if (!camp) return <p className="p-8 text-center text-sm text-muted-foreground">Camp introuvable.</p>
 
+  // Tabs this user may open (areas at "view" or "edit"; Commission for admins + commission members).
+  const access = camp.myAccess
+  const tabs = [
+    access.familles !== 'none' && 'familles',
+    access.jeux !== 'none' && 'jeux',
+    access.parametres !== 'none' && 'parametres',
+    (access.isAdmin || access.isCommissionMember) && 'commission',
+  ].filter(Boolean) as string[]
+
   return (
     <Page>
       <div className="border-b border-border/60 pb-4">
@@ -46,24 +57,30 @@ export default function CampDetailPage() {
         <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
       </div>
 
-      <Tabs defaultValue="familles">
-        <TabsList>
-          <TabsTrigger value="familles">Familles</TabsTrigger>
-          <TabsTrigger value="jeux">Jeux</TabsTrigger>
-          <TabsTrigger value="parametres">Paramètres</TabsTrigger>
-          <TabsTrigger value="commission">Commission</TabsTrigger>
-        </TabsList>
-        <TabsContent value="familles" className="mt-4"><FamillesTab campId={id} /></TabsContent>
-        <TabsContent value="jeux" className="mt-4"><GamesTab campId={id} /></TabsContent>
-        <TabsContent value="parametres" className="mt-4"><SettingsTab campId={id} /></TabsContent>
-        <TabsContent value="commission" className="mt-4"><CampCommissionTab campId={id} /></TabsContent>
-      </Tabs>
+      {tabs.length === 0 ? (
+        <p className="mt-6 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          Vous n'avez accès à aucune partie de ce camp. Le chef de commission choisit ce que chaque membre peut voir.
+        </p>
+      ) : (
+        <Tabs defaultValue={tabs[0]}>
+          <TabsList>
+            {tabs.includes('familles') && <TabsTrigger value="familles">Familles</TabsTrigger>}
+            {tabs.includes('jeux') && <TabsTrigger value="jeux">Jeux</TabsTrigger>}
+            {tabs.includes('parametres') && <TabsTrigger value="parametres">Paramètres</TabsTrigger>}
+            {tabs.includes('commission') && <TabsTrigger value="commission">Commission</TabsTrigger>}
+          </TabsList>
+          {tabs.includes('familles') && <TabsContent value="familles" className="mt-4"><FamillesTab campId={id} readOnly={access.familles !== 'edit'} /></TabsContent>}
+          {tabs.includes('jeux') && <TabsContent value="jeux" className="mt-4"><GamesTab campId={id} readOnly={access.jeux !== 'edit'} /></TabsContent>}
+          {tabs.includes('parametres') && <TabsContent value="parametres" className="mt-4"><SettingsTab campId={id} readOnly={access.parametres !== 'edit'} /></TabsContent>}
+          {tabs.includes('commission') && <TabsContent value="commission" className="mt-4"><CampCommissionTab campId={id} access={access} /></TabsContent>}
+        </Tabs>
+      )}
     </Page>
   )
 }
 
 // ─── Paramètres (formula) ────────────────────────────────────────────────────
-function SettingsTab({ campId }: { campId: string }) {
+function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const { data: camp } = useCamp(campId)
   const update = useUpdateCamp(campId)
   const archive = useArchiveCamp()
@@ -89,6 +106,8 @@ function SettingsTab({ campId }: { campId: string }) {
 
   return (
     <div className="max-w-2xl space-y-5">
+      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : le chef de commission ne vous a pas donné le droit de modifier les paramètres.</p>}
+      <fieldset disabled={readOnly} className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1 sm:col-span-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
         <div className="space-y-1"><RequiredLabel required>Année scoute</RequiredLabel><Input value={form.scoutYear} onChange={e => setForm(f => ({ ...f, scoutYear: e.target.value }))} /></div>
@@ -114,8 +133,10 @@ function SettingsTab({ campId }: { campId: string }) {
         )}
       </div>
 
+      </fieldset>
+
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={save} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>
+        {!readOnly && <Button onClick={save} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>}
         {isCg && <Button variant="outline" disabled={archive.isPending} onClick={() => archive.mutateAsync({ id: campId, archive: !camp.isArchived }).then(() => toast.success(camp.isArchived ? 'Camp désarchivé' : 'Camp archivé')).catch(e => toast.error(parseApiError(e)))}>{camp.isArchived ? 'Désarchiver' : 'Archiver'}</Button>}
         {isCg && <Button variant="ghost" className="text-destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>}
       </div>
@@ -130,7 +151,7 @@ function SettingsTab({ campId }: { campId: string }) {
 // ─── Familles board: famille table + two-pane drag & drop ────────────────────
 type DragData = { participantId: string; familleId: string; name: string }
 
-function FamillesTab({ campId }: { campId: string }) {
+function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const { data: familles, isLoading } = useCampFamilles(campId)
   const draft = useRunDraft(campId)
   const move = useMoveParticipant(campId)
@@ -156,8 +177,8 @@ function FamillesTab({ campId }: { campId: string }) {
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
   if ((familles ?? []).length === 0) return (
     <div className="space-y-3">
-      <div className="flex justify-end"><Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />Lancer le tirage</Button></div>
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucune famille. Lancez le tirage pour les créer et répartir les membres.</p>
+      {!readOnly && <div className="flex justify-end"><Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />Lancer le tirage</Button></div>}
+      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{readOnly ? "Aucune famille pour l'instant." : 'Aucune famille. Lancez le tirage pour les créer et répartir les membres.'}</p>
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage" confirmLabel="Lancer"
         description="Répartit tous les membres notés dans les familles (équilibre note/effectif/branche/genre)."
         onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } }} />
@@ -197,11 +218,13 @@ function FamillesTab({ campId }: { campId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre (ou sur un membre pour échanger).</p>
+        <p className="text-sm text-muted-foreground">{readOnly
+          ? <>Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau pour les comparer. Lecture seule.</>
+          : <>Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre (ou sur un membre pour échanger).</>}</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
           <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
-          <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>
+          {!readOnly && <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>}
         </div>
       </div>
 
@@ -241,7 +264,7 @@ function FamillesTab({ campId }: { campId: string }) {
           <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={e => setDrag(e.active.data.current as DragData)} onDragEnd={onDragEnd}>
             <div className="grid gap-3 md:grid-cols-2">
               {[famA, famB].map((f, i) => f
-                ? <FamilleColumn key={f.id} campId={campId} f={f} label={i === 0 ? 'A' : 'B'} onEditLeaders={() => setLeaderDialog(f)} />
+                ? <FamilleColumn key={f.id} campId={campId} f={f} label={i === 0 ? 'A' : 'B'} readOnly={readOnly} onEditLeaders={() => setLeaderDialog(f)} />
                 : <div key={i} className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                     Sélectionnez une famille <b className="mx-1">{i === 0 ? 'A' : 'B'}</b> dans le tableau.
                   </div>)}
@@ -260,8 +283,8 @@ function FamillesTab({ campId }: { campId: string }) {
   )
 }
 
-function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f: CampFamilleDto; label: string; onEditLeaders: () => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `col-${f.id}`, data: { type: 'col', familleId: f.id } })
+function FamilleColumn({ campId, f, label, readOnly, onEditLeaders }: { campId: string; f: CampFamilleDto; label: string; readOnly: boolean; onEditLeaders: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `col-${f.id}`, data: { type: 'col', familleId: f.id }, disabled: readOnly })
   return (
     <div ref={setNodeRef} className={cn('rounded-lg border transition-colors', isOver && 'ring-2 ring-primary')}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
@@ -273,7 +296,7 @@ function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f:
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={onEditLeaders} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs hover:bg-muted/40">
+          <button type="button" onClick={readOnly ? undefined : onEditLeaders} disabled={readOnly} className="flex items-center gap-1.5 rounded border px-2 py-1 text-xs enabled:hover:bg-muted/40 disabled:cursor-default">
             <Crown className="h-3.5 w-3.5 text-amber-500" />
             <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
             <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
@@ -283,20 +306,20 @@ function FamilleColumn({ campId, f, label, onEditLeaders }: { campId: string; f:
       </div>
       <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">
         {f.members.length === 0 ? <p className="p-4 text-center text-sm text-muted-foreground">Famille vide — déposez des membres ici.</p> :
-          [...f.members].sort((a, b) => (b.note ?? 0) - (a.note ?? 0)).map(m => <MemberCard key={m.participantId} m={m} familleId={f.id} />)}
+          [...f.members].sort((a, b) => (b.note ?? 0) - (a.note ?? 0)).map(m => <MemberCard key={m.participantId} m={m} familleId={f.id} readOnly={readOnly} />)}
       </div>
     </div>
   )
 }
 
-function MemberCard({ m, familleId }: { m: CampFamilleDto['members'][number]; familleId: string }) {
+function MemberCard({ m, familleId, readOnly }: { m: CampFamilleDto['members'][number]; familleId: string; readOnly: boolean }) {
   const name = `${m.firstName} ${m.lastName}`
   // Each card is both draggable and a drop target (drop = swap) — the two refs are merged on one element below.
-  const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({ id: `drag-${m.participantId}`, data: { participantId: m.participantId, familleId, name } })
-  const { setNodeRef: dropRef, isOver } = useDroppable({ id: `drop-${m.participantId}`, data: { type: 'member', familleId, participantId: m.participantId } })
+  const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({ id: `drag-${m.participantId}`, data: { participantId: m.participantId, familleId, name }, disabled: readOnly })
+  const { setNodeRef: dropRef, isOver } = useDroppable({ id: `drop-${m.participantId}`, data: { type: 'member', familleId, participantId: m.participantId }, disabled: readOnly })
   return (
     <div ref={el => { dragRef(el); dropRef(el) }} {...listeners} {...attributes}
-      className={cn('flex touch-none cursor-grab items-center gap-2 rounded border px-2 py-1.5 text-sm active:cursor-grabbing',
+      className={cn('flex items-center gap-2 rounded border px-2 py-1.5 text-sm', !readOnly && 'touch-none cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-40', isOver && 'ring-2 ring-primary',
         m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300 dark:border-l-pink-800' : 'border-l-2 border-l-blue-300 dark:border-l-blue-800')}>
       <div className="min-w-0 flex-1">
@@ -355,16 +378,17 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
 }
 
 // ─── Jeux ────────────────────────────────────────────────────────────────────
-function GamesTab({ campId }: { campId: string }) {
+function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const { data: games, isLoading } = useCampGames(campId)
   const create = useCreateGame(campId)
   const del = useDeleteGame(campId)
   const [name, setName] = useState('')
   const [etapisteFor, setEtapisteFor] = useState<CampGameDto | null>(null)
   const [deletingGame, setDeletingGame] = useState<CampGameDto | null>(null)
+  const [nameError, setNameError] = useState(false) // "Ajouter" clicked with an empty name
 
   const add = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) { setNameError(true); return }
     try { await create.mutateAsync({ name, description: null }); setName(''); toast.success('Jeu ajouté') }
     catch (e) { toast.error(parseApiError(e)) }
   }
@@ -372,18 +396,31 @@ function GamesTab({ campId }: { campId: string }) {
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
   return (
     <div className="max-w-2xl space-y-3">
-      <div className="flex gap-2">
-        <Input value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} placeholder="Nom du jeu / étape…" />
-        <Tip content="Ajouter"><Button onClick={add}><Plus className="h-4 w-4" /></Button></Tip>
-      </div>
+      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : le chef de commission ne vous a pas donné le droit de modifier les jeux.</p>}
+      {!readOnly && (
+        <div className="space-y-1">
+          <div className="flex gap-2">
+            <Input value={name} aria-invalid={nameError}
+              className={cn(nameError && 'border-destructive focus-visible:ring-destructive/30')}
+              onChange={e => { setName(e.target.value); if (nameError) setNameError(false) }}
+              onKeyDown={e => { if (e.key === 'Enter') add() }} placeholder="Nom du jeu / étape…" />
+            <Tip content="Ajouter"><Button onClick={add} disabled={create.isPending}><Plus className="h-4 w-4" /></Button></Tip>
+          </div>
+          {nameError && <p className="text-xs text-destructive">Saisissez un nom pour le jeu.</p>}
+        </div>
+      )}
       {(games ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun jeu.</p> :
         <div className="space-y-2">{games!.map(g => (
           <div key={g.id} className="rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium">{g.name}</p>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => setEtapisteFor(g)}><Users className="mr-1 h-3.5 w-3.5" />Étapistes ({g.etapistes.length})</Button>
-                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingGame(g)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                {readOnly
+                  ? <span className="text-xs text-muted-foreground">{g.etapistes.length} étapiste(s)</span>
+                  : <>
+                      <Button variant="outline" size="sm" onClick={() => setEtapisteFor(g)}><Users className="mr-1 h-3.5 w-3.5" />Étapistes ({g.etapistes.length})</Button>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingGame(g)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                    </>}
               </div>
             </div>
             {g.etapistes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{g.etapistes.map(e => `${e.firstName} ${e.lastName}`).join(', ')}</p>}

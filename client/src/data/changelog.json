@@ -5,6 +5,18 @@
     "changes": [
       {
         "date": "2026-09-26",
+        "text": "Camp BP : le chef de groupe choisit, à la création du camp, un ou plusieurs assistants « responsables du camp » qui ont tous les droits sur ce camp. Les autres assistants n'ont plus accès au Camp BP."
+      },
+      {
+        "date": "2026-09-26",
+        "text": "Camp BP : rôles dans la commission — les responsables et le chef de commission voient tout ; le chef de commission choisit pour chaque membre ce qu'il peut voir ou modifier (Familles, Jeux, Paramètres). Seuls les membres de la maîtrise peuvent faire partie de la commission ; les chefs d'unité hors commission ne voient que la page de notation."
+      },
+      {
+        "date": "2026-09-26",
+        "text": "Camp BP : cliquer sur « Ajouter » sans nom de jeu affiche maintenant un message."
+      },
+      {
+        "date": "2026-09-26",
         "text": "Modèles d'email rangés par catégorie (connexion, inscriptions, documents, chefs, membres, site, système), avec pour chacun « Automatique » ou « Envoi manuel » et le moment où il part."
       },
       {

@@ -244,6 +244,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // manage = CG). While the list loads it counts as no live camp.
   const canGradeCamp = hasPermission(PERMISSIONS.CAMP_GRADE)
   const canManageCamp = hasPermission(PERMISSIONS.CAMP_MANAGE)
+  const onCampCommission = hasPermission(PERMISSIONS.CAMP_COMMISSION)
   const { data: campList } = useCamps(canGradeCamp || canManageCamp)
   const hasLiveCamp = !!campList?.some((c) => !c.isArchived)
 
@@ -259,6 +260,10 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // while there's no camp it lives in the Configuration group instead (below), where the CG creates one.
   if (isManager && canManageCamp && hasLiveCamp && !visibleNav.some((i) => i.path === '/admin/camps')) {
     visibleNav.push({ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null })
+  }
+  // A Commission BP member (not a camp admin) gets the camp screens as their own link, next to the grading page.
+  if (onCampCommission && !canManageCamp && !visibleNav.some((i) => i.path === '/admin/camps')) {
+    visibleNav.push({ path: '/admin/camps', label: 'Commission BP', icon: Tent, permission: null })
   }
 
   const visibleAdminGroups = isManager

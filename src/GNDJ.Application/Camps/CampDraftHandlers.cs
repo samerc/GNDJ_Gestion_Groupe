@@ -28,10 +28,11 @@ public record PereMereCandidateDto(Guid MemberId, string FirstName, string LastN
 // then size then random. Spreads branch, gender and size evenly while balancing the Note-sum.
 public record RunCampDraftCommand(Guid CampId) : IRequest<Result<bool>>;
 
-public class RunCampDraftCommandHandler(IApplicationDbContext context) : IRequestHandler<RunCampDraftCommand, Result<bool>>
+public class RunCampDraftCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<RunCampDraftCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(RunCampDraftCommand request, CancellationToken ct)
     {
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Familles, true, ct) is { } denied) return Result<bool>.Failure(denied);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.CampId, ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
 
@@ -91,10 +92,11 @@ public class RunCampDraftCommandHandler(IApplicationDbContext context) : IReques
 // ─── Familles board ──────────────────────────────────────────────────────────
 public record GetCampFamillesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampFamilleDto>>>;
 
-public class GetCampFamillesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetCampFamillesQuery, Result<IReadOnlyList<CampFamilleDto>>>
+public class GetCampFamillesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetCampFamillesQuery, Result<IReadOnlyList<CampFamilleDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<CampFamilleDto>>> Handle(GetCampFamillesQuery request, CancellationToken ct)
     {
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Familles, false, ct) is { } denied) return Result<IReadOnlyList<CampFamilleDto>>.Failure(denied);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.CampId, ct);
         if (camp is null) return Result<IReadOnlyList<CampFamilleDto>>.Failure("Camp introuvable.");
 
@@ -133,12 +135,13 @@ public class GetCampFamillesQueryHandler(IApplicationDbContext context) : IReque
 
 // ─── Manual rebalance ────────────────────────────────────────────────────────
 public record MoveCampParticipantCommand(Guid ParticipantId, Guid FamilleId) : IRequest<Result<bool>>;
-public class MoveCampParticipantCommandHandler(IApplicationDbContext context) : IRequestHandler<MoveCampParticipantCommand, Result<bool>>
+public class MoveCampParticipantCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<MoveCampParticipantCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(MoveCampParticipantCommand request, CancellationToken ct)
     {
         var p = await context.CampParticipants.FirstOrDefaultAsync(x => x.Id == request.ParticipantId && !x.IsDeleted, ct);
         if (p is null) return Result<bool>.Failure("Participant introuvable.");
+        if (await CampAccess.DenyAsync(context, currentUser, p.CampId, CampArea.Familles, true, ct) is { } denied) return Result<bool>.Failure(denied);
         var fam = await context.Familles.FirstOrDefaultAsync(f => f.Id == request.FamilleId && f.CampId == p.CampId && !f.IsDeleted, ct);
         if (fam is null) return Result<bool>.Failure("Famille introuvable.");
         p.FamilleId = request.FamilleId;
@@ -148,13 +151,14 @@ public class MoveCampParticipantCommandHandler(IApplicationDbContext context) : 
 }
 
 public record SwapCampParticipantsCommand(Guid ParticipantAId, Guid ParticipantBId) : IRequest<Result<bool>>;
-public class SwapCampParticipantsCommandHandler(IApplicationDbContext context) : IRequestHandler<SwapCampParticipantsCommand, Result<bool>>
+public class SwapCampParticipantsCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<SwapCampParticipantsCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SwapCampParticipantsCommand request, CancellationToken ct)
     {
         var a = await context.CampParticipants.FirstOrDefaultAsync(x => x.Id == request.ParticipantAId && !x.IsDeleted, ct);
         var b = await context.CampParticipants.FirstOrDefaultAsync(x => x.Id == request.ParticipantBId && !x.IsDeleted, ct);
-        if (a is null || b is null) return Result<bool>.Failure("Participant introuvable.");
+        if (a is null || b is null || a.CampId != b.CampId) return Result<bool>.Failure("Participant introuvable.");
+        if (await CampAccess.DenyAsync(context, currentUser, a.CampId, CampArea.Familles, true, ct) is { } denied) return Result<bool>.Failure(denied);
         (a.FamilleId, b.FamilleId) = (b.FamilleId, a.FamilleId);
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
@@ -163,12 +167,13 @@ public class SwapCampParticipantsCommandHandler(IApplicationDbContext context) :
 
 // ─── Père / Mère ─────────────────────────────────────────────────────────────
 public record SetFamillePereMereCommand(Guid FamilleId, Guid? PereMemberId, Guid? MereMemberId) : IRequest<Result<bool>>;
-public class SetFamillePereMereCommandHandler(IApplicationDbContext context) : IRequestHandler<SetFamillePereMereCommand, Result<bool>>
+public class SetFamillePereMereCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<SetFamillePereMereCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SetFamillePereMereCommand request, CancellationToken ct)
     {
         var fam = await context.Familles.FirstOrDefaultAsync(f => f.Id == request.FamilleId && !f.IsDeleted, ct);
         if (fam is null) return Result<bool>.Failure("Famille introuvable.");
+        if (await CampAccess.DenyAsync(context, currentUser, fam.CampId, CampArea.Familles, true, ct) is { } denied) return Result<bool>.Failure(denied);
 
         // Père must be male, Mère female.
         if (request.PereMemberId is not null
@@ -208,10 +213,11 @@ public class SetFamillePereMereCommandHandler(IApplicationDbContext context) : I
 
 // Candidates: members the CU flagged, plus members in branches not part of the graded pool (routiers/caravelles/JEM).
 public record GetPereMereCandidatesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<PereMereCandidateDto>>>;
-public class GetPereMereCandidatesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetPereMereCandidatesQuery, Result<IReadOnlyList<PereMereCandidateDto>>>
+public class GetPereMereCandidatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPereMereCandidatesQuery, Result<IReadOnlyList<PereMereCandidateDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<PereMereCandidateDto>>> Handle(GetPereMereCandidatesQuery request, CancellationToken ct)
     {
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Familles, false, ct) is { } denied) return Result<IReadOnlyList<PereMereCandidateDto>>.Failure(denied);
         var flagged = await context.CampParticipants
             .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.IsAttending && p.IsLeaderCandidate)
             .Select(p => new PereMereCandidateDto(p.MemberId, p.Member.FirstName, p.Member.LastName, p.Branche, p.Gender, true, p.Id))

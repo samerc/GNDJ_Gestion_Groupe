@@ -89,15 +89,28 @@ public class CampGame : BaseEntity
     public ICollection<CampGameEtapiste> Etapistes { get; set; } = [];
 }
 
-// Commission BP: a member the CG names to run THIS camp (typically 2 ACGs + the ACUs they choose). While the camp
-// is active (not archived), membership grants camp.manage + camp.grade at sign-in (AuthAccess) — the camp screens
-// only, none of the CG's other powers. Plain table (no soft-delete): removing someone deletes the row.
+// Commission BP of a camp. While the camp is active (not archived), membership opens the camp screens at sign-in
+// (AuthAccess grants camp.grade + camp.commission) — none of the CG's other powers. Roles inside (CampAccess):
+//   • Responsable du camp (IsResponsable): an ACG the CG picks when creating the camp — full rights on THIS camp
+//     (choose the commission, name the chef, every area). Only the CG changes the responsables.
+//   • Chef de commission (IsChef): named by the CG or a responsable — every area + sets the others' rights.
+//   • Member: a level per area (Familles / Jeux / Paramètres): "none", "view" or "edit".
+// Only maîtrise can be on a commission; everyone on it sees the Commission tab. Plain table (no soft-delete).
 public class CampCommissionMember
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid CampId { get; set; }
     public Guid MemberId { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+
+    // Responsable du camp: full rights on this camp. Chosen by the CG (at creation, or later).
+    public bool IsResponsable { get; set; }
+    // Chef de commission: every area + sets the other members' rights. Named by the CG or a responsable.
+    public bool IsChef { get; set; }
+    // Per-area access for a non-chef member: "none" | "view" | "edit" (CampAccessLevel).
+    public string FamillesAccess { get; set; } = "none";
+    public string JeuxAccess { get; set; } = "none";
+    public string ParametresAccess { get; set; } = "none";
 
     public Camp Camp { get; set; } = null!;
     public Member Member { get; set; } = null!;

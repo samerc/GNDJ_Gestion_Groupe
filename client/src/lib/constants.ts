@@ -51,5 +51,6 @@ export const PERMISSIONS = {
   RENTREE_MANAGE: 'rentree.manage',
   CAMP_MANAGE: 'camp.manage',
   CAMP_GRADE: 'camp.grade',
+  CAMP_COMMISSION: 'camp.commission', // not assignable: granted while on an active camp's Commission BP
   ATTENDANCE_MANAGE: 'attendance.manage',
 } as const

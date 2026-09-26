@@ -67,6 +67,9 @@ public static class Permissions
 
     public const string CampManage = "camp.manage"; // CG/super-admin: Camp BP — camp, draft, familles, games
     public const string CampGrade = "camp.grade";   // CU: grade own unit's members for the camp
+    // NOT assignable (deliberately absent from All): granted at sign-in to a member named on an active camp's
+    // Commission BP. Opens the camp screens; what they see inside is decided per member (CampAccess).
+    public const string CampCommission = "camp.commission";
 
     public const string AttendanceManage = "attendance.manage"; // CU/CG: manage réunions + absences for their units
 

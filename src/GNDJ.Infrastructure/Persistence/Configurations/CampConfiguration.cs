@@ -34,6 +34,9 @@ public class CampCommissionMemberConfiguration : IEntityTypeConfiguration<CampCo
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => new { e.CampId, e.MemberId }).IsUnique();
         builder.HasIndex(e => e.MemberId);
+        builder.Property(e => e.FamillesAccess).HasMaxLength(10).HasDefaultValue("none");
+        builder.Property(e => e.JeuxAccess).HasMaxLength(10).HasDefaultValue("none");
+        builder.Property(e => e.ParametresAccess).HasMaxLength(10).HasDefaultValue("none");
         builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
         // Plain child of two soft-deleted parents: hide the row when either is soft-deleted (matching filters —
