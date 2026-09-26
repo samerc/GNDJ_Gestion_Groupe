@@ -6173,3 +6173,11 @@ Every member got their access in 2026, and new chefs are existing members, so th
   attachments). One copy per CU, `EmailAttachment.DeleteAfterSend=true` → the outbox sender DELETES the file as
   soon as that email is Sent (a finally-failed email keeps its file for a manual retry; pruned after 30 days). Units without a reachable CU are listed in the audit entry (`UnitsWithoutCu`).
 
+### Cotisation dashboard "Par unité" redesign (2026-09-26, frontend-only, DEV until deploy)
+- Replaced the expand-a-row table (opening a unit dropped a long list mid-table and hid the others) with
+  master/detail in `cotisation-dashboard.tsx`: **unit tiles** (`UnitTile`: code, name, stacked bar payé/partiel/
+  exempté, x/y payés, "n à relancer" / "À jour", amounts) + a "Toutes les unités" tile; on phones a single unit
+  `Select` replaces the tiles. Below, ONE member list for the selected scope with tabs **À relancer / Ont payé /
+  Exemptés** (counts) + accent-insensitive name search; own scroll area (max 65vh, full on print); unit shown per
+  row when "Toutes". Same actions as before. Summary cards Payé / Impayés open the list on the matching tab.
+

@@ -21,7 +21,8 @@ import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useQueryClient } from '@tanstack/react-query'
 import { parseApiError } from '@/lib/error-utils'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
-import { formatMoney } from '@/lib/utils'
+import { formatMoney, cn } from '@/lib/utils'
+import { SearchInput } from '@/components/shared/search-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { AmountInput } from '@/components/ui/amount-input'
@@ -70,13 +71,12 @@ export default function CotisationDashboardPage() {
   const createCotisation = useCreateCotisation('')
   const setExempt = useSetCotisationExempt()
 
-  // Which unit rows are expanded to reveal their paid / exempt / à-relancer lists.
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
-  const toggleUnit = (name: string) => setExpandedUnits(prev => {
-    const next = new Set(prev)
-    if (next.has(name)) next.delete(name); else next.add(name)
-    return next
-  })
+  // "Par unité" = master/detail: the unit tiles pick a scope (one unit, or ALL units), and ONE member list below
+  // shows that scope with tabs À relancer / Ont payé / Exemptés + a name search. Replaces the old expand-a-row
+  // table, where opening a unit dropped a long list in the middle of the table and hid the other units.
+  const [selUnit, setSelUnit] = useState<string>('all') // unit name, or 'all'
+  const [listTab, setListTab] = useState<'relance' | 'paid' | 'exempt'>('relance')
+  const [memberSearch, setMemberSearch] = useState('')
   // "Par unité" card, so the clickable summary cards can scroll it into view (esp. on a phone).
   const parUniteRef = useRef<HTMLDivElement>(null)
 
@@ -217,26 +217,22 @@ export default function CotisationDashboardPage() {
     return groups
   }, [exempt])
 
-  // Units that have anyone paid / exempt / unpaid (i.e. an expandable row). Used for "développer tout" and to
-  // let the summary cards reveal every payer/impayé across all units in one click.
-  const expandableUnits = useMemo(() => {
-    const names = new Set<string>()
-    for (const u of summary?.byUnit ?? []) {
-      if ((paidByUnit.get(u.unitName)?.length ?? 0) > 0
-        || (exemptByUnit.get(u.unitName)?.length ?? 0) > 0
-        || (unpaidByUnit.get(u.unitName)?.length ?? 0) > 0) names.add(u.unitName)
-    }
-    return names
-  }, [summary, paidByUnit, exemptByUnit, unpaidByUnit])
-
-  const allExpanded = expandableUnits.size > 0 && [...expandableUnits].every(n => expandedUnits.has(n))
-  const collapseAll = () => setExpandedUnits(new Set())
-  const expandAll = () => setExpandedUnits(new Set(expandableUnits))
-  // Clicking a summary card reveals every unit's detail lists and scrolls the "Par unité" table into view.
-  const revealAllUnits = () => {
-    expandAll()
+  // Anything to list at all (drives the "Voir le détail" links on the summary cards).
+  const hasMemberLists = (paid?.length ?? 0) + (unpaid?.length ?? 0) + (exempt?.length ?? 0) > 0
+  // A summary card opens the member list for ALL units on the matching tab and scrolls to it.
+  const revealList = (tab: 'relance' | 'paid' | 'exempt') => {
+    setSelUnit('all'); setListTab(tab); setMemberSearch('')
     setTimeout(() => parUniteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
+
+  // The member lists for the selected scope, filtered by the (accent/case-insensitive) name search.
+  const lists = useMemo(() => {
+    const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const q = norm(memberSearch.trim())
+    const pick = <T extends { memberName: string }>(all: T[] | undefined, byUnit: Map<string, T[]>) =>
+      (selUnit === 'all' ? (all ?? []) : (byUnit.get(selUnit) ?? [])).filter(m => !q || norm(m.memberName).includes(q))
+    return { relance: pick(unpaid, unpaidByUnit), paid: pick(paid, paidByUnit), exempt: pick(exempt, exemptByUnit) }
+  }, [selUnit, memberSearch, unpaid, paid, exempt, unpaidByUnit, paidByUnit, exemptByUnit])
 
   // Grand totals for the association-dues table (association rows + the maîtrise line), in the selected mode.
   const duesGrand = useMemo(() => {
@@ -308,9 +304,9 @@ export default function CotisationDashboardPage() {
             </Card>
             {/* Clickable → reveals every unit's "Ont payé" list (name + amount + receipt) and scrolls to the table. */}
             <Card
-              className={expandableUnits.size > 0 ? 'cursor-pointer transition-colors hover:bg-muted/30' : ''}
-              onClick={expandableUnits.size > 0 ? revealAllUnits : undefined}
-              title={expandableUnits.size > 0 ? 'Voir les membres qui ont payé' : undefined}
+              className={hasMemberLists ? 'cursor-pointer transition-colors hover:bg-muted/30' : ''}
+              onClick={hasMemberLists ? () => revealList('paid') : undefined}
+              title={hasMemberLists ? 'Voir les membres qui ont payé' : undefined}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -321,16 +317,16 @@ export default function CotisationDashboardPage() {
                       {summary.fullPricingConfigured ? 'Payé en entier' : 'Ont payé'} ({paidPercentage}%)
                       {summary.membersPartial > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">· {summary.membersPartial} partiel(s)</span>}
                     </p>
-                    {expandableUnits.size > 0 && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
+                    {hasMemberLists && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
                   </div>
                 </div>
               </CardContent>
             </Card>
             {/* Clickable → reveals every unit's "à relancer" (impayés + partiels) list. */}
             <Card
-              className={expandableUnits.size > 0 ? 'cursor-pointer transition-colors hover:bg-muted/30' : ''}
-              onClick={expandableUnits.size > 0 ? revealAllUnits : undefined}
-              title={expandableUnits.size > 0 ? 'Voir les membres à relancer' : undefined}
+              className={hasMemberLists ? 'cursor-pointer transition-colors hover:bg-muted/30' : ''}
+              onClick={hasMemberLists ? () => revealList('relance') : undefined}
+              title={hasMemberLists ? 'Voir les membres à relancer' : undefined}
             >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -338,7 +334,7 @@ export default function CotisationDashboardPage() {
                   <div>
                     <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{summary.membersWithoutPayment}</div>
                     <p className="text-sm text-muted-foreground">Impayés{summary.membersExempt > 0 && <span className="ml-1 text-muted-foreground">· {summary.membersExempt} exempté(s)</span>}</p>
-                    {expandableUnits.size > 0 && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
+                    {hasMemberLists && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
                   </div>
                 </div>
               </CardContent>
@@ -387,351 +383,189 @@ export default function CotisationDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Par unité — stats breakdown; click a unit to reveal its Ont payé / Exemptés / à-relancer lists inline */}
+          {/* Par unité — master/detail. Tiles = one unit each (progress + counts) + "Toutes les unités"; the
+              member list below shows the selected scope, one tab at a time (À relancer / Ont payé / Exemptés). */}
           <Card className="print-area" ref={parUniteRef}>
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <CardTitle>Par unité</CardTitle>
-                <div className="flex items-center gap-2 no-print">
-                  {expandableUnits.size > 0 && (
-                    <Button variant="outline" size="sm" onClick={allExpanded ? collapseAll : expandAll}>
-                      {allExpanded ? 'Réduire tout' : 'Développer tout'}
-                    </Button>
-                  )}
                 {unpaid && unpaid.length > 0 && (
-                  <>
+                  <div className="flex items-center gap-2 no-print">
                     <Button variant="outline" size="sm" onClick={exportCsv}>
-                      <Download className="mr-1.5 h-4 w-4" /> Exporter (CSV)
+                      <Download className="mr-1.5 h-4 w-4" /> Exporter les impayés (CSV)
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => window.print()}>
                       <Printer className="mr-1.5 h-4 w-4" /> Imprimer
                     </Button>
-                  </>
+                  </div>
                 )}
-                </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-5">
               {summary.byUnit.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucune donnée.</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[500px]">
-                    <thead>
-                      <tr className="border-b bg-muted/40">
-                        <th className="px-3 py-2 text-left font-medium">Unité</th>
-                        <th className="px-3 py-2 text-center font-medium">Membres</th>
-                        <th className="px-3 py-2 text-center font-medium">Payé</th>
-                        <th className="px-3 py-2 text-center font-medium">Partiel</th>
-                        <th className="px-3 py-2 text-center font-medium">Impayé</th>
-                        <th className="px-3 py-2 text-right font-medium">Montants perçus</th>
-                      </tr>
-                    </thead>
-                    {summary.byUnit.map((u, idx) => {
-                      const toRelance = unpaidByUnit.get(u.unitName) ?? []
-                      const paidList = paidByUnit.get(u.unitName) ?? []
-                      const exemptList = exemptByUnit.get(u.unitName) ?? []
-                      const impaye = u.totalMembers - u.paidMembers - u.partialMembers - u.exemptMembers
-                      // Expandable if the unit has anyone paid, exempt, OR unpaid — click reveals all lists.
-                      const canExpand = paidList.length > 0 || exemptList.length > 0 || toRelance.length > 0
-                      const isOpen = expandedUnits.has(u.unitName)
-                      return (
-                        <tbody key={u.unitName}>
-                          <tr
-                            className={`border-b ${idx % 2 === 1 ? 'bg-muted/10' : ''} ${canExpand ? 'cursor-pointer hover:bg-muted/30' : ''}`}
-                            onClick={canExpand ? () => toggleUnit(u.unitName) : undefined}
-                          >
-                            <td className="px-3 py-2 font-medium">
-                              <span className="inline-flex items-center gap-1.5">
-                                {canExpand
-                                  ? <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-                                  : <span className="inline-block w-4" />}
-                                {u.unitCode}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-center">{u.totalMembers}</td>
-                            <td className="px-3 py-2 text-center">
-                              <Badge variant="success">{u.paidMembers}</Badge>
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {u.partialMembers > 0
-                                ? <Badge variant="warning">{u.partialMembers}</Badge>
-                                : <Badge variant="outline">0</Badge>}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {/* Unpaid = members minus fully-paid minus partial minus exempt (each shown separately) */}
-                              {impaye > 0 ? (
-                                <Badge variant="destructive">{impaye}</Badge>
-                              ) : (
-                                <Badge variant="outline">0</Badge>
+                <>
+                  {/* Phone: one compact unit picker instead of the tiles (18 tiles would fill several screens). */}
+                  <div className="sm:hidden no-print">
+                    <Select value={selUnit} onValueChange={setSelUnit}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes les unités — {unpaid?.length ?? 0} à relancer</SelectItem>
+                        {summary.byUnit.map(u => (
+                          <SelectItem key={u.unitName} value={u.unitName}>
+                            {u.unitCode} · {u.paidMembers}/{u.totalMembers} payés — {unpaidByUnit.get(u.unitName)?.length ?? 0} à relancer
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Unit tiles (tablet and up) */}
+                  <div className="hidden grid-cols-2 gap-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 no-print">
+                    <UnitTile
+                      label="Toutes les unités" code="Tout"
+                      total={summary.totalActiveMembers} paidCount={summary.membersWithPayment}
+                      partial={summary.membersPartial} exemptCount={summary.membersExempt}
+                      toChase={unpaid?.length ?? 0}
+                      selected={selUnit === 'all'} onClick={() => setSelUnit('all')}
+                    />
+                    {summary.byUnit.map(u => (
+                      <UnitTile
+                        key={u.unitName} label={u.unitName} code={u.unitCode}
+                        total={u.totalMembers} paidCount={u.paidMembers} partial={u.partialMembers} exemptCount={u.exemptMembers}
+                        toChase={unpaidByUnit.get(u.unitName)?.length ?? 0}
+                        amounts={u.totals.map(t => formatMoney(t.total, t.currency)).join(' · ')}
+                        selected={selUnit === u.unitName} onClick={() => setSelUnit(u.unitName)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Member list for the selected scope */}
+                  <div className="rounded-lg border">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold">{selUnit === 'all' ? 'Toutes les unités' : selUnit}</span>
+                        <div className="inline-flex rounded-md border bg-background no-print">
+                          {([
+                            ['relance', 'À relancer', lists.relance.length],
+                            ['paid', 'Ont payé', lists.paid.length],
+                            ['exempt', 'Exemptés', lists.exempt.length],
+                          ] as const).map(([k, label, n], i) => (
+                            <button key={k} type="button" onClick={() => setListTab(k)}
+                              className={cn('px-3 py-1.5 text-sm transition-colors', i > 0 && 'border-l',
+                                listTab === k ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}>
+                              {label} <span className={cn('ml-1 text-xs', listTab === k ? 'opacity-90' : 'text-muted-foreground')}>{n}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <SearchInput value={memberSearch} onChange={setMemberSearch} placeholder="Rechercher un membre…" className="w-full sm:w-60 no-print" />
+                    </div>
+
+                    {/* Own scroll area so a long list (all units = 1000+ members) never buries the tiles; full on paper. */}
+                    <div className="max-h-[65vh] divide-y overflow-y-auto print:max-h-none print:overflow-visible">
+                      {listTab === 'relance' && (lists.relance.length === 0
+                        ? <p className="p-6 text-center text-sm text-muted-foreground">{memberSearch ? 'Aucun membre trouvé.' : 'Personne à relancer. 🎉'}</p>
+                        : lists.relance.map(m => (
+                          <div key={m.memberId} className="grid gap-2 px-3 py-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto] md:items-center">
+                            <MemberCell name={m.memberName} unit={selUnit === 'all' ? m.unitName : null} onOpen={() => navigate(`/members/${m.memberId}`)} sub={m.parentName ? `Père : ${m.parentName}` : null} />
+                            <div>
+                              {m.status === 'Partial' ? (
+                                <div className="flex flex-col gap-0.5">
+                                  <Badge variant="warning" className="w-fit">Partiel {m.percentPaid}%</Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
+                                    {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
+                                  </span>
+                                </div>
+                              ) : <Badge variant="destructive" className="w-fit">Impayé</Badge>}
+                            </div>
+                            <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+                              {m.contactEmail && (
+                                <a href={`mailto:${m.contactEmail}`} className="inline-flex min-w-0 items-center gap-1.5 text-primary hover:underline dark:text-blue-400">
+                                  <Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{m.contactEmail}</span>
+                                </a>
                               )}
-                              {u.exemptMembers > 0 && <span className="ml-1 text-xs text-muted-foreground">+{u.exemptMembers} exempté(s)</span>}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              {u.totals.length > 0 ? (
-                                <div className="space-y-0.5">
-                                  {u.totals.map(t => (
-                                    <div key={t.currency} className="text-sm">{formatMoney(t.total, t.currency)}</div>
-                                  ))}
-                                  {u.totals.length > 1 && u.equivalentTotal > 0 && (
-                                    <div className="text-xs text-muted-foreground">≈ {formatMoney(u.equivalentTotal, summary.referenceCurrency)}</div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
+                              {m.contactPhone && (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400">
+                                    <Phone className="h-3.5 w-3.5" />{m.contactPhone}
+                                  </a>
+                                  <WhatsappTextLink phone={m.contactPhone} />
+                                </span>
                               )}
-                            </td>
-                          </tr>
-                          {/* Follow-up ("à relancer") rows for this unit. Collapsed on screen until clicked;
-                              always shown when printing so the full chase list comes out on paper. */}
-                          {canExpand && (
-                            <tr className={isOpen ? '' : 'hidden print:table-row'}>
-                              <td colSpan={6} className="bg-muted/5 px-3 pb-4 pt-1">
-                                {/* Members who PAID — name (→ member file), date, amounts, and a receipt download. */}
-                                {paidList.length > 0 && (
-                                  <div className="mb-3">
-                                    <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
-                                      Ont payé — {paidList.length} membre{paidList.length > 1 ? 's' : ''}
-                                    </div>
-                                    <div className="overflow-x-auto rounded-md border bg-background">
-                                      <table className="w-full text-sm min-w-[520px]">
-                                        <thead>
-                                          <tr className="border-b bg-muted/40 text-left">
-                                            <th className="px-3 py-2 font-medium">Membre</th>
-                                            <th className="px-3 py-2 font-medium">Date</th>
-                                            <th className="px-3 py-2 font-medium text-right">Montant</th>
-                                            <th className="px-3 py-2 font-medium">Reçu N°</th>
-                                            <th className="px-3 py-2 font-medium text-right no-print">Reçu</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {paidList.map((m, i2) => (
-                                            <tr key={m.memberId} className={`border-b transition-colors hover:bg-muted/40 ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                                              <td className="px-3 py-2">
-                                                <button
-                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline dark:text-blue-400"
-                                                  onClick={() => navigate(`/members/${m.memberId}`)}
-                                                >
-                                                  {m.memberName}
-                                                  <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
-                                                </button>
-                                              </td>
-                                              <td className="px-3 py-2 text-muted-foreground">{new Date(m.paymentDate).toLocaleDateString('fr-FR')}</td>
-                                              <td className="px-3 py-2 text-right">
-                                                {m.totals.length > 0 ? (
-                                                  <div className="flex flex-col items-end gap-0.5">
-                                                    {m.totals.map(t => <div key={t.currency}>{formatMoney(t.total, t.currency)}</div>)}
-                                                    {m.totals.length > 1 && m.equivalentReference > 0 && (
-                                                      <span className="text-xs text-muted-foreground">≈ {formatMoney(m.equivalentReference, m.referenceCurrency)}</span>
-                                                    )}
-                                                    {m.status === 'Partial' && <Badge variant="warning">Partiel {m.percentPaid}%</Badge>}
-                                                    {/* Overpayment: fully paid AND over 100% → show the excess in the reference currency. */}
-                                                    {m.status === 'Paid' && m.percentPaid > 100 && (() => {
-                                                      const refFull = fullAmountFor(fullAmountsRaw, m.referenceCurrency)
-                                                      const excess = refFull ? m.equivalentReference - refFull : 0
-                                                      return excess > 0 ? <span className="text-xs text-amber-600 dark:text-amber-400">Trop-perçu ≈ {formatMoney(excess, m.referenceCurrency)}</span> : null
-                                                    })()}
-                                                  </div>
-                                                ) : <span className="text-muted-foreground">—</span>}
-                                              </td>
-                                              <td className="px-3 py-2 text-muted-foreground">{m.receiptNumber || '—'}</td>
-                                              <td className="px-3 py-2 text-right no-print">
-                                                <Button variant="outline" size="sm" className="h-8" onClick={() => handleReceipt(m)}>
-                                                  <Download className="mr-1 h-3.5 w-3.5" /> Reçu
-                                                </Button>
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-                                )}
-                                {/* Members marked EXEMPT ("ne paiera pas") — name (→ member file), the reason (if noted),
-                                    and a one-click "retirer l'exemption" that puts them back in the à-relancer list. */}
-                                {exemptList.length > 0 && (
-                                  <div className="mb-3">
-                                    <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                      <Ban className="h-3.5 w-3.5 text-slate-500" />
-                                      Exemptés — {exemptList.length} membre{exemptList.length > 1 ? 's' : ''} « ne paiera pas »
-                                    </div>
-                                    <div className="overflow-x-auto rounded-md border bg-background">
-                                      <table className="w-full text-sm min-w-[520px]">
-                                        <thead>
-                                          <tr className="border-b bg-muted/40 text-left">
-                                            <th className="px-3 py-2 font-medium">Membre</th>
-                                            <th className="px-3 py-2 font-medium">Raison</th>
-                                            <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {exemptList.map((m, i2) => (
-                                            <tr key={m.memberId} className={`border-b transition-colors hover:bg-muted/40 ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                                              <td className="px-3 py-2">
-                                                <button
-                                                  className="group inline-flex items-center gap-1 font-medium text-primary hover:underline dark:text-blue-400"
-                                                  onClick={() => navigate(`/members/${m.memberId}`)}
-                                                >
-                                                  {m.memberName}
-                                                  <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
-                                                </button>
-                                              </td>
-                                              <td className="px-3 py-2 text-muted-foreground">
-                                                {m.reason ? m.reason : <span className="italic">Aucune raison indiquée</span>}
-                                              </td>
-                                              <td className="px-3 py-2 text-right no-print">
-                                                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => removeExempt(m)} disabled={setExempt.isPending}>
-                                                  Retirer l'exemption
-                                                </Button>
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-                                )}
-                                {toRelance.length > 0 && (
-                                <div>
-                                <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                  <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
-                                  À relancer — {toRelance.length} membre{toRelance.length > 1 ? 's' : ''} (impayés + partiels)
-                                </div>
-                                <div className="hidden overflow-x-auto rounded-md border bg-background md:block">
-                                  <table className="w-full text-sm min-w-[620px]">
-                                    <thead>
-                                      <tr className="border-b bg-muted/40 text-left">
-                                        <th className="px-3 py-2 font-medium">Membre</th>
-                                        <th className="px-3 py-2 font-medium">Statut</th>
-                                        <th className="px-3 py-2 font-medium">Père</th>
-                                        <th className="px-3 py-2 font-medium">Contact</th>
-                                        <th className="px-3 py-2 font-medium text-right no-print">Actions</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {toRelance.map((m, i2) => (
-                                        <tr key={m.memberId} className={`border-b transition-colors hover:bg-muted/40 ${i2 % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                                          {/* Name opens the member file (Documents & cotisations tab) for the full editor. */}
-                                          <td className="px-3 py-2">
-                                            <button
-                                              className="group inline-flex items-center gap-1 font-medium text-primary hover:underline dark:text-blue-400"
-                                              onClick={() => navigate(`/members/${m.memberId}`)}
-                                            >
-                                              {m.memberName}
-                                              <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
-                                            </button>
-                                          </td>
-                                          {/* Impayé (rien versé) vs Partiel (versé une partie) — a partial shows the % paid,
-                                              what's already been paid, and the amount still owed in the reference currency. */}
-                                          <td className="px-3 py-2">
-                                            {m.status === 'Partial' ? (
-                                              <div className="flex flex-col gap-0.5">
-                                                <Badge variant="warning" className="w-fit">Partiel {m.percentPaid}%</Badge>
-                                                <span className="text-xs text-muted-foreground">
-                                                  Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
-                                                  {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
-                                                </span>
-                                              </div>
-                                            ) : (
-                                              <Badge variant="destructive" className="w-fit">Impayé</Badge>
-                                            )}
-                                          </td>
-                                          <td className="px-3 py-2 text-muted-foreground">{m.parentName ?? '—'}</td>
-                                          <td className="px-3 py-2">
-                                            <div className="flex flex-col gap-0.5">
-                                              {m.contactEmail ? (
-                                                <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400">
-                                                  <Mail className="h-3.5 w-3.5" /> {m.contactEmail}
-                                                </a>
-                                              ) : null}
-                                              {m.contactPhone ? (
-                                                <span className="inline-flex items-center gap-1.5">
-                                                  <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400">
-                                                    <Phone className="h-3.5 w-3.5" /> {m.contactPhone}
-                                                  </a>
-                                                  <WhatsappTextLink phone={m.contactPhone} />
-                                                </span>
-                                              ) : null}
-                                              {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
-                                            </div>
-                                          </td>
-                                          <td className="px-3 py-2 text-right no-print">
-                                            <div className="inline-flex gap-1.5">
-                                              {m.status === 'Partial' ? (
-                                                // A partial payer already has a cotisation row — the inline create would
-                                                // reject a duplicate, so send the CG to the member file to add a line.
-                                                <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => navigate(`/members/${m.memberId}`)}>
-                                                  <Receipt className="mr-1 h-3.5 w-3.5" /> Compléter
-                                                </Button>
-                                              ) : (
-                                                <>
-                                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => openPayDialog(m)}>
-                                                    <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
-                                                  </Button>
-                                                  <Button size="sm" className="h-8 bg-slate-500 text-white hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
-                                                    <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
-                                                  </Button>
-                                                </>
-                                              )}
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                {/* Mobile: card list for the actionable à-relancer members (in the table their
-                                    Contact + Paiement/Ne paiera pas actions scrolled off-screen on a phone). */}
-                                <div className="divide-y rounded-md border bg-background md:hidden">
-                                  {toRelance.map((m) => (
-                                    <div key={m.memberId} className="p-2.5">
-                                      <button className="font-medium text-primary hover:underline dark:text-blue-400" onClick={() => navigate(`/members/${m.memberId}`)}>{m.memberName}</button>
-                                      <div className="mt-1">
-                                        {m.status === 'Partial' ? (
-                                          <div className="flex flex-col gap-0.5">
-                                            <Badge variant="warning" className="w-fit">Partiel {m.percentPaid}%</Badge>
-                                            <span className="text-xs text-muted-foreground">
-                                              Déjà : {m.paidTotals.map(t => formatMoney(t.total, t.currency)).join(' + ')}
-                                              {m.remainingReference > 0 && ` · reste ≈ ${formatMoney(m.remainingReference, m.referenceCurrency)}`}
-                                            </span>
-                                          </div>
-                                        ) : <Badge variant="destructive" className="w-fit">Impayé</Badge>}
-                                      </div>
-                                      <div className="mt-1 text-xs text-muted-foreground">Père : {m.parentName ?? '—'}</div>
-                                      <div className="mt-1 flex flex-col gap-0.5 text-sm">
-                                        {m.contactEmail && <a href={`mailto:${m.contactEmail}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400"><Mail className="h-3.5 w-3.5" />{m.contactEmail}</a>}
-                                        {m.contactPhone && (
-                                          <span className="inline-flex items-center gap-1.5">
-                                            <a href={`tel:${m.contactPhone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1.5 text-primary hover:underline dark:text-blue-400"><Phone className="h-3.5 w-3.5" />{m.contactPhone}</a>
-                                            <WhatsappTextLink phone={m.contactPhone} />
-                                          </span>
-                                        )}
-                                        {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
-                                      </div>
-                                      <div className="mt-2 flex flex-wrap gap-1.5 no-print">
-                                        {m.status === 'Partial' ? (
-                                          <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => navigate(`/members/${m.memberId}`)}><Receipt className="mr-1 h-3.5 w-3.5" />Compléter</Button>
-                                        ) : (
-                                          <>
-                                            <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => openPayDialog(m)}><Receipt className="mr-1 h-3.5 w-3.5" />Paiement</Button>
-                                            <Button size="sm" className="bg-slate-500 text-white hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}><Ban className="mr-1 h-3.5 w-3.5" />Ne paiera pas</Button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                                </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      )
-                    })}
-                  </table>
-                </div>
+                              {!m.contactEmail && !m.contactPhone && <span className="text-xs text-muted-foreground">Aucun contact</span>}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 md:justify-end no-print">
+                              {m.status === 'Partial' ? (
+                                // A partial payer already has a cotisation row — the inline create would reject a
+                                // duplicate, so the CG completes it from the member file.
+                                <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => navigate(`/members/${m.memberId}`)}>
+                                  <Receipt className="mr-1 h-3.5 w-3.5" /> Compléter
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => openPayDialog(m)}>
+                                    <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="h-8" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
+                                    <Ban className="mr-1 h-3.5 w-3.5" /> Ne paiera pas
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )))}
+
+                      {listTab === 'paid' && (lists.paid.length === 0
+                        ? <p className="p-6 text-center text-sm text-muted-foreground">{memberSearch ? 'Aucun membre trouvé.' : 'Aucun paiement enregistré.'}</p>
+                        : lists.paid.map(m => (
+                          <div key={m.memberId} className="grid gap-2 px-3 py-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto] md:items-center">
+                            <MemberCell name={m.memberName} unit={selUnit === 'all' ? m.unitName : null} onOpen={() => navigate(`/members/${m.memberId}`)}
+                              sub={`Payé le ${new Date(m.paymentDate).toLocaleDateString('fr-FR')}`} />
+                            <div className="flex flex-col gap-0.5 text-sm">
+                              {m.totals.length > 0 ? m.totals.map(t => <span key={t.currency} className="font-medium">{formatMoney(t.total, t.currency)}</span>) : <span className="text-muted-foreground">—</span>}
+                              {m.totals.length > 1 && m.equivalentReference > 0 && (
+                                <span className="text-xs text-muted-foreground">≈ {formatMoney(m.equivalentReference, m.referenceCurrency)}</span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                              {m.status === 'Partial' ? <Badge variant="warning">Partiel {m.percentPaid}%</Badge> : <Badge variant="success">Payé</Badge>}
+                              {/* Overpayment: fully paid AND over 100% → the excess in the reference currency. */}
+                              {m.status === 'Paid' && m.percentPaid > 100 && (() => {
+                                const refFull = fullAmountFor(fullAmountsRaw, m.referenceCurrency)
+                                const excess = refFull ? m.equivalentReference - refFull : 0
+                                return excess > 0 ? <span className="text-xs text-amber-600 dark:text-amber-400">Trop-perçu ≈ {formatMoney(excess, m.referenceCurrency)}</span> : null
+                              })()}
+                              <span className="text-xs text-muted-foreground">Reçu {m.receiptNumber || '—'}</span>
+                            </div>
+                            <div className="flex md:justify-end no-print">
+                              <Button variant="outline" size="sm" className="h-8" onClick={() => handleReceipt(m)}>
+                                <Download className="mr-1 h-3.5 w-3.5" /> Reçu
+                              </Button>
+                            </div>
+                          </div>
+                        )))}
+
+                      {listTab === 'exempt' && (lists.exempt.length === 0
+                        ? <p className="p-6 text-center text-sm text-muted-foreground">{memberSearch ? 'Aucun membre trouvé.' : 'Aucun membre exempté.'}</p>
+                        : lists.exempt.map(m => (
+                          <div key={m.memberId} className="grid gap-2 px-3 py-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2.5fr)_auto] md:items-center">
+                            <MemberCell name={m.memberName} unit={selUnit === 'all' ? m.unitName : null} onOpen={() => navigate(`/members/${m.memberId}`)} />
+                            <div className="text-sm text-muted-foreground">
+                              {m.reason ? m.reason : <span className="italic">Aucune raison indiquée</span>}
+                            </div>
+                            <div className="flex md:justify-end no-print">
+                              <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => removeExempt(m)} disabled={setExempt.isPending}>
+                                Retirer l'exemption
+                              </Button>
+                            </div>
+                          </div>
+                        )))}
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -922,3 +756,52 @@ export default function CotisationDashboardPage() {
     </Page>
   )
 }
+
+// One unit tile of the "Par unité" overview: code + name, a stacked bar (payé / partiel / exempté over the unit's
+// members), "x/y payés", how many are still to chase, and what was collected. Click = show that unit's members.
+function UnitTile({ label, code, total, paidCount, partial, exemptCount, toChase, amounts, selected, onClick }: {
+  label: string; code: string; total: number; paidCount: number; partial: number; exemptCount: number; toChase: number
+  amounts?: string; selected: boolean; onClick: () => void
+}) {
+  const pct = (n: number) => (total > 0 ? (n / total) * 100 : 0)
+  const done = total > 0 && toChase === 0
+  return (
+    <button type="button" onClick={onClick}
+      className={cn('flex flex-col gap-1.5 rounded-lg border p-2.5 text-left transition-colors hover:bg-muted/40',
+        selected && 'border-primary bg-primary/5 ring-1 ring-primary')}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">{code}</span>
+        <span className="text-xs text-muted-foreground">{Math.round(pct(paidCount))}%</span>
+      </div>
+      <span className="truncate text-xs text-muted-foreground" title={label}>{label}</span>
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full bg-green-600" style={{ width: `${pct(paidCount)}%` }} />
+        <div className="h-full bg-amber-500" style={{ width: `${pct(partial)}%` }} />
+        <div className="h-full bg-slate-400" style={{ width: `${pct(exemptCount)}%` }} />
+      </div>
+      <div className="flex items-center justify-between gap-1 text-xs">
+        <span>{paidCount}/{total} payés</span>
+        {done
+          ? <span className="text-green-700 dark:text-green-400">À jour</span>
+          : <span className="font-medium text-red-600 dark:text-red-400">{toChase} à relancer</span>}
+      </div>
+      {amounts && <span className="truncate text-xs text-muted-foreground" title={amounts}>{amounts}</span>}
+    </button>
+  )
+}
+
+// Member name (opens the member file) + optional unit (when listing all units) + optional muted sub-line.
+function MemberCell({ name, unit, sub, onOpen }: { name: string; unit: string | null; sub?: string | null; onOpen: () => void }) {
+  return (
+    <div className="min-w-0">
+      <button className="group inline-flex max-w-full items-center gap-1 text-left font-medium text-primary hover:underline dark:text-blue-400" onClick={onOpen}>
+        <span className="truncate">{name}</span>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-60 no-print" />
+      </button>
+      {(unit || sub) && (
+        <div className="truncate text-xs text-muted-foreground">{[unit, sub].filter(Boolean).join(' · ')}</div>
+      )}
+    </div>
+  )
+}
+
