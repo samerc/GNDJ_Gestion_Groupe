@@ -43,7 +43,8 @@ public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCo
     public CreateCampGameCommandValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
-        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+        // Rich text (TipTap HTML) — sanitized with DOMPurify when displayed, so no NoHtml here (like the CMS bodies).
+        RuleFor(x => x.Description).MaximumLength(50000);
     }
 }
 public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<CreateCampGameCommand, Result<Guid>>
@@ -65,7 +66,8 @@ public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCo
     public UpdateCampGameCommandValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(150).NoHtml();
-        RuleFor(x => x.Description).MaximumLength(2000).NoHtml();
+        // Rich text (TipTap HTML) — sanitized with DOMPurify when displayed, so no NoHtml here (like the CMS bodies).
+        RuleFor(x => x.Description).MaximumLength(50000);
     }
 }
 public class UpdateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateCampGameCommand, Result<bool>>

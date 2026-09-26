@@ -176,6 +176,11 @@ export function useCreateGame(campId: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (data: { name: string; description: string | null }) => apiClient.post(`/camps/${campId}/games`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
+// PUT /camps/games/{gameId} → rename a game / edit its description (rich-text HTML); invalidates ['camp-games', campId].
+export function useUpdateGame(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ id, name, description }: { id: string; name: string; description: string | null }) => apiClient.put(`/camps/games/${id}`, { name, description }), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+}
 // DELETE /camps/games/{gameId} → delete a game; invalidates ['camp-games', campId].
 export function useDeleteGame(campId: string) {
   const qc = useQueryClient()

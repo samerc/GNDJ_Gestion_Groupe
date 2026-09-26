@@ -12,7 +12,7 @@ import { useParams, Link } from 'react-router'
 import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSwapParticipants, useSetLeaders, useLeaderCandidates,
-  useCampGames, useCreateGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
+  useCampGames, useCreateGame, useUpdateGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
   printFamille, printAllFamilles, printUnitList,
   type CampFamilleDto, type CampGameDto,
 } from '@/services/camp-service'
@@ -27,7 +27,9 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil } from 'lucide-react'
+import { RichTextEditor } from '@/components/shared/rich-text-editor'
+import { RichContent } from '@/components/public/rich-content'
 import { Tip } from '@/components/ui/tooltip'
 import { CampCommissionTab } from '@/components/camp/camp-commission-tab'
 import { useIsCampCg } from '@/components/camp/use-is-camp-cg'
@@ -385,6 +387,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const [name, setName] = useState('')
   const [etapisteFor, setEtapisteFor] = useState<CampGameDto | null>(null)
   const [deletingGame, setDeletingGame] = useState<CampGameDto | null>(null)
+  const [editingGame, setEditingGame] = useState<CampGameDto | null>(null)
   const [nameError, setNameError] = useState(false) // "Ajouter" clicked with an empty name
 
   const add = async () => {
@@ -418,20 +421,65 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
                 {readOnly
                   ? <span className="text-xs text-muted-foreground">{g.etapistes.length} étapiste(s)</span>
                   : <>
+                      <Tip content="Modifier le nom et la description"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGame(g)}><Pencil className="h-4 w-4" /></Button></Tip>
                       <Button variant="outline" size="sm" onClick={() => setEtapisteFor(g)}><Users className="mr-1 h-3.5 w-3.5" />Étapistes ({g.etapistes.length})</Button>
                       <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingGame(g)}><Trash2 className="h-4 w-4" /></Button></Tip>
                     </>}
               </div>
             </div>
+            {hasText(g.description)
+              ? <RichContent html={g.description!} className="mt-2 text-sm" />
+              : !readOnly && <button type="button" className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline" onClick={() => setEditingGame(g)}>+ Ajouter une description</button>}
             {g.etapistes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{g.etapistes.map(e => `${e.firstName} ${e.lastName}`).join(', ')}</p>}
           </div>
         ))}</div>}
+      {editingGame && <GameEditDialog campId={campId} game={editingGame} onClose={() => setEditingGame(null)} />}
       {etapisteFor && <EtapisteDialog campId={campId} game={etapisteFor} onClose={() => setEtapisteFor(null)} />}
 
       <ConfirmDialog open={!!deletingGame} onOpenChange={() => setDeletingGame(null)} title="Supprimer le jeu" variant="destructive"
         description={`Supprimer « ${deletingGame?.name} » et ses étapistes ?`} confirmLabel="Supprimer" loading={del.isPending}
         onConfirm={async () => { if (!deletingGame) return; try { await del.mutateAsync(deletingGame.id); toast.success('Jeu supprimé'); setDeletingGame(null) } catch (e) { toast.error(parseApiError(e)) } }} />
     </div>
+  )
+}
+
+// True when a (possibly rich-text) description has visible text — an emptied TipTap editor leaves "<p></p>".
+function hasText(html: string | null) {
+  return !!html && html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0
+}
+
+// Edit a game's name + its formatted description (TipTap; shown sanitized on the game card).
+function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampGameDto; onClose: () => void }) {
+  const update = useUpdateGame(campId)
+  const [name, setName] = useState(game.name)
+  const [description, setDescription] = useState(game.description ?? '')
+  const save = async () => {
+    if (!name.trim()) { toast.error('Saisissez un nom pour le jeu.'); return }
+    try {
+      await update.mutateAsync({ id: game.id, name: name.trim(), description: hasText(description) ? description : null })
+      toast.success('Jeu enregistré'); onClose()
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl">
+        <DialogHeader><DialogTitle>Modifier le jeu</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <RequiredLabel required>Nom</RequiredLabel>
+            <Input value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Description</p>
+            <RichTextEditor content={description} onChange={setDescription} placeholder="Déroulement, règles, matériel…" className="min-h-[220px]" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={save} disabled={update.isPending}><Save className="mr-1.5 h-4 w-4" />Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

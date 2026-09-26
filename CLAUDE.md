@@ -6132,3 +6132,9 @@ Every member got their access in 2026, and new chefs are existing members, so th
   **Archives des demandes** appears in Configuration → Structure & données; reopening inscriptions brings the group
   back (saving a `demande.*` setting refreshes the status). Submission deadline passing does NOT hide it.
 
+### Camp BP — formatted game description (2026-09-26, DEV until deploy)
+- `CampGame.Description` (existing text column) now holds TipTap HTML: validator 50k, NoHtml dropped (rendered via
+  `RichContent` = DOMPurify; the abuse middleware still blocks script). No migration.
+- Jeux tab: pencil (or "+ Ajouter une description") opens `GameEditDialog` (name + `RichTextEditor`), `useUpdateGame`
+  → `PUT /camps/games/{id}`; the description shows on the game card for every viewer (read-only too).
+
