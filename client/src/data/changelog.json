@@ -5,10 +5,6 @@
     "changes": [
       {
         "date": "2026-09-26",
-        "text": "Email de rentrée des chefs : retrait du point ponctuel de 2026 sur la vérification des couleurs des équipes."
-      },
-      {
-        "date": "2026-09-26",
         "text": "Modèles d'email rangés par catégorie (connexion, inscriptions, documents, chefs, membres, site, système), avec pour chacun « Automatique » ou « Envoi manuel » et le moment où il part."
       },
       {
@@ -22,10 +18,6 @@
       {
         "date": "2026-09-26",
         "text": "L'email de rentrée des chefs ne contient plus de lien d'activation ; l'ancien modèle « Réinscription » devient « Mise à jour de la fiche et des documents », à envoyer à un groupe quand c'est utile (un email par membre, même quand des frères et sœurs partagent l'email d'un parent)."
-      },
-      {
-        "date": "2026-09-25",
-        "text": "La documentation technique (réservée au super-administrateur) est maintenant rédigée en anglais."
       },
       {
         "date": "2026-09-25",
