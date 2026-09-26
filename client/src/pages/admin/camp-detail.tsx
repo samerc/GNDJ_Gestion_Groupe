@@ -120,6 +120,7 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   const isCg = useIsCampCg() // archive / delete are Chef-de-Groupe-only (not Commission BP)
   const [form, setForm] = useState({ name: '', scoutYear: '', famillesCount: 0, noteForceCoef: 1, noteOffset: -4 })
   const [deleting, setDeleting] = useState(false)
+  const [archiving, setArchiving] = useState(false) // confirm first: archiving is final (a camp is never re-opened)
 
   // Hydrate the settings form when the camp (re)loads — render-phase reset.
   const [prevCamp, setPrevCamp] = useState(camp)
@@ -169,9 +170,14 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
 
       <div className="flex flex-wrap items-center gap-2">
         {!readOnly && <Button onClick={save} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>}
-        {isCg && <Button variant="outline" disabled={archive.isPending} onClick={() => archive.mutateAsync({ id: campId, archive: !camp.isArchived }).then(() => toast.success(camp.isArchived ? 'Camp désarchivé' : 'Camp archivé')).catch(e => toast.error(parseApiError(e)))}>{camp.isArchived ? 'Désarchiver' : 'Archiver'}</Button>}
+        {isCg && !camp.isArchived && <Button variant="outline" onClick={() => setArchiving(true)}>Archiver</Button>}
         {isCg && <Button variant="ghost" className="text-destructive" onClick={() => setDeleting(true)}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>}
       </div>
+
+      <ConfirmDialog open={archiving} onOpenChange={setArchiving} title="Archiver le camp" variant="destructive"
+        description={`Archiver « ${camp.name} » ? Le camp sera clôturé et ne pourra plus être réouvert. Il restera consultable dans la liste des anciens camps, et vous pourrez ensuite créer un nouveau camp.`}
+        confirmLabel="Archiver" loading={archive.isPending}
+        onConfirm={async () => { try { await archive.mutateAsync({ id: campId, archive: true }); toast.success('Camp archivé'); setArchiving(false) } catch (e) { toast.error(parseApiError(e)) } }} />
 
       <ConfirmDialog open={deleting} onOpenChange={setDeleting} title="Supprimer le camp" variant="destructive"
         description={`Supprimer « ${camp.name} » et toutes ses données (familles, notes, jeux) ? Irréversible.`} confirmLabel="Supprimer"

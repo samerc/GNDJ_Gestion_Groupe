@@ -410,9 +410,8 @@ public class ArchiveCampCommandHandler(IApplicationDbContext context, ICurrentUs
         if (!CampAccess.IsAdmin(currentUser)) return Result<bool>.Failure(CampAccess.AdminOnly);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
-        // Un-archiving would make a second active camp — only one camp is active at a time.
-        if (!request.Archive && camp.IsArchived && await context.Camps.AnyAsync(c => c.Id != camp.Id && !c.IsArchived, ct))
-            return Result<bool>.Failure("Un autre camp est déjà actif. Archivez-le avant de réactiver celui-ci.");
+        // Archiving is final: a camp is never re-opened (a new edition = a new camp).
+        if (!request.Archive) return Result<bool>.Failure("Un camp archivé ne peut pas être réouvert.");
         camp.IsArchived = request.Archive;
         if (request.Archive) camp.Status = CampStatus.Closed;
         await context.SaveChangesAsync(ct);
