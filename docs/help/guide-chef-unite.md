@@ -250,18 +250,20 @@ calcule si la cotisation est **complète** ou **partielle**. Pour un membre disp
 
 ## Le passage annuel
 
-Chaque année, vous indiquez pour **chaque membre** de votre unité ce qu'il devient l'année suivante. Le chef de
-groupe valide, puis applique tous les passages le jour du passage.
+Chaque année, vous indiquez pour **chaque membre** de votre unité ce qu'il devient l'année suivante, puis vous
+**terminez** le passage de votre unité. Le chef de groupe vérifie et publie le passage de tout le groupe en une
+fois : c'est seulement à ce moment que les membres changent d'unité ou de fonction.
 
 ```mermaid
 flowchart TD
     A[Vous : une ligne par membre] --> B{Quel choix ?}
-    B -->|Pas de changement| C[Accepté automatiquement]
-    B -->|Changement d'équipe, de fonction ou d'unité| D[En attente]
-    B -->|Quitte le groupe| D
-    D --> E[Le chef de groupe accepte ou refuse]
-    C --> F[Le chef de groupe finalise]
-    E --> F
+    B -->|Même unité : pas de changement, autre équipe, autre fonction| C[Accepté automatiquement]
+    B -->|Quitte le groupe| C
+    B -->|Autre unité| D[En attente du chef de groupe]
+    D --> E[Le chef de groupe accepte ou change la destination]
+    C --> T[Vous cliquez sur Terminer le passage de l'unité]
+    E --> T
+    T --> F[Le chef de groupe publie le passage du groupe]
     F --> G[Les nouvelles affectations sont créées]
 ```
 
@@ -276,13 +278,22 @@ Pour chaque membre, trois choix :
 | **Quitte le groupe** | Le membre ne revient pas l'année prochaine |
 
 - Cochez plusieurs membres pour leur appliquer le même choix en une fois (barre d'actions en bas).
-- Tant que le chef de groupe n'a pas **finalisé**, vous pouvez changer d'avis : bouton **Modifier le choix** sur
-  la ligne.
+- Tant que vous n'avez pas **terminé** l'unité, vous pouvez changer d'avis : bouton **Modifier le choix** sur la
+  ligne.
+- Le chef de groupe ne refuse pas une proposition : s'il n'est pas d'accord, il choisit une autre destination
+  (par exemple T3 au lieu de T2) et peut indiquer une **raison**. La ligne affiche alors **Modifié par le CG**, sa
+  décision et sa raison ; vous recevez une notification. Vous ne pouvez plus modifier cette ligne.
 - Quand vous choisissez **Quitte le groupe**, une fenêtre vous demande l'email et le téléphone **personnels** du
   membre (pas ceux de ses parents) : ils permettent de rester en contact avec les anciens.
 
-> ✅ Le bandeau de la page indique combien de membres ont déjà une ligne. Le chef de groupe ne peut finaliser que
-> lorsque **tous** les membres en ont une.
+Quand chaque membre a une ligne, cliquez sur **Terminer le passage de l'unité** (en haut de la page).
+
+> ⚠️ Une fois l'unité terminée, vous ne pouvez plus rien modifier : le chef de groupe fait ses calculs unité par
+> unité. Pour une correction, contactez-le : il peut changer une ligne ou rouvrir votre unité.
+
+> ✅ Le bandeau de la page indique combien de membres n'ont pas encore de ligne. Quand le chef de groupe publie
+> le passage, vous recevez par email la liste (Excel) des membres qui **arrivent** dans votre unité depuis une
+> autre unité.
 
 ## Organiser mon unité
 
@@ -379,7 +390,7 @@ L'identifiant du membre est affiché en haut de sa fiche (bouton pour le copier)
 | Un membre de mon unité n'apparaît pas dans ma liste | Il n'a pas d'affectation active dans votre unité : demandez au chef de groupe |
 | Je ne vois pas les documents d'un membre d'une autre unité | Normal : vous ne voyez que les membres de votre unité |
 | Une famille n'a pas reçu l'email | Vérifiez son **courriel de contact principal** (onglet Contact & famille) ; regardez aussi les courriers indésirables |
-| Je me suis trompé dans une proposition de passage | Bouton **Modifier le choix** sur la ligne, tant que le chef de groupe n'a pas finalisé |
+| Je me suis trompé dans une proposition de passage | Bouton **Modifier le choix** sur la ligne, tant que vous n'avez pas terminé l'unité ; ensuite, demandez au chef de groupe |
 | J'ai accepté un document par erreur | Rouvrez-le et **Refusez-le** avec un motif : la famille pourra le renvoyer |
 | Le nom ou la date de naissance d'un membre est faux | Seul le chef de groupe peut les corriger : écrivez-lui |
 | L'application me déconnecte | Cochez **Rester connecté sur cet appareil** à la connexion |

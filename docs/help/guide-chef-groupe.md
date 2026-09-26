@@ -25,7 +25,7 @@ gantt
     Étude et envoi des réponses          :a2, after a1, 20d
     section Passage
     Propositions des CU                  :b1, 2026-09-01, 30d
-    Validation puis finalisation         :b2, 2026-09-25, 15d
+    Validation puis publication          :b2, 2026-09-25, 15d
     section Documents
     Dépôt par les familles               :c1, 2026-09-10, 10d
     Vérification et corrections          :c2, after c1, 14d
@@ -41,7 +41,7 @@ gantt
 | Septembre | Ouvrir les inscriptions, étudier les demandes, envoyer les réponses | **Demandes** |
 | Septembre | Envoyer l'email de rentrée aux chefs | **Unités & maîtrise → Emails aux chefs** |
 | Septembre – octobre | Suivre la campagne de documents | **Suivi → Suivi documents** |
-| Octobre | Valider et finaliser le passage | **Suivi → Validation passages** |
+| Octobre | Valider et publier le passage | **Suivi → Validation passages** |
 | Toute l'année | Cotisations, qualité des données, fratries, messages | Menus **Suivi** et **Unités & maîtrise** |
 
 ## Se repérer
@@ -191,19 +191,28 @@ part **automatiquement** ou par **envoi manuel**, et à quel moment.
 ![Validation des passages](img/cg-passage.png)
 
 1. **Ouvrir le passage** (ou depuis la liste de rentrée) : les CU peuvent proposer.
-2. Suivez l'avancement : la carte **Sans passage** compte les membres sans proposition.
-3. Par défaut, seuls les **vrais changements** sont affichés (changement d'unité, d'équipe ou de fonction, départ) :
-   **acceptez** ou **refusez**, un par un ou en groupe. **Revue** permet de modifier l'unité, l'équipe ou la
-   fonction finales.
-4. **Projection de l'année prochaine** : l'effectif de chaque unité après le passage, en simulation (comme si tout
+2. Les lignes qui restent dans la même unité (pas de changement, autre équipe, autre fonction) et les départs sont
+   **acceptés automatiquement**. Seuls les passages vers **une autre unité** attendent votre décision.
+3. Pour chaque ligne en attente : **accepter** (un par un ou en groupe), ou **Changer** : choisissez une autre
+   unité, équipe ou fonction (ou « Quitte le groupe ») et, si vous voulez, une **raison**. Il n'y a pas de refus :
+   ne pas être d'accord, c'est choisir autre chose. Le CU voit votre décision et votre raison, reçoit une
+   notification, et ne peut plus modifier cette ligne.
+4. Accepter ne change encore rien pour les membres : vous pouvez commencer avant que toutes les unités aient fini.
+5. **Avancement par unité** : chaque CU clique sur **Terminer le passage de l'unité** quand tous ses membres ont une
+   ligne ; l'unité est alors verrouillée pour lui. Vous pouvez la **rouvrir** (🔓) ou la terminer à sa place (🏁).
+6. **Projection de l'année prochaine** : l'effectif de chaque unité après le passage, en simulation (comme si tout
    était accepté) ou en réel.
-5. **Finaliser** (le jour du passage, réglable dans **Paramètres → Passage**) : les anciennes affectations se
-   ferment, les nouvelles sont créées, l'entrée dans la nouvelle unité est ajoutée à la progression.
+7. **Publier le passage** (le jour du passage, réglable dans **Paramètres → Passage**), pour tout le groupe en une
+   fois : les lignes encore en attente sont acceptées automatiquement, les anciennes affectations se ferment, les
+   nouvelles sont créées, l'entrée dans la nouvelle unité est ajoutée à la progression. Chaque CU qui reçoit des
+   membres d'une autre unité reçoit leur liste par email (Excel).
+8. Après la publication, téléchargez la liste des **nouveaux membres par unité** en Word, **un document par
+   association** (« Passe à la … : » puis un nom par ligne).
 
 ![Projection de l'année prochaine](img/cg-passage-projection.png)
 
-> ⚠️ **Finaliser** n'est possible que lorsque **chaque membre actif** a une ligne de passage. Seules les lignes
-> **acceptées** sont appliquées.
+> ⚠️ **Publier** n'est possible que lorsque **chaque membre actif** a une ligne de passage et que **toutes les
+> unités** ont terminé leur passage.
 
 ## La campagne de documents
 
@@ -344,7 +353,7 @@ de l'année est aussi archivé et envoyé par email à l'administrateur et au ch
 | Question | Réponse |
 |---|---|
 | Je ne peux pas envoyer les réponses | Il reste des demandes soumises sans décision : filtre **Statut → À étudier** |
-| Je ne peux pas finaliser le passage | Certains membres n'ont pas de ligne : carte **Sans passage** |
+| Je ne peux pas publier le passage | Certains membres n'ont pas de ligne (carte **Sans passage**) ou une unité n'a pas terminé (**Avancement par unité**) |
 | Une famille dit ne pas avoir reçu l'email | Vérifiez son adresse dans **Comptes d'inscription** (ou le courriel principal sur la fiche) ; l'email peut aussi apparaître dans **Qualité des données** s'il a été refusé par le fournisseur |
 | Une famille veut s'inscrire après la date limite | **Comptes d'inscription → Invitations de dernière minute** |
 | Un CU ne voit pas un membre | Le membre n'a pas d'affectation active dans son unité |

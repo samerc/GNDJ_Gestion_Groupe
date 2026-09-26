@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-26", "text": "Passage : le CG accepte ou change une ligne (plus de refus) avec une raison visible par le CU, qui est notifié ; les changements dans la même unité et les départs sont acceptés automatiquement ; le CU « termine » son unité (verrouillée ensuite) ; « Publier le passage » se fait pour tout le groupe une fois toutes les unités terminées, accepte les lignes en attente et envoie à chaque CU la liste Excel de ses nouveaux membres ; liste Word des nouveaux membres par association."},
       {"date": "2026-09-26", "text": "Cotisations : « Par unité » redessiné — une tuile par unité (progression, payés, à relancer) et une seule liste de membres en dessous, avec onglets À relancer / Ont payé / Exemptés et recherche."},
       {"date": "2026-09-26", "text": "Demandes : à l'envoi des réponses, chaque chef d'unité reçoit par email la liste Excel des nouveaux membres acceptés dans son unité (noms des parents, frère / sœur dans la même unité)."},
       {"date": "2026-09-26", "text": "Camp BP : le nom (« Camp BP 2027 ») et l'année scoute sont fixés automatiquement ; nouveau champ Thème ; un seul camp par année scoute ; boutons Archiver / Supprimer regroupés dans « Clôture du camp »."},

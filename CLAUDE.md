@@ -242,6 +242,27 @@ dotnet ef database update --project src/GNDJ.Infrastructure --startup-project sr
 - [x] Admin dashboard super-admin guard at handler level
 
 ### Phase 4 — Passage annuel (Complete)
+- [x] **Rework (2026-09-26, DEV until deploy)** — accepting ≠ posting, units finish, no rejection:
+      - **Auto-accept on propose** (`PassageAutoApprove`): same-unit lines (no change / équipe / fonction change) and
+        departures → Approved; only a move to ANOTHER unit stays Pending. Patch **032** applies it to existing lines.
+      - **No reject**: Review/BulkReview only accept Approved (Rejected → 400). The CG **changes** a line instead
+        (final unit/team/role, or `FinalIsLeaving`; effective leaving = `FinalIsLeaving ?? IsLeaving`) with an
+        optional reason (`CgNotes`, NoHtml). A differing decision sets **`Passage.CgModified`** → locked for the CU
+        + in-app notification to the unit's leaders (members.edit holders) with proposal → decision + reason.
+      - **Finish a unit**: `PassageUnitSubmission` (table `passage_unit_submissions`, one per unit+year; migration
+        `PassageUnitFinishAndCgChanges` also adds `cg_modified` + `final_is_leaving`). `POST /passages/unit/{id}/submit`
+        (CU or CG; needs every active member of the unit to have a line) → the CU can no longer propose/bulk/delete
+        in that unit (`PassageLocks`); CG notified. `POST .../reopen` (CG, notifies the CU), `GET .../status`.
+      - **Posting is group-wide** (`FinalizePassagesCommand(ScoutYear)`, UnitId removed): needs no missing line, every
+        unit with active members finished, no legacy Rejected line; auto-accepts Pending lines; then emails each
+        receiving unit's CU (template `passage_unit_new_members`, Excel via `IUnitNewMembersSheet` with a new
+        "Unité d'origine" column; shared `UnitNewMembersMail` helper also used by the demande send).
+      - **CG Word export** (`GET /passages/newcomers` + `/newcomers/docx?associationId=`, passage.manage):
+        `IPassageNewcomersDocument` (OpenXml via ClosedXML's dependency) — one .docx per association of the
+        destination unit: "Passe à la <unité> :" then one name per line (units in parcours order, natural numbers).
+      - UI: CU page "Terminer le passage de l'unité" + lock banner + "Modifié par le CG" / "Décision du CG" / reason;
+        CG page: no Rejeter, "Changer" dialog (incl. Quitte le groupe + reason), "Avancement par unité" (finish/reopen),
+        "Publier le passage", Word buttons per association. Guides updated. Tested end-to-end on a DB copy (32/32).
 - [x] Passage entity with current/proposed/final unit+team+role, CU/CG notes, status workflow
 - [x] Status: Pending → Approved → Finalized (or Rejected)
 - [x] CG opens/closes passage process (toggle endpoint + setting)

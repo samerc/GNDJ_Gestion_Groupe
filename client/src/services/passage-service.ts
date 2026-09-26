@@ -3,6 +3,7 @@
 // all mutations invalidate ['passages'].
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
+import { filenameFromDisposition } from '@/lib/download'
 
 export interface PassageDto {
   id: string
@@ -34,6 +35,10 @@ export interface PassageDto {
   cuNotes: string | null
   cgNotes: string | null
   createdAt: string
+  // The CG's leaving decision when it differs from the CU's (null = same). Effective = finalIsLeaving ?? isLeaving.
+  finalIsLeaving: boolean | null
+  // True when the CG changed the CU's proposal — the line is then locked for the CU.
+  cgModified: boolean
 }
 
 export interface PassageUnitSummary {
@@ -47,6 +52,8 @@ export interface PassageUnitSummary {
   finalized: number
   expectedMembers: number
   missingLines: number
+  submitted: boolean
+  submittedAt: string | null
 }
 
 export interface PassageSummaryDto {
@@ -59,6 +66,24 @@ export interface PassageSummaryDto {
   expectedMembers: number
   missingLines: number
   unitSummaries: PassageUnitSummary[]
+  unitsNotSubmitted: number
+}
+
+// A unit's passage: finished by its CU (locked for them) + how many active members still lack a line.
+export interface PassageUnitStatus {
+  unitId: string
+  submitted: boolean
+  submittedAt: string | null
+  expectedMembers: number
+  missingLines: number
+}
+
+// Associations that received newcomers in the posted passage (one Word document each).
+export interface PassageNewcomerGroup {
+  associationId: string | null
+  associationName: string
+  count: number
+  unitCount: number
 }
 
 export interface PassageStatusDto {
@@ -157,17 +182,17 @@ export function useBulkProposePassage() {
   })
 }
 
-// PUT /passages/{id}/review — CG approve/reject/modify final unit/team/role.
+// PUT /passages/{id}/review — CG accepts a line or changes it (unit/team/role or leaving) with an optional reason.
 export function useReviewPassage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { id: string; status: string; finalUnitId?: string | null; finalTeamId?: string | null; finalRoleId?: string | null; cgNotes?: string | null }) =>
+    mutationFn: (data: { id: string; status: 'Approved'; finalUnitId?: string | null; finalTeamId?: string | null; finalRoleId?: string | null; cgNotes?: string | null; finalIsLeaving?: boolean | null }) =>
       apiClient.put(`/passages/${data.id}/review`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
   })
 }
 
-// POST /passages/bulk-review — approve/reject many at once; returns { count }.
+// POST /passages/bulk-review — accept many lines as proposed; returns { count }.
 export function useBulkReviewPassage() {
   const qc = useQueryClient()
   return useMutation({
@@ -177,12 +202,13 @@ export function useBulkReviewPassage() {
   })
 }
 
-// POST /passages/finalize — CG applies approved lines (ends old + creates new assignments); returns
-// { count }. Blocked until every active member has a line; also invalidates ['members'].
+// POST /passages/finalize — CG posts the whole group's passage (pending lines are accepted automatically;
+// ends old + creates new assignments); returns { count }. Blocked until every member has a line and every
+// unit is finished. Also invalidates ['members'].
 export function useFinalizePassages() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { scoutYear: string; unitId?: string | null }) =>
+    mutationFn: (data: { scoutYear: string }) =>
       apiClient.post<{ count: number }>('/passages/finalize', data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['passages'] })
@@ -208,4 +234,51 @@ export function useDeletePassage() {
     mutationFn: (id: string) => apiClient.delete(`/passages/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
   })
+}
+
+// GET /passages/unit/{unitId}/status — is the unit's passage finished (locked for the CU)?
+export function usePassageUnitStatus(unitId: string, scoutYear: string) {
+  return useQuery({
+    queryKey: ['passages', 'unit-status', unitId, scoutYear],
+    queryFn: () => apiClient.get<PassageUnitStatus>(`/passages/unit/${unitId}/status`, { params: { scoutYear } }).then(r => r.data),
+    enabled: !!unitId && !!scoutYear,
+  })
+}
+
+// POST /passages/unit/{unitId}/submit — CU (or CG) finishes the unit: it is then locked for the CU.
+export function useSubmitPassageUnit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { unitId: string; scoutYear: string }) =>
+      apiClient.post(`/passages/unit/${data.unitId}/submit`, { scoutYear: data.scoutYear }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
+  })
+}
+
+// POST /passages/unit/{unitId}/reopen — CG reopens a finished unit so its CU can change it again.
+export function useReopenPassageUnit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { unitId: string; scoutYear: string }) =>
+      apiClient.post(`/passages/unit/${data.unitId}/reopen`, { scoutYear: data.scoutYear }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
+  })
+}
+
+// GET /passages/newcomers — associations that received newcomers in the posted passage.
+export function usePassageNewcomerGroups(scoutYear: string, enabled = true) {
+  return useQuery({
+    queryKey: ['passages', 'newcomers', scoutYear],
+    queryFn: () => apiClient.get<PassageNewcomerGroup[]>('/passages/newcomers', { params: { scoutYear } }).then(r => r.data),
+    enabled: !!scoutYear && enabled,
+  })
+}
+
+// GET /passages/newcomers/docx — Word list of one association's newcomers ("Passe à la … :" + names).
+export async function downloadPassageNewcomersDoc(scoutYear: string, associationId: string | null) {
+  const res = await apiClient.get<Blob>('/passages/newcomers/docx', {
+    params: { scoutYear, associationId: associationId ?? undefined },
+    responseType: 'blob',
+  })
+  return { blob: res.data, fileName: filenameFromDisposition(res.headers['content-disposition']) ?? `Passage ${scoutYear}.docx` }
 }

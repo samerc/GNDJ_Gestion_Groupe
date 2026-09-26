@@ -33,3 +33,16 @@ public class PassageConfiguration : IEntityTypeConfiguration<Passage>
         builder.HasIndex(e => e.Status);
     }
 }
+
+// Units whose CU finished their passage for a scout year (one row per unit + year).
+public class PassageUnitSubmissionConfiguration : IEntityTypeConfiguration<PassageUnitSubmission>
+{
+    public void Configure(EntityTypeBuilder<PassageUnitSubmission> builder)
+    {
+        builder.ToTable("passage_unit_submissions");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.ScoutYear).HasMaxLength(20);
+        builder.HasOne(e => e.Unit).WithMany().HasForeignKey(e => e.UnitId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(e => new { e.ScoutYear, e.UnitId }).IsUnique();
+    }
+}

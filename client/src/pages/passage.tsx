@@ -7,6 +7,8 @@ import {
   useProposePassage,
   useBulkProposePassage,
   useDeletePassage,
+  usePassageUnitStatus,
+  useSubmitPassageUnit,
   type PassageDto,
 } from '@/services/passage-service'
 import { useMembers } from '@/services/member-service'
@@ -30,7 +32,8 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
-import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, ArrowUpDown, Pencil, LayoutGrid } from 'lucide-react'
+import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, ArrowUpDown, Pencil, LayoutGrid, Lock, Flag, ShieldAlert } from 'lucide-react'
+import { Callout } from '@/components/shared/callout'
 import { useNavigate } from 'react-router'
 import { cn, computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -66,18 +69,21 @@ interface MemberRow {
 
 type SortCol = 'name' | 'age' | 'unit' | 'team' | 'role' | 'status'
 
-// Bucket a row for the status filter: no proposal yet ("todo"), leaving, or its passage status.
+// Bucket a row for the status filter: no proposal yet ("todo"), changed by the CG, leaving, or its status.
 function rowState(row: MemberRow): string {
   if (!row.passage) return 'todo'
-  if (row.passage.isLeaving) return 'leaving'
+  if (row.passage.cgModified) return 'modified'
+  if (row.passage.finalIsLeaving ?? row.passage.isLeaving) return 'leaving'
   return row.passage.status.toLowerCase()
 }
 
 // "Passage annuel" — chef d'unité (CU) screen. Lists the CU's active members for the upcoming scout year so
 // the CU can submit a passage line for each: "Pas de changement", "Proposer" a move (équipe/fonction or up
-// to a higher unit via the parcours scout), or "Quitte le groupe". Single + bulk proposals. Only visible
-// while the CG has OPENED the passage process; otherwise shows a closed-state card. CG reviews/finalizes
-// elsewhere. Renders as a card list on mobile, a full table on desktop.
+// to a higher unit via the parcours scout), or "Quitte le groupe". Lines staying in the unit and departures
+// are accepted automatically; a move to another unit waits for the CG, who may change it (the CU then sees the
+// CG's decision + reason and can no longer edit that line). When every member has a line the CU clicks
+// "Terminer le passage de l'unité": the whole unit is then locked for them (only the CG changes it). Only
+// visible while the CG has OPENED the passage process. Card list on mobile, table on desktop.
 export default function PassagePage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -100,6 +106,11 @@ export default function PassagePage() {
   const proposeMutation = useProposePassage()
   const bulkProposeMutation = useBulkProposePassage()
   const deleteMutation = useDeletePassage()
+  const submitUnitMutation = useSubmitPassageUnit()
+  const { data: unitStatus } = usePassageUnitStatus(unitId, passageScoutYear)
+  // Finished by the CU: the unit is locked for them (the CG plans per unit); only the CG changes it now.
+  const unitLocked = !!unitStatus?.submitted
+  const [confirmSubmit, setConfirmSubmit] = useState(false)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [proposeDialogOpen, setProposeDialogOpen] = useState(false)
@@ -376,14 +387,20 @@ export default function PassagePage() {
   // Colored status pill for a proposal; an approved proposal that keeps the same unit+role reads as
   // "Pas de changement" rather than "Accepté".
   const statusBadge = (passage: PassageDto) => {
-    if (passage.isLeaving) return <Badge className="bg-orange-600">Quitte le groupe{passage.status === 'Approved' ? ' ✓' : passage.status === 'Rejected' ? ' ✗' : ''}</Badge>
+    if (passage.status === 'Finalized') return <Badge className="bg-blue-600">Publié</Badge>
+    if (passage.cgModified) return <Badge className="bg-amber-600 text-white">Modifié par le CG</Badge>
+    if (passage.finalIsLeaving ?? passage.isLeaving) return <Badge className="bg-orange-600">Quitte le groupe</Badge>
     switch (passage.status) {
-      case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName ? 'Pas de changement' : 'Accepté'}</Badge>
-      case 'Rejected': return <Badge variant="destructive">Rejeté</Badge>
-      case 'Finalized': return <Badge className="bg-blue-600">Finalisé</Badge>
-      default: return <Badge className="bg-yellow-500 text-white">En attente</Badge>
+      case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName && (passage.proposedTeamName ?? null) === (passage.currentTeamName ?? null) ? 'Pas de changement' : 'Accepté'}</Badge>
+      default: return <Badge className="bg-yellow-500 text-white">En attente du CG</Badge>
     }
   }
+
+  // The CG's decision on a line they changed: "Quitte le groupe" or unit / équipe · fonction.
+  const decisionText = (p: PassageDto) =>
+    (p.finalIsLeaving ?? p.isLeaving)
+      ? 'Quitte le groupe'
+      : `${p.finalUnitName ?? p.proposedUnitName}${p.finalTeamName ? ` / ${p.finalTeamName}` : ''} · ${p.finalRoleName ?? p.proposedRoleName}`
 
   // One-click "Pas de changement": propose keeping the member's current unit/team/role (auto-approved by CG).
   const handleNoChange = async (row: MemberRow) => {
@@ -432,22 +449,25 @@ export default function PassagePage() {
       proposedUnitId: currentLeaver.currentUnitId, proposedTeamId: currentLeaver.currentTeamId,
       proposedRoleId: currentLeaver.currentRoleId, cuNotes: notes || null, isLeaving: true,
     })
-    toast.success('Départ enregistré (en attente de validation)')
+    toast.success('Départ enregistré')
     stopEditRow(currentLeaver.memberId)
     advanceLeave()
   }
 
-  // A member's line can still be changed by the CU until the CG FINALIZES the passage. Approved (incl.
-  // auto-approved "no change") + Pending lines are re-openable; Finalized/Rejected are locked. The pencil
-  // in the actions column (re-opens the three choices) shows only when editable AND not already editing.
-  const canEditRow = (row: MemberRow) =>
-    !!row.passage && (row.passage.status === 'Pending' || row.passage.status === 'Approved') && !editingRows.has(row.memberId)
+  // A line stays editable by the CU until the unit is finished ("Terminer") — unless the CG changed it (then
+  // only the CG can). The pencil (re-opens the three choices) shows only when editable AND not already editing.
+  const canChangeRow = (row: MemberRow) =>
+    !!row.passage && !unitLocked && !row.passage.cgModified && row.passage.status !== 'Finalized'
+  const canEditRow = (row: MemberRow) => canChangeRow(row) && !editingRows.has(row.memberId)
 
   // Proposition cell/section — shared by the desktop table and the mobile cards.
   const renderProposition = (row: MemberRow) => {
-    const showActions = !row.passage || editingRows.has(row.memberId)
+    const showActions = !unitLocked && (!row.passage || editingRows.has(row.memberId))
+
+    if (!row.passage && unitLocked) return <span className="text-xs text-muted-foreground">—</span>
 
     if (!showActions) {
+      const p = row.passage!
       return (
         <div className="space-y-1">
           <div className="flex items-center gap-1">
@@ -461,8 +481,13 @@ export default function PassagePage() {
             <div className="text-xs text-blue-600 dark:text-blue-400">Fonction : {row.passage!.proposedRoleName}</div>
           )}
           <div className="flex items-center gap-2">
-            {statusBadge(row.passage!)}
+            {statusBadge(p)}
           </div>
+          {/* The CG's decision (when they changed the proposal) and their reason, if any. */}
+          {p.cgModified && (
+            <div className="text-xs text-amber-700 dark:text-amber-300">Décision du CG : {decisionText(p)}</div>
+          )}
+          {p.cgNotes && <div className="text-xs text-muted-foreground italic">Raison : {p.cgNotes}</div>}
         </div>
       )
     }
@@ -583,7 +608,14 @@ export default function PassagePage() {
             <Button variant="outline" size="sm" onClick={() => navigate('/organiser')} title="Basculer vers le plan de l'unité (glisser-déposer)">
               <LayoutGrid className="mr-1.5 h-4 w-4" />Plan de l'unité
             </Button>
-            <Badge variant="success">Passage ouvert</Badge>
+            {unitLocked ? (
+              <Badge variant="secondary"><Lock className="mr-1 h-3 w-3" />Unité terminée</Badge>
+            ) : (
+              <Button size="sm" onClick={() => setConfirmSubmit(true)} disabled={!unitStatus || unitStatus.missingLines > 0}
+                title={unitStatus && unitStatus.missingLines > 0 ? `${unitStatus.missingLines} membre(s) sans proposition` : undefined}>
+                <Flag className="mr-1.5 h-4 w-4" />Terminer le passage de l'unité
+              </Button>
+            )}
           </>
         }
       />
@@ -596,8 +628,25 @@ export default function PassagePage() {
         </Select>
       )}
 
+      {unitLocked ? (
+        <Callout tone="info" icon={Lock}>
+          Vous avez terminé le passage de l'unité{unitStatus?.submittedAt ? ` le ${new Date(unitStatus.submittedAt).toLocaleDateString('fr-FR')}` : ''}.
+          Seule la Maîtrise de Groupe peut encore modifier les lignes. Vous verrez ici ses décisions et leurs raisons.
+        </Callout>
+      ) : unitStatus && unitStatus.missingLines > 0 ? (
+        <Callout tone="warning">
+          {unitStatus.missingLines} membre(s) n'ont pas encore de proposition. Quand chaque membre en a une, cliquez sur
+          « Terminer le passage de l'unité ».
+        </Callout>
+      ) : null}
+      {memberRows.some(r => r.passage?.cgModified) && (
+        <Callout tone="warning" icon={ShieldAlert}>
+          La Maîtrise de Groupe a modifié {memberRows.filter(r => r.passage?.cgModified).length} proposition(s) — voir « Décision du CG » dans la liste.
+        </Callout>
+      )}
+
       {/* Bulk actions bar */}
-      {selected.size > 0 && (
+      {selected.size > 0 && !unitLocked && (
         <Card>
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
             <span className="text-sm font-medium">{selected.size} membre(s) selectionne(s)</span>
@@ -631,10 +680,10 @@ export default function PassagePage() {
             <SelectContent>
               <SelectItem value="all">Tous les statuts</SelectItem>
               <SelectItem value="todo">À proposer</SelectItem>
-              <SelectItem value="pending">En attente</SelectItem>
+              <SelectItem value="pending">En attente du CG</SelectItem>
               <SelectItem value="approved">Accepté / Pas de changement</SelectItem>
+              <SelectItem value="modified">Modifié par le CG</SelectItem>
               <SelectItem value="leaving">Quitte le groupe</SelectItem>
-              <SelectItem value="rejected">Rejeté</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -661,7 +710,7 @@ export default function PassagePage() {
                       {row.currentUnitCode}{row.currentTeamName ? ` · ${row.currentTeamName}` : ''} · {row.currentRoleName}
                     </div>
                   </div>
-                  {row.passage && (
+                  {row.passage && canChangeRow(row) && (
                     <div className="flex gap-1 shrink-0">
                       {canEditRow(row) && (
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditRow(row.memberId)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -730,7 +779,7 @@ export default function PassagePage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      {row.passage && (
+                      {row.passage && canChangeRow(row) && (
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer">
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
@@ -852,6 +901,23 @@ export default function PassagePage() {
         onConfirm={submitLeaving}
         progress={leaveQueue.length > 1 ? { current: leaveIndex + 1, total: leaveQueue.length } : undefined}
         onSkip={leaveQueue.length > 1 ? advanceLeave : undefined}
+      />
+
+      {/* Finish the unit's passage — locks it for the CU */}
+      <ConfirmDialog
+        open={confirmSubmit}
+        onOpenChange={setConfirmSubmit}
+        title="Terminer le passage de l'unité"
+        description="Une fois terminé, vous ne pourrez plus modifier les lignes de votre unité : la Maîtrise de Groupe fait ses calculs par unité. Toute modification ultérieure sera faite par le CG. Continuer ?"
+        confirmLabel="Terminer"
+        loading={submitUnitMutation.isPending}
+        onConfirm={async () => {
+          try {
+            await submitUnitMutation.mutateAsync({ unitId, scoutYear: passageScoutYear })
+            toast.success("Passage de l'unité terminé")
+          } catch (err) { toast.error(parseApiError(err)) }
+          setConfirmSubmit(false)
+        }}
       />
 
       {/* Delete Confirm */}

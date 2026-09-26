@@ -41,6 +41,7 @@ public interface IApplicationDbContext
     DbSet<MemberProgression> MemberProgressions { get; }
     DbSet<MemberChangeRequest> MemberChangeRequests { get; }
     DbSet<Passage> Passages { get; }
+    DbSet<PassageUnitSubmission> PassageUnitSubmissions { get; }
     DbSet<ApiKey> ApiKeys { get; }
     DbSet<CustomField> CustomFields { get; }
     DbSet<MemberCustomFieldValue> MemberCustomFieldValues { get; }

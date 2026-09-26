@@ -8,7 +8,8 @@ namespace GNDJ.Api.Controllers;
 
 /// <summary>
 /// Annual passage workflow: members move unit/team/role between scout years. Route api/v1/passages. Auth is JWT or API-key.
-/// Status flow Pending -&gt; Approved -&gt; Finalized (or Rejected). CU proposes (passage.propose), CG reviews/finalizes
+/// Status flow Pending -&gt; Approved -&gt; Finalized (the CG changes a line instead of rejecting it). CU proposes and finishes their
+/// unit (passage.propose), CG reviews/changes lines and posts the whole group (passage.manage)
 /// (passage.manage), read is passage.view. The scoutYear query param is required on all read endpoints (a round is scoped to one year).
 /// </summary>
 [Authorize]
@@ -105,7 +106,7 @@ public class PassagesController : BaseApiController
         return Ok(new { count = result.Value });
     }
 
-    /// <summary>CG reviews a proposal: modify/approve/reject (validates the final team belongs to the final unit). Requires passage.manage.</summary>
+    /// <summary>CG accepts a line or changes it (unit/team/role or leaving), with an optional reason shown to the CU. Requires passage.manage.</summary>
     [HttpPut("{id:guid}/review")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> Review(Guid id, [FromBody] ReviewPassageCommand command)
@@ -116,7 +117,7 @@ public class PassagesController : BaseApiController
         return NoContent();
     }
 
-    /// <summary>CG bulk approve/reject of proposals; returns the processed count. Requires passage.manage.</summary>
+    /// <summary>CG bulk accept of lines as proposed; returns the processed count. Requires passage.manage.</summary>
     [HttpPost("bulk-review")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> BulkReview([FromBody] BulkReviewPassageCommand command)
@@ -127,8 +128,9 @@ public class PassagesController : BaseApiController
     }
 
     /// <summary>
-    /// CG finalize: ends old assignments and creates new ones for all Approved lines; returns the count finalized. Requires passage.manage.
-    /// Serialized via a Postgres advisory lock and idempotent (double-click / two-CG safe); blocked until every active member in scope has a line.
+    /// CG posts the passage for the whole group: accepts lines still pending, ends old assignments and creates new ones, then emails
+    /// each receiving unit's CU its newcomers; returns the count posted. Requires passage.manage. Blocked until every active member has
+    /// a line and every unit is finished. Serialized via a Postgres advisory lock and idempotent.
     /// </summary>
     [HttpPost("finalize")]
     [HasPermission(Permissions.PassageManage)]
@@ -137,6 +139,58 @@ public class PassagesController : BaseApiController
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
         return Ok(new { count = result.Value });
+    }
+
+    /// <summary>Finish status of one unit's passage (finished?, members without a line). Requires passage.view + unit access.</summary>
+    [HttpGet("unit/{unitId:guid}/status")]
+    [HasPermission(Permissions.PassageView)]
+    public async Task<IActionResult> GetUnitStatus(Guid unitId, [FromQuery] string scoutYear)
+    {
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            return BadRequest(new { error = "L'année scoute est requise." });
+        var result = await Mediator.Send(new GetPassageUnitStatusQuery(unitId, scoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>CU (or CG) finishes a unit's passage: every member must have a line; the unit is then locked for the CU. Requires passage.propose.</summary>
+    [HttpPost("unit/{unitId:guid}/submit")]
+    [HasPermission(Permissions.PassagePropose)]
+    public async Task<IActionResult> SubmitUnit(Guid unitId, [FromBody] PassageYearBody body)
+    {
+        var result = await Mediator.Send(new SubmitPassageUnitCommand(unitId, body.ScoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>CG reopens a finished unit so its CU can change it again. Requires passage.manage.</summary>
+    [HttpPost("unit/{unitId:guid}/reopen")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> ReopenUnit(Guid unitId, [FromBody] PassageYearBody body)
+    {
+        var result = await Mediator.Send(new ReopenPassageUnitCommand(unitId, body.ScoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Associations that received newcomers in the posted passage (one Word document each). Requires passage.manage.</summary>
+    [HttpGet("newcomers")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> GetNewcomerGroups([FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new GetPassageNewcomerGroupsQuery(scoutYear ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Word document of the newcomers for one association (omit associationId for units without one). Requires passage.manage.</summary>
+    [HttpGet("newcomers/docx")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> GetNewcomersDoc([FromQuery] string scoutYear, [FromQuery] Guid? associationId)
+    {
+        var result = await Mediator.Send(new GetPassageNewcomersDocQuery(scoutYear ?? "", associationId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Data, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", result.Value.FileName);
     }
 
     /// <summary>CG opens or closes the passage process for the year (gates CU proposals). Requires passage.manage.</summary>
@@ -159,3 +213,6 @@ public class PassagesController : BaseApiController
         return NoContent();
     }
 }
+
+/// <summary>Body carrying only the scout year.</summary>
+public record PassageYearBody(string ScoutYear);

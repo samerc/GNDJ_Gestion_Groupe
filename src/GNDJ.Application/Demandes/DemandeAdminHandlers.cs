@@ -288,7 +288,7 @@ public class GetUnitOccupancyQueryHandler(IApplicationDbContext context) : IRequ
         // passage projection: count non-finalized, non-rejected lines for the year
         var passages = await context.Passages
             .Where(p => p.ScoutYear == request.ScoutYear && p.Status != PassageStatus.Finalized && p.Status != PassageStatus.Rejected)
-            .Select(p => new { p.CurrentUnitId, p.IsLeaving, Dest = p.FinalUnitId ?? p.ProposedUnitId })
+            .Select(p => new { p.CurrentUnitId, IsLeaving = p.FinalIsLeaving ?? p.IsLeaving, Dest = p.FinalUnitId ?? p.ProposedUnitId })
             .ToListAsync(ct);
         var outgoing = new Dictionary<Guid, int>();
         var incoming = new Dictionary<Guid, int>();
@@ -1336,13 +1336,8 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         static string Norm(string? s) => TextNormalization.NormalizeKey(s ?? "");
         string? Names(IEnumerable<ApplicantGuardian> gs) { var n = string.Join(", ", gs.Select(g => $"{g.FirstName} {g.LastName}".Trim())); return n.Length == 0 ? null : n; }
 
-        // Chefs d'unité of those units.
-        var cus = await context.MemberAssignments
-            .Where(a => unitIds.Contains(a.UnitId) && a.EndDate == null && !a.IsDeleted && !a.Member.IsDeleted
-                        && a.FunctionalRole.SecurityProfile.Code == "chef-unite")
-            .Select(a => new { a.UnitId, a.MemberId, a.Member.FirstName, a.Member.LastName, a.Member.PrimaryContactEmail })
-            .ToListAsync(ct);
-        var resolver = await ContactEmailResolver.LoadAsync(context, cus.Select(c => c.MemberId).Distinct().ToList(), ct);
+        // Chefs d'unité of those units (with a reachable email).
+        var heads = await UnitNewMembersMail.LoadUnitHeadsAsync(context, unitIds, ct);
 
         var noCu = new List<string>();
         var jobs = new List<EmailJob>();
@@ -1371,24 +1366,9 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                         sibs.Count == 0 ? null : string.Join(", ", sibs));
                 }).ToList();
 
-            var recipients = cus.Where(c => c.UnitId == unitId)
-                .Select(c => (c.FirstName, c.LastName, Email: resolver.Resolve(c.MemberId, c.PrimaryContactEmail)))
-                .Where(c => !string.IsNullOrWhiteSpace(c.Email))
-                .DistinctBy(c => c.Email!.ToLowerInvariant()).ToList();
-            if (recipients.Count == 0) { noCu.Add(unitName); continue; }
-
+            if (!heads.TryGetValue(unitId, out var recipients)) { noCu.Add(unitName); continue; }
             // One copy of the file per CU, deleted by the outbox sender as soon as that CU's email is sent.
-            foreach (var cu in recipients)
-            {
-                var attachment = new EmailAttachment($"Nouveaux membres - {unitName}.xlsx", unitSheet.Save(unitName, scoutYear, rows), DeleteAfterSend: true);
-                jobs.Add(new EmailJob("demande_unit_new_members", cu.Email!, new Dictionary<string, string>
-                {
-                    ["leaderName"] = $"{cu.FirstName} {cu.LastName}".Trim(),
-                    ["unitName"] = unitName,
-                    ["count"] = rows.Count.ToString(),
-                    ["scoutYear"] = scoutYear,
-                }, [attachment]));
-            }
+            jobs.AddRange(UnitNewMembersMail.BuildJobs("demande_unit_new_members", unitName, scoutYear, rows, recipients, unitSheet));
         }
         if (jobs.Count > 0) await emailQueue.EnqueueManyAsync(jobs, ct);
         return noCu;

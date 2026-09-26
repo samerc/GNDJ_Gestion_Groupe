@@ -44,6 +44,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<MemberProgression> MemberProgressions => Set<MemberProgression>();
     public DbSet<MemberChangeRequest> MemberChangeRequests => Set<MemberChangeRequest>();
     public DbSet<Passage> Passages => Set<Passage>();
+    public DbSet<PassageUnitSubmission> PassageUnitSubmissions => Set<PassageUnitSubmission>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<CustomField> CustomFields => Set<CustomField>();
     public DbSet<MemberCustomFieldValue> MemberCustomFieldValues => Set<MemberCustomFieldValue>();

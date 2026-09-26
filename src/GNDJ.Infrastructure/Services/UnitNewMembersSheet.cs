@@ -22,8 +22,9 @@ public sealed class UnitNewMembersSheet(IConfiguration config) : IUnitNewMembers
 
         using var wb = new XLWorkbook();
         var ws = wb.Worksheets.Add("Nouveaux membres");
+        var withFrom = rows.Any(r => !string.IsNullOrWhiteSpace(r.FromUnit));
         string[] headers = ["Nom", "Prénom", "Date de naissance", "Genre", "Classe", "École", "Matricule",
-                            "Père", "Mère", "Autre(s) tuteur(s)", "Frère / sœur dans l'unité"];
+                            "Père", "Mère", "Autre(s) tuteur(s)", "Frère / sœur dans l'unité", .. (withFrom ? new[] { "Unité d'origine" } : [])];
         for (var i = 0; i < headers.Length; i++) ws.Cell(1, i + 1).Value = headers[i];
         var head = ws.Range(1, 1, 1, headers.Length);
         head.Style.Font.Bold = true;
@@ -43,6 +44,7 @@ public sealed class UnitNewMembersSheet(IConfiguration config) : IUnitNewMembers
             ws.Cell(r, 9).Value = m.Mother ?? "";
             ws.Cell(r, 10).Value = m.OtherGuardians ?? "";
             ws.Cell(r, 11).Value = m.SiblingsInUnit ?? "";
+            if (withFrom) ws.Cell(r, 12).Value = m.FromUnit ?? "";
             r++;
         }
         ws.SheetView.FreezeRows(1);
