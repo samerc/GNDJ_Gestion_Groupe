@@ -7,10 +7,9 @@ namespace GNDJ.Application.Camps;
 // Who sees and does what inside a Camp BP — the single place for the rules (every camp handler asks here):
 //   • Camp admin = super-admin, or camp.manage (the CG, or someone the CG delegated Camp BP to): everything, incl.
 //     creating / archiving / deleting a camp and choosing each camp's responsables.
-//   • Responsable du camp (an ACG the CG picked for THIS camp): full rights on the camp — chooses the Commission BP
-//     (add / remove members, name the chef de commission) and edits every area.
-//   • Chef de commission: sees and edits every area of THEIR camp and sets the other members' rights.
-//   • Other commission member: the Commission tab (read-only) + each area at the level the chef gave them
+//   • Responsable du camp = chef de commission (an ACG the CG picked for THIS camp): full rights on the camp —
+//     chooses the Commission BP members, sets their rights, edits every area.
+//   • Other commission member: the Commission tab (read-only) + each area at the level a responsable gave them
 //     (Familles / Jeux / Paramètres: none | view | edit).
 //   • Anyone else (e.g. a CU from outside the commission): nothing here — only the grading page (/camp), which
 //     is unit-scoped and handled by CampAttendanceHandlers.
@@ -29,7 +28,7 @@ public static class CampAccessLevel
 
 // What the CURRENT user may do in a camp (sent to the camp screen so it shows only the allowed tabs / buttons).
 public record CampMyAccessDto(
-    bool IsAdmin, bool IsCommissionMember, bool IsResponsable, bool IsChef,
+    bool IsAdmin, bool IsCommissionMember, bool IsResponsable,
     string Familles, string Jeux, string Parametres,
     bool CanManageCommission, bool CanSetRights);
 
@@ -44,21 +43,19 @@ public static class CampAccess
     public static async Task<CampMyAccessDto> ForAsync(IApplicationDbContext context, ICurrentUserService u, Guid campId, CancellationToken ct)
     {
         if (IsAdmin(u))
-            return new CampMyAccessDto(true, false, false, false, CampAccessLevel.Edit, CampAccessLevel.Edit, CampAccessLevel.Edit, true, true);
+            return new CampMyAccessDto(true, false, false, CampAccessLevel.Edit, CampAccessLevel.Edit, CampAccessLevel.Edit, true, true);
 
         var row = u.MemberId is Guid mid
             ? await context.CampCommissionMembers
                 .Where(c => c.CampId == campId && c.MemberId == mid && !c.Camp.IsArchived)
-                .Select(c => new { c.IsResponsable, c.IsChef, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess })
+                .Select(c => new { c.IsResponsable, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess })
                 .FirstOrDefaultAsync(ct)
             : null;
         if (row is null)
-            return new CampMyAccessDto(false, false, false, false, CampAccessLevel.None, CampAccessLevel.None, CampAccessLevel.None, false, false);
+            return new CampMyAccessDto(false, false, false, CampAccessLevel.None, CampAccessLevel.None, CampAccessLevel.None, false, false);
         if (row.IsResponsable)
-            return new CampMyAccessDto(false, true, true, row.IsChef, CampAccessLevel.Edit, CampAccessLevel.Edit, CampAccessLevel.Edit, true, true);
-        if (row.IsChef)
-            return new CampMyAccessDto(false, true, false, true, CampAccessLevel.Edit, CampAccessLevel.Edit, CampAccessLevel.Edit, false, true);
-        return new CampMyAccessDto(false, true, false, false, row.FamillesAccess, row.JeuxAccess, row.ParametresAccess, false, false);
+            return new CampMyAccessDto(false, true, true, CampAccessLevel.Edit, CampAccessLevel.Edit, CampAccessLevel.Edit, true, true);
+        return new CampMyAccessDto(false, true, false, row.FamillesAccess, row.JeuxAccess, row.ParametresAccess, false, false);
     }
 
     // Null when allowed; otherwise the refusal message. edit=false → viewing is enough.

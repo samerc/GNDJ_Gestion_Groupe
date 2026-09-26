@@ -103,13 +103,13 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> SetResponsables(Guid id, [FromBody] ResponsablesBody body)
         => Res(await Mediator.Send(new SetCampResponsablesCommand(id, body.MemberIds ?? [])));
 
-    /// <summary>Replaces the Commission BP and names its chef (CG or a camp responsable — checked in the handler).</summary>
+    /// <summary>Replaces the Commission BP members (CG or a camp responsable — checked in the handler).</summary>
     [HttpPut("{id:guid}/commission")]
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> SetCommission(Guid id, [FromBody] CommissionBody body)
-        => Res(await Mediator.Send(new SetCampCommissionCommand(id, body.MemberIds ?? [], body.ChefMemberId)));
+        => Res(await Mediator.Send(new SetCampCommissionCommand(id, body.MemberIds ?? [])));
 
-    /// <summary>Sets one commission member's rights per area (chef de commission or CG / ACG).</summary>
+    /// <summary>Sets one commission member's rights per area (a responsable du camp or the CG).</summary>
     [HttpPut("{id:guid}/commission/{memberId:guid}/access")]
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> SetCommissionAccess(Guid id, Guid memberId, [FromBody] CommissionAccessBody body)
@@ -208,6 +208,6 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> EtapisteCandidates(Guid id) => Res(await Mediator.Send(new GetEtapisteCandidatesQuery(id)));
 }
 
-public record CommissionBody(List<Guid>? MemberIds, Guid? ChefMemberId);
+public record CommissionBody(List<Guid>? MemberIds);
 public record ResponsablesBody(List<Guid>? MemberIds);
 public record CommissionAccessBody(string FamillesAccess, string JeuxAccess, string ParametresAccess);

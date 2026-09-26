@@ -19,13 +19,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                 defaultValue: "none");
 
             migrationBuilder.AddColumn<bool>(
-                name: "is_chef",
-                table: "camp_commission_members",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<bool>(
                 name: "is_responsable",
                 table: "camp_commission_members",
                 type: "boolean",
@@ -54,10 +47,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
         {
             migrationBuilder.DropColumn(
                 name: "familles_access",
-                table: "camp_commission_members");
-
-            migrationBuilder.DropColumn(
-                name: "is_chef",
                 table: "camp_commission_members");
 
             migrationBuilder.DropColumn(

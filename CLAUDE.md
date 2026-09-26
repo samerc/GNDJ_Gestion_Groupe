@@ -6104,17 +6104,18 @@ Every member got their access in 2026, and new chefs are existing members, so th
 ### Camp BP — responsables + roles inside the commission (2026-09-26, DEV until deploy)
 - **`CampAccess`** (Application/Camps) = the single rule set, asked by every camp handler: **admin** = super-admin or
   `camp.manage` (the CG, or someone the CG delegated Camp BP to) → create / archive / delete + choose responsables;
-  **Responsable du camp** (`CampCommissionMember.IsResponsable`, ACGs = active group-level role, picked by the CG at
-  creation or via `PUT /camps/{id}/responsables`) → full rights on THAT camp (commission, chef, every area);
-  **chef de commission** (`IsChef`, named by the CG or a responsable) → every area + sets others' rights;
-  **member** → per area `FamillesAccess`/`JeuxAccess`/`ParametresAccess` = none/view/edit (`PUT /camps/{id}/
+  **Responsable du camp = chef de commission** (`CampCommissionMember.IsResponsable`, ACGs = active group-level role,
+  picked by the CG at creation or via `PUT /camps/{id}/responsables`) → full rights on THAT camp (choose the commission
+  members, set their rights, every area); **member** → per area `FamillesAccess`/`JeuxAccess`/`ParametresAccess` =
+  none/view/edit (`PUT /camps/{id}/
   commission/{memberId}/access`). Anyone on the commission sees the Commission tab; outside CUs only the grading page.
   Migration `AddCampCommissionRoles`.
 - **ACGs no longer hold camp.* by default** (unchanged baseline); commission membership grants `camp.grade` + the
   non-assignable `camp.commission` (NOT camp.manage) at sign-in. Camp endpoints are gated `camp.grade` and each
   handler checks the area (Familles incl. draft/move/swap/Père-Mère/PDFs; Jeux incl. étapistes; Paramètres = update).
 - **Commission = maîtrise only** (active IsMaitrise role), checked server-side; picker from `GET /camps/commission-
-  candidates` (`?groupLevelOnly=true` for responsables). Responsables can't be removed by SetCommission.
+  candidates` (`?groupLevelOnly=true` for responsables). The check applies to members being ADDED only (existing
+  ones can always be removed). Responsables can't be removed by SetCommission.
 - Frontend: `camp.myAccess` drives the tabs; "view" = read-only (no draft/drag/leaders, no game edits, settings
   fieldset disabled). `/admin/camps` open to camp.manage OR camp.commission (PermissionRoute accepts a list); sidebar
   "Commission BP" link for commission members. Create dialog has the responsables picker. Empty game name → inline error.

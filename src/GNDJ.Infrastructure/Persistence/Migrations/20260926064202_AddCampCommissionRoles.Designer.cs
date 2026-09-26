@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GndjDbContext))]
-    [Migration("20260926061512_AddCampCommissionRoles")]
+    [Migration("20260926064202_AddCampCommissionRoles")]
     partial class AddCampCommissionRoles
     {
         /// <inheritdoc />
@@ -846,10 +846,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(10)")
                         .HasDefaultValue("none")
                         .HasColumnName("familles_access");
-
-                    b.Property<bool>("IsChef")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_chef");
 
                     b.Property<bool>("IsResponsable")
                         .HasColumnType("boolean")

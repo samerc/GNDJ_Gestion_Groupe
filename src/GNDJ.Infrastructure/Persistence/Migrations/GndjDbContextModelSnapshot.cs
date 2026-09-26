@@ -844,10 +844,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasDefaultValue("none")
                         .HasColumnName("familles_access");
 
-                    b.Property<bool>("IsChef")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_chef");
-
                     b.Property<bool>("IsResponsable")
                         .HasColumnType("boolean")
                         .HasColumnName("is_responsable");
