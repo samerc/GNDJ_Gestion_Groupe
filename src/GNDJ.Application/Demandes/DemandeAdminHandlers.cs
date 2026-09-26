@@ -1535,7 +1535,9 @@ public class SetDemandeSubmissionsCommandHandler(IApplicationDbContext context, 
 }
 
 // Campaign status for the CG review page: is the portal open, is the submission window open, and the year.
-public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear);
+// Active = the demande period is running: inscriptions open OR demandes still exist (not yet "Clôturer les
+// demandes", which archives + deletes them all). Drives the menu: when not active, only the archive is shown.
+public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear, bool Active);
 public record GetDemandeCampaignStatusQuery : IRequest<Result<DemandeCampaignStatusDto>>;
 
 public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
@@ -1549,6 +1551,7 @@ public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
         var enabled = map.GetValueOrDefault("demande.enabled") == "true";
         var submissionsOpen = map.GetValueOrDefault("demande.submissions_open") != "false";
         var year = map.GetValueOrDefault("demande.scout_year") ?? "";
-        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year));
+        var active = enabled || await context.Demandes.AnyAsync(ct);
+        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year, active));
     }
 }

@@ -56,7 +56,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { usePendingDemandeCount } from '@/services/demande-admin-service'
+import { usePendingDemandeCount, useCampaignStatus } from '@/services/demande-admin-service'
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
 import { useUnreadContactMessageCount } from '@/services/contact-message-service'
 import { useCamps } from '@/services/camp-service'
@@ -215,6 +215,26 @@ const adminGroups: AdminGroup[] = [
   },
 ]
 
+// Demandes placement follows the demande period. While it's running (inscriptions open, or demandes not yet
+// closed with "Clôturer les demandes") the full Demandes group is shown. Once closed, its pages are empty —
+// only the archive still holds anything — so the group is hidden and "Archives des demandes" moves into
+// Configuration (Structure & données) until inscriptions are reopened. `active` undefined (status not loaded
+// yet / no demande.view) keeps the normal layout.
+function placeDemandes(groups: AdminGroup[], active: boolean | undefined): AdminGroup[] {
+  if (active !== false) return groups
+  return groups
+    .filter((g) => g.label !== 'Demandes')
+    .map((g) => {
+      if (g.label !== 'Configuration') return g
+      const items = [...g.items]
+      // Insert after the last "Structure & données" link so it sits with the other reference pages.
+      let at = -1
+      items.forEach((it, i) => { if (it.section === 'Structure & données') at = i })
+      items.splice(at + 1, 0, { path: '/admin/demande-archives', label: 'Archives des demandes', icon: Archive, permission: PERMISSIONS.DEMANDE_VIEW, section: 'Structure & données' })
+      return { ...g, items }
+    })
+}
+
 // Shared nav body for both the desktop <Sidebar> and the mobile drawer.
 // Decides which nav set to show and filters every link by the current user's permissions.
 function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
@@ -226,6 +246,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const { openGroups, toggleGroup } = useSidebarStore()
   // Pending-demande badge count — only fetched when the user can see demandes.
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
+  // Is the demande period running? (Primed by /auth/bootstrap; decides where the Demandes menu goes.)
+  const { data: demandeCampaign } = useCampaignStatus(hasPermission(PERMISSIONS.DEMANDE_VIEW))
+  const demandesActive = demandeCampaign?.active
   // Pending member-change-request badge — only fetched when the user can review them (members.edit).
   const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
   // Unread contact-message badge — only fetched when the user manages the public site (content.manage).
@@ -267,7 +290,7 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   }
 
   const visibleAdminGroups = isManager
-    ? adminGroups
+    ? placeDemandes(adminGroups, demandesActive)
         .map((group) => {
           const items = group.items.filter((item) => !item.permission || hasPermission(item.permission))
           // No active camp → Camp BP lives in "Unités & maîtrise" (where a manager sets one up); once a camp is
@@ -482,6 +505,9 @@ export function AdminNav() {
   const menuClick = useMenuClick()
   const { hasPermission } = useAuthStore()
   const { data: pendingDemandes } = usePendingDemandeCount(hasPermission(PERMISSIONS.DEMANDE_VIEW))
+  // Is the demande period running? (Primed by /auth/bootstrap; decides where the Demandes menu goes.)
+  const { data: demandeCampaign } = useCampaignStatus(hasPermission(PERMISSIONS.DEMANDE_VIEW))
+  const demandesActive = demandeCampaign?.active
   const { data: pendingChanges } = usePendingChangeRequestsCount(hasPermission(PERMISSIONS.MEMBERS_EDIT))
   const { data: unreadContact } = useUnreadContactMessageCount(hasPermission(PERMISSIONS.CONTENT_MANAGE))
 
@@ -495,7 +521,7 @@ export function AdminNav() {
     ...adminNavItems.filter((i) => !i.permission || hasPermission(i.permission)),
     ...(canManageCamp && hasLiveCamp ? [{ path: '/admin/camps', label: 'Camp BP', icon: Tent, permission: null }] : []),
   ]
-  const groups = adminGroups
+  const groups = placeDemandes(adminGroups, demandesActive)
     .map((g) => {
       const items = g.items.filter((i) => !i.permission || hasPermission(i.permission))
       // No active camp → Camp BP sits in "Unités & maîtrise" (where a manager creates one); once active it's

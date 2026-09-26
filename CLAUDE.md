@@ -6124,3 +6124,11 @@ Every member got their access in 2026, and new chefs are existing members, so th
   category) adds the older youth of CLAN / CAR / JEM, flagged `IsAine` + `Branch` and shown in a separate amber
   "Aînés" section of the picker. SetGameEtapistes checks only NEWLY added members (an existing étapiste never blocks a save).
 
+### Demandes menu follows the demande period (2026-09-26, DEV until deploy)
+- "Clôturer la campagne" renamed **"Clôturer les demandes"** (button, confirm, toast, audit label, CG guide).
+- `DemandeCampaignStatusDto.Active` = `demande.enabled` OR any demande still exists; also sent in `/auth/bootstrap`
+  (`demandeCampaign`, only with demande.view) and primed into `['demandes','campaign-status']`.
+- Sidebar/top bar `placeDemandes()`: when not active (after "Clôturer les demandes"), the Demandes group is hidden and
+  **Archives des demandes** appears in Configuration → Structure & données; reopening inscriptions brings the group
+  back (saving a `demande.*` setting refreshes the status). Submission deadline passing does NOT hide it.
+

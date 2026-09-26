@@ -273,13 +273,16 @@ export function useCloseCampaign() {
   })
 }
 
-export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string }
+// active = the demande period is running (inscriptions open, or demandes not yet closed/archived) — drives the menu.
+export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string; active: boolean }
 
 // GET /demandes/campaign-status → portal open? submission window open? scout year (drives the CG toggle).
-export function useCampaignStatus() {
+export function useCampaignStatus(enabled = true) {
   return useQuery({
     queryKey: ['demandes', 'campaign-status'],
     queryFn: () => apiClient.get<DemandeCampaignStatus>('/demandes/campaign-status').then((r) => r.data),
+    enabled,
+    staleTime: 60_000,
   })
 }
 

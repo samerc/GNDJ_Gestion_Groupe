@@ -18,6 +18,7 @@ interface BootstrapResponse {
   scoutYear: SettingDto | null
   pendingDemandes: number
   pendingChangeRequests: number
+  demandeCampaign: { enabled: boolean; submissionsOpen: boolean; scoutYear: string; active: boolean } | null
 }
 
 interface AuthState {
@@ -176,6 +177,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.scoutYear) queryClient.setQueryData(['settings', 'passage.scout_year'], data.scoutYear)
       queryClient.setQueryData(['demandes', 'pending-count'], data.pendingDemandes)
       queryClient.setQueryData(['change-requests', 'pending', 'count'], data.pendingChangeRequests)
+      if (data.demandeCampaign) queryClient.setQueryData(['demandes', 'campaign-status'], data.demandeCampaign)
     } catch (e) {
       set({ isLoading: false })
       // Only drop the session on a genuine auth rejection (401/403 — the api-client already tried to

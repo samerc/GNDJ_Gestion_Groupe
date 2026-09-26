@@ -54,7 +54,7 @@ export const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   EditDemande: { label: 'Modification de la demande', color: BLUE },
   MergeDemandes: { label: 'Fusion de demandes', color: BLUE },
   SendResponses: { label: 'Envoi des réponses', color: GRAY },
-  CloseCampaign: { label: 'Clôture de la campagne', color: RED },
+  CloseCampaign: { label: 'Clôture des demandes', color: RED },
   ImportDecisions: { label: 'Import des décisions', color: BLUE },
   DeleteAccount: { label: 'Suppression du compte', color: RED },
   UpdateRejectionReasons: { label: 'Motifs de refus modifiés', color: BLUE },

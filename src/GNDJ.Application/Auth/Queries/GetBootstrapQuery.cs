@@ -22,7 +22,8 @@ public record BootstrapResponse(
     SettingDto? RoleColors,      // ui.role_colors — header/sidebar theme
     SettingDto? ScoutYear,       // passage.scout_year — current year (dashboard, badges)
     int PendingDemandes,         // 0 unless the user can view demandes
-    int PendingChangeRequests);  // 0 unless the user can review (self-gated by its handler)
+    int PendingChangeRequests,   // 0 unless the user can review (self-gated by its handler)
+    DemandeCampaignStatusDto? DemandeCampaign); // null unless the user can view demandes (drives the menu)
 
 public class GetBootstrapQueryHandler : IRequestHandler<GetBootstrapQuery, Result<BootstrapResponse>>
 {
@@ -55,14 +56,16 @@ public class GetBootstrapQueryHandler : IRequestHandler<GetBootstrapQuery, Resul
         // Sidebar badge counts. Demande count has no in-handler gate (the controller attribute guards it), so
         // only compute it when the user can view demandes; the change-request count self-gates to 0 otherwise.
         var pendingDemandes = 0;
+        DemandeCampaignStatusDto? demandeCampaign = null;
         if (_currentUser.IsSuperAdmin || _currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.DemandeView))
         {
             var dc = await _mediator.Send(new GetPendingDemandeCountQuery(), ct);
             pendingDemandes = dc.IsSuccess ? dc.Value : 0;
+            demandeCampaign = (await _mediator.Send(new GetDemandeCampaignStatusQuery(), ct)).Value;
         }
         var pendingChangeRequests = await _mediator.Send(new GetPendingChangeRequestsCountQuery(), ct);
 
         return Result<BootstrapResponse>.Success(new BootstrapResponse(
-            me.Value, roleColors, scoutYear, pendingDemandes, pendingChangeRequests));
+            me.Value, roleColors, scoutYear, pendingDemandes, pendingChangeRequests, demandeCampaign));
     }
 }

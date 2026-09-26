@@ -89,7 +89,7 @@ flowchart LR
     D --> E[Étudier : accepter ou refuser]
     E --> F[Envoyer les réponses]
     F --> G[Les acceptés deviennent membres]
-    G --> H[Clôturer la campagne]
+    G --> H[Clôturer les demandes]
 ```
 
 ### Préparer
@@ -145,9 +145,13 @@ plusieurs fois : seules les nouvelles décisions partent.
 
 ![Comptes d'inscription](img/cg-demande-comptes.png)
 
-**Clôturer la campagne** (en fin de campagne) archive toutes les demandes (consultables dans **Archives**) puis
-**supprime** tous les comptes et données du portail d'inscription. Les membres déjà créés ne sont pas touchés.
-Irréversible : à faire quand toutes les réponses sont envoyées.
+**Clôturer les demandes** (en fin de période) archive toutes les demandes puis **supprime** tous les comptes
+et données du portail d'inscription. Les membres déjà créés ne sont pas touchés. Irréversible : à faire quand
+toutes les réponses sont envoyées.
+
+Une fois les demandes clôturées, le menu **Demandes** disparaît (ses pages seraient vides). Les anciennes
+demandes restent consultables dans **Configuration → Archives des demandes**. Le menu revient dès que les
+inscriptions sont rouvertes (**Paramètres → Inscriptions**).
 
 ## Emails aux chefs et aux membres
 

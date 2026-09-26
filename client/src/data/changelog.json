@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-26", "text": "Demandes : « Clôturer la campagne » devient « Clôturer les demandes » ; une fois les demandes clôturées, le menu Demandes disparaît et les archives passent dans Configuration jusqu'à la réouverture des inscriptions."},
       {
         "date": "2026-09-26",
         "text": "Camp BP : seuls les membres de la maîtrise peuvent être étapistes d'un jeu. Un nouveau réglage (Paramètres → Camp BP) permet d'y ajouter les routiers, caravelles et JEM, affichés à part avec leur branche."

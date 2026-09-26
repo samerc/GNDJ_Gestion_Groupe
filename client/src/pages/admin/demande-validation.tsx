@@ -446,7 +446,7 @@ export default function DemandeValidationPage() {
   const handleClose = async () => {
     try {
       const r = await closeMutation.mutateAsync(scoutYear)
-      toast.success(`Campagne clôturée : ${r.archived} demande(s) archivée(s), ${r.accountsDeleted} compte(s) supprimé(s), inscriptions fermées.`)
+      toast.success(`Demandes clôturées : ${r.archived} demande(s) archivée(s), ${r.accountsDeleted} compte(s) supprimé(s), inscriptions fermées.`)
       setCloseOpen(false)
     } catch (err) { toast.error(parseApiError(err)); setCloseOpen(false) }
   }
@@ -488,7 +488,7 @@ export default function DemandeValidationPage() {
             </Tip>
             {canClose && (
               <Button variant="destructive" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
-                Clôturer la campagne
+                Clôturer les demandes
               </Button>
             )}
           </>
@@ -939,8 +939,8 @@ export default function DemandeValidationPage() {
 
       <ConfirmDialog
         open={closeOpen} onOpenChange={setCloseOpen}
-        title="Clôturer la campagne d'inscription"
-        description={`Toutes les demandes (${all.length}) seront archivées, puis TOUTES les données des candidats (comptes, parents, demandes) seront DÉFINITIVEMENT supprimées et les inscriptions fermées. Les membres déjà créés ne sont pas touchés. Cette action est irréversible. Continuer ?`}
+        title="Clôturer les demandes"
+        description={`Toutes les demandes (${all.length}) seront archivées, puis TOUTES les données des candidats (comptes, parents, demandes) seront DÉFINITIVEMENT supprimées et les inscriptions fermées. Les membres déjà créés ne sont pas touchés. Le menu Demandes disparaîtra ensuite : les archives restent dans Configuration jusqu'à la réouverture des inscriptions. Cette action est irréversible. Continuer ?`}
         confirmLabel="Archiver et supprimer" variant="destructive" loading={closeMutation.isPending} onConfirm={handleClose}
       />
 

@@ -38,7 +38,11 @@ export function useUpdateSetting() {
   return useMutation({
     mutationFn: ({ key, value }: { key: string; value: string }) =>
       apiClient.put(`/settings/${key}`, { key, value }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+    onSuccess: (_d, { key }) => {
+      qc.invalidateQueries({ queryKey: ['settings'] })
+      // Opening/closing inscriptions changes whether the Demandes menu is shown.
+      if (key.startsWith('demande.')) qc.invalidateQueries({ queryKey: ['demandes', 'campaign-status'] })
+    },
   })
 }
 
