@@ -6149,4 +6149,8 @@ Every member got their access in 2026, and new chefs are existing members, so th
   at the top of the unit Camp BP page (`/camp`, hidden when the member runs no game) and on `/mes-jeux`. The
   "Mes jeux" menu link now shows only to étapistes WITHOUT camp.grade (routiers/caravelles/JEM); leaders see it on
   /camp. Each member sees only their own game(s) + that game's other étapistes.
+- **One active camp at a time:** CreateCamp refuses while a non-archived camp exists; un-archiving refuses while
+  another is active. `/admin/camps` redirects (replace) to the active camp; with none it lists old camps + "Nouveau
+  camp" (CG). The camp page has a "Camp" dropdown (active first, then old camps) instead of the "Tous les camps" link
+  (link kept only when no camp is active).
 

@@ -8,13 +8,14 @@
 //  - SettingsTab: edit camp metadata + the Note formula coefficients (the per-branch multiplier is read-only,
 //    sourced from each unit type's NumberOfYears).
 import { useState } from 'react'
-import { useParams, Link } from 'react-router'
+import { useParams, Link, useNavigate } from 'react-router'
 import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSwapParticipants, useSetLeaders, useLeaderCandidates,
   useCampGames, useCreateGame, useUpdateGame, printGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
   printFamille, printAllFamilles, printUnitList,
   type CampFamilleDto, type CampGameDto,
+  useCamps,
 } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,6 +43,9 @@ import { toast } from 'sonner'
 export default function CampDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
   const { data: camp, isLoading } = useCamp(id)
+  const { data: camps } = useCamps()
+  const navigate = useNavigate()
+  const hasActive = !!camps?.some(c => !c.isArchived)
 
   if (isLoading) return <LoadingSpinner variant="detail" />
   if (!camp) return <p className="p-8 text-center text-sm text-muted-foreground">Camp introuvable.</p>
@@ -58,9 +62,31 @@ export default function CampDetailPage() {
   return (
     <Page>
       <div className="border-b border-border/60 pb-4">
-        <Link to="/admin/camps" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3 w-3" />Tous les camps</Link>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight"><Tent className="h-6 w-6 text-primary" />{camp.name}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
+        {/* With no active camp, the list page offers "Nouveau camp" — keep a way back to it. */}
+        {!hasActive && <Link to="/admin/camps" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3 w-3" />Tous les camps</Link>}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+              <Tent className="h-6 w-6 text-primary" />{camp.name}
+              {camp.isArchived && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Archivé</span>}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
+          </div>
+          {/* Switch to another camp (the active one first, then the old ones) — like the dashboard year picker. */}
+          {(camps ?? []).length > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Camp</span>
+              <Select value={id} onValueChange={v => navigate(`/admin/camps/${v}`)}>
+                <SelectTrigger className="w-80 max-w-[70vw]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {camps!.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} · {c.scoutYear}{c.isArchived ? '' : ' — en cours'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
 
       {tabs.length === 0 ? (

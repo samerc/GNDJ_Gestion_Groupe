@@ -346,6 +346,9 @@ public class CreateCampCommandHandler(IApplicationDbContext context, ICurrentUse
     public async ValueTask<Result<Guid>> Handle(CreateCampCommand request, CancellationToken ct)
     {
         if (!CampAccess.IsAdmin(currentUser)) return Result<Guid>.Failure(CampAccess.AdminOnly);
+        // One active camp at a time: the unit Camp BP page, the étapistes' games and the menu all follow "the" live camp.
+        if (await context.Camps.AnyAsync(c => !c.IsArchived, ct))
+            return Result<Guid>.Failure("Un camp est déjà actif. Archivez-le avant d'en créer un nouveau.");
         var defaultCount = await context.Settings.Where(s => s.Key == "camp.familles_count").Select(s => s.Value).FirstOrDefaultAsync(ct);
         var count = request.FamillesCount ?? (int.TryParse(defaultCount, out var d) ? d : 12);
 
@@ -407,6 +410,9 @@ public class ArchiveCampCommandHandler(IApplicationDbContext context, ICurrentUs
         if (!CampAccess.IsAdmin(currentUser)) return Result<bool>.Failure(CampAccess.AdminOnly);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
         if (camp is null) return Result<bool>.Failure("Camp introuvable.");
+        // Un-archiving would make a second active camp — only one camp is active at a time.
+        if (!request.Archive && camp.IsArchived && await context.Camps.AnyAsync(c => c.Id != camp.Id && !c.IsArchived, ct))
+            return Result<bool>.Failure("Un autre camp est déjà actif. Archivez-le avant de réactiver celui-ci.");
         camp.IsArchived = request.Archive;
         if (request.Archive) camp.Status = CampStatus.Closed;
         await context.SaveChangesAsync(ct);

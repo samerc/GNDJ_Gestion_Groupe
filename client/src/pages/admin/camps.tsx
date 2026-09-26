@@ -1,9 +1,9 @@
-// Camp BP list page ("/admin/camps", perm camp.manage — CG/super-admin). Lists camp editions (each splits the
-// whole group into balanced "familles") with status (Setup→Assigned→Closed) and progress counts; "Nouveau camp"
-// creates one (famillesCount optional → backend default). Each card links to camp-detail for the familles board.
+// Camp BP entry ("/admin/camps"). Only ONE camp is active at a time (the server refuses a second): when there is
+// one, this page just opens it (the camp page has a dropdown to look at old camps). With no active camp it lists
+// the old (archived) camps and offers "Nouveau camp" (CG only; famillesCount optional → backend default).
 import { useState } from 'react'
 import { ChefsPicker } from '@/components/camp/chefs-picker'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { useCamps, useCreateCamp, type CampListDto } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,10 @@ export default function CampsAdminPage() {
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
+  // A camp is active → go straight to it (replace, so "back" doesn't bounce here again).
+  const active = camps?.find(c => !c.isArchived)
+  if (active) return <Navigate to={`/admin/camps/${active.id}`} replace />
+
   return (
     <Page>
       <PageHeader
@@ -51,7 +55,10 @@ export default function CampsAdminPage() {
          <EmptyState icon={Tent} title="Aucun camp" description="Créez-en un pour commencer."
            action={isCg ? <Button onClick={() => setOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau camp</Button> : undefined} />
        ) :
-       <div className="space-y-2">{camps!.map(c => <CampCard key={c.id} camp={c} />)}</div>}
+       <div className="space-y-2">
+         <p className="text-sm text-muted-foreground">Aucun camp n'est en cours. Camps précédents :</p>
+         {camps!.map(c => <CampCard key={c.id} camp={c} />)}
+       </div>}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
