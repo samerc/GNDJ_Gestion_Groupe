@@ -72,6 +72,10 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         // session (client-side); ContactReviewedAt is stamped only on « Confirmer ».
         var needsContactReview = !user.IsSuperAdmin && user.Member.ContactReviewedAt is null;
 
+        // Étapiste of a game in a live camp → "Mes jeux" page (see GetMyCampGamesQuery).
+        var isCampEtapiste = await _context.CampGameEtapistes.AnyAsync(e => e.MemberId == user.MemberId && !e.IsDeleted
+            && !e.CampGame.IsDeleted && !e.CampGame.Camp.IsDeleted && !e.CampGame.Camp.IsArchived, cancellationToken);
+
         return Result<MeResponse>.Success(new MeResponse(
             user.Id,
             user.MemberId,
@@ -87,7 +91,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             user.Member.OnboardingSeenAt != null,
             isMaitrise,
             needsContactReview,
-            user.Member.AppInstalledAt != null
+            user.Member.AppInstalledAt != null,
+            isCampEtapiste
         ));
     }
 }

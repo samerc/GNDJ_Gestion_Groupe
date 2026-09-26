@@ -201,6 +201,13 @@ async function downloadPdf(url: string, filename: string) {
   const r = await apiClient.get(url, { responseType: 'blob' })
   saveBlob(r.data, filename, 'application/pdf')
 }
+// ── Étapistes: my games ──
+export interface MyCampGameDto { id: string; campId: string; campName: string; name: string; description: string | null; etapistes: EtapisteDto[] }
+// GET /camps/my-games → games of live camps where I am an étapiste (any signed-in member).
+export const useMyCampGames = () =>
+  useQuery({ queryKey: ['camp-my-games'], queryFn: () => apiClient.get<MyCampGameDto[]>('/camps/my-games').then(r => r.data) })
+// GET /camps/games/{id}/pdf → printable sheet of one game (name, étapistes, description).
+export const printGame = (gameId: string, name: string) => downloadPdf(`/camps/games/${gameId}/pdf`, `Jeu - ${name}.pdf`)
 // GET /camps/{id}/familles/{n}/pdf → one famille sheet (blob → save).
 export const printFamille = (campId: string, number: number) => downloadPdf(`/camps/${campId}/familles/${number}/pdf`, `Famille_${number}.pdf`)
 // GET /camps/{id}/familles/pdf → all familles, one per page (blob → save).

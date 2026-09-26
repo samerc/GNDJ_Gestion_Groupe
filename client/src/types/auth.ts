@@ -41,6 +41,8 @@ export interface MeResponse {
   // True once the member has opened the installed PWA at least once (server flag, cross-device). Lets a DESKTOP
   // session know the app is already on the member's phone, so the "installer sur mobile" QR nudge hides itself.
   appInstalled?: boolean
+  // Étapiste of a game in a live Camp BP → "Mes jeux" page (read each game's description).
+  isCampEtapiste?: boolean
 }
 
 export interface UnitAccess {

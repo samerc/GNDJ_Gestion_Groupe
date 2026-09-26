@@ -6137,4 +6137,9 @@ Every member got their access in 2026, and new chefs are existing members, so th
   `RichContent` = DOMPurify; the abuse middleware still blocks script). No migration.
 - Jeux tab: pencil (or "+ Ajouter une description") opens `GameEditDialog` (name + `RichTextEditor`), `useUpdateGame`
   → `PUT /camps/games/{id}`; the description shows on the game card for every viewer (read-only too).
+- **Étapistes read their games:** `MeResponse.IsCampEtapiste` (étapiste of a game in a non-archived camp) shows a
+  **"Mes jeux"** link (`/mes-jeux`, sidebar personal links + account menu) → `GetMyCampGamesQuery` (`GET /camps/my-games`,
+  any signed-in member, own games only) with the formatted description + the other étapistes. **Fiche PDF** per game
+  (`GetCampGamePdfQuery`, `GET /camps/games/{id}/pdf`, reuses `IDocumentTemplateRenderer`): allowed for the game's
+  étapistes or anyone with Jeux view; also a printer button on each game in the Jeux tab.
 

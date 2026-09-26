@@ -12,7 +12,7 @@ import { useParams, Link } from 'react-router'
 import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSwapParticipants, useSetLeaders, useLeaderCandidates,
-  useCampGames, useCreateGame, useUpdateGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
+  useCampGames, useCreateGame, useUpdateGame, printGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
   printFamille, printAllFamilles, printUnitList,
   type CampFamilleDto, type CampGameDto,
 } from '@/services/camp-service'
@@ -418,6 +418,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium">{g.name}</p>
               <div className="flex gap-1">
+                <Tip content="Imprimer la fiche du jeu (PDF)"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printGame(g.id, g.name).catch(e => toast.error(parseApiError(e)))}><Printer className="h-4 w-4" /></Button></Tip>
                 {readOnly
                   ? <span className="text-xs text-muted-foreground">{g.etapistes.length} étapiste(s)</span>
                   : <>

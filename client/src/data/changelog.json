@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-26", "text": "Camp BP : les étapistes ont une page « Mes jeux » (menu) avec la description de chacun de leurs jeux et une fiche PDF à imprimer pour le camp."},
       {"date": "2026-09-26", "text": "Camp BP : chaque jeu peut avoir une description mise en forme (titres, gras, listes…), modifiable avec le crayon."},
       {"date": "2026-09-26", "text": "Demandes : « Clôturer la campagne » devient « Clôturer les demandes » ; une fois les demandes clôturées, le menu Demandes disparaît et les archives passent dans Configuration jusqu'à la réouverture des inscriptions."},
       {

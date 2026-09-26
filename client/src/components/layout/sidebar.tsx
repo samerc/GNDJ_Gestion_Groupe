@@ -261,7 +261,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // nav; individual items still filter by the user's own permissions, so an ACG only sees what they can reach.
   const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some(u => u.isGroupLevel)
   // Personal links first (Ma fiche / Mes documents / Trombinoscope) for EVERYONE, then the role-specific nav.
-  const navItems = [...personalNavItems, ...(isManager ? adminNavItems : leaderNavItems)]
+  // Étapistes of a live Camp BP get "Mes jeux" (their games + descriptions) with the personal links.
+  const etapisteNav = user?.isCampEtapiste ? [{ path: '/mes-jeux', label: 'Mes jeux', icon: Tent, permission: null }] : []
+  const navItems = [...personalNavItems, ...etapisteNav, ...(isManager ? adminNavItems : leaderNavItems)]
 
   // Camp BP placement is DYNAMIC (see below): fetched for anyone who can reach a camp (grade = CU viewer,
   // manage = CG). While the list loads it counts as no live camp.

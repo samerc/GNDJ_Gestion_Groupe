@@ -202,6 +202,18 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> SetEtapistes(Guid gameId, [FromBody] EtapistesBody body) => Res(await Mediator.Send(new SetGameEtapistesCommand(gameId, body.MemberIds)));
     public record EtapistesBody(List<Guid> MemberIds);
 
+    /// <summary>Games of live camps where the caller is an étapiste (with description). Any signed-in member.</summary>
+    [HttpGet("my-games")]
+    public async Task<IActionResult> MyGames() => Res(await Mediator.Send(new GetMyCampGamesQuery()));
+
+    /// <summary>Printable PDF of one game (name, étapistes, description). For its étapistes or anyone who can view the camp's Jeux.</summary>
+    [HttpGet("games/{gameId:guid}/pdf")]
+    public async Task<IActionResult> GamePdf(Guid gameId)
+    {
+        var r = await Mediator.Send(new GetCampGamePdfQuery(gameId));
+        return r.IsSuccess ? File(r.Value!.Data, "application/pdf", r.Value.FileName) : BadRequest(new { error = r.Error });
+    }
+
     /// <summary>Lists members eligible to be game étapistes. Rights checked per area in the handler (CampAccess).</summary>
     [HttpGet("{id:guid}/etapiste-candidates")]
     [HasPermission(Permissions.CampGrade)]

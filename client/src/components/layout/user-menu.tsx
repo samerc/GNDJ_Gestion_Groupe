@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users, BookOpen } from 'lucide-react'
+import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users, BookOpen, Tent } from 'lucide-react'
 import { PwaInstallMenuItem } from '@/components/shared/pwa-install'
 import { PushToggleMenuItem } from '@/components/shared/push-toggle'
 import { toast } from 'sonner'
@@ -220,6 +220,12 @@ export function UserMenu() {
                 <ImageIcon className="mr-2 h-4 w-4" />
                 Trombinoscope
               </DropdownMenuItem>
+              {user?.isCampEtapiste && (
+                <DropdownMenuItem onClick={() => navigate('/mes-jeux')}>
+                  <Tent className="mr-2 h-4 w-4" />
+                  Mes jeux
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
             </>
           )}

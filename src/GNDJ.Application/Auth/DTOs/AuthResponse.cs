@@ -46,7 +46,10 @@ public record MeResponse(
     // True once the member has opened the installed PWA at least once (Member.AppInstalledAt is set) — a
     // CROSS-DEVICE signal, so a DESKTOP session knows the app is already installed on the member's phone and
     // hides the desktop "install on mobile" QR nudge.
-    bool AppInstalled = false
+    bool AppInstalled = false,
+    // True when the member is an étapiste (head) of at least one game of a live Camp BP (not archived) — shows
+    // the "Mes jeux" page, where they read each game's description to explain it during the camp.
+    bool IsCampEtapiste = false
 );
 
 public record UnitAccessDto(

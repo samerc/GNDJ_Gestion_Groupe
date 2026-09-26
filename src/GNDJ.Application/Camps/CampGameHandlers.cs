@@ -173,3 +173,59 @@ static class EtapisteCandidates
     }
 }
 
+// ─── Étapistes: their own games (read the description to explain the game at the camp) ───
+// The étapistes (heads of a game) may not be on the commission, so they can't open the Jeux tab: this lists the
+// games of live camps where the caller is an étapiste, with the description and the other étapistes.
+public record MyCampGameDto(Guid Id, Guid CampId, string CampName, string Name, string? Description, IReadOnlyList<EtapisteDto> Etapistes);
+public record GetMyCampGamesQuery : IRequest<Result<IReadOnlyList<MyCampGameDto>>>;
+public class GetMyCampGamesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetMyCampGamesQuery, Result<IReadOnlyList<MyCampGameDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<MyCampGameDto>>> Handle(GetMyCampGamesQuery request, CancellationToken ct)
+    {
+        if (currentUser.MemberId is not { } me) return Result<IReadOnlyList<MyCampGameDto>>.Success([]);
+        var games = await context.CampGames
+            .Where(g => !g.IsDeleted && !g.Camp.IsDeleted && !g.Camp.IsArchived && g.Etapistes.Any(e => e.MemberId == me && !e.IsDeleted))
+            .OrderBy(g => g.Camp.Name).ThenBy(g => g.Name)
+            .Select(g => new MyCampGameDto(g.Id, g.CampId, g.Camp.Name, g.Name, g.Description,
+                g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
+                    e.MemberId, e.Member.FirstName, e.Member.LastName,
+                    e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList()))
+            .ToListAsync(ct);
+        return Result<IReadOnlyList<MyCampGameDto>>.Success(games);
+    }
+}
+
+// Printable sheet of one game (name, camp, étapistes, then the formatted description) — to take to the camp.
+// Allowed for the game's étapistes and for anyone who can view the camp's Jeux.
+public record CampGamePdf(byte[] Data, string FileName);
+public record GetCampGamePdfQuery(Guid GameId) : IRequest<Result<CampGamePdf>>;
+public class GetCampGamePdfQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser, IDocumentTemplateRenderer renderer)
+    : IRequestHandler<GetCampGamePdfQuery, Result<CampGamePdf>>
+{
+    public async ValueTask<Result<CampGamePdf>> Handle(GetCampGamePdfQuery request, CancellationToken ct)
+    {
+        var g = await context.CampGames.Where(x => x.Id == request.GameId && !x.IsDeleted && !x.Camp.IsDeleted)
+            .Select(x => new
+            {
+                x.CampId, CampName = x.Camp.Name, x.Name, x.Description,
+                Etapistes = x.Etapistes.Where(e => !e.IsDeleted).Select(e => new { e.MemberId, e.Member.FirstName, e.Member.LastName }).ToList(),
+            })
+            .FirstOrDefaultAsync(ct);
+        if (g is null) return Result<CampGamePdf>.Failure("Jeu introuvable.");
+
+        var isEtapiste = currentUser.MemberId is { } me && g.Etapistes.Any(e => e.MemberId == me);
+        if (!isEtapiste && await CampAccess.DenyAsync(context, currentUser, g.CampId, CampArea.Jeux, false, ct) is { } denied)
+            return Result<CampGamePdf>.Failure(denied);
+
+        static string Enc(string s) => System.Net.WebUtility.HtmlEncode(s);
+        var etapistes = g.Etapistes.Count == 0 ? "—"
+            : string.Join(", ", g.Etapistes.OrderBy(e => e.LastName).Select(e => $"{e.FirstName} {e.LastName}"));
+        var html = $"<h1>{Enc(g.Name)}</h1><p><strong>Camp :</strong> {Enc(g.CampName)}</p>"
+                 + $"<p><strong>Étapistes :</strong> {Enc(etapistes)}</p><hr>"
+                 + (string.IsNullOrWhiteSpace(g.Description) ? "<p><em>Pas encore de description.</em></p>" : g.Description);
+        var pdf = renderer.Render(html, new Dictionary<string, string?>());
+        var safe = string.Concat(g.Name.Where(c => !System.IO.Path.GetInvalidFileNameChars().Contains(c))).Trim();
+        return Result<CampGamePdf>.Success(new CampGamePdf(pdf, $"Jeu - {(safe.Length > 0 ? safe : "jeu")}.pdf"));
+    }
+}
+
