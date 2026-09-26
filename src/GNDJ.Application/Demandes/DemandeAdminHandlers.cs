@@ -1377,9 +1377,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 .DistinctBy(c => c.Email!.ToLowerInvariant()).ToList();
             if (recipients.Count == 0) { noCu.Add(unitName); continue; }
 
-            var path = unitSheet.Save(unitName, scoutYear, rows);
-            var attachment = new EmailAttachment($"Nouveaux membres - {unitName}.xlsx", path);
+            // One copy of the file per CU, deleted by the outbox sender as soon as that CU's email is sent.
             foreach (var cu in recipients)
+            {
+                var attachment = new EmailAttachment($"Nouveaux membres - {unitName}.xlsx", unitSheet.Save(unitName, scoutYear, rows), DeleteAfterSend: true);
                 jobs.Add(new EmailJob("demande_unit_new_members", cu.Email!, new Dictionary<string, string>
                 {
                     ["leaderName"] = $"{cu.FirstName} {cu.LastName}".Trim(),
@@ -1387,6 +1388,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     ["count"] = rows.Count.ToString(),
                     ["scoutYear"] = scoutYear,
                 }, [attachment]));
+            }
         }
         if (jobs.Count > 0) await emailQueue.EnqueueManyAsync(jobs, ct);
         return noCu;

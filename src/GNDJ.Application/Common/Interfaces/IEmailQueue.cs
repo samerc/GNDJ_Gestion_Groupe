@@ -3,7 +3,9 @@ namespace GNDJ.Application.Common.Interfaces;
 // A PER-SEND email attachment: a file to attach to THIS email only (distinct from a template's fixed
 // attachments). Path is an ABSOLUTE file path under an allowed, NON-web-served archive root (e.g. the
 // audit-log year archive) — the sender validates it before attaching. Name is the display file name.
-public record EmailAttachment(string Name, string Path);
+// DeleteAfterSend: a throw-away file made just for this email (e.g. the new-members Excel sent to a CU) — the
+// outbox sender deletes it once the email is SENT (kept while it may still be retried).
+public record EmailAttachment(string Name, string Path, bool DeleteAfterSend = false);
 
 // One email to send: the template code, the recipient, the {{variable}} substitutions, and optional
 // per-send file attachments (usually none; used e.g. by the audit-log year archive to attach the CSV).

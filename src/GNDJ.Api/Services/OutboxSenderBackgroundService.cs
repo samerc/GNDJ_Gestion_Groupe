@@ -223,6 +223,9 @@ public class OutboxSenderBackgroundService : BackgroundService
         }
 
         await context.SaveChangesAsync(ct);
+        // Throw-away attachments (DeleteAfterSend) are removed once their email is sent — nothing is kept on disk.
+        foreach (var row in toSendNow.Where(r => r.Status == OutboxEmailStatus.Sent))
+            DeleteTemporaryAttachments(row);
         // Return only the count actually SENT this sweep (not deferred): a defer-only sweep returns 0 so the
         // outer loop waits for the poll/signal instead of hot-looping through a large throttled backlog.
         return toSendNow.Count;
@@ -243,6 +246,19 @@ public class OutboxSenderBackgroundService : BackgroundService
             : JsonSerializer.Deserialize<List<EmailAttachment>>(row.AttachmentsJson);
         await email.SendAsync(row.TemplateCode, row.ToEmail, vars, attachments, timeoutCts.Token);
         return true;
+    }
+
+    // Deletes the row's DeleteAfterSend attachments (best-effort). Only files under the per-send archive folder
+    // are ever written by the app, and the path is the one stored by the app itself (not user input).
+    private void DeleteTemporaryAttachments(OutboxEmail row)
+    {
+        if (string.IsNullOrWhiteSpace(row.AttachmentsJson)) return;
+        try
+        {
+            foreach (var a in JsonSerializer.Deserialize<List<EmailAttachment>>(row.AttachmentsJson) ?? [])
+                if (a.DeleteAfterSend && File.Exists(a.Path)) File.Delete(a.Path);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Could not delete the temporary attachment of outbox email {Id}", row.Id); }
     }
 
     private static string? Truncate(string? s, int max)

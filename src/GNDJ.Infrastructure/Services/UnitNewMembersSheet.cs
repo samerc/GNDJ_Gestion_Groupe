@@ -4,13 +4,13 @@ using Microsoft.Extensions.Configuration;
 
 namespace GNDJ.Infrastructure.Services;
 
-// Excel of a unit's newly accepted members (sent to the unit's CU after "Envoyer les réponses"). Saved under
-// <archive root>/demandes-unites — the same non-web-served root the email sender accepts for per-send
-// attachments (config AuditArchive:Directory, else <cwd>/archives). Files older than 90 days are pruned on
-// each save: the email outbox only needs them until the mail is sent (retries included).
+// Excel of a unit's newly accepted members (sent to the unit's CU after "Envoyer les réponses"). A throw-away
+// file: written under <archive root>/demandes-unites (the non-web-served root the email sender accepts for
+// per-send attachments — config AuditArchive:Directory, else <cwd>/archives) and DELETED by the outbox sender
+// once the email is sent. Only a file whose email finally failed can remain; those are pruned after 30 days.
 public sealed class UnitNewMembersSheet(IConfiguration config) : IUnitNewMembersSheet
 {
-    private static readonly TimeSpan KeepFor = TimeSpan.FromDays(90);
+    private static readonly TimeSpan KeepFor = TimeSpan.FromDays(30);
 
     public string Save(string unitName, string scoutYear, IReadOnlyList<NewMemberSheetRow> rows)
     {

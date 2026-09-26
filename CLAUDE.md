@@ -6170,5 +6170,6 @@ Every member got their access in 2026, and new chefs are existing members, so th
   autres tuteurs (NAMES only — no phone/email), Frère/sœur dans l'unité (same family accepted into the same unit, or
   a declared sibling already active in it; other proches not mentioned). File saved under
   `<AuditArchive:Directory or cwd/archives>/demandes-unites` (the only root the sender accepts for per-send
-  attachments; pruned after 90 days). Units without a reachable CU are listed in the audit entry (`UnitsWithoutCu`).
+  attachments). One copy per CU, `EmailAttachment.DeleteAfterSend=true` → the outbox sender DELETES the file as
+  soon as that email is Sent (a finally-failed email keeps its file for a manual retry; pruned after 30 days). Units without a reachable CU are listed in the audit entry (`UnitsWithoutCu`).
 
