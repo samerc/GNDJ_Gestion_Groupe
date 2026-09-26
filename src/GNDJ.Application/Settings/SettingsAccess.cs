@@ -18,6 +18,8 @@ public static class SettingsAccess
     private static readonly IReadOnlySet<string> CgCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "demande", "documents", "cotisations", "passage", "members", "reports",
+        // "camp" = Camp BP defaults (familles count, who may be an étapiste).
+        "camp",
         // "login" = the two login-screen announcement banners — an operational communication tool for the CG.
         "login",
     };

@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-09-26",
+        "text": "Camp BP : seuls les membres de la maîtrise peuvent être étapistes d'un jeu. Un nouveau réglage (Paramètres → Camp BP) permet d'y ajouter les routiers, caravelles et JEM, affichés à part avec leur branche."
+      },
+      {
+        "date": "2026-09-26",
         "text": "Camp BP : le chef de groupe choisit, à la création du camp, un ou plusieurs assistants « chefs de commission » qui ont tous les droits sur ce camp. Les autres assistants n'ont plus accès au Camp BP."
       },
       {

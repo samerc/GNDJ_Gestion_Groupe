@@ -117,6 +117,7 @@ const MONEY_KEYS = new Set(['cotisation.maitrise_amount'])
 
 const CATEGORY_LABELS: Record<string, string> = {
   members: 'Membres',
+  camp: 'Camp BP',
   famille: 'Famille',
   documents: 'Documents',
   cotisations: 'Cotisations',
@@ -132,7 +133,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 // 'reports' is intentionally omitted: its only visible setting (reports.cards_enabled) is rendered inside the
 // Carte membre tab instead, so there is no standalone "Rapports" tab.
-const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'demande', 'login', 'email', 'security', 'general', 'site', 'maintenance', 'advanced']
+const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'camp', 'demande', 'login', 'email', 'security', 'general', 'site', 'maintenance', 'advanced']
 
 // Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
 // period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.

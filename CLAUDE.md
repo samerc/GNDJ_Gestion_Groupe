@@ -6103,7 +6103,7 @@ Every member got their access in 2026, and new chefs are existing members, so th
 
 ### Camp BP — chefs de commission + roles inside the commission (2026-09-26, DEV until deploy)
 - **`CampAccess`** (Application/Camps) = the single rule set, asked by every camp handler: **admin** = super-admin or
-  `camp.manage` (the CG, or someone the CG delegated Camp BP to) → create / archive / delete + choose responsables;
+  `camp.manage` (the CG, or someone the CG delegated Camp BP to) → create / archive / delete + choose the chefs de commission;
   **Chef de commission** (`CampCommissionMember.IsChef`, ACGs = active group-level role,
   picked by the CG at creation or via `PUT /camps/{id}/chefs`) → full rights on THAT camp (choose the commission
   members, set their rights, every area); **member** → per area `FamillesAccess`/`JeuxAccess`/`ParametresAccess` =
@@ -6119,4 +6119,8 @@ Every member got their access in 2026, and new chefs are existing members, so th
 - Frontend: `camp.myAccess` drives the tabs; "view" = read-only (no draft/drag/leaders, no game edits, settings
   fieldset disabled). `/admin/camps` open to camp.manage OR camp.commission (PermissionRoute accepts a list); sidebar
   "Commission BP" link for commission members. Create dialog has the chefs de commission picker. Empty game name → inline error.
+- **Étapistes = maîtrise only** (`EtapisteCandidates.LoadAsync`, active IsMaitrise role — an ACG / commission member is
+  listed only as maîtrise). Setting **`camp.etapistes_aines`** (Paramètres → Camp BP; `camp` is now a CG-editable
+  category) adds the older youth of CLAN / CAR / JEM, flagged `IsAine` + `Branch` and shown in a separate amber
+  "Aînés" section of the picker. SetGameEtapistes checks only NEWLY added members (an existing étapiste never blocks a save).
 

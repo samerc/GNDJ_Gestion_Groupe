@@ -451,16 +451,31 @@ function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampG
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Étapistes — {game.name}</DialogTitle></DialogHeader>
-        <Input placeholder="Rechercher un chef…" value={search} onChange={e => setSearch(e.target.value)} />
-        <div className="max-h-[50vh] space-y-1 overflow-y-auto">
-          {filtered.map(c => (
-            <label key={c.memberId} className="flex items-center gap-2 rounded border px-2 py-1.5 text-sm">
-              <input type="checkbox" checked={selected.has(c.memberId)} onChange={() => toggle(c.memberId)} />
-              <span className="flex-1">{c.firstName} {c.lastName}</span>
-              <span className="text-xs text-muted-foreground">{c.unitCode}</span>
-            </label>
+        <Input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="max-h-[50vh] space-y-3 overflow-y-auto">
+          {/* Maîtrise first; the older youth (routiers / caravelles / JEM, only when the setting allows them) in their
+              own section, each with an amber branch badge so they can't be mistaken for a chef. */}
+          {[
+            { key: 'maitrise', label: 'Maîtrise', items: filtered.filter(c => !c.isAine) },
+            { key: 'aines', label: 'Aînés (routiers, caravelles, JEM)', items: filtered.filter(c => c.isAine) },
+          ].filter(g => g.items.length > 0).map(g => (
+            <div key={g.key} className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.label} ({g.items.length})</p>
+              {g.items.map(c => (
+                <label key={c.memberId} className={cn('flex items-center gap-2 rounded border px-2 py-1.5 text-sm',
+                  c.isAine && 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30')}>
+                  <input type="checkbox" checked={selected.has(c.memberId)} onChange={() => toggle(c.memberId)} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{c.firstName} {c.lastName}</span>
+                    {c.roleName && <span className="block truncate text-xs text-muted-foreground">{c.roleName}</span>}
+                  </span>
+                  {c.isAine && <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">{c.branch}</span>}
+                  <span className="shrink-0 text-xs text-muted-foreground">{c.unitCode}</span>
+                </label>
+              ))}
+            </div>
           ))}
-          {filtered.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Aucun chef trouvé.</p>}
+          {filtered.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Aucun membre trouvé.</p>}
         </div>
         <DialogFooter><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={setEtapistes.isPending}>Enregistrer</Button></DialogFooter>
       </DialogContent>

@@ -14,7 +14,10 @@ namespace GNDJ.Application.Camps;
 
 public record CampGameDto(Guid Id, string Name, string? Description, IReadOnlyList<EtapisteDto> Etapistes);
 public record EtapisteDto(Guid MemberId, string FirstName, string LastName, string? UnitName);
-public record EtapisteCandidateDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? UnitCode, string? RoleName);
+// IsAine = an older youth (routier / caravelle / JEM, not maîtrise) — only offered when the setting
+// camp.etapistes_aines is on, and shown apart in the picker.
+public record EtapisteCandidateDto(Guid MemberId, string FirstName, string LastName, string? UnitName, string? UnitCode, string? RoleName,
+    bool IsAine = false, string? Branch = null);
 
 // ─── Games ───────────────────────────────────────────────────────────────────
 public record GetCampGamesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampGameDto>>>;
@@ -103,6 +106,12 @@ public class SetGameEtapistesCommandHandler(IApplicationDbContext context, ICurr
         var game = await context.CampGames.FirstOrDefaultAsync(g => g.Id == request.GameId && !g.IsDeleted, ct);
         if (game is null) return Result<bool>.Failure("Jeu introuvable.");
         if (await CampAccess.DenyAsync(context, currentUser, game.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<bool>.Failure(denied);
+        // Only members being ADDED are checked, so an étapiste already on the game (e.g. before the setting was turned
+        // off) never blocks saving the others.
+        var current = await context.CampGameEtapistes.Where(e => e.CampGameId == request.GameId && !e.IsDeleted).Select(e => e.MemberId).ToListAsync(ct);
+        var eligible = (await EtapisteCandidates.LoadAsync(context, ct)).Select(c => c.MemberId).ToHashSet();
+        if (request.MemberIds.Any(id => !current.Contains(id) && !eligible.Contains(id)))
+            return Result<bool>.Failure("Seuls les membres de la maîtrise peuvent être étapistes (et les routiers, caravelles et JEM si le réglage l'autorise).");
 
         var existing = await context.CampGameEtapistes.Where(e => e.CampGameId == request.GameId && !e.IsDeleted).ToListAsync(ct);
         context.CampGameEtapistes.RemoveRange(existing);
@@ -113,25 +122,52 @@ public class SetGameEtapistesCommandHandler(IApplicationDbContext context, ICurr
     }
 }
 
-// Candidate étapistes = maîtrise (any branch) + older non-camper youth (routiers/Noyau/JEM/Feu — the
-// branches not in the graded pool). Troupe/Compagnie campers cannot be étapistes.
+// Candidate étapistes = the maîtrise only (any active leadership role — an ACG or a commission member is listed
+// because they are maîtrise, not because of that). When the setting camp.etapistes_aines is on, the older youth
+// of the Clan (routiers), Caravelles and JEM are added too, flagged IsAine so the picker shows them apart.
 public record GetEtapisteCandidatesQuery(Guid CampId) : IRequest<Result<IReadOnlyList<EtapisteCandidateDto>>>;
 public class GetEtapisteCandidatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetEtapisteCandidatesQuery, Result<IReadOnlyList<EtapisteCandidateDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<EtapisteCandidateDto>>> Handle(GetEtapisteCandidatesQuery request, CancellationToken ct)
     {
         if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, false, ct) is { } denied) return Result<IReadOnlyList<EtapisteCandidateDto>>.Failure(denied);
-        var poolBranches = await context.CampParticipants
-            .Where(p => p.CampId == request.CampId && !p.IsDeleted && p.Role == CampRole.Membre && p.UnitTypeId != null)
-            .Select(p => p.UnitTypeId!.Value).Distinct().ToListAsync(ct);
-
-        var cand = await context.MemberAssignments
-            .Where(a => !a.IsDeleted && a.EndDate == null && (a.FunctionalRole.IsMaitrise || !poolBranches.Contains(a.Unit.UnitTypeId)))
-            .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name, a.Unit.Code,
-                a.FunctionalRole.IsMaitrise ? a.FunctionalRole.Name : a.Unit.UnitType.Name))
-            .ToListAsync(ct);
-        var result = cand.GroupBy(c => c.MemberId).Select(g => g.First())
-            .OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToList();
-        return Result<IReadOnlyList<EtapisteCandidateDto>>.Success(result);
+        return Result<IReadOnlyList<EtapisteCandidateDto>>.Success(await EtapisteCandidates.LoadAsync(context, ct));
     }
 }
+
+// Who may be an étapiste (shared by the picker list and the save check).
+static class EtapisteCandidates
+{
+    public const string AinesSetting = "camp.etapistes_aines";
+    // Unit-type codes of the older youth branches that may be étapistes when the setting is on.
+    private static readonly string[] AineBranches = ["CLAN", "CAR", "JEM"];
+
+    public static async Task<List<EtapisteCandidateDto>> LoadAsync(IApplicationDbContext context, CancellationToken ct)
+    {
+        var maitrise = await context.MemberAssignments
+            .Where(a => !a.IsDeleted && a.EndDate == null && a.FunctionalRole.IsMaitrise && !a.Member.IsDeleted)
+            .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name, a.Unit.Code,
+                a.FunctionalRole.Name, false, null))
+            .ToListAsync(ct);
+
+        var allowAines = string.Equals(
+            await context.Settings.Where(x => x.Key == AinesSetting).Select(x => x.Value).FirstOrDefaultAsync(ct), "true",
+            StringComparison.OrdinalIgnoreCase);
+        var aines = allowAines
+            ? await context.MemberAssignments
+                .Where(a => !a.IsDeleted && a.EndDate == null && !a.FunctionalRole.IsMaitrise && !a.Member.IsDeleted
+                            && AineBranches.Contains(a.Unit.UnitType.Code))
+                .Select(a => new EtapisteCandidateDto(a.MemberId, a.Member.FirstName, a.Member.LastName, a.Unit.Name, a.Unit.Code,
+                    a.FunctionalRole.Name, true, a.Unit.UnitType.Name))
+                .ToListAsync(ct)
+            : [];
+
+        // A member who is maîtrise somewhere is listed as maîtrise (not as an aîné).
+        var maitriseIds = maitrise.Select(m => m.MemberId).ToHashSet();
+        return maitrise.GroupBy(c => c.MemberId).Select(g => g.First())
+            .Concat(aines.Where(c => !maitriseIds.Contains(c.MemberId)).GroupBy(c => c.MemberId).Select(g => g.First()))
+            .OrderBy(c => c.IsAine).ThenBy(c => c.LastName).ThenBy(c => c.FirstName)
+            .ToList();
+    }
+}
+

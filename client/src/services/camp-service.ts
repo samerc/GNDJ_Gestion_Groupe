@@ -36,7 +36,8 @@ export interface CampFamilleDto {
 export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
 export interface CampGameDto { id: string; name: string; description: string | null; etapistes: EtapisteDto[] }
-export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null }
+// isAine = routier / caravelle / JEM (offered only when the camp.etapistes_aines setting is on); branch = their branch name.
+export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null; isAine: boolean; branch: string | null }
 
 // ── Camps ──
 // GET /camps → list of camp editions. `enabled` lets callers without camp permission (e.g. the sidebar
