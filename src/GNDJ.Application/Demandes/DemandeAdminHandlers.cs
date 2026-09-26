@@ -987,7 +987,8 @@ public class SendDemandeResponsesCommandValidator : AbstractValidator<SendDemand
             .MaximumLength(20).Matches(@"^[0-9\- ]+$").WithMessage("Année scoute invalide (ex. 2026-2027).");
 }
 
-public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, IAuditService audit, IEmailQueue emailQueue) : IRequestHandler<SendDemandeResponsesCommand, Result<SendDemandeResponsesResult>>
+public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, IPasswordHasher hasher, IAuditService audit, IEmailQueue emailQueue,
+    IUnitNewMembersSheet unitSheet, Microsoft.Extensions.Logging.ILogger<SendDemandeResponsesCommandHandler> logger) : IRequestHandler<SendDemandeResponsesCommand, Result<SendDemandeResponsesResult>>
 {
     public async ValueTask<Result<SendDemandeResponsesResult>> Handle(SendDemandeResponsesCommand request, CancellationToken ct)
     {
@@ -1125,6 +1126,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // Members created this batch, keyed by account — used below to declare fratries when a household named a
         // sibling already in the group (the created child + the matched member become a confirmed fratrie).
         var createdByAccount = new Dictionary<Guid, List<Member>>();
+        var memberByDemande = new Dictionary<Guid, Member>(); // for the per-unit Excel sent to the CU(s)
 
         foreach (var d in approved)
         {
@@ -1214,6 +1216,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             var activationLink = $"{baseUrl}/reset-password?token={activationToken}&email={Uri.EscapeDataString(username)}&setup=1";
 
             d.CreatedMemberId = member.Id;
+            memberByDemande[d.Id] = member;
             d.ResponseSentAt = DateTime.UtcNow;
             (createdByAccount.TryGetValue(d.ApplicantAccountId, out var cm) ? cm : createdByAccount[d.ApplicantAccountId] = []).Add(member);
 
@@ -1295,9 +1298,98 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // AFTER the commit above, so a durable outbox row is written only for responses that were persisted.
         await emailQueue.EnqueueManyAsync(
             emailJobs.Select(job => new EmailJob(job.Code, job.To, job.Vars)), ct);
-        await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, request.ScoutYear }, cancellationToken: ct);
+        // Tell each unit's chef(s) d'unité who joined: one email per CU with an Excel of the newly accepted members.
+        // Best-effort — the responses are already committed, so a problem here must not fail the send.
+        var unitsWithoutCu = new List<string>();
+        try
+        {
+            unitsWithoutCu = await NotifyUnitLeadersAsync(approved, memberByDemande, acctGuardians, acctSiblingRelations, unitNames, request.ScoutYear, ct);
+        }
+        catch (Exception ex) { Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(logger, ex, "Envoi aux chefs d'unité des nouveaux membres échoué ({ScoutYear})", request.ScoutYear); }
+        await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, request.ScoutYear, UnitsWithoutCu = unitsWithoutCu }, cancellationToken: ct);
 
         return Result<SendDemandeResponsesResult>.Success(new SendDemandeResponsesResult(approved.Count, declined.Count));
+    }
+
+    // Per unit: build the Excel of its newly accepted members and email it to each chef d'unité (unit HEAD =
+    // role on the chef-unite profile; assistants are on assistant-unite) through the durable outbox. Parents:
+    // names only. Siblings are listed only when they are in the SAME unit (another child accepted into that unit
+    // from the same family, or an existing member of that unit declared as a brother/sister). Returns the units
+    // that have no reachable CU (logged in the audit entry).
+    private async Task<List<string>> NotifyUnitLeadersAsync(
+        List<Demande> approved, Dictionary<Guid, Member> memberByDemande,
+        Dictionary<Guid, List<ApplicantGuardian>> acctGuardians, Dictionary<Guid, List<ApplicantScoutRelation>> acctSiblingRelations,
+        Dictionary<Guid, string> unitNames, string scoutYear, CancellationToken ct)
+    {
+        var converted = approved.Where(d => d.DecidedUnitId.HasValue && memberByDemande.ContainsKey(d.Id)).ToList();
+        if (converted.Count == 0) return [];
+        var unitIds = converted.Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
+
+        // Existing members declared as siblings → the unit they are active in (to keep only same-unit ones).
+        var relatedIds = acctSiblingRelations.Values.SelectMany(r => r).Select(r => r.RelatedMemberId!.Value).Distinct().ToList();
+        var relatedUnits = relatedIds.Count == 0 ? new List<(Guid MemberId, Guid UnitId, string Name)>()
+            : (await context.MemberAssignments
+                .Where(a => relatedIds.Contains(a.MemberId) && a.EndDate == null && !a.IsDeleted && !a.Member.IsDeleted)
+                .Select(a => new { a.MemberId, a.UnitId, a.Member.FirstName, a.Member.LastName }).ToListAsync(ct))
+              .Select(x => (MemberId: x.MemberId, UnitId: x.UnitId, Name: $"{x.FirstName} {x.LastName}")).ToList();
+
+        static string Norm(string? s) => TextNormalization.NormalizeKey(s ?? "");
+        string? Names(IEnumerable<ApplicantGuardian> gs) { var n = string.Join(", ", gs.Select(g => $"{g.FirstName} {g.LastName}".Trim())); return n.Length == 0 ? null : n; }
+
+        // Chefs d'unité of those units.
+        var cus = await context.MemberAssignments
+            .Where(a => unitIds.Contains(a.UnitId) && a.EndDate == null && !a.IsDeleted && !a.Member.IsDeleted
+                        && a.FunctionalRole.SecurityProfile.Code == "chef-unite")
+            .Select(a => new { a.UnitId, a.MemberId, a.Member.FirstName, a.Member.LastName, a.Member.PrimaryContactEmail })
+            .ToListAsync(ct);
+        var resolver = await ContactEmailResolver.LoadAsync(context, cus.Select(c => c.MemberId).Distinct().ToList(), ct);
+
+        var noCu = new List<string>();
+        var jobs = new List<EmailJob>();
+        foreach (var unitId in unitIds)
+        {
+            var unitName = unitNames.GetValueOrDefault(unitId, "");
+            var inUnit = converted.Where(d => d.DecidedUnitId == unitId).ToList();
+            var rows = inUnit
+                .OrderBy(d => d.LastName).ThenBy(d => d.FirstName)
+                .Select(d =>
+                {
+                    var m = memberByDemande[d.Id];
+                    var gs = acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? [];
+                    var father = gs.Where(g => Norm(g.Relationship) == "pere").ToList();
+                    var mother = gs.Where(g => Norm(g.Relationship) == "mere").ToList();
+                    var others = gs.Except(father).Except(mother)
+                        .Select(g => $"{g.FirstName} {g.LastName} ({g.Relationship})".Trim()).ToList();
+                    // Same-unit siblings: same family accepted into this unit + declared siblings active in it.
+                    var sibs = inUnit.Where(o => o.Id != d.Id && o.ApplicantAccountId == d.ApplicantAccountId)
+                        .Select(o => $"{o.FirstName} {o.LastName}")
+                        .Concat((acctSiblingRelations.GetValueOrDefault(d.ApplicantAccountId) ?? [])
+                            .SelectMany(r => relatedUnits.Where(x => x.MemberId == r.RelatedMemberId && x.UnitId == unitId).Select(x => x.Name)))
+                        .Distinct().ToList();
+                    return new NewMemberSheetRow(d.LastName, d.FirstName, d.DateOfBirth, d.Gender, d.Classe, d.School, m.CardNumber,
+                        Names(father), Names(mother), others.Count == 0 ? null : string.Join(", ", others),
+                        sibs.Count == 0 ? null : string.Join(", ", sibs));
+                }).ToList();
+
+            var recipients = cus.Where(c => c.UnitId == unitId)
+                .Select(c => (c.FirstName, c.LastName, Email: resolver.Resolve(c.MemberId, c.PrimaryContactEmail)))
+                .Where(c => !string.IsNullOrWhiteSpace(c.Email))
+                .DistinctBy(c => c.Email!.ToLowerInvariant()).ToList();
+            if (recipients.Count == 0) { noCu.Add(unitName); continue; }
+
+            var path = unitSheet.Save(unitName, scoutYear, rows);
+            var attachment = new EmailAttachment($"Nouveaux membres - {unitName}.xlsx", path);
+            foreach (var cu in recipients)
+                jobs.Add(new EmailJob("demande_unit_new_members", cu.Email!, new Dictionary<string, string>
+                {
+                    ["leaderName"] = $"{cu.FirstName} {cu.LastName}".Trim(),
+                    ["unitName"] = unitName,
+                    ["count"] = rows.Count.ToString(),
+                    ["scoutYear"] = scoutYear,
+                }, [attachment]));
+        }
+        if (jobs.Count > 0) await emailQueue.EnqueueManyAsync(jobs, ct);
+        return noCu;
     }
 
     // A proche-scout relationship that means brother/sister (so the two children share parents → siblings).

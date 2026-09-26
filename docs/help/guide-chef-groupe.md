@@ -162,6 +162,7 @@ passe, ou utilise **Mot de passe oublié ?** / **Se connecter avec un code**.
 | Qui | Ce qui est envoyé | Comment |
 |---|---|---|
 | **Nouveau membre** (demande acceptée) | Son identifiant + un lien pour choisir son mot de passe | Automatique, avec la réponse à la demande (**Envoyer les réponses**) |
+| **Chef d'unité** de chaque unité qui reçoit des nouveaux membres | La liste des nouveaux membres de son unité (fichier Excel : nom, date de naissance, classe, école, matricule, noms des parents, frère / sœur dans la même unité) | Automatique, avec **Envoyer les réponses** |
 | **Membre accepté sans demande** (cas rare) | Son identifiant + le lien | Créez-le (**Membres → Nouveau membre**), puis sur sa fiche **Actions → Envoyer l'accès** |
 | **Nouveau chef** (CU, ACU…) | « Bienvenue dans la maîtrise » : ce qui change et quoi faire | **Automatique**, une seule fois, dès qu'il reçoit sa première fonction de chef |
 | **Tous les chefs** | L'email de rentrée (« Rentrée — chefs ») | **Unités & maîtrise → Emails aux chefs** |

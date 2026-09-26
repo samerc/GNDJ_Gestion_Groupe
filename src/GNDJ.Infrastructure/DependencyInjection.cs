@@ -111,6 +111,7 @@ public static class DependencyInjection
         services.AddSingleton<ICampReportService, CampReportService>();
         services.AddSingleton<IExportService, ExportService>();
         services.AddSingleton<IDemandeSheetService, DemandeSheetService>(); // Excel export/import of CG decisions
+        services.AddSingleton<IUnitNewMembersSheet, UnitNewMembersSheet>(); // Excel of new members emailed to each CU
         services.AddSingleton<IMemberImportService, MemberImportService>(); // Excel/CSV member import (parse + template)
         services.AddSingleton<IDocumentTemplateRenderer, DocumentTemplateRenderer>(); // in-app doc templates → per-member PDF
 

@@ -6161,3 +6161,14 @@ Every member got their access in 2026, and new chefs are existing members, so th
 - "Nouveau camp" is shown ONLY when creation is possible (CG, list loaded, no active camp, no camp yet for the current
   scout year — an archived one counts); otherwise a note says this year's camp is closed.
 
+### New members Excel to each CU on "Envoyer les réponses" (2026-09-26, DEV until deploy)
+- After the send commits, `SendDemandeResponses.NotifyUnitLeadersAsync` (best-effort, never fails the send): per
+  decided unit, one email to each chef d'unité (unit HEAD = role on profile `chef-unite`; contact via
+  `ContactEmailResolver`) with template **`demande_unit_new_members`** (seeded; category Chefs; vars leaderName,
+  unitName, count, scoutYear) and a per-send **Excel attachment** built by `IUnitNewMembersSheet`
+  (`UnitNewMembersSheet`, ClosedXML): Nom, Prénom, date de naissance, genre, classe, école, matricule, Père, Mère,
+  autres tuteurs (NAMES only — no phone/email), Frère/sœur dans l'unité (same family accepted into the same unit, or
+  a declared sibling already active in it; other proches not mentioned). File saved under
+  `<AuditArchive:Directory or cwd/archives>/demandes-unites` (the only root the sender accepts for per-send
+  attachments; pruned after 90 days). Units without a reachable CU are listed in the audit entry (`UnitsWithoutCu`).
+

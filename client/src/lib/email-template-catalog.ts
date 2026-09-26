@@ -39,6 +39,7 @@ export const EMAIL_TEMPLATE_CATALOG: Record<string, EmailTemplateInfo> = {
   demande_submission_reminder: { category: 'inscriptions', auto: false, when: 'Le CG clique sur « Relancer les non-soumis »' },
   demande_approved: { category: 'inscriptions', auto: false, when: 'Le CG clique sur « Envoyer les réponses » (demande acceptée, avec le lien pour choisir le mot de passe)' },
   demande_declined: { category: 'inscriptions', auto: false, when: 'Le CG clique sur « Envoyer les réponses » (demande refusée)' },
+  demande_unit_new_members: { category: 'chefs', auto: false, when: 'Le CG clique sur « Envoyer les réponses » : chaque chef d\'unité reçoit la liste (Excel) des nouveaux membres de son unité' },
   demande_merged: { category: 'inscriptions', auto: false, when: 'Le CG fusionne des demandes en double (case « envoyer un email » cochée)' },
   // Documents
   document_reminder: { category: 'documents', auto: true, when: 'Campagne de documents (début de la correction), ou « Relance documents »' },

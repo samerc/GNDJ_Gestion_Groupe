@@ -892,6 +892,14 @@ public static class SeedData
             },
             new EmailTemplate
             {
+                Name = "Nouveaux membres de l'unité (chefs d'unité)", Code = "demande_unit_new_members", Module = "demande",
+                Subject = "Nouveaux membres acceptés dans votre unité — {{unitName}}",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Les réponses aux demandes d'inscription {{scoutYear}} viennent d'être envoyées aux familles.</p><p><strong>{{count}}</strong> nouveau(x) membre(s) ont été accepté(s) dans l'unité <strong>{{unitName}}</strong>. Vous trouverez leur liste en pièce jointe (fichier Excel).</p><p>Ils apparaissent déjà dans votre unité sur la plateforme : pensez à leur attribuer une équipe.</p><p>— Le Chef de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef d'unité\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"count\",\"label\":\"Nombre de nouveaux membres\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
                 Name = "Demandes fusionnées (doublon)", Code = "demande_merged", Module = "demande",
                 Subject = "Regroupement de votre demande d'inscription — GNDJ Scout",
                 BodyHtml = "<h2>Bonjour {{contactName}},</h2><p>Nous avons constaté que plusieurs demandes d'inscription avaient été présentées pour <strong>{{childName}}</strong> ({{scoutYear}}).</p><p>Afin d'éviter les doublons, nous avons regroupé ces demandes en une seule. Nous avons conservé la demande <strong>{{keptNumber}}</strong>. Les demandes en double ({{deletedNumbers}}) ont été supprimées.</p><p>Aucune action n'est requise de votre part : votre demande reste bien enregistrée et sera traitée normalement.</p><p>— L'équipe GNDJ</p>",
