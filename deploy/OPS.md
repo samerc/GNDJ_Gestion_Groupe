@@ -134,7 +134,7 @@ The app records addresses the providers could not deliver to (or that marked our
      "WebhookToken": "<a long random string, e.g. [guid]::NewGuid().ToString('N') twice>"
    }
    ```
-2. **Mailgun** (Sending → Webhooks, domain gndj.org): add `https://gndj.org/api/v1/email/webhooks/mailgun` for
+2. **Mailgun** (Sending → Webhooks, domain **mg.gndj.org** — the domain Mailgun sends for): add `https://gndj.org/api/v1/email/webhooks/mailgun` for
    *Permanent failure*, *Temporary failure* and *Spam complaints*.
 3. **SMTP2GO** (Settings → Webhooks): URL `https://gndj.org/api/v1/email/webhooks/smtp2go/<WebhookToken>`, events
    *Bounce* and *Spam*.
@@ -143,6 +143,21 @@ The app records addresses the providers could not deliver to (or that marked our
 
 A soft bounce (mailbox full…) only blocks the address after 3 reports; a hard bounce or a spam complaint blocks it
 at once.
+
+## Origin lock — only Cloudflare may reach the app
+
+Without it, anyone who finds the server's IP can call the app directly and skip Cloudflare (WAF, rate limits,
+DDoS protection). The server hosts other sites on ports 80/443, so this is done **inside the GNDJ app**, not in the
+Windows firewall.
+
+1. In `appsettings.Production.json`, under `"Cloudflare"` (Enabled is already true), add `"RequireCloudflare": true`.
+2. Recycle the `gndj` app pool.
+3. Check: `https://gndj.org` still works (through Cloudflare), and from the server itself
+   `curl.exe -k -H "Host: gndj.org" https://<server public IP>/health` now answers **403** (a direct call from
+   outside Cloudflare). Local calls (`http://localhost`) stay allowed, so IIS warm-up and the health check keep
+   working.
+4. Cloudflare publishes its IP ranges at https://www.cloudflare.com/ips/ — they rarely change; if they do, update
+   `Cloudflare:IpRanges` (in `appsettings.json`) or visitors from the new ranges would get 403.
 
 ## Backup restore test (every 4 weeks)
 

@@ -401,7 +401,38 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware pipeline
-// Must run FIRST so the rate limiter, abuse middleware and request logging all see the real client IP.
+// Origin lock (Cloudflare:RequireCloudflare, off by default): refuse any request that does NOT come from a
+// Cloudflare edge, so nobody can bypass Cloudflare (WAF, rate limits, DDoS protection) by calling the
+// server's IP directly. Done in the app rather than the Windows firewall because the server hosts other sites
+// on the same ports. Checked on the raw TCP peer, BEFORE forwarded headers rewrite it. Loopback stays allowed
+// (IIS warm-up, local scripts); ACME challenges stay open for certificate renewal.
+if (cloudflareEnabled && builder.Configuration.GetValue<bool>("Cloudflare:RequireCloudflare"))
+{
+    var edgeNetworks = (builder.Configuration.GetSection("Cloudflare:IpRanges").Get<string[]>() ?? [])
+        .Select(c => c.Split('/', 2))
+        .Where(p => p.Length == 2 && System.Net.IPAddress.TryParse(p[0], out _) && int.TryParse(p[1], out _))
+        .Select(p => new System.Net.IPNetwork(System.Net.IPAddress.Parse(p[0]), int.Parse(p[1])))
+        .ToList();
+    app.Use(async (ctx, next) =>
+    {
+        var ip = ctx.Connection.RemoteIpAddress;
+        if (ip is not null && ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        var allowed = ip is null
+            || System.Net.IPAddress.IsLoopback(ip)
+            || edgeNetworks.Any(n => n.Contains(ip))
+            || ctx.Request.Path.StartsWithSegments("/.well-known/acme-challenge");
+        if (!allowed)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await ctx.Response.WriteAsync("Accès direct non autorisé.");
+            return;
+        }
+        await next();
+    });
+}
+
+// Must run FIRST (after the origin lock) so the rate limiter, abuse middleware and request logging all see
+// the real client IP.
 if (cloudflareEnabled)
     app.UseForwardedHeaders();
 
