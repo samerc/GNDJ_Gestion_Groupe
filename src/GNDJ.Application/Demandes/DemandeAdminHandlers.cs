@@ -164,6 +164,16 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
         if (!MemberAccess.IsGroupManager(currentUser))
             return Result<IReadOnlyList<DemandeReviewDto>>.Failure("Accès refusé.");
 
+        return Result<IReadOnlyList<DemandeReviewDto>>.Success(await DemandeReviewList.LoadAsync(context, request, ct));
+    }
+}
+
+// The review-list query itself, shared by the handler (after its access check) and the startup warm-up
+// (WarmUpAsync below), so the warm-up compiles exactly the queries the CG's first page load will run.
+public static class DemandeReviewList
+{
+    public static async Task<IReadOnlyList<DemandeReviewDto>> LoadAsync(IApplicationDbContext context, GetDemandesForReviewQuery request, CancellationToken ct)
+    {
         var today = LebanonClock.Today;
 
         // Only show submitted / decided demandes (never drafts).
@@ -184,7 +194,16 @@ public class GetDemandesForReviewQueryHandler(IApplicationDbContext context, ICu
         if (request.AgeMin.HasValue) result = result.Where(d => d.Age >= request.AgeMin.Value);
         if (request.AgeMax.HasValue) result = result.Where(d => d.Age <= request.AgeMax.Value);
 
-        return Result<IReadOnlyList<DemandeReviewDto>>.Success(result.ToList());
+        return result.ToList();
+    }
+
+    // Startup warm-up: runs the review list once for the current demande year (no user, result discarded) so the
+    // first CG to open Demandes after a deploy/recycle doesn't pay EF query compilation + JIT (~2-3 s).
+    public static async Task WarmUpAsync(IApplicationDbContext context, CancellationToken ct)
+    {
+        var year = await context.Settings.Where(s => s.Key == "demande.scout_year").Select(s => s.Value).SingleOrDefaultAsync(ct);
+        if (string.IsNullOrWhiteSpace(year)) return;
+        await LoadAsync(context, new GetDemandesForReviewQuery(year, null, null, null, null, null, null, null), ct);
     }
 }
 

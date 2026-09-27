@@ -25,7 +25,6 @@ import {
   Receipt,
   FileWarning,
   Route,
-  Compass,
   Inbox,
   Send,
   Newspaper,
@@ -61,19 +60,10 @@ import { usePendingChangeRequestsCount } from '@/services/change-request-service
 import { useUnreadContactMessageCount } from '@/services/contact-message-service'
 import { useCamps } from '@/services/camp-service'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
+import { BrandMark } from '@/components/shared/brand-mark'
 
-export function BrandMark({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        'flex items-center justify-center rounded-lg bg-gradient-to-br from-sidebar-primary to-accent text-white shadow-sm ring-1 ring-white/10',
-        className
-      )}
-    >
-      <Compass className="h-[55%] w-[55%]" strokeWidth={2.2} />
-    </div>
-  )
-}
+// Re-exported so existing imports (header) keep working.
+export { BrandMark }
 
 // Admin/super admin nav
 // Personal links every member has — shown to EVERYONE, managers included (a CG/ACG is still a member with

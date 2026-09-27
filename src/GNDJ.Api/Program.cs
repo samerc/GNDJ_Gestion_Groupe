@@ -100,6 +100,7 @@ builder.Services.AddHostedService<GNDJ.Api.Services.LeaderWelcomeBackgroundServi
 builder.Services.AddHostedService<GNDJ.Api.Services.PassageReminderBackgroundService>(); // 7 / 2 days before the passage date // "Bienvenue dans la maîtrise" email to new chefs
 builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.OpsAlertBackgroundService>(); // daily "système" problems email
+builder.Services.AddHostedService<GNDJ.Api.Services.StartupWarmupBackgroundService>(); // pre-runs the demandes list once after startup
 builder.Services.AddSingleton<GNDJ.Api.Help.HelpDocs>(); // in-app "Aide" guides (docs/help), role-filtered
 
 // Performance: Response compression (gzip + brotli)
@@ -110,7 +111,9 @@ builder.Services.AddResponseCompression(options =>
     options.Providers.Add<GzipCompressionProvider>();
     options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["application/json", "text/plain"]);
 });
-builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+// Brotli "Fastest" (quality 1) compressed JSON WORSE than gzip (demandes list: 195 KB vs 129 KB); "Optimal" is
+// still cheap for API-sized payloads and roughly halves what phones download.
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Optimal);
 builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
 
 // Performance: Output caching for read-heavy endpoints

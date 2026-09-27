@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Link, useNavigate } from 'react-router'
-import { Compass, LogOut, BookOpen } from 'lucide-react'
+import { LogOut, BookOpen } from 'lucide-react'
+import { BrandMark } from '@/components/shared/brand-mark'
 import { Toaster } from 'sonner'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { Button } from '@/components/ui/button'
@@ -21,9 +22,7 @@ export function ApplicantProtectedRoute() {
       <Toaster richColors position="top-center" />
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-card/85 px-4 backdrop-blur-md sm:px-6">
         <Link to="/inscription/portail" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white shadow-sm ring-1 ring-white/10">
-            <Compass className="h-5 w-5" strokeWidth={2.2} />
-          </div>
+          <BrandMark className="h-9 w-9" />
           <div className="flex flex-col leading-tight">
             <span className="text-[15px] font-bold tracking-tight">GNDJ Scout</span>
             <span className="text-[11px] font-medium text-muted-foreground">Demande d'inscription</span>

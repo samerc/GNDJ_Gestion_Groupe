@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useParams } from 'react-router'
-import { Camera, ImageUp, CheckCircle2, AlertTriangle, Loader2, Compass, RotateCcw } from 'lucide-react'
+import { Camera, ImageUp, CheckCircle2, AlertTriangle, Loader2, RotateCcw } from 'lucide-react'
+import { BrandMark } from '@/components/shared/brand-mark'
 import { parseApiError } from '@/lib/error-utils'
 import { useScanUploadInfo, scanUploadFiles } from '@/services/scan-upload-service'
 
@@ -80,9 +81,7 @@ export default function ScanUploadPage() {
       <div className="w-full max-w-md space-y-5">
         {/* Brand mark */}
         <div className="flex items-center justify-center gap-2 text-primary">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-            <Compass className="h-5 w-5" />
-          </span>
+          <BrandMark className="h-9 w-9" />
           <span className="text-lg font-semibold">GNDJ Scout</span>
         </div>
 

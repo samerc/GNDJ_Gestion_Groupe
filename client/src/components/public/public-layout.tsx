@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Toaster } from 'sonner'
-import { Compass, Menu, X, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
+import { Menu, X, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
+import { BrandMark } from '@/components/shared/brand-mark'
 
 // Instagram/Facebook brand glyphs (lucide dropped its brand icons) — module-scope so their identity is stable.
 function InstagramIcon() {
@@ -43,9 +44,7 @@ const FIXED_RIGHT: FixedNav[] = [
 function Brand({ onClick }: { onClick?: () => void }) {
   return (
     <Link to="/" onClick={onClick} className="flex items-center gap-2.5">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-sm ring-1 ring-white/10">
-        <Compass className="h-5 w-5" strokeWidth={2.2} />
-      </span>
+      <BrandMark className="h-10 w-10" />
       <span className="flex flex-col leading-none">
         <span className="whitespace-nowrap text-base font-bold tracking-tight">Notre-Dame Jamhour</span>
         <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Groupe scout · GNDJ</span>

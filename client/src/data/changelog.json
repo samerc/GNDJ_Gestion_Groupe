@@ -3,6 +3,8 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-27", "text": "La nouvelle icône (boussole aux couleurs du logo) remplace l'ancienne tuile dans l'en-tête de l'application, le site public, le portail des demandes et la page de scan mobile."},
+      {"date": "2026-09-27", "text": "Plus rapide : la liste des demandes se télécharge environ 2,5 fois plus légère (compression améliorée), et elle est préchargée au démarrage du serveur pour que le premier chargement après une mise à jour ne prenne plus 2 à 3 secondes."},
       {"date": "2026-09-27", "text": "Email : si un serveur SMTP n'a pas de mot de passe (clé absente de appsettings.Production.json), le bouton Tester, la page Système et la file d'emails l'indiquent clairement au lieu de l'erreur trompeuse « relay access denied »."},
       {"date": "2026-09-27", "text": "Passage : le CG peut « Changer la sélection » (même unité / équipe / fonction ou « Quitte le groupe » pour plusieurs membres, avec une raison) — une seule notification par unité. Rappel aux chefs des unités qui n'ont pas terminé leur passage : bouton « Relancer les unités non terminées » et envoi automatique 7 et 2 jours avant la date du passage. Nouvelle tâche de rentrée par unité « Terminer le passage de l'unité » (suivie automatiquement)."},
       {"date": "2026-09-27", "text": "Nouvelle icône de l'application aux couleurs du logo du groupe (boussole bleue sur médaillon blanc, nord orange, nœud de foulard au centre) : application installée, iPhone, onglet du navigateur et petite icône des notifications Android (qui s'affichait comme un carré blanc)."},
