@@ -31,7 +31,9 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
-    chunkSizeWarningLimit: 900,
+    // 1600: mermaid's optional ELK layout chunk (~1.4 MB) is only fetched on demand by a help-guide diagram, never
+    // on first load. The real first-load size is guarded by tests/e2e/bundle_budget.mjs.
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
         // Split stable third-party libs into their own chunks so they stay cached across deploys (a code
