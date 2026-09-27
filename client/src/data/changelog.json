@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-28", "text": "Téléphone : grande révision de l'affichage mobile — titres qui ne sont plus coupés, onglets et boutons qui passent à la ligne au lieu d'être cachés, tableaux remplacés par des cartes (unités, journal d'audit, file d'emails, emails aux chefs, documents par unité, système), résumés en deux colonnes (cotisations, accueil, file d'emails), profils d'accès et séance photo en liste puis détail, bouton Enregistrer toujours visible au Camp BP, dates du journal en JJ/MM/AAAA, portail des parents (cartes par enfant, étapes complètes, pas de formulaire vide après la date limite) et site public (unités compactes, liens des pages « Le Groupe » en haut)."},
       {"date": "2026-09-28", "text": "Validation des passages sur téléphone : une carte séparée par membre, colorée selon le statut, avec ses boutons Accepter (vert) et Changer (bleu) dans la carte ; équipe et fonction affichées clairement ; la barre de sélection reste en bas de l'écran."},
       {"date": "2026-09-27", "text": "Messages de contact : chaque réponse est gardée dans un historique (qui, quand, à quelle adresse) ; une deuxième réponse ne remplace plus la première, et un avertissement s'affiche si le message a déjà reçu une réponse."},
       {"date": "2026-09-27", "text": "Emails : les messages de confirmation disent « mis en file d'envoi » au lieu de « envoyé » (l'email part quelques instants plus tard) ; raccourci vers la file d'emails pour les super-administrateurs."},

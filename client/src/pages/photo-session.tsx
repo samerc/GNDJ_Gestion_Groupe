@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLeaderUnits } from '@/hooks/use-leader-units'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Check, ArrowLeft, Camera, Users } from 'lucide-react'
+import { Check, ArrowLeft, ArrowRight, Camera, Users, List } from 'lucide-react'
+import { useMobileDetail } from '@/hooks/use-mobile-detail'
 
 // Camera capture for one member: snaps a photo, uploads it as a JPEG, then signals `onDone`.
 function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; memberName: string; onDone: () => void }) {
@@ -66,7 +67,9 @@ export default function PhotoSessionPage() {
   const { data: membersData, isLoading } = useMembers({ unitId, pageSize: 500 })
   const members = useMemo(() => membersData?.items ?? [], [membersData])
 
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  // Phone: the member list fills the screen; tapping a member swaps to the camera (the phone's back button
+  // returns to the list). Larger screens keep the list and the camera side by side.
+  const { selectedId: selectedMemberId, setSelectedId: setSelectedMemberId, open: openMember, close: closeMember } = useMobileDetail()
   // Members photographed this session — drives the green check + progress before the list refetches.
   const [capturedPhotos, setCapturedPhotos] = useState<Set<string>>(new Set())
   // Per-member counter bumped after a capture to force MemberPhoto to re-fetch the (now updated) image.
@@ -77,6 +80,12 @@ export default function PhotoSessionPage() {
   const withPhotos = useMemo(() => members.filter(m => m.photoPath || capturedPhotos.has(m.id)).length, [members, capturedPhotos])
 
   const selectedMember = useMemo(() => members.find(m => m.id === selectedMemberId), [members, selectedMemberId])
+  // Next member (after the current one, wrapping) who still has no photo — the "Suivant" shortcut on a phone.
+  const nextWithoutPhoto = useMemo(() => {
+    const i = members.findIndex(m => m.id === selectedMemberId)
+    const order = [...members.slice(i + 1), ...members.slice(0, Math.max(i, 0))]
+    return order.find(m => !m.photoPath && !capturedPhotos.has(m.id)) ?? null
+  }, [members, selectedMemberId, capturedPhotos])
 
   // After an upload: mark the member done and bump its refresh key so the thumbnail reloads.
   const handleDone = () => {
@@ -143,10 +152,10 @@ export default function PhotoSessionPage() {
       {/* 2-column layout */}
       <div className="flex flex-col md:flex-row flex-1 min-h-0 rounded-lg border overflow-hidden">
         {/* Left: member list */}
-        <div className="md:w-72 shrink-0 overflow-y-auto bg-muted/30 border-b md:border-b-0 md:border-r max-h-48 md:max-h-full">
+        <div className={cn('flex-1 overflow-y-auto bg-muted/30 md:w-72 md:flex-none md:shrink-0 md:border-r', selectedMemberId && 'hidden md:block')}>
           {members.length === 0 ? (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">
-              Aucun membre dans cette unite
+              Aucun membre dans cette unité
             </div>
           ) : (
             members.map((m: MemberListDto) => (
@@ -156,7 +165,7 @@ export default function PhotoSessionPage() {
                   'flex items-center gap-3 p-2 cursor-pointer transition-colors border-b border-border/40',
                   selectedMemberId === m.id ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-muted/50',
                 )}
-                onClick={() => setSelectedMemberId(m.id)}
+                onClick={() => openMember(m.id)}
               >
                 <div className="relative">
                   <MemberPhoto
@@ -182,9 +191,18 @@ export default function PhotoSessionPage() {
         </div>
 
         {/* Right: camera area */}
-        <div className="flex-1 min-w-0 overflow-auto flex items-center justify-center p-6">
+        <div className={cn('flex-1 min-w-0 overflow-auto items-center justify-center p-4 md:flex md:p-6', selectedMemberId ? 'flex' : 'hidden')}>
           {selectedMember ? (
             <div className="flex flex-col items-center gap-4 w-full max-w-md">
+              {/* Phone only: back to the list, or straight to the next member without a photo. */}
+              <div className="flex w-full items-center justify-between gap-2 md:hidden">
+                <Button variant="outline" size="sm" onClick={closeMember}><List className="mr-1 h-4 w-4" />Liste</Button>
+                {nextWithoutPhoto && (
+                  <Button variant="outline" size="sm" onClick={() => openMember(nextWithoutPhoto.id)}>
+                    Suivant<ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               <div className="text-center">
                 <h2 className="text-lg font-semibold">
                   {selectedMember.firstName} {selectedMember.lastName}
@@ -203,7 +221,7 @@ export default function PhotoSessionPage() {
           ) : (
             <div className="text-center text-muted-foreground">
               <Camera className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Selectionnez un membre pour prendre sa photo</p>
+              <p className="text-sm">Sélectionnez un membre pour prendre sa photo</p>
             </div>
           )}
         </div>

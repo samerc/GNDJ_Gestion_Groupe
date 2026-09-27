@@ -251,7 +251,31 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
           ) : !recipients || recipients.length === 0 ? (
             <EmptyState icon={Users} title="Aucun chef" description="Aucun chef ne correspond à ces critères." />
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
+            <>
+            {/* Phone: one compact row per chef (checkbox, name, unit, email) — the table broke the emails into
+                4–5 lines each. */}
+            <div className="divide-y rounded-lg border md:hidden">
+              <label className="flex items-center gap-3 bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+                <input type="checkbox" className="h-4 w-4" checked={allSelected} onChange={toggleAll} />
+                Tout sélectionner ({recipients.length})
+              </label>
+              {recipients.map((r) => (
+                <label key={r.memberId} className={cn('flex items-start gap-3 px-3 py-2.5', selected.has(r.memberId) && 'bg-primary/5', !r.contactEmail && 'opacity-60')}>
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={selected.has(r.memberId)} onChange={() => toggle(r.memberId)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">{r.fullName}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{r.units}</span>
+                    </div>
+                    {r.contactEmail
+                      ? <p className="truncate text-xs text-muted-foreground">{r.contactEmail}</p>
+                      : <p className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><MailWarning className="h-3.5 w-3.5" /> Aucun email</p>}
+                    {!r.hasLoggedIn && <p className="text-xs text-sky-700 dark:text-sky-300">Jamais connecté</p>}
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-lg border md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -288,6 +312,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </div>
 

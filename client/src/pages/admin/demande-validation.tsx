@@ -476,7 +476,7 @@ export default function DemandeValidationPage() {
             )}
             {/* Toggle the submission window: close it to start the review phase, reopen to let parents edit again. */}
             {campaign?.enabled && (
-              <Button variant="outline" disabled={submissionsMutation.isPending}
+              <Button variant="outline" className="w-full sm:w-auto" disabled={submissionsMutation.isPending}
                 onClick={() => setSubmissionsConfirm(!campaign.submissionsOpen)}>
                 {campaign.submissionsOpen
                   ? <><Lock className="mr-1.5 h-4 w-4" />Clôturer les soumissions</>
@@ -485,14 +485,14 @@ export default function DemandeValidationPage() {
             )}
             {/* Explain the disabled state when it's only the status filter blocking the send. */}
             <Tip content={!canSend && status !== 'all' && pendingSend > 0 && undecided === 0 ? 'Affichez « Toutes » les demandes pour envoyer.' : ''}>
-              <span>
-                <Button disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
+              <span className="w-full sm:w-auto">
+                <Button className="w-full sm:w-auto" disabled={!canSend || sendMutation.isPending} onClick={() => setSendOpen(true)}>
                   <Send className="mr-1.5 h-4 w-4" />Envoyer les réponses{pendingSend > 0 ? ` (${pendingSend})` : ''}
                 </Button>
               </span>
             </Tip>
             {canClose && (
-              <Button variant="destructive" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
+              <Button variant="destructive" className="w-full sm:w-auto" disabled={closeMutation.isPending} onClick={() => setCloseOpen(true)}>
                 Clôturer les demandes
               </Button>
             )}
@@ -517,19 +517,20 @@ export default function DemandeValidationPage() {
 
       {/* Secondary toolbar: work the decisions in Excel (export → fill → import) + remind non-submitters. */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">
-        <span className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Outils</span>
+        {/* Excel export/import is computer work: hidden on a phone, where only the reminder button stays. */}
+        <span className="hidden px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:inline">Outils</span>
         <Tip content="Le fichier contient toutes les informations de chaque demande. Remplissez la seule colonne « Décision » : le code de l'unité (C2, M2…) pour accepter, ou un code de motif (« -- » = par défaut) pour refuser. La feuille « Codes » liste tout. Seules les colonnes Réf. et Décision sont relues à l'import — le reste peut être trié/annoté librement.">
-          <Button variant="outline" size="sm" disabled={exportMutation.isPending} onClick={handleExport}>
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" disabled={exportMutation.isPending} onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />Exporter (Excel)
           </Button>
         </Tip>
-        <Button variant="outline" size="sm" disabled={importMutation.isPending} onClick={() => importInputRef.current?.click()}>
+        <Button variant="outline" size="sm" className="hidden sm:inline-flex" disabled={importMutation.isPending} onClick={() => importInputRef.current?.click()}>
           <Upload className="mr-2 h-4 w-4" />{importMutation.isPending ? 'Import…' : 'Importer les décisions'}
         </Button>
         <input ref={importInputRef} type="file" accept=".xlsx" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = '' }} />
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={remindersMutation.isPending || (unsubmittedCount ?? 0) === 0} onClick={() => setReminderConfirm(true)}>
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
+          <Button variant="outline" size="sm" className="w-full sm:w-auto" disabled={remindersMutation.isPending || (unsubmittedCount ?? 0) === 0} onClick={() => setReminderConfirm(true)}>
             <MailWarning className="mr-2 h-4 w-4" />Relancer les non-soumis{unsubmittedCount ? ` (${unsubmittedCount})` : ''}
           </Button>
         </div>
@@ -576,7 +577,7 @@ export default function DemandeValidationPage() {
         {/* Search stays visible on every screen; a "Filtres" toggle reveals the rest on mobile (they take a lot
             of vertical space on a phone). On ≥sm everything is shown inline as before. */}
         <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1 space-y-1 sm:flex-none">
+          <div className="min-w-0 basis-full space-y-1 sm:basis-auto sm:flex-none">
             <label className="text-xs font-medium">Recherche</label>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

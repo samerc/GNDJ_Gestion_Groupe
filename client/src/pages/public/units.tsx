@@ -23,19 +23,26 @@ function UnitCard({ unit }: { unit: PublicUnitListItem }) {
   return (
     <Link
       to={`/unites/${unit.slug}`}
-      className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5"
+      className="group flex flex-col rounded-2xl border border-border bg-card p-3 shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5 sm:p-5"
     >
+      {/* Phone: one compact row (emblem · name + members · arrow) so a branch's units don't take a screen each. */}
       <div className="flex items-center gap-3.5">
         {/* Foulard emblem — a scarf glyph on a tile tinted with the scarf's main colour. */}
         <span
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl ring-1 ring-border/70"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ring-1 ring-border/70 sm:h-16 sm:w-16"
           style={{ backgroundColor: `color-mix(in srgb, ${colors[0]} 12%, var(--card))` }}
         >
-          <FoulardGlyph colors={colors} className="h-12 w-12" />
+          <FoulardGlyph colors={colors} className="h-9 w-9 sm:h-12 sm:w-12" />
         </span>
-        <h3 className="font-semibold leading-snug">{unit.name}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold leading-snug">{unit.name}</h3>
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
+            <Users className="h-3.5 w-3.5" /> {unit.memberCount} membres
+          </span>
+        </div>
+        <ArrowRight className="h-4 w-4 shrink-0 text-primary sm:hidden" />
       </div>
-      <div className="mt-4 flex flex-1 items-end justify-between">
+      <div className="mt-4 hidden flex-1 items-end justify-between sm:flex">
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <Users className="h-3.5 w-3.5" /> {unit.memberCount} membres
         </span>
@@ -95,10 +102,10 @@ export default function PublicUnitsPage() {
                       )}
                     </div>
                     {group.description && (
-                      <p className="mt-3 text-justify leading-relaxed text-muted-foreground">{group.description}</p>
+                      <p className="mt-3 leading-relaxed text-muted-foreground sm:text-justify">{group.description}</p>
                     )}
                   </div>
-                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
                     {group.units.map((u) => <UnitCard key={u.slug} unit={u} />)}
                   </div>
                 </div>

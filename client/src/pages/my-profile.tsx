@@ -128,7 +128,7 @@ export default function MyProfilePage() {
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== 'profile' && v !== 'medical') setEditing(false) }}>
-        <TabsList className="overflow-x-auto flex-nowrap">
+        <TabsList>
           <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="contact">Contact &amp; famille</TabsTrigger>
           <TabsTrigger value="assignments">Unités / Fonctions</TabsTrigger>

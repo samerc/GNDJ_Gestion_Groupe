@@ -66,6 +66,27 @@ export default function ApplicantPortalPage() {
     catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // Everything a row needs (card or table): status look, button label/icon/target, whether it can be deleted.
+  const rowInfo = (d: (typeof demandes)[number]) => {
+    // locked = no longer deletable (replied-to, or already submitted past Draft);
+    // editable = wizard can still be opened to change it (period open + not yet replied to).
+    const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
+    const editable = canSubmit && !d.responseSentAt
+    const sent = !!d.responseSentAt
+    // Once the accepted member has entered the member area, the demande no longer opens — the button just takes
+    // them to the login page. Otherwise a sent demande shows its result page, and an open demande opens the wizard.
+    const enteredMemberArea = sent && d.status === 'Approved' && !!d.memberHasLoggedIn
+    const open = () => {
+      if (enteredMemberArea) navigate('/login')
+      else if (sent) navigate(`/inscription/portail/demande/${d.id}/resultat`)
+      else navigate(`/inscription/portail/demande/${d.id}`)
+    }
+    const label = enteredMemberArea ? 'Espace membre' : sent ? 'Voir le résultat' : editable && d.status === 'Draft' ? 'Continuer' : 'Voir'
+    const icon = enteredMemberArea ? <LogIn className="mr-1 h-3.5 w-3.5" /> : label === 'Continuer' ? <Pencil className="mr-1 h-3.5 w-3.5" /> : <Eye className="mr-1 h-3.5 w-3.5" />
+    const { border, badge } = statusMeta(d, reviewPhase)
+    return { open, label, icon, border, badge, canDelete: editable && !locked }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -143,15 +164,46 @@ export default function ApplicantPortalPage() {
       {demandes.length === 0 ? (
         <EmptyState icon={Users} title="Aucune demande" description={canSubmit ? "Cliquez sur « Ajouter une demande » pour présenter une demande d'inscription." : "La période de soumission des demandes est terminée."} />
       ) : (
-        // Table (with a coloured status bar per row) so several children are easy to scan at a glance.
-        <div className="overflow-x-auto rounded-lg border">
-          {/* min-width only from sm+ (where the DOB/Soumise columns appear); on phones the 3 visible
-              columns fit full-width with no horizontal scroll. */}
+        <>
+        {/* Phone: one card per child (the table wrapped the name and cut the demande number in two). */}
+        <div className="space-y-3 sm:hidden">
+          {demandes.map((d) => {
+            const r = rowInfo(d)
+            return (
+              <div key={d.id} className={`rounded-xl border border-l-4 bg-card p-3 shadow-sm ${r.border}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{d.firstName} {d.lastName}</p>
+                    {d.serialNumber && <p className="font-mono text-xs text-muted-foreground">N° {d.serialNumber}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {d.dateOfBirth ? `Né(e) le ${new Date(d.dateOfBirth).toLocaleDateString('fr-FR')}` : 'Naissance non renseignée'}
+                    </p>
+                  </div>
+                  <div className="shrink-0">{r.badge}</div>
+                </div>
+                {d.responseSentAt && d.status === 'Declined' && d.decisionNotes && (
+                  <p className="mt-2 text-xs text-muted-foreground">{d.decisionNotes}</p>
+                )}
+                <div className="mt-3 flex gap-2 border-t pt-3">
+                  <Button size="sm" variant="outline" className="flex-1" onClick={r.open}>{r.icon}{r.label}</Button>
+                  {r.canDelete && (
+                    <Button size="sm" variant="outline" className="text-destructive" aria-label="Supprimer" onClick={() => handleDelete(d)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Larger screens: a table with a coloured status bar per row, easy to scan with several children. */}
+        <div className="hidden overflow-x-auto rounded-lg border sm:block">
           <table className="w-full text-sm sm:min-w-[34rem]">
             <thead className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-2.5 text-left font-medium">Enfant</th>
-                <th className="hidden px-4 py-2.5 text-left font-medium sm:table-cell">Date de naissance</th>
+                <th className="px-4 py-2.5 text-left font-medium">Date de naissance</th>
                 <th className="hidden px-4 py-2.5 text-left font-medium md:table-cell">Soumise le</th>
                 <th className="px-4 py-2.5 text-left font-medium">Statut</th>
                 <th className="px-4 py-2.5 text-right font-medium">Actions</th>
@@ -159,52 +211,31 @@ export default function ApplicantPortalPage() {
             </thead>
             <tbody className="divide-y">
               {demandes.map((d) => {
-                // locked = no longer deletable (replied-to, or already submitted past Draft);
-                // editable = wizard can still be opened to change it (period open + not yet replied to).
-                const locked = !!d.responseSentAt || !!d.submittedAt && d.status !== 'Draft'
-                const editable = canSubmit && !d.responseSentAt
-                const sent = !!d.responseSentAt
-                // Once the accepted member has entered the member area, the demande no longer opens — the
-                // button just takes them to the login page. Otherwise a sent demande shows its result page,
-                // and an open demande opens the wizard.
-                const enteredMemberArea = sent && d.status === 'Approved' && !!d.memberHasLoggedIn
-                const openDemande = () => {
-                  if (enteredMemberArea) navigate('/login')
-                  else if (sent) navigate(`/inscription/portail/demande/${d.id}/resultat`)
-                  else navigate(`/inscription/portail/demande/${d.id}`)
-                }
-                const buttonLabel = enteredMemberArea ? 'Espace membre' : sent ? 'Voir le résultat' : editable && d.status === 'Draft' ? 'Continuer' : 'Voir'
-                const { border, badge } = statusMeta(d, reviewPhase)
+                const r = rowInfo(d)
                 return (
                   <tr key={d.id} className="hover:bg-muted/30">
                     {/* Coloured left bar = status at a glance */}
-                    <td className={`border-l-4 ${border} px-4 py-3`}>
+                    <td className={`border-l-4 ${r.border} px-4 py-3`}>
                       <div className="font-medium">{d.firstName} {d.lastName}</div>
                       {d.serialNumber && (
                         <div className="font-mono text-xs text-muted-foreground">N° {d.serialNumber}</div>
                       )}
-                      {/* On small screens DOB/école are hidden as columns — show DOB inline here */}
-                      <div className="text-xs text-muted-foreground sm:hidden">
-                        {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : 'Naissance non renseignée'}
-                      </div>
                       {d.responseSentAt && d.status === 'Declined' && d.decisionNotes && (
                         <div className="mt-1 max-w-xs text-xs text-muted-foreground">{d.decisionNotes}</div>
                       )}
                     </td>
-                    <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground sm:table-cell">
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                       {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : '—'}
                     </td>
                     <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground md:table-cell">
                       {d.submittedAt ? new Date(d.submittedAt).toLocaleDateString('fr-FR') : '—'}
                     </td>
-                    <td className="px-4 py-3">{badge}</td>
+                    <td className="px-4 py-3">{r.badge}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="outline" onClick={openDemande}>
-                          {enteredMemberArea ? <LogIn className="mr-1 h-3.5 w-3.5" /> : buttonLabel === 'Continuer' ? <Pencil className="mr-1 h-3.5 w-3.5" /> : <Eye className="mr-1 h-3.5 w-3.5" />}{buttonLabel}
-                        </Button>
-                        {editable && !locked && (
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(d)}>
+                        <Button size="sm" variant="outline" onClick={r.open}>{r.icon}{r.label}</Button>
+                        {r.canDelete && (
+                          <Button size="sm" variant="ghost" className="text-destructive" aria-label="Supprimer" onClick={() => handleDelete(d)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -216,6 +247,7 @@ export default function ApplicantPortalPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   )

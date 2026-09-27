@@ -80,11 +80,47 @@ function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
   )
 }
 
+// Phone version of a queue row: recipient, template, status, attempts, error (tap to expand) and actions.
+function OutboxCard({ entry, onRetry, onDelete, busy }: {
+  entry: OutboxEmail; onRetry: (id: string) => void; onDelete: (id: string) => void; busy: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="rounded-xl border bg-card p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="break-all text-sm font-medium">{entry.toEmail}</p>
+          <p className="text-xs text-muted-foreground">{entry.templateCode} · {new Date(entry.createdAt).toLocaleString('fr-FR')}</p>
+        </div>
+        <div className="shrink-0">{statusBadge(entry.status)}</div>
+      </div>
+      {entry.lastError && (
+        <button onClick={() => setOpen((o) => !o)} className="mt-2 w-full text-left text-xs text-red-600">
+          <span className={open ? 'whitespace-pre-wrap break-words' : 'line-clamp-2'}>{entry.lastError}</span>
+        </button>
+      )}
+      <div className="mt-2 flex items-center justify-between gap-2 border-t pt-2">
+        <span className="text-xs text-muted-foreground">{entry.attempts} essai{entry.attempts > 1 ? 's' : ''}</span>
+        <div className="flex gap-1">
+          {entry.status !== 'Sent' && (
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => onRetry(entry.id)}>
+              <RotateCw className="mr-1 h-3.5 w-3.5" />Réessayer
+            </Button>
+          )}
+          <Button variant="outline" size="sm" disabled={busy} className="text-red-600" aria-label="Supprimer" onClick={() => onDelete(entry.id)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Mail; label: string; value: number; tone: string }) {
   return (
     <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div>
+      <CardContent className="flex items-center gap-3 p-3 sm:p-4">
+        <div className={`hidden h-10 w-10 items-center justify-center rounded-xl sm:flex ${tone}`}><Icon className="h-5 w-5" /></div>
         <div>
           <div className="text-2xl font-bold tabular-nums">{value}</div>
           <div className="text-xs text-muted-foreground">{label}</div>
@@ -147,7 +183,7 @@ export default function EmailOutboxPage() {
       <PageHeader title="Emails — file d'attente / échecs" icon={Mail}
         description={<>File d'envoi durable des emails. Un email « envoyé » depuis l'application est d'abord <strong>mis en file d'attente</strong> ; s'il échoue (SMTP mal configuré, adresse invalide…) il apparaît ici en <strong>Échec</strong>. Vous pouvez inspecter l'erreur et le <strong>remettre en file d'attente</strong>.</>} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <StatCard icon={Clock} label="En attente" value={s?.pending ?? 0} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400" />
         <StatCard icon={AlertTriangle} label="Échecs" value={s?.failed ?? 0} tone="bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400" />
         <StatCard icon={CheckCircle2} label="Envoyés" value={s?.sent ?? 0} tone="bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400" />
@@ -186,7 +222,12 @@ export default function EmailOutboxPage() {
             <EmptyState icon={Mail} title="Aucun email" description="Aucun email ne correspond aux filtres." />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="space-y-2 md:hidden">
+                {data.items.map((e) => (
+                  <OutboxCard key={e.id} entry={e} onRetry={handleRetry} onDelete={handleDelete} busy={busyId === e.id} />
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/40 text-left">

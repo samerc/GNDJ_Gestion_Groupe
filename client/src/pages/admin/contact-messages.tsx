@@ -63,7 +63,7 @@ export default function ContactMessagesPage() {
       {/* Toolbar: search + unread filter + count */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
-          className="min-w-0 flex-1"
+          className="min-w-0 basis-full sm:basis-auto sm:flex-1"
           value={search}
           onChange={(v) => { setSearch(v); setPage(1) }}
           placeholder="Rechercher (nom, email, sujet, message)…"

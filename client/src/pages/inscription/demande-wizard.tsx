@@ -30,6 +30,8 @@ import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users,
 // via the stepper; validation runs on-spot (inline) and on forward nav / submit. `id="new"` =
 // create flow, otherwise edit an existing demande.
 const STEPS = ['Enfant', 'Parents', 'Proches scouts', 'Récapitulatif']
+// Short labels for a phone, where the four steps sit side by side (the long ones pushed Récapitulatif off-screen).
+const STEPS_SHORT = ['Enfant', 'Parents', 'Proches', 'Récap']
 const GENDERS = ['Masculin', 'Féminin']
 const BLOOD = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const G_REL = ['Père', 'Mère', 'Tuteur', 'Tutrice', 'Autre']
@@ -355,12 +357,31 @@ export default function DemandeWizardPage() {
     navigate('/inscription/portail')
   }
 
+  // A NEW demande while submissions are closed: nothing can be entered, so show only the message (not a greyed,
+  // empty form under it).
+  if (demandeId === 'new' && readonly) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Nouvelle demande</h1>
+          <Button variant="outline" size="sm" className="shrink-0" onClick={handleBack}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
+        </div>
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          {deadlinePassed
+            ? `La date limite de soumission était le ${formatDateLong(config?.submissionDeadline)}. Il n'est plus possible de créer une demande.`
+            : 'Les inscriptions sont fermées : il n\'est pas possible de créer une demande pour le moment.'}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="min-w-0 text-xl font-bold tracking-tight sm:text-2xl">
           {readonly ? 'Demande' : demandeId === 'new' ? 'Nouvelle demande' : 'Modifier la demande'}
-          {child.firstName && ` — ${child.firstName} ${child.lastName}`}
+          {/* Phone: the child's name on its own line instead of wrapping around the Retour button. */}
+          {child.firstName && <span className="block text-base font-semibold text-muted-foreground sm:inline sm:text-2xl sm:font-bold sm:text-foreground"><span className="hidden sm:inline"> — </span>{child.firstName} {child.lastName}</span>}
         </h1>
         <Button variant="outline" size="sm" className="shrink-0" onClick={handleBack} disabled={saving}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
       </div>
@@ -387,12 +408,12 @@ export default function DemandeWizardPage() {
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full bg-primary transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+        <div className="grid grid-cols-4 gap-1 pb-1 sm:flex sm:items-center">
           {STEPS.map((s, i) => {
             const done = i < step
             return (
               <button key={s} onClick={() => go(i)} disabled={saving}
-                className={cn('flex min-h-10 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                className={cn('flex min-h-10 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-md px-1 py-1.5 text-xs font-medium transition-colors sm:flex-row sm:gap-2 sm:px-3 sm:py-2 sm:text-sm',
                   i === step ? 'bg-primary text-primary-foreground'
                     : done ? 'text-primary hover:bg-accent'
                     : 'text-muted-foreground hover:bg-accent')}>
@@ -400,7 +421,7 @@ export default function DemandeWizardPage() {
                   i === step ? 'bg-white/20' : done ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
                   {done ? <Check className="h-3 w-3" /> : i + 1}
                 </span>
-                {s}
+                <span className="sm:hidden">{STEPS_SHORT[i]}</span><span className="hidden sm:inline">{s}</span>
               </button>
             )
           })}
@@ -533,7 +554,7 @@ export default function DemandeWizardPage() {
               )}
 
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Users className="h-4 w-4" />Parents / tuteurs <span className="font-normal">(communs à tous vos enfants)</span></div>
+                <div className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-muted-foreground"><Users className="h-4 w-4" />Parents / tuteurs <span className="w-full font-normal sm:w-auto">(communs à tous vos enfants)</span></div>
               </div>
               {errors.guardians && <p className="text-sm text-destructive">{errors.guardians}</p>}
               {guardians.map((g, i) => (
@@ -614,7 +635,7 @@ export default function DemandeWizardPage() {
           {/* STEP 2 — scout relations */}
           {step === 2 && (
             <fieldset disabled={readonly} className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Link2 className="h-4 w-4" />Proches déjà scouts <span className="font-normal">(optionnel, communs à tous vos enfants)</span></div>
+              <div className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-muted-foreground"><Link2 className="h-4 w-4" />Proches déjà scouts <span className="w-full font-normal sm:w-auto">(optionnel, communs à tous vos enfants)</span></div>
               <p className="text-sm text-muted-foreground">Frères, sœurs ou proches qui sont ou ont été scouts. Cela nous aide à regrouper les familles.</p>
               <p className="text-xs text-muted-foreground">{relations.length} / {maxRelations} proches ajoutés (maximum {maxRelations}).</p>
               {/* Compact list of added proches — click Modifier to edit one in the form below. */}

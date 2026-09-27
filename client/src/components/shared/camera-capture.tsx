@@ -43,7 +43,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       }
       setStarting(false)
     } catch {
-      setCameraError("Impossible d'acceder a la camera. Verifiez les permissions ou utilisez l'import fichier.")
+      setCameraError("Impossible d'accéder à la caméra. Vérifiez les autorisations ou importez une photo.")
       setStarting(false)
     }
   }, [])

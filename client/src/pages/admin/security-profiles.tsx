@@ -23,6 +23,8 @@ import { Page } from '@/components/shared/page'
 import { PermissionGroups, AreaLevels } from '@/components/admin/permission-editor'
 import { Shield, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
+import { useMobileDetail } from '@/hooks/use-mobile-detail'
+import { ArrowLeft } from 'lucide-react'
 
 // `embedded` = rendered inside the "Accès & permissions" hub (its title/tabs own the header), so we suppress
 // this page's standalone header/title but keep the "Nouveau profil" action.
@@ -31,7 +33,9 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
   const { hasPermission } = useAuthStore()
   const canManage = hasPermission(PERMISSIONS.ROLES_MANAGE)         // super-admin: edit ANY profile (raw + domaine)
   const canGroupEdit = hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP) // CG: edit group-level profiles by domaine (capped)
-  const [selectedId, setSelectedId] = useState<string>('')
+  // Phone: the list OR the chosen profile, full width (with a back arrow and the phone's back button closing it),
+  // like a member file. Larger screens keep the list and the profile side by side.
+  const { selectedId, open: openProfile, close: closeProfile } = useMobileDetail()
   const [createOpen, setCreateOpen] = useState(false)
 
   if (isLoading) return <LoadingSpinner variant="table" />
@@ -53,9 +57,9 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
         />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <div className="grid gap-6 md:grid-cols-[260px_1fr] lg:grid-cols-[300px_1fr]">
         {/* Profile list */}
-        <Card>
+        <Card className={selectedId ? 'hidden md:block' : undefined}>
           <CardHeader><CardTitle className="text-base">Profils</CardTitle></CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
@@ -63,7 +67,11 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
                 <button
                   key={p.id}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 ${selectedId === p.id ? 'bg-muted' : ''}`}
-                  onClick={() => setSelectedId(p.id)}
+                  onClick={() => {
+                    openProfile(p.id)
+                    // Phone: the list disappears, so bring the chosen profile to the top of the screen.
+                    requestAnimationFrame(() => document.getElementById('profile-detail')?.scrollIntoView({ block: 'start' }))
+                  }}
                 >
                   <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
@@ -82,9 +90,14 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
         {selectedId ? (
           // key={selectedId} remounts the editor on profile switch so staged (unsaved) permission toggles,
           // the dirty/saved flags, error banner and active tab don't bleed from the previous profile onto the next.
-          <PermissionEditor key={selectedId} profileId={selectedId} canManage={canManage} canGroupEdit={canGroupEdit} onDeleted={() => setSelectedId('')} />
+          <div id="profile-detail" className="min-w-0 scroll-mt-4 space-y-3">
+            <Button variant="ghost" size="sm" className="-ml-2 md:hidden" onClick={closeProfile}>
+              <ArrowLeft className="mr-1 h-4 w-4" />Tous les profils
+            </Button>
+            <PermissionEditor key={selectedId} profileId={selectedId} canManage={canManage} canGroupEdit={canGroupEdit} onDeleted={closeProfile} />
+          </div>
         ) : (
-          <Card>
+          <Card className="hidden md:block">
             <CardContent className="flex items-center justify-center py-16 text-muted-foreground">
               Sélectionnez un profil pour voir {canManage ? 'ses permissions et ses membres.' : 'ses membres.'}
             </CardContent>
@@ -92,7 +105,7 @@ export default function SecurityProfilesPage({ embedded = false }: { embedded?: 
         )}
       </div>
 
-      {canManage && <CreateProfileDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(id) => setSelectedId(id)} />}
+      {canManage && <CreateProfileDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={(id) => openProfile(id)} />}
     </Page>
   )
 }

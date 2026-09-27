@@ -31,11 +31,22 @@ export default function PublicStandalonePage() {
       <Seo title={page.title} description={metaFromHtml(page.bodyHtml)} />
       <PageHero title={page.title} />
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        {/* Phone/tablet: the section's pages as a compact row of links ABOVE the text (the side list used to sit
+            at the very bottom, after the whole page). Desktop keeps the left column. */}
+        {hasSideNav && (
+          <nav className="mb-8 flex flex-wrap gap-2 lg:hidden" aria-label={section!.title}>
+            {[{ slug: section!.slug, title: section!.title }, ...section!.children].map((c) => (
+              <Link key={c.slug} to={`/p/${c.slug}`}
+                className={cn('rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                  c.slug === slug ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-foreground/80 hover:border-primary hover:text-primary')}>
+                {c.title}
+              </Link>
+            ))}
+          </nav>
+        )}
         <div className={cn('grid gap-10', hasSideNav && 'lg:grid-cols-4')}>
           {hasSideNav && (
-            // order-last on mobile so the page CONTENT comes first (the section's sibling-page list is a long
-            // block that otherwise pushed the actual page below the fold); back to the left column on desktop.
-            <aside className="order-last lg:order-none lg:col-span-1">
+            <aside className="hidden lg:col-span-1 lg:block">
               <nav className="flex flex-col gap-1 lg:sticky lg:top-24">
                 <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section!.title}</p>
                 <Link to={`/p/${section!.slug}`} className={cn('rounded-lg px-3 py-2 text-sm font-medium transition-colors', section!.slug === slug ? 'bg-accent/10 text-primary' : 'text-foreground/70 hover:bg-accent/5 hover:text-foreground')}>{section!.title}</Link>

@@ -94,7 +94,32 @@ export default function UnitsPage() {
         />
       ) : (
         <>
-          <div className="rounded-lg border">
+          {/* Phone: one tappable card per unit (the 8-column table cut off the type, counts and actions). */}
+          <div className="space-y-2 md:hidden">
+            {data.items.map((item) => (
+              <div key={item.id} role="button" tabIndex={0} onClick={() => navigate(`/units/${item.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/units/${item.id}`) }}
+                className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm active:bg-muted/40">
+                <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-sm font-semibold text-primary">{item.code}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium">{item.name}</span>
+                    {!item.isActive && <Badge variant="secondary">Inactive</Badge>}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {item.unitTypeName} · {item.associationName ?? 'Inter-associations'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{item.memberCount} membres · {item.teamCount} équipes</p>
+                </div>
+                <Button variant="ghost" size="icon" className="shrink-0" aria-label={`Supprimer ${item.name}`}
+                  onClick={(e) => { e.stopPropagation(); setDeleting(item) }}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden rounded-lg border md:block">
             <Table>
               <TableHeader>
                 <TableRow>

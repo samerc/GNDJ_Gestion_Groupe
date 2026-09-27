@@ -234,33 +234,33 @@ function KeyNumbers({ data }: { data: AdminDashboardDto }) {
     // @container: 1 col when very narrow, 2, then 4 as the card widens — respects the card's chosen width
     // instead of the viewport, so the four numbers never crush together at half/third width.
     <div className="@container">
-    <div className="grid gap-3 grid-cols-1 @xs:grid-cols-2 @2xl:grid-cols-4">
+    <div className="grid gap-2 grid-cols-2 @md:gap-3 @2xl:grid-cols-4">
       <Card>
-        <CardContent className="flex items-center gap-3 pt-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400"><Users className="h-5 w-5" /></div>
+        <CardContent className="flex items-center gap-3 p-3 @md:p-6">
+          <div className="hidden h-11 w-11 items-center @md:flex justify-center rounded-xl bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400"><Users className="h-5 w-5" /></div>
           <div><p className="text-2xl font-bold">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="flex items-center gap-3 pt-6">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0"><UserCheck className="h-5 w-5" /></div>
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+        <CardContent className="flex items-center gap-3 p-3 @md:p-6">
+          <div className="hidden h-11 w-11 items-center @md:flex justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0"><UserCheck className="h-5 w-5" /></div>
+          {/* Side by side, no separator, so it never wraps into "520 / Garçons 555 Filles". */}
+          <div className="flex min-w-0 items-baseline gap-4">
             <div><p className="text-2xl font-bold">{data.boys}</p><p className="text-xs text-muted-foreground">Garçons</p></div>
-            <span className="text-muted-foreground/50">/</span>
             <div><p className="text-2xl font-bold">{data.girls}</p><p className="text-xs text-muted-foreground">Filles</p></div>
-            {data.ungendered > 0 && (<><span className="text-muted-foreground/50">/</span><div><p className="text-2xl font-bold text-muted-foreground">{data.ungendered}</p><p className="text-xs text-muted-foreground">N.R.</p></div></>)}
+            {data.ungendered > 0 && <div><p className="text-2xl font-bold text-muted-foreground">{data.ungendered}</p><p className="text-xs text-muted-foreground">N.R.</p></div>}
           </div>
         </CardContent>
       </Card>
       <Card className={data.missingDocuments > 0 ? 'border-orange-200 dark:border-orange-900' : ''}>
-        <CardContent className="flex items-center gap-3 pt-6">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}><FileX className="h-5 w-5" /></div>
+        <CardContent className="flex items-center gap-3 p-3 @md:p-6">
+          <div className={`hidden h-11 w-11 items-center @md:flex justify-center rounded-xl ${data.missingDocuments > 0 ? 'bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}><FileX className="h-5 w-5" /></div>
           <div><p className="text-2xl font-bold">{data.missingDocuments}</p><p className="text-xs text-muted-foreground">Docs manquants</p></div>
         </CardContent>
       </Card>
       <Card className={data.unpaidCotisations > 0 ? 'border-red-200 dark:border-red-900' : ''}>
-        <CardContent className="flex items-center gap-3 pt-6">
-          <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}><Receipt className="h-5 w-5" /></div>
+        <CardContent className="flex items-center gap-3 p-3 @md:p-6">
+          <div className={`hidden h-11 w-11 items-center @md:flex justify-center rounded-xl ${data.unpaidCotisations > 0 ? 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400'}`}><Receipt className="h-5 w-5" /></div>
           <div><p className="text-2xl font-bold">{data.unpaidCotisations}</p><p className="text-xs text-muted-foreground">Cotis. impayées</p></div>
         </CardContent>
       </Card>

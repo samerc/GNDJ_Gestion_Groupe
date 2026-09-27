@@ -235,15 +235,16 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-bold truncate">{data.unitName}</h1>
-            <p className="text-xs text-muted-foreground truncate">{data.unitTypeName}</p>
+            <p className="text-xs text-muted-foreground truncate">{data.unitTypeName}<span className="sm:hidden"> · {data.totalMembers} membres · {data.totalTeams} équipes</span></p>
           </div>
-          <div className="flex gap-4 text-center shrink-0">
+          <div className="hidden gap-4 text-center shrink-0 sm:flex">
             <div><p className="text-lg font-bold leading-none">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
             <div><p className="text-lg font-bold leading-none">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
           </div>
         </div>
-        {/* Action bar: a single horizontally-scrollable row so it never wraps into a pile on mobile. */}
-        <div className="flex items-center gap-2 overflow-x-auto flex-nowrap pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Action bar: wraps on a phone (a sideways-scrolling row hid the last buttons with no hint); one row on
+            larger screens. */}
+        <div className="flex flex-wrap items-center gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {prefs.buttons.filter(b => b.visible).map(b => <span key={b.id} className="contents">{buttonNodes[b.id]}</span>)}
           <Tip content="Personnaliser cette page (boutons, liste des membres)">
             <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground" onClick={() => setCustomizeOpen(true)} aria-label="Personnaliser">
@@ -258,7 +259,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
             <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
           </div>
           <Select value={teamFilter || 'all'} onValueChange={(v) => setTeamFilter(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-44 h-8 text-sm"><SelectValue placeholder="Toutes" /></SelectTrigger>
+            <SelectTrigger className="w-36 h-8 shrink-0 text-sm sm:w-44"><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les équipes</SelectItem>
               <SelectGroup>

@@ -64,6 +64,30 @@ function docStatusLabel(cell: MemberDocCellDto): string {
   }
 }
 
+// Cotisation cell look (shared by the desktop grid and the phone cards): green = payée, amber = partielle,
+// slate = ne paiera pas / maîtrise exemptée, red = non payée.
+function cotisationView(cot: MemberDocRowDto['cotisation']) {
+  const paid = cot.status === 'Paid'
+  const partial = cot.status === 'Partial'
+  const exempt = cot.status === 'Exempt' || (cot.maitriseExempt && cot.payments.length === 0)
+  const cls = paid ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300'
+    : partial ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'
+    : exempt ? 'bg-muted text-muted-foreground' : 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
+  const title = paid
+    ? `${cot.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${cot.receiptNumber}`
+    : partial ? `Paiement partiel (${cot.percent} %) — Cliquer pour compléter`
+    : cot.maitriseExempt && !cot.willNotPay ? 'Maîtrise — ne paie pas cette année'
+    : exempt ? 'Ne paiera pas (exempté) — Cliquer pour modifier'
+    : 'Cotisation non payée — Cliquer pour enregistrer'
+  const shortLabel = paid ? 'Payée' : partial ? `${cot.percent} %` : exempt ? 'Exempté' : 'Non payée'
+  const icon = paid ? (
+    <><DollarSign className="h-5 w-5" /><span className="text-sm font-semibold">{cot.payments.length}</span></>
+  ) : partial ? (
+    <><DollarSign className="h-5 w-5" /><span className="text-xs font-semibold">{cot.percent}%</span></>
+  ) : exempt ? <Ban className="h-5 w-5" /> : <Receipt className="h-5 w-5" />
+  return { cls, title, icon, shortLabel }
+}
+
 // "Documents & Cotisations" — chef d'unité (CU) screen. A members × document-types matrix for the CU's
 // unit(s): each cell shows a member's upload status per doc type (with hover quick approve/reject + a
 // click-to-preview dialog), plus a trailing cotisation cell (payée / non payée / exempté) that opens a
@@ -506,7 +530,49 @@ export default function UnitDocumentsPage() {
             )}
           </div>
 
-          <div className="rounded-lg border shadow-sm overflow-auto">
+          {/* Phone: one card per member (grouped by équipe) with a labelled tile per document + the cotisation,
+              instead of a wide grid scrolled sideways. Same taps as the grid: open / upload / cotisation. */}
+          <div className="space-y-2 md:hidden">
+            {matrix.members.map((member, idx) => {
+              const prevMember = idx > 0 ? matrix.members[idx - 1] : null
+              const showTeamHeader = member.teamName && member.teamName !== prevMember?.teamName
+              const cot = cotisationView(member.cotisation)
+              return (
+                <div key={member.memberId}>
+                  {showTeamHeader && (
+                    <p className="px-1 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{member.teamName}</p>
+                  )}
+                  <div className="rounded-xl border bg-card p-3 shadow-sm">
+                    <p className="font-medium">{member.firstName} {member.lastName}</p>
+                    <div className="mt-2 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.min(member.documents.length + 1, 4)}, minmax(0, 1fr))` }}>
+                      {member.documents.map((cell) => {
+                        const docType = matrix.docTypes.find(dt => dt.id === cell.docTypeId)
+                        if (!docType) return null
+                        const tappable = !!cell.documentId || canUpload
+                        return (
+                          <button key={cell.docTypeId} type="button" disabled={!tappable}
+                            onClick={() => cell.documentId ? openPreview(member, cell, docType) : startUpload(member, docType)}
+                            className={`flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 ${docStatusColor(cell)}`}>
+                            {!cell.documentId && canUpload ? <Upload className="h-5 w-5" /> : docStatusIcon(cell)}
+                            <span className="text-[11px] font-semibold">{docType.code || docType.name}</span>
+                            <span className="text-[10px] leading-tight">{!cell.documentId && canUpload ? 'Envoyer' : cell.documentId && !cell.isExpired && cell.status === 'Pending' ? 'À vérifier' : docStatusLabel(cell)}</span>
+                          </button>
+                        )
+                      })}
+                      <button type="button" onClick={() => openCotisation(member)} title={cot.title}
+                        className={`flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 ${cot.cls}`}>
+                        <span className="flex items-center gap-0.5">{cot.icon}</span>
+                        <span className="text-[11px] font-semibold">Cotisation</span>
+                        <span className="text-[10px] leading-tight">{cot.shortLabel}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="hidden rounded-lg border shadow-sm overflow-auto md:block">
             <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b bg-muted/40">
@@ -598,34 +664,14 @@ export default function UnitDocumentsPage() {
                       {/* Cotisation cell — green = payée, red = non payée, slate = ne paiera pas */}
                       <td className="px-1 py-1.5 text-center">
                         {(() => {
-                          const cot = member.cotisation
-                          const paid = cot.status === 'Paid'
-                          const partial = cot.status === 'Partial'
-                          const exempt = cot.status === 'Exempt' || (cot.maitriseExempt && cot.payments.length === 0)
-                          const cls = paid ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300'
-                            : partial ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'
-                            : exempt ? 'bg-muted text-muted-foreground' : 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
-                          const title = paid
-                            ? `${cot.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${cot.receiptNumber}`
-                            : partial ? `Paiement partiel (${cot.percent} %) — Cliquer pour compléter`
-                            : cot.maitriseExempt && !cot.willNotPay ? 'Maîtrise — ne paie pas cette année'
-                            : exempt ? 'Ne paiera pas (exempté) — Cliquer pour modifier'
-                            : 'Cotisation non payée — Cliquer pour enregistrer'
+                          const v = cotisationView(member.cotisation)
                           return (
                             <div
-                              className={`mx-auto flex h-11 items-center justify-center gap-1 rounded-md px-2.5 cursor-pointer transition-all hover:scale-105 ${cls}`}
+                              className={`mx-auto flex h-11 items-center justify-center gap-1 rounded-md px-2.5 cursor-pointer transition-all hover:scale-105 ${v.cls}`}
                               onClick={() => openCotisation(member)}
-                              title={title}
+                              title={v.title}
                             >
-                              {paid ? (
-                                <><DollarSign className="h-5 w-5" /><span className="text-sm font-semibold">{cot.payments.length}</span></>
-                              ) : partial ? (
-                                <><DollarSign className="h-5 w-5" /><span className="text-xs font-semibold">{cot.percent}%</span></>
-                              ) : exempt ? (
-                                <Ban className="h-5 w-5" />
-                              ) : (
-                                <Receipt className="h-5 w-5" />
-                              )}
+                              {v.icon}
                             </div>
                           )
                         })()}

@@ -40,10 +40,13 @@ function JobRow({ j }: { j: JobStatus }) {
       <td className="px-4 py-2">
         <div className="font-medium">{j.label}</div>
         <div className="text-xs text-muted-foreground">{interval(j.expectedIntervalMinutes)}</div>
+        {/* Phone: the two last columns are folded in here (the table cut off the État column). */}
+        <div className="text-xs text-muted-foreground md:hidden">Dernier succès : {dt(j.lastSuccessAt)}</div>
+        {j.failing && j.lastError && <div className="text-xs text-red-700 dark:text-red-400 md:hidden">{j.consecutiveFailures}× — {j.lastError}</div>}
       </td>
       <td className="px-4 py-2"><span className={cn('rounded px-2 py-0.5 text-xs font-medium', state.cls)}>{state.label}</span></td>
-      <td className="px-4 py-2 text-muted-foreground">{dt(j.lastSuccessAt)}</td>
-      <td className="px-4 py-2 text-xs">
+      <td className="hidden px-4 py-2 text-muted-foreground md:table-cell">{dt(j.lastSuccessAt)}</td>
+      <td className="hidden px-4 py-2 text-xs md:table-cell">
         {j.failing && j.lastError
           ? <span className="text-red-700 dark:text-red-400">{j.consecutiveFailures}× — {j.lastError}</span>
           : <span className="text-muted-foreground">—</span>}
@@ -214,11 +217,11 @@ export default function SystemPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-sm">
+                  <table className="w-full text-sm md:min-w-[640px]">
                     <thead>
                       <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                         <th className="px-4 py-2">Tâche</th><th className="px-4 py-2">État</th>
-                        <th className="px-4 py-2">Dernier succès</th><th className="px-4 py-2">Dernière erreur</th>
+                        <th className="hidden px-4 py-2 md:table-cell">Dernier succès</th><th className="hidden px-4 py-2 md:table-cell">Dernière erreur</th>
                       </tr>
                     </thead>
                     <tbody>{data.jobs.map((j) => <JobRow key={j.key} j={j} />)}</tbody>

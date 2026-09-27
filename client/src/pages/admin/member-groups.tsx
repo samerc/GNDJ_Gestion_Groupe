@@ -287,7 +287,7 @@ function MembersDialog({ group, onClose }: { group: MemberGroupDto; onClose: () 
           <div className="flex flex-1 items-center justify-center"><LoadingSpinner /></div>
         ) : tabbed ? (
           <Tabs defaultValue={unitBuckets[0].unitId} className="flex min-h-0 flex-1 flex-col">
-            <TabsList className="shrink-0 justify-start overflow-x-auto flex-nowrap">
+            <TabsList className="shrink-0">
               {unitBuckets.map(b => <TabsTrigger key={b.unitId} value={b.unitId}>{b.unitCode} ({b.members.length})</TabsTrigger>)}
             </TabsList>
             {unitBuckets.map(b => (

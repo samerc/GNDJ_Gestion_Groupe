@@ -136,7 +136,7 @@ export default function CampPage() {
       <MyGamesList hideWhenEmpty />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="max-w-xs flex-1" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="w-full sm:max-w-xs sm:flex-1" />
         <p className="text-sm text-muted-foreground">{comingCount} participant(s) · {(grading ?? []).length} membre(s)</p>
       </div>
 
@@ -235,6 +235,19 @@ export default function CampPage() {
             )
           })}
         </div>
+        </>
+      )}
+
+      {/* Phone: the header button is far above an 80-member form, so unsaved changes get a save bar pinned to
+          the bottom of the screen (plus room below the list so it never hides the last member). */}
+      {dirty && (
+        <>
+          <div className="h-16 sm:hidden" />
+          <div className="fixed inset-x-2 bottom-2 z-30 sm:hidden">
+            <Button className="h-12 w-full shadow-xl" onClick={save} disabled={saveGrades.isPending}>
+              <Save className="mr-1.5 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer les modifications'}
+            </Button>
+          </div>
         </>
       )}
     </Page>

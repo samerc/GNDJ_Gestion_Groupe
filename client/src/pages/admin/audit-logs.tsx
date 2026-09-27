@@ -9,7 +9,6 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +22,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { Tip } from '@/components/ui/tooltip'
 import { ACTION_LABELS, ENTITY_LABELS, actionMeta, entityLabel, parseUserAgent, entitySummary } from '@/lib/audit-format'
 import { DiffViewer } from '@/components/admin/audit-diff'
+import { DateInput } from '@/components/shared/date-input'
 
 // One label-above-value cell for the audit detail dialog. Stacking the label on its own line (instead of an
 // inline "Label : value") keeps each field readable on a narrow phone — the value never crams against a
@@ -147,11 +147,12 @@ export default function AuditLogsPage() {
         </div>
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Du</label>
-          <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1) }} />
+          {/* JJ/MM/AAAA like the rest of the app (the native picker followed the browser: mm/dd/yyyy). */}
+          <DateInput value={from} onChange={(v) => { setFrom(v ?? ''); setPage(1) }} />
         </div>
         <div className="space-y-1">
           <label className="text-sm text-muted-foreground">Au</label>
-          <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1) }} />
+          <DateInput value={to} onChange={(v) => { setTo(v ?? ''); setPage(1) }} />
         </div>
         {(entityType || action || userId || from || to || search) && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>Effacer</Button>
@@ -163,8 +164,31 @@ export default function AuditLogsPage() {
         <EmptyState icon={ScrollText} title="Aucune entrée" description="Aucun enregistrement d'audit trouvé pour ces filtres." />
       ) : (
         <>
-          <div className="rounded-lg border">
-            {/* min-w so the columns scroll horizontally on a phone instead of squishing (email/IP unreadable). */}
+          {/* Phone: one card per entry (action, entity, who, when); tap for the detail. */}
+          <div className="space-y-2 md:hidden">
+            {data.items.map(log => {
+              const info = actionMeta(log.action)
+              const summary = entitySummary(log)
+              return (
+                <button key={log.id} type="button" onClick={() => setDetail(log)}
+                  className="w-full rounded-xl border bg-card p-3 text-left shadow-sm active:bg-muted/40">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="secondary" className={info.color}>{info.label}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(log.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm">
+                    <span className="font-medium">{entityLabel(log.entityType)}</span>
+                    {summary && <span className="text-muted-foreground"> — {summary}</span>}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{[log.userEmail, log.ipAddress].filter(Boolean).join(' · ') || '—'}</p>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="hidden rounded-lg border md:block">
             <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>

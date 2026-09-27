@@ -201,7 +201,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
             <p className="text-sm text-muted-foreground">Toutes les unités sont à jour (aucun document en attente, aucun dossier incomplet).</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] text-sm">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left">
                     <th className="px-3 py-2 font-medium">Unité</th>

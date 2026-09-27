@@ -17,7 +17,9 @@ const TabsList = React.forwardRef<
       // justify-start (not center): when the tabs overflow, centering would push the first/active tab off
       // the left edge into non-scrollable-to territory. With an inline-flex that hugs its content, this is a
       // no-op when the tabs fit and a fix only in the overflow case.
-      "inline-flex h-10 max-w-full items-center justify-start overflow-x-auto rounded-md bg-muted p-1 text-muted-foreground",
+      // On a phone the tabs WRAP onto a second line instead: a sideways-scrolling bar hid the last tabs with no
+      // hint that they existed.
+      "inline-flex h-auto min-h-10 max-w-full flex-wrap items-center justify-start gap-y-1 rounded-md bg-muted p-1 text-muted-foreground sm:h-10 sm:flex-nowrap sm:overflow-x-auto",
       className
     )}
     {...props}

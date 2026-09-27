@@ -290,13 +290,14 @@ export default function CotisationDashboardPage() {
       {summary && (
         <>
           {/* Summary cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Two compact columns on a phone (four full-width cards took a whole screen before the list). */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="p-3 sm:p-6">
                 <div className="flex items-center gap-3">
-                  <Users className="h-8 w-8 text-muted-foreground" />
+                  <Users className="hidden h-8 w-8 shrink-0 sm:block text-muted-foreground" />
                   <div>
-                    <div className="text-2xl font-bold">{summary.totalActiveMembers}</div>
+                    <div className="text-xl font-bold sm:text-2xl">{summary.totalActiveMembers}</div>
                     <p className="text-sm text-muted-foreground">Membres actifs</p>
                   </div>
                 </div>
@@ -308,11 +309,11 @@ export default function CotisationDashboardPage() {
               onClick={hasMemberLists ? () => revealList('paid') : undefined}
               title={hasMemberLists ? 'Voir les membres qui ont payé' : undefined}
             >
-              <CardContent className="pt-6">
+              <CardContent className="p-3 sm:p-6">
                 <div className="flex items-center gap-3">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
+                  <CheckCircle className="hidden h-8 w-8 shrink-0 sm:block text-green-600" />
                   <div>
-                    <div className="text-2xl font-bold text-green-700 dark:text-green-300">{summary.membersWithPayment}</div>
+                    <div className="text-xl font-bold sm:text-2xl text-green-700 dark:text-green-300">{summary.membersWithPayment}</div>
                     <p className="text-sm text-muted-foreground">
                       {summary.fullPricingConfigured ? 'Payé en entier' : 'Ont payé'} ({paidPercentage}%)
                       {summary.membersPartial > 0 && <span className="ml-1 text-amber-600 dark:text-amber-400">· {summary.membersPartial} partiel(s)</span>}
@@ -328,11 +329,11 @@ export default function CotisationDashboardPage() {
               onClick={hasMemberLists ? () => revealList('relance') : undefined}
               title={hasMemberLists ? 'Voir les membres à relancer' : undefined}
             >
-              <CardContent className="pt-6">
+              <CardContent className="p-3 sm:p-6">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-8 w-8 text-orange-500" />
+                  <AlertTriangle className="hidden h-8 w-8 shrink-0 sm:block text-orange-500" />
                   <div>
-                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{summary.membersWithoutPayment}</div>
+                    <div className="text-xl font-bold sm:text-2xl text-orange-600 dark:text-orange-400">{summary.membersWithoutPayment}</div>
                     <p className="text-sm text-muted-foreground">Impayés{summary.membersExempt > 0 && <span className="ml-1 text-muted-foreground">· {summary.membersExempt} exempté(s)</span>}</p>
                     {hasMemberLists && <p className="mt-0.5 text-xs text-primary">Voir le détail →</p>}
                   </div>
@@ -340,18 +341,18 @@ export default function CotisationDashboardPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
+              <CardContent className="p-3 sm:p-6">
                 <div className="flex items-center gap-3">
-                  <Receipt className="h-8 w-8 text-primary" />
+                  <Receipt className="hidden h-8 w-8 shrink-0 sm:block text-primary" />
                   <div>
                     {summary.totalsByCurrency.length > 0 ? (
                       <div className="space-y-0.5">
                         {summary.totalsByCurrency.map(t => (
-                          <div key={t.currency} className="text-lg font-bold">{formatMoney(t.total, t.currency)}</div>
+                          <div key={t.currency} className="text-base font-bold sm:text-lg">{formatMoney(t.total, t.currency)}</div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-2xl font-bold">0</div>
+                      <div className="text-xl font-bold sm:text-2xl">0</div>
                     )}
                     <p className="text-sm text-muted-foreground">Total perçu</p>
                     {/* Rough single-figure total, every currency converted into the reference currency via the
