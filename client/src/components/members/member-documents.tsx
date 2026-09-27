@@ -447,7 +447,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {/* Show for any status so an already-refused doc can be reopened to add/edit the reason;
                       pre-fill the existing note so editing keeps it. */}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content={doc.status === 'Rejected' ? 'Modifier le motif du refus' : 'Refuser'}><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
+                    <Tip content="Refuser"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
                       <XCircle className="h-4 w-4 text-red-500" />
                     </Button></Tip>
                   )}
@@ -656,7 +656,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
           only the refusal: refuse with an optional reason, or edit the reason of an already-refused document. */}
       <Dialog open={!!reviewOpen} onOpenChange={() => setReviewOpen(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{reviewOpen?.status === 'Rejected' ? 'Modifier le motif du refus' : 'Refuser le document'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Refuser le document</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm">Document : <span className="font-medium">{reviewOpen?.title}</span></p>
             <p className="text-sm text-muted-foreground">Statut actuel : {reviewOpen?.status === 'Approved' ? 'Accepté' : reviewOpen?.status === 'Rejected' ? 'Refusé' : 'En cours de vérification'}</p>
@@ -671,9 +671,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setReviewOpen(null)}>Annuler</Button>
-              {/* On an already-refused doc this re-saves the (edited) reason, keeping it refused. */}
               <Button variant="destructive" onClick={() => handleReview('Rejected')} disabled={reviewMutation.isPending}>
-                <XCircle className="mr-1 h-4 w-4" />{reviewOpen?.status === 'Rejected' ? 'Enregistrer le motif' : 'Refuser'}
+                <XCircle className="mr-1 h-4 w-4" />Refuser
               </Button>
             </DialogFooter>
           </div>
