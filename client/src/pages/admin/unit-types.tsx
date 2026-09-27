@@ -216,7 +216,10 @@ export default function UnitTypesPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer le type d'unité"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${deleting?.unitCount ? ` ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's' : ''} de ce type ${deleting.unitCount > 1 ? 'seront affectées' : 'sera affectée'}.` : ''} Cette action est irréversible.`}
+        description={deleting?.unitCount
+          ? `Impossible de supprimer « ${deleting.name} » : ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's sont' : ' est'} de ce type. Changez d'abord leur type ou supprimez-les.`
+          : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
+        hideConfirm={!!deleting?.unitCount}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

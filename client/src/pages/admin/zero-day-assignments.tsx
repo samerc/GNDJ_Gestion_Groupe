@@ -34,6 +34,7 @@ export default function ZeroDayAssignmentsPage() {
   const [editEnd, setEditEnd] = useState<string | null>(null)
   const [deleteOne, setDeleteOne] = useState<ZeroDayAssignment | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   const toggle = (id: string) => setSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const allSelected = rows.length > 0 && rows.every(r => selected.has(r.id))
@@ -66,12 +67,16 @@ export default function ZeroDayAssignmentsPage() {
   }
 
   const doBulkDelete = async () => {
+    if (bulkBusy) return
+    setBulkBusy(true)
     const ids = [...selected]
     const results = await Promise.allSettled(ids.map(id => del.mutateAsync(id)))
     const ok = results.filter(r => r.status === 'fulfilled').length
     const fail = results.length - ok
-    toast.success(`${ok} supprimée(s)${fail ? ` · ${fail} échec(s)` : ''}`)
+    const msg = `${ok} supprimée(s)${fail ? ` · ${fail} échec(s)` : ''}`
+    if (ok === 0) toast.error(msg); else if (fail) toast.warning(msg); else toast.success(msg)
     setSelected(new Set())
+    setBulkBusy(false)
     setBulkDeleteOpen(false)
   }
 
@@ -185,10 +190,10 @@ export default function ZeroDayAssignmentsPage() {
 
       <ConfirmDialog open={!!deleteOne} onOpenChange={o => !o && setDeleteOne(null)} title="Supprimer l'affectation"
         description={deleteOne ? `Supprimer l'affectation ${deleteOne.unitCode} · ${deleteOne.roleName} de ${deleteOne.memberName} ? Cette action retire cette ligne d'historique.` : ''}
-        confirmLabel="Supprimer" loading={del.isPending} onConfirm={doDelete} />
+        confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={doDelete} />
       <ConfirmDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen} title="Supprimer les affectations sélectionnées"
         description={`Supprimer ${selected.size} affectation(s) d'un seul jour ? Cette action retire ces lignes d'historique.`}
-        confirmLabel="Supprimer" onConfirm={doBulkDelete} />
+        confirmLabel="Supprimer" variant="destructive" loading={bulkBusy} onConfirm={doBulkDelete} />
     </Page>
   )
 }

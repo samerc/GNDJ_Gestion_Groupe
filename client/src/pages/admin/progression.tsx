@@ -133,7 +133,7 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string | null }) {
     if (deleted) parts.push(`${deleted} supprimée(s)`)
     if (archived) parts.push(`${archived} désactivée(s) (utilisée(s))`)
     if (failed) parts.push(`${failed} échec(s)`)
-    if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
+    if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else if (failed) toast.warning(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
   }
 
   // Drag-reorder the ladder: compute the moved order locally and persist the new id sequence
@@ -208,7 +208,7 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string | null }) {
         confirmLabel={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver' : 'Supprimer'} variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
       <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection"
         description={`${selected.size} étape(s) sélectionnée(s). Celles utilisées par des membres seront désactivées (conservées sur les membres), les autres supprimées.`}
-        confirmLabel="Confirmer" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
+        confirmLabel="Supprimer / désactiver" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
     </div>
   )
 }
@@ -327,7 +327,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string | null }) {
     if (deleted) parts.push(`${deleted} supprimé(s)`)
     if (archived) parts.push(`${archived} désactivé(s) (utilisé(s))`)
     if (failed) parts.push(`${failed} échec(s)`)
-    if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
+    if (failed && !deleted && !archived) toast.error(parts.join(' · ')); else if (failed) toast.warning(parts.join(' · ')); else toast.success(parts.join(' · ') || 'Terminé')
   }
 
   const toggleActive = async (b: BadgeDto) => {
@@ -394,7 +394,7 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string | null }) {
         confirmLabel={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver' : 'Supprimer'} variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
       <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection"
         description={`${selected.size} badge(s) sélectionné(s). Ceux obtenus par des membres seront désactivés (conservés sur les membres), les autres supprimés.`}
-        confirmLabel="Confirmer" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
+        confirmLabel="Supprimer / désactiver" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
     </div>
   )
 }

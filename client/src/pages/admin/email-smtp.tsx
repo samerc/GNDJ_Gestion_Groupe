@@ -179,9 +179,9 @@ function SmtpTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nom</TableHead>
-                <TableHead>Hote</TableHead>
+                <TableHead>Hôte</TableHead>
                 <TableHead>Port</TableHead>
-                <TableHead>Email expediteur</TableHead>
+                <TableHead>Email expéditeur</TableHead>
                 <TableHead>Limite/h</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="w-32" />
@@ -236,7 +236,7 @@ function SmtpTab() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2 space-y-2">
-                <RequiredLabel required>Hote</RequiredLabel>
+                <RequiredLabel required>Hôte</RequiredLabel>
                 <Input value={form.host} onChange={(e) => setForm(f => ({ ...f, host: e.target.value }))} required placeholder="smtp.example.com" />
               </div>
               <div className="space-y-2">
@@ -250,17 +250,19 @@ function SmtpTab() {
                 <Input value={form.username} onChange={(e) => setForm(f => ({ ...f, username: e.target.value }))} required />
               </div>
               <div className="space-y-2">
-                <RequiredLabel required={!editing}>Mot de passe{editing ? ' (laisser vide pour ne pas changer)' : ''}</RequiredLabel>
-                <PasswordInput value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} required={!editing} />
+                <RequiredLabel>Mot de passe{editing ? ' (laisser vide pour ne pas changer)' : ' (optionnel)'}</RequiredLabel>
+                <PasswordInput value={form.password} onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))} />
+                {/* Passwords normally live in appsettings.Production.json (Smtp:Passwords, keyed by the server name). */}
+                <p className="text-xs text-muted-foreground">Laissez vide si le mot de passe est défini dans la configuration du serveur (Smtp:Passwords).</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <RequiredLabel required>Email expediteur</RequiredLabel>
+                <RequiredLabel required>Email expéditeur</RequiredLabel>
                 <Input type="email" value={form.fromEmail} onChange={(e) => setForm(f => ({ ...f, fromEmail: e.target.value }))} required />
               </div>
               <div className="space-y-2">
-                <RequiredLabel required>Nom expediteur</RequiredLabel>
+                <RequiredLabel required>Nom expéditeur</RequiredLabel>
                 <Input value={form.fromName} onChange={(e) => setForm(f => ({ ...f, fromName: e.target.value }))} required />
               </div>
             </div>

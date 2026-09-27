@@ -214,7 +214,10 @@ export default function AssociationsPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'association"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${deleting?.unitCount ? ` ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's' : ''} y ${deleting.unitCount > 1 ? 'sont rattachées' : 'est rattachée'}.` : ''} Cette action est irréversible.`}
+        description={deleting?.unitCount
+          ? `Impossible de supprimer « ${deleting.name} » : ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's y sont rattachées' : ' y est rattachée'}. Rattachez-les d'abord à une autre association.`
+          : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
+        hideConfirm={!!deleting?.unitCount}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

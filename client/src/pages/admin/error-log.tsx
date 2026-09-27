@@ -145,7 +145,7 @@ export default function ErrorLogPage() {
         open={confirmClear}
         onOpenChange={setConfirmClear}
         title="Vider le journal des erreurs ?"
-        description={`Cette action supprime définitivement les ${data?.total ?? 0} entrée(s) du journal. Les erreurs futures continueront d'être enregistrées.`}
+        description={`Cette action supprime définitivement TOUTES les entrées du journal (pas seulement celles affichées par le filtre). Les erreurs futures continueront d'être enregistrées.`}
         confirmLabel="Vider"
         variant="destructive"
         loading={clearLogs.isPending}

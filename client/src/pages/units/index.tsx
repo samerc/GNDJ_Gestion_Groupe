@@ -155,7 +155,10 @@ export default function UnitsPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'unité"
-        description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${(deleting?.teamCount || deleting?.memberCount) ? ` ${deleting?.teamCount ?? 0} équipe${(deleting?.teamCount ?? 0) > 1 ? 's' : ''} et ${deleting?.memberCount ?? 0} membre${(deleting?.memberCount ?? 0) > 1 ? 's' : ''} seront affectés.` : ''} Cette action est irréversible.`}
+        description={deleting?.memberCount
+          ? `Impossible de supprimer « ${deleting.name} » : ${deleting.memberCount} membre${deleting.memberCount > 1 ? 's y sont actifs' : ' y est actif'}. Pour ne plus l'utiliser, désactivez-la (statut inactive).`
+          : `Supprimer « ${deleting?.name} » ? Impossible si l'unité a eu des membres par le passé (historique) : dans ce cas, désactivez-la plutôt. Cette action est irréversible.`}
+        hideConfirm={!!deleting?.memberCount}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

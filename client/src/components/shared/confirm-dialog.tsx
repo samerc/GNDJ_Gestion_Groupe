@@ -21,6 +21,8 @@ interface ConfirmDialogProps {
   onConfirm: () => void
   /** Optional extra content rendered between the description and the buttons. */
   children?: ReactNode
+  /** The action is impossible (e.g. a delete the server would refuse): show only a "Fermer" button. */
+  hideConfirm?: boolean
 }
 
 // Reusable confirm/cancel modal (used for deletes, archives, etc.). `variant="destructive"` reddens the
@@ -36,6 +38,7 @@ export function ConfirmDialog({
   loading = false,
   onConfirm,
   children,
+  hideConfirm = false,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,11 +50,13 @@ export function ConfirmDialog({
         {children}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            {cancelLabel}
+            {hideConfirm ? 'Fermer' : cancelLabel}
           </Button>
-          <Button variant={variant === 'destructive' ? 'destructive' : 'default'} onClick={onConfirm} disabled={loading}>
-            {loading ? 'Chargement...' : confirmLabel}
-          </Button>
+          {!hideConfirm && (
+            <Button variant={variant === 'destructive' ? 'destructive' : 'default'} onClick={onConfirm} disabled={loading}>
+              {loading ? 'Patientez…' : confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

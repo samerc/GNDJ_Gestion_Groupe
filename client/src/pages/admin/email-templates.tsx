@@ -297,7 +297,7 @@ function TemplatesTab() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Modifier le modele' : 'Nouveau modèle d\'email'}</DialogTitle>
+            <DialogTitle>{editing ? 'Modifier le modèle' : 'Nouveau modèle d\'email'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
@@ -332,7 +332,7 @@ function TemplatesTab() {
             </div>
             <div className="space-y-2">
               <RequiredLabel required>Sujet</RequiredLabel>
-              <Input value={form.subject} onChange={(e) => setForm(f => ({ ...f, subject: e.target.value }))} required placeholder="Reinitialisation du mot de passe" />
+              <Input value={form.subject} onChange={(e) => setForm(f => ({ ...f, subject: e.target.value }))} required placeholder="Réinitialisation du mot de passe" />
             </div>
 
             {/* Variables reference */}
@@ -403,8 +403,10 @@ function TemplatesTab() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le modele"
-        description={`Supprimer le modele « ${deleting?.name} » ?`}
+        title="Supprimer le modèle"
+        description={deleting && templateInfo(deleting.code).auto
+          ? `« ${deleting.name} » est envoyé automatiquement par l'application : s'il est supprimé, cet email ne partira plus. Pour l'arrêter temporairement, désactivez-le plutôt (case « Actif »).`
+          : `Supprimer le modèle « ${deleting?.name} » ?`}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}

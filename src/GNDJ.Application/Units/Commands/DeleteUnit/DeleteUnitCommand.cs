@@ -29,7 +29,7 @@ public class DeleteUnitCommandHandler : IRequestHandler<DeleteUnitCommand, Resul
             return Result<bool>.Failure("Unité introuvable.");
 
         if (entity.Assignments.Any())
-            return Result<bool>.Failure("Impossible de supprimer une unité qui contient des membres actifs.");
+            return Result<bool>.Failure("Impossible de supprimer une unité qui a (ou a eu) des membres. Désactivez-la plutôt.");
 
         _context.Units.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);

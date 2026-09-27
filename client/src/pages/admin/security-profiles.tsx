@@ -317,7 +317,10 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
       open={deleteOpen}
       onOpenChange={setDeleteOpen}
       title="Supprimer le profil"
-      description={`Supprimer le profil « ${profile.name} » ? Cette action est définitive.${profile.roleCount > 0 ? ' Ce profil est utilisé par des fonctions — réaffectez-les d\'abord.' : ''}`}
+      description={profile.roleCount > 0
+        ? `Impossible de supprimer « ${profile.name} » : ${profile.roleCount} fonction${profile.roleCount > 1 ? 's l\'utilisent' : ' l\'utilise'}. Utilisez « Fusionner » pour les passer sur un autre profil.`
+        : `Supprimer le profil « ${profile.name} » ? Cette action est définitive.`}
+      hideConfirm={profile.roleCount > 0}
       confirmLabel="Supprimer"
       variant="destructive"
       loading={deleteMutation.isPending}
