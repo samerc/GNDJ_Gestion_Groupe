@@ -113,6 +113,8 @@ export default function PassagePage() {
   const [confirmSubmit, setConfirmSubmit] = useState(false)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [proposeDialogOpen, setProposeDialogOpen] = useState(false)
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false)
   const [bulkMode, setBulkMode] = useState<'same' | 'move'>('same')
@@ -338,6 +340,29 @@ export default function PassagePage() {
   }
 
   const handleBulk = async () => {
+    // "Pas de changement": each member keeps THEIR OWN unit / équipe / fonction, so save one line per member
+    // (a single bulk call would give everyone the first member's équipe and fonction).
+    if (bulkMode === 'same') {
+      const rows = memberRows.filter(m => selected.has(m.memberId))
+      setBulkBusy(true)
+      let ok = 0, failed = 0
+      for (const row of rows) {
+        try {
+          await proposeMutation.mutateAsync({
+            memberId: row.memberId, scoutYear: passageScoutYear,
+            proposedUnitId: row.currentUnitId, proposedTeamId: row.currentTeamId,
+            proposedRoleId: row.currentRoleId, cuNotes: propNotes || null,
+          })
+          ok++
+        } catch { failed++ }
+      }
+      setBulkBusy(false)
+      const msg = `${ok} « pas de changement » enregistré(s)${failed ? ` · ${failed} échec(s)` : ''}`
+      if (ok === 0) toast.error(msg); else if (failed) toast.warning(msg); else toast.success(msg)
+      setBulkDialogOpen(false)
+      setSelected(new Set())
+      return
+    }
     if (!propUnitId || !propRoleId) {
       setFormError('Veuillez remplir tous les champs obligatoires.')
       return
@@ -351,7 +376,7 @@ export default function PassagePage() {
         proposedRoleId: propRoleId,
         cuNotes: propNotes || null,
       })
-      toast.success(`${result.count} proposition(s) enregistree(s)`)
+      toast.success(`${result.count} proposition(s) enregistrée(s)`)
       setBulkDialogOpen(false)
       setSelected(new Set())
     } catch (err) {
@@ -361,14 +386,19 @@ export default function PassagePage() {
 
   const handleBulkDelete = async () => {
     const passagesToDelete = memberRows.filter(m => selected.has(m.memberId) && m.passage).map(m => m.passage!)
-    let count = 0
+    setBulkBusy(true)
+    let count = 0, failed = 0
     for (const p of passagesToDelete) {
       try {
         await deleteMutation.mutateAsync(p.id)
         count++
-      } catch { /* skip */ }
+      } catch { failed++ }
     }
-    if (count > 0) toast.success(`${count} proposition(s) supprimée(s)`)
+    setBulkBusy(false)
+    setBulkDeleteOpen(false)
+    const msg = `${count} proposition(s) supprimée(s)${failed ? ` · ${failed} non supprimée(s) (modifiée(s) par le CG ?)` : ''}`
+    if (count === 0 && failed) toast.error(msg); else if (failed) toast.warning(msg); else if (count) toast.success(msg)
+    else toast.info('Aucune proposition à supprimer dans la sélection.')
     setSelected(new Set())
   }
 
@@ -470,14 +500,17 @@ export default function PassagePage() {
       const p = row.passage!
       return (
         <div className="space-y-1">
-          <div className="flex items-center gap-1">
-            <ArrowRight className="h-3 w-3 text-muted-foreground" />
-            <span className="text-xs">{row.passage!.proposedUnitName}</span>
-            {row.passage!.proposedTeamName && (
-              <span className="text-xs text-muted-foreground">/ {row.passage!.proposedTeamName}</span>
-            )}
-          </div>
-          {row.passage!.proposedRoleName !== row.currentRoleName && (
+          {/* A leaver has no destination: don't show "→ current unit" next to "Quitte le groupe". */}
+          {!(p.finalIsLeaving ?? p.isLeaving) && (
+            <div className="flex items-center gap-1">
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs">{row.passage!.proposedUnitName}</span>
+              {row.passage!.proposedTeamName && (
+                <span className="text-xs text-muted-foreground">/ {row.passage!.proposedTeamName}</span>
+              )}
+            </div>
+          )}
+          {!(p.finalIsLeaving ?? p.isLeaving) && row.passage!.proposedRoleName !== row.currentRoleName && (
             <div className="text-xs text-blue-600 dark:text-blue-400">Fonction : {row.passage!.proposedRoleName}</div>
           )}
           <div className="flex items-center gap-2">
@@ -649,18 +682,18 @@ export default function PassagePage() {
       {selected.size > 0 && !unitLocked && (
         <Card>
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
-            <span className="text-sm font-medium">{selected.size} membre(s) selectionne(s)</span>
+            <span className="text-sm font-medium">{selected.size} membre(s) sélectionné(s)</span>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => openBulk('same')}>
                 <Check className="mr-1 h-4 w-4" />Pas de changement
               </Button>
               <Button size="sm" onClick={() => openBulk('move')}>
-                <ArrowRight className="mr-1 h-4 w-4" />Deplacer vers...
+                <ArrowRight className="mr-1 h-4 w-4" />Déplacer vers…
               </Button>
               <Button size="sm" className="bg-orange-600 text-white hover:bg-orange-700" onClick={openBulkLeave}>
                 <LogOut className="mr-1 h-4 w-4" />Quitte le groupe
               </Button>
-              <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+              <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
                 <Trash2 className="mr-1 h-4 w-4" />Supprimer la proposition
               </Button>
             </div>
@@ -669,7 +702,7 @@ export default function PassagePage() {
       )}
 
       {memberRows.length === 0 ? (
-        <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unite." />
+        <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unité." />
       ) : (
         <>
         {/* Search box + status filter (apply to both the desktop table and the mobile cards) */}
@@ -848,7 +881,7 @@ export default function PassagePage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {bulkMode === 'same' ? 'Pas de changement' : 'Deplacer vers...'}
+              {bulkMode === 'same' ? 'Pas de changement' : 'Déplacer vers…'}
               {' — '}{selected.size} membre(s)
             </DialogTitle>
           </DialogHeader>
@@ -884,8 +917,8 @@ export default function PassagePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleBulk} disabled={bulkProposeMutation.isPending}>
-              {bulkProposeMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            <Button onClick={handleBulk} disabled={bulkProposeMutation.isPending || bulkBusy}>
+              {bulkProposeMutation.isPending || bulkBusy ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -925,11 +958,21 @@ export default function PassagePage() {
         open={!!deletingPassage}
         onOpenChange={() => setDeletingPassage(null)}
         title="Supprimer la proposition"
-        description="Etes-vous sur de vouloir supprimer cette proposition de passage ?"
+        description="Êtes-vous sûr de vouloir supprimer cette proposition de passage ?"
         confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Supprimer les propositions"
+        description={`Supprimer les propositions de passage des ${selected.size} membre(s) sélectionné(s) ? Ils repasseront « à proposer ».`}
+        confirmLabel="Supprimer"
+        variant="destructive"
+        loading={bulkBusy}
+        onConfirm={handleBulkDelete}
       />
     </Page>
   )
