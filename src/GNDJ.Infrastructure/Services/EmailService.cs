@@ -38,7 +38,7 @@ public class EmailService : IEmailService
     private sealed record ResolvedTemplate(
         string Subject, string BodyHtml,
         string Host, int Port, string? Username, string? Password, bool UseSsl, string FromEmail, string? FromName,
-        Guid ServerId, int? MaxPerHour, IReadOnlyList<AttachmentRef> Attachments);
+        Guid ServerId, int? MaxPerHour, IReadOnlyList<AttachmentRef> Attachments, string ServerName);
 
     // A template file attachment (stored as [{Name,Url}] on EmailTemplate.AttachmentsJson).
     private sealed record AttachmentRef(string Name, string Url);
@@ -77,6 +77,11 @@ public class EmailService : IEmailService
             subject = $"[TEST → {toEmail}] {subject}";
             actualTo = overrideTo.Trim();
         }
+
+        // Refuse to send without a password (see SmtpPassword.IsMissing): the outbox row then fails with the real
+        // cause instead of the provider's "relay access denied".
+        if (SmtpPassword.IsMissing(resolved.Username, resolved.Password))
+            throw new InvalidOperationException(SmtpPassword.MissingMessage(resolved.ServerName, resolved.Host));
 
         using var client = new SmtpClient(resolved.Host, resolved.Port)
         {
@@ -189,7 +194,7 @@ public class EmailService : IEmailService
         var smtpPassword = SmtpPassword.Resolve(_config, smtp.Name, smtp.Host, smtp.Password);
         var resolved = new ResolvedTemplate(template.Subject, template.BodyHtml,
             smtp.Host, smtp.Port, smtp.Username, smtpPassword, smtp.UseSsl, smtp.FromEmail, smtp.FromName,
-            smtp.Id, smtp.MaxPerHour, attachments);
+            smtp.Id, smtp.MaxPerHour, attachments, smtp.Name);
         _cache.Set($"emailtpl:{templateCode}", resolved, TemplateTtl);
         return resolved;
     }

@@ -1,4 +1,5 @@
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Application.Common;
 using GNDJ.Application.SystemHealth;
 using GNDJ.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -81,6 +82,11 @@ public class SystemHealthService : ISystemHealthService
         var configIssues = new List<ConfigIssue>();
         configIssues.AddRange(await ConfigurationChecks.SettingsAsync(db, ct));
         configIssues.AddRange(await ConfigurationChecks.EmailTemplatesAsync(db, ct));
+        // Active SMTP servers with a username but no password in config or DB: every send through them would fail.
+        var smtpServers = await db.SmtpServers.AsNoTracking().Where(s => s.IsActive)
+            .Select(s => new { s.Name, s.Host, s.Username, s.Password }).ToListAsync(ct);
+        foreach (var s in smtpServers.Where(s => SmtpPassword.IsMissing(s.Username, SmtpPassword.Resolve(_config, s.Name, s.Host, s.Password))))
+            configIssues.Add(new ConfigIssue("error", SmtpPassword.MissingMessage(s.Name, s.Host), "cfg:smtp", []));
 
         var jobs = _jobs.Snapshot().ToList();
         var disk = ReadDisk();

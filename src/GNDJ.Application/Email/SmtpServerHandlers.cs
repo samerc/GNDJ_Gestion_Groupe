@@ -191,6 +191,8 @@ public class TestSmtpCommandHandler(IApplicationDbContext context, IConfiguratio
         // Same resolution as the real send: prefer the config password (Smtp:Passwords:<Name|Host>) so a
         // server whose secret lives only in appsettings can still be tested from the admin UI.
         var password = SmtpPassword.Resolve(config, server.Name, server.Host, server.Password);
+        if (SmtpPassword.IsMissing(server.Username, password))
+            return Result<bool>.Failure(SmtpPassword.MissingMessage(server.Name, server.Host));
         try
         {
             using var client = new SmtpClient(server.Host, server.Port)
