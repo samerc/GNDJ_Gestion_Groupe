@@ -3,6 +3,9 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-27", "text": "Messages de contact : chaque réponse est gardée dans un historique (qui, quand, à quelle adresse) ; une deuxième réponse ne remplace plus la première, et un avertissement s'affiche si le message a déjà reçu une réponse."},
+      {"date": "2026-09-27", "text": "Emails : les messages de confirmation disent « mis en file d'envoi » au lieu de « envoyé » (l'email part quelques instants plus tard) ; raccourci vers la file d'emails pour les super-administrateurs."},
+      {"date": "2026-09-27", "text": "Export et liste imprimable : la colonne Nationalité est rangée sous Identité (et non plus sous Médical)."},
       {"date": "2026-09-27", "text": "Passage (CU) : « Pas de changement » sur plusieurs membres garde l'équipe et la fonction de CHAQUE membre (avant, tous recevaient celles du premier membre sélectionné) ; un membre qui quitte n'affiche plus de destination ; confirmation avant de supprimer plusieurs propositions."},
       {"date": "2026-09-27", "text": "Documents : le ✕ rapide de la grille ouvre la fenêtre de refus (avec motif) ; le motif n'est envoyé qu'en cas de refus ; un document en attente affiche « Ajouter une page » au lieu de « Renvoyer » ; plus d'ajout de page sur un document accepté ; un document expiré ne compte plus comme accepté."},
       {"date": "2026-09-27", "text": "Cotisations : la grille de l'unité distingue les paiements partiels (orange, %) et la maîtrise exemptée ; « Compléter le paiement » au lieu d'une « Nouvelle cotisation » impossible ; le membre voit son statut (payé / partiel / exempté) sur « Mes documents »."},
