@@ -343,7 +343,16 @@ export default function PassageValidationPage() {
     if (p.status === 'Rejected') return <Badge variant="destructive">Rejeté (à modifier)</Badge>
     if (p.cgModified) return <Badge variant="warning">Modifié</Badge>
     if (p.status === 'Approved') return <Badge variant="success">Accepté</Badge>
-    return <Badge variant="secondary">En attente</Badge>
+    return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300">En attente</Badge>
+  }
+
+  // Mobile card colours, matching the status badge.
+  const mobileTone = (p: PassageDto) => {
+    if (p.status === 'Finalized') return { border: 'border-l-sky-500', header: 'bg-sky-50 dark:bg-sky-950/30' }
+    if (p.status === 'Rejected') return { border: 'border-l-red-500', header: 'bg-red-50 dark:bg-red-950/30' }
+    if (p.cgModified) return { border: 'border-l-amber-500', header: 'bg-amber-50 dark:bg-amber-950/30' }
+    if (p.status === 'Approved') return { border: 'border-l-green-500', header: 'bg-green-50 dark:bg-green-950/30' }
+    return { border: 'border-l-yellow-400', header: 'bg-yellow-50 dark:bg-yellow-950/30' }
   }
 
   if (isLoading) return <LoadingSpinner variant="table" />
@@ -515,16 +524,17 @@ export default function PassageValidationPage() {
       </div>
 
       {/* Bulk actions */}
+      {/* On a phone the bar is pinned to the bottom of the screen so it stays visible while ticking cards. */}
       {selected.size > 0 && (
-        <Card>
-          <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
-            <span className="text-sm font-medium">{selected.size} passage(s) sélectionné(s)</span>
-            <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
-                <Check className="mr-1 h-4 w-4" />Accepter la sélection
+        <Card className="fixed inset-x-2 bottom-2 z-30 border-primary shadow-xl max-md:bg-primary max-md:text-primary-foreground md:static md:inset-auto md:shadow-none">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center gap-2 py-3">
+            <span className="text-sm font-medium"><span className="md:hidden">Pour la sélection : </span>{selected.size} passage(s) sélectionné(s)</span>
+            <div className="flex gap-2 sm:ml-auto">
+              <Button size="sm" className="flex-1 bg-green-600 text-white hover:bg-green-700 sm:flex-none" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
+                <Check className="mr-1 h-4 w-4" />Accepter<span className="hidden sm:inline">&nbsp;la sélection</span>
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setBulkChangeOpen(true)}>
-                <Pencil className="mr-1 h-4 w-4" />Changer la sélection
+              <Button size="sm" className="flex-1 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none" onClick={() => setBulkChangeOpen(true)}>
+                <Pencil className="mr-1 h-4 w-4" />Changer<span className="hidden sm:inline">&nbsp;la sélection</span>
               </Button>
             </div>
           </CardContent>
@@ -647,47 +657,69 @@ export default function PassageValidationPage() {
           </table>
         </div>
 
-        {/* Mobile cards — the 10-column table forces horizontal scrolling on a phone, hiding the
-            decision + actions. One card per member with the move, notes and large action buttons. */}
-        <div className="divide-y rounded-lg border md:hidden">
-          {visiblePassages.map((p) => (
-            <div key={p.id} className="p-3">
-              <div className="flex items-start gap-3">
-                <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-primary" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} aria-label="Sélectionner" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">{p.memberName}</div>
-                      {p.cardNumber && <div className="text-xs text-muted-foreground">{p.cardNumber}</div>}
-                    </div>
-                    <div className="shrink-0">{statusBadge(p)}</div>
+        {/* Mobile cards — one separate, framed card per member (spacing between cards, so each card's buttons
+            clearly belong to it). The left border + header tint follow the status; the actions sit in the card's
+            own footer as coloured full-width buttons. */}
+        <div className={`space-y-3 md:hidden ${selected.size > 0 ? 'pb-28' : ''}`}>
+          {visiblePassages.map((p) => {
+            const tone = mobileTone(p)
+            const leaving = p.cgModified ? (p.finalIsLeaving ?? p.isLeaving) : p.isLeaving
+            return (
+              <div key={p.id} className={`overflow-hidden rounded-xl border border-l-4 bg-card shadow-sm ${tone.border} ${selected.has(p.id) ? 'ring-2 ring-primary' : ''}`}>
+                {/* Header: select + name + status */}
+                <label className={`flex items-center gap-3 px-3 py-2.5 ${tone.header}`}>
+                  <input type="checkbox" className="h-5 w-5 shrink-0 accent-primary" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} aria-label={`Sélectionner ${p.memberName}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-semibold">{p.memberName}</div>
+                    {p.cardNumber && <div className="text-xs text-muted-foreground">{p.cardNumber}</div>}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm">
-                    {p.isLeaving ? (
+                  <div className="shrink-0">{statusBadge(p)}</div>
+                </label>
+
+                {/* Body: the move, then notes */}
+                <div className="space-y-2 px-3 py-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-muted px-2 py-1 font-mono text-xs">{p.currentUnitCode}</span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {leaving ? (
                       <Badge variant="warning">Quitte le groupe</Badge>
                     ) : (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="text-muted-foreground">{p.currentUnitCode}</span>
-                        <ArrowRight className="h-3 w-3" />
-                        <span className="font-medium">{p.proposedUnitCode}</span>
+                      <span className="rounded-md bg-primary/10 px-2 py-1 font-mono text-xs font-semibold text-primary">
+                        {p.cgModified ? p.finalUnitCode : p.proposedUnitCode}
                       </span>
                     )}
-                    {p.proposedTeamName && <span className="text-xs text-muted-foreground">· {p.proposedTeamName}</span>}
-                    {p.proposedRoleName && <span className="text-xs text-muted-foreground">· {p.proposedRoleName}</span>}
                   </div>
-                  {p.cuNotes && <p className="mt-1 text-xs text-muted-foreground">Notes CU : {p.cuNotes}</p>}
-                  {p.cgModified && (
-                    <p className="mt-1 text-xs">Décision : <span className="font-medium">{(p.finalIsLeaving ?? p.isLeaving) ? 'Quitte le groupe' : `${p.finalUnitCode}${p.finalTeamName ? ` / ${p.finalTeamName}` : ''} · ${p.finalRoleName ?? ''}`}</span></p>
+                  {!leaving && (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-muted-foreground">Équipe</span><div className="font-medium">{(p.cgModified ? p.finalTeamName : p.proposedTeamName) ?? '—'}</div></div>
+                      <div><span className="text-muted-foreground">Fonction</span><div className="font-medium">{(p.cgModified ? p.finalRoleName : p.proposedRoleName) ?? '—'}</div></div>
+                    </div>
                   )}
-                  {p.cgNotes && <p className="mt-1 text-xs italic text-muted-foreground">Raison : {p.cgNotes}</p>}
+                  {p.cgModified && (
+                    <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                      Modifié par le CG — proposition du CU : {p.isLeaving ? 'Quitte le groupe' : `${p.proposedUnitCode}${p.proposedTeamName ? ` / ${p.proposedTeamName}` : ''} · ${p.proposedRoleName ?? ''}`}
+                    </p>
+                  )}
+                  {p.cuNotes && <p className="text-xs text-muted-foreground"><span className="font-medium">Notes CU :</span> {p.cuNotes}</p>}
+                  {p.cgNotes && <p className="text-xs italic text-muted-foreground"><span className="font-medium not-italic">Raison :</span> {p.cgNotes}</p>}
                 </div>
+
+                {/* Footer: this card's actions */}
+                {p.status !== 'Finalized' && (
+                  <div className="flex gap-2 border-t bg-muted/30 px-3 py-2.5">
+                    {p.status === 'Pending' && (
+                      <Button size="sm" className="flex-1 bg-green-600 text-white hover:bg-green-700" onClick={() => quickApprove(p)} disabled={pendingId === p.id}>
+                        <Check className="mr-1 h-4 w-4" />Accepter
+                      </Button>
+                    )}
+                    <Button size="sm" className="flex-1 bg-blue-600 text-white hover:bg-blue-700" onClick={() => openEditDialog(p)}>
+                      <Pencil className="mr-1 h-4 w-4" />Changer
+                    </Button>
+                  </div>
+                )}
               </div>
-              {p.status !== 'Finalized' && <div className="mt-2 flex flex-wrap gap-1.5 border-t pt-2">
-                {p.status === 'Pending' && <Button size="sm" variant="outline" className="flex-1" onClick={() => quickApprove(p)} disabled={pendingId === p.id}><Check className="mr-1 h-4 w-4 text-green-600" />Accepter</Button>}
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => openEditDialog(p)}><Pencil className="mr-1 h-4 w-4" />Changer</Button>
-              </div>}
-            </div>
-          ))}
+            )
+          })}
         </div>
         </>
       )}

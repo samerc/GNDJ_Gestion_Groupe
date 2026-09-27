@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-28", "text": "Validation des passages sur téléphone : une carte séparée par membre, colorée selon le statut, avec ses boutons Accepter (vert) et Changer (bleu) dans la carte ; équipe et fonction affichées clairement ; la barre de sélection reste en bas de l'écran."},
       {"date": "2026-09-27", "text": "Messages de contact : chaque réponse est gardée dans un historique (qui, quand, à quelle adresse) ; une deuxième réponse ne remplace plus la première, et un avertissement s'affiche si le message a déjà reçu une réponse."},
       {"date": "2026-09-27", "text": "Emails : les messages de confirmation disent « mis en file d'envoi » au lieu de « envoyé » (l'email part quelques instants plus tard) ; raccourci vers la file d'emails pour les super-administrateurs."},
       {"date": "2026-09-27", "text": "Export et liste imprimable : la colonne Nationalité est rangée sous Identité (et non plus sous Médical)."},
