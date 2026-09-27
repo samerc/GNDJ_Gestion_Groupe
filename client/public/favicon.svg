@@ -1,16 +1,6 @@
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2a4675"/>
-      <stop offset="1" stop-color="#16243f"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
-  <!-- Stylized scouting fleur-de-lis -->
-  <g fill="#ffffff">
-    <path d="M32 9.5c-1.7 2.8-1.7 5.4 0 8.2 1.7-2.8 1.7-5.4 0-8.2z"/>
-    <path d="M22 21c-.4 4.4 1.4 8 5.2 10.8-1-3.9-.3-6.3-1.8-9-.8 1.5-.3 3.4.4 4.9-2-1.9-3.2-4.1-3.8-6.7z"/>
-    <path d="M42 21c-.6 2.6-1.8 4.8-3.8 6.7.7-1.5 1.2-3.4.4-4.9-1.5 2.7-.8 5.1-1.8 9C40.6 29 42.4 25.4 42 21z"/>
-    <path d="M32 23c-2.8 3-3.7 6.6-2.8 10.7l-3.2-1.9 1.2 4-3.8-.6 2.5 3.2-3.6 1.2 3.6 1.7-2.1 2.9 3.8-.9-.3 3.8 2.8-2.4v7.1h3.8v-7.1l2.8 2.4-.3-3.8 3.8.9-2.1-2.9 3.6-1.7-3.6-1.2 2.5-3.2-3.8.6 1.2-4-3.2 1.9C35.7 29.6 34.8 26 32 23z"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+  <stop stop-color="#4a3fc4"/><stop offset="1" stop-color="#241b82"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#bg)"/><circle cx="256" cy="256" r="200" fill="#ffffff"/><polygon points="256.0,256.0 256.0,220.0 339.4,172.6" fill="#5aa9da"/><polygon points="256.0,256.0 339.4,172.6 292.0,256.0" fill="#7cc8f2"/><polygon points="256.0,256.0 292.0,256.0 339.4,339.4" fill="#5aa9da"/><polygon points="256.0,256.0 339.4,339.4 256.0,292.0" fill="#7cc8f2"/><polygon points="256.0,256.0 256.0,292.0 172.6,339.4" fill="#5aa9da"/><polygon points="256.0,256.0 172.6,339.4 220.0,256.0" fill="#7cc8f2"/><polygon points="256.0,256.0 220.0,256.0 172.6,172.6" fill="#5aa9da"/><polygon points="256.0,256.0 172.6,172.6 256.0,220.0" fill="#7cc8f2"/><polygon points="256.0,256.0 215.0,215.0 256.0,78.0" fill="#d9621a"/><polygon points="256.0,256.0 256.0,78.0 297.0,215.0" fill="#f28124"/><polygon points="256.0,256.0 297.0,215.0 434.0,256.0" fill="#241b82"/><polygon points="256.0,256.0 434.0,256.0 297.0,297.0" fill="#4a3fc4"/><polygon points="256.0,256.0 297.0,297.0 256.0,434.0" fill="#241b82"/><polygon points="256.0,256.0 256.0,434.0 215.0,297.0" fill="#4a3fc4"/><polygon points="256.0,256.0 215.0,297.0 78.0,256.0" fill="#241b82"/><polygon points="256.0,256.0 78.0,256.0 215.0,215.0" fill="#4a3fc4"/><circle cx="256" cy="256" r="24" fill="#dcbc92" stroke="#9a7651" stroke-width="2.64"/>
+    <path d="M238,247.6 Q256,230.8 274,247.6
+             M235.6,259.6 Q256,245.2 276.4,259.6
+             M239.2,270.4 Q256,257.2 272.8,270.4"
+      fill="none" stroke="#9a7651" stroke-width="2.64" stroke-linecap="round"/></svg>

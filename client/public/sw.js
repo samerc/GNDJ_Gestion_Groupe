@@ -2,7 +2,7 @@
 // shows an "offline" page when a page can't be loaded, and handles Web Push. We deliberately do NOT cache: this
 // is a live, network-dependent app (auth + API), so an offline cache would risk serving stale pages/data.
 // Bump SW_VERSION to force an update on all clients.
-const SW_VERSION = 'gndj-v2'
+const SW_VERSION = 'gndj-v3'
 
 self.addEventListener('install', () => {
   // Activate the new SW immediately instead of waiting for all tabs to close.
@@ -52,8 +52,9 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'GNDJ Scout'
   const options = {
     body: data.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/icons/app-192.png',
+    // Android shows the badge in the status bar using only its transparency: a white silhouette.
+    badge: '/icons/badge-96.png',
     data: { url: data.url || '/' },
     tag: data.type || undefined, // same-tag notifications replace each other instead of stacking
     renotify: !!data.type,
