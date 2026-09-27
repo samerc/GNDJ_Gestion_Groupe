@@ -112,17 +112,20 @@ export default function UnitDocumentsPage() {
   const formatsLabel = [...new Set(allowedTypes.map((t) => t.toUpperCase()))].join(', ')
 
   // Cotisation stats for THIS unit (computed from the matrix — already scoped to the CU's unit, no extra call).
-  // paid = has a payment line · exempt = "ne paiera pas" with no payment · en attente = the rest.
+  // paid = full amount · partial = paid something short of it · exempt = "ne paiera pas" (or maîtrise the year it
+  // doesn't pay) · en attente = the rest. Same rule as the member file and the CG dashboard.
   const cotisationStats = useMemo(() => {
     const members = matrix?.members ?? []
-    let paid = 0, exempt = 0
+    let paid = 0, partial = 0, exempt = 0
     const totals: Record<string, number> = {}
     for (const m of members) {
       const c = m.cotisation
-      if (c.payments.length > 0) { paid++; for (const p of c.payments) totals[p.currency] = (totals[p.currency] ?? 0) + p.amount }
-      else if (c.willNotPay) exempt++
+      for (const p of c.payments) totals[p.currency] = (totals[p.currency] ?? 0) + p.amount
+      if (c.status === 'Paid') paid++
+      else if (c.status === 'Partial') partial++
+      else if (c.status === 'Exempt' || c.maitriseExempt) exempt++
     }
-    return { total: members.length, paid, exempt, pending: members.length - paid - exempt, totals }
+    return { total: members.length, paid, partial, exempt, pending: members.length - paid - partial - exempt, totals }
   }, [matrix])
 
   // Preview state
@@ -480,6 +483,7 @@ export default function UnitDocumentsPage() {
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground"><Minus className="h-4 w-4" /></span> Manquant</span>
             <span className="mx-1 h-5 w-px self-center bg-border" />
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300"><DollarSign className="h-4 w-4" /></span> Cotisation payée</span>
+            <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"><DollarSign className="h-4 w-4" /></span> Partielle</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><Receipt className="h-4 w-4" /></span> Non payée</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-muted-foreground"><Ban className="h-4 w-4" /></span> Ne paiera pas</span>
           </div>
@@ -488,6 +492,7 @@ export default function UnitDocumentsPage() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
             <span className="flex items-center gap-1.5 font-medium"><Receipt className="h-4 w-4 text-muted-foreground" />Cotisations {currentScoutYear}</span>
             <span className="text-green-700 dark:text-green-300">{cotisationStats.paid} payée{cotisationStats.paid > 1 ? 's' : ''}</span>
+            {cotisationStats.partial > 0 && <span className="text-amber-600 dark:text-amber-400">{cotisationStats.partial} partielle{cotisationStats.partial > 1 ? 's' : ''}</span>}
             <span className="text-red-600 dark:text-red-400">{cotisationStats.pending} en attente</span>
             <span className="text-muted-foreground">{cotisationStats.exempt} exemptée{cotisationStats.exempt > 1 ? 's' : ''}</span>
             <span className="text-muted-foreground">sur {cotisationStats.total}</span>
@@ -594,11 +599,16 @@ export default function UnitDocumentsPage() {
                       <td className="px-1 py-1.5 text-center">
                         {(() => {
                           const cot = member.cotisation
-                          const paid = !!cot.cotisationId && cot.payments.length > 0
-                          const exempt = cot.willNotPay && !paid
-                          const cls = paid ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300' : exempt ? 'bg-muted text-muted-foreground' : 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
+                          const paid = cot.status === 'Paid'
+                          const partial = cot.status === 'Partial'
+                          const exempt = cot.status === 'Exempt' || (cot.maitriseExempt && cot.payments.length === 0)
+                          const cls = paid ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300'
+                            : partial ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'
+                            : exempt ? 'bg-muted text-muted-foreground' : 'bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400'
                           const title = paid
                             ? `${cot.payments.map(p => `${p.amount} ${p.currency}`).join(' + ')} — ${cot.receiptNumber}`
+                            : partial ? `Paiement partiel (${cot.percent} %) — Cliquer pour compléter`
+                            : cot.maitriseExempt && !cot.willNotPay ? 'Maîtrise — ne paie pas cette année'
                             : exempt ? 'Ne paiera pas (exempté) — Cliquer pour modifier'
                             : 'Cotisation non payée — Cliquer pour enregistrer'
                           return (
@@ -609,6 +619,8 @@ export default function UnitDocumentsPage() {
                             >
                               {paid ? (
                                 <><DollarSign className="h-5 w-5" /><span className="text-sm font-semibold">{cot.payments.length}</span></>
+                              ) : partial ? (
+                                <><DollarSign className="h-5 w-5" /><span className="text-xs font-semibold">{cot.percent}%</span></>
                               ) : exempt ? (
                                 <Ban className="h-5 w-5" />
                               ) : (
@@ -733,7 +745,7 @@ export default function UnitDocumentsPage() {
             </DialogTitle>
           </DialogHeader>
 
-          {cotisationMember?.cotisation.cotisationId && cotisationMember.cotisation.payments.length > 0 ? (
+          {cotisationMember?.cotisation.cotisationId && cotisationMember.cotisation.status === 'Paid' ? (
             <div className="space-y-4">
               <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-700 dark:text-green-300">
                 Cotisation enregistrée :
@@ -756,6 +768,11 @@ export default function UnitDocumentsPage() {
             <form onSubmit={handleCotisationSubmit} className="space-y-4">
               {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
               <p className="text-sm text-muted-foreground">Année scoute : {currentScoutYear}</p>
+              {cotisationMember?.cotisation.status === 'Partial' && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
+                  Paiement partiel ({cotisationMember.cotisation.percent} %). Ajoutez une ligne pour compléter la cotisation.
+                </div>
+              )}
 
               {cotisationMember?.cotisation.willNotPay ? (
                 <div className="flex items-center justify-between rounded-md bg-muted p-3 text-sm">

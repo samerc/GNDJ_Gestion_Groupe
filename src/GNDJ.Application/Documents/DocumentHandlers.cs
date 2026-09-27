@@ -1,5 +1,6 @@
 using FluentValidation;
 using GNDJ.Application.Common;
+using GNDJ.Application.Cotisations;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
 using GNDJ.Domain.Entities;
@@ -494,7 +495,12 @@ public record MemberCotisationCellDto(
     string? ReceiptNumber,
     DateOnly? PaymentDate,
     bool WillNotPay,
-    List<CotisationPaymentCellDto> Payments
+    List<CotisationPaymentCellDto> Payments,
+    // Same rule as the member file / CG dashboard: Paid | Partial | Exempt | Unpaid, with the % paid.
+    string Status = CotisationCalc.StatusUnpaid,
+    int Percent = 0,
+    // A maîtrise member the year "la maîtrise ne paie pas" is on: nothing is expected.
+    bool MaitriseExempt = false
 );
 
 public record MemberDocCellDto(
@@ -551,6 +557,8 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
             .ToListAsync(ct);
 
         var today = LebanonClock.Today;
+        var cotCfg = await CotisationCalc.LoadAsync(context, ct);
+        var maitriseFree = await MaitriseCotisation.PaysAsync(context, ct) ? [] : await MaitriseCotisation.MemberIdsAsync(context, memberIds, ct);
 
         // Build matrix
         var rows = memberAssignments
@@ -582,9 +590,12 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
                 }).ToList();
 
                 var cot = allCotisations.FirstOrDefault(c => c.MemberId == g.Key);
+                var pays = cot?.Payments.Select(p => (p.Amount, p.Currency)).ToList() ?? [];
+                var (cotStatus, cotPercent, _) = CotisationCalc.Evaluate(pays, cot?.WillNotPay ?? false, cotCfg);
                 var cotCell = new MemberCotisationCellDto(
                     cot?.Id, cot?.ReceiptNumber, cot?.PaymentDate, cot?.WillNotPay ?? false,
-                    cot?.Payments.Select(p => new CotisationPaymentCellDto(p.Amount, p.Currency, p.PaymentMethod)).ToList() ?? []
+                    cot?.Payments.Select(p => new CotisationPaymentCellDto(p.Amount, p.Currency, p.PaymentMethod)).ToList() ?? [],
+                    cotStatus, cotPercent, maitriseFree.Contains(g.Key)
                 );
 
                 return new MemberDocRowDto(

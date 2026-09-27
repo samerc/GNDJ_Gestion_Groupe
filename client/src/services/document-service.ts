@@ -192,6 +192,11 @@ export interface MemberCotisationCellDto {
   paymentDate: string | null
   willNotPay: boolean
   payments: CotisationPaymentCellDto[]
+  // Same rule as the member file / CG dashboard (full amount per currency).
+  status: 'Paid' | 'Partial' | 'Exempt' | 'Unpaid'
+  percent: number
+  // Maîtrise member while "la maîtrise ne paie pas" is on: nothing expected.
+  maitriseExempt: boolean
 }
 
 export interface MemberDocCellDto {
