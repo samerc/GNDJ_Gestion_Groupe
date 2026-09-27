@@ -24,7 +24,7 @@ function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; mem
     setUploading(true)
     try {
       await uploadMutation.mutateAsync(file)
-      toast.success(`Photo de ${memberName} enregistree`)
+      toast.success(`Photo de ${memberName} enregistrée`)
       onDone()
     } catch (err) {
       toast.error(parseApiError(err))
@@ -98,8 +98,8 @@ export default function PhotoSessionPage() {
     return (
       <EmptyState
         icon={Users}
-        title="Aucune unite assignee."
-        action={<Button variant="outline" size="sm" onClick={() => navigate('/')}>Retour</Button>}
+        title="Aucune unité assignée."
+        action={<Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>Retour</Button>}
       />
     )
   }

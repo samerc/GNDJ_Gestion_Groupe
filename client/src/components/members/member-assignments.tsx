@@ -82,6 +82,14 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const [editing, setEditing] = useState<AssignmentDto | null>(null)
   const [form, setForm] = useState<AssignmentFormData>({ memberId, unitId: '', functionalRoleId: '', startDate: '' })
   const [deleting, setDeleting] = useState<AssignmentDto | null>(null)
+  // "Terminer aujourd'hui" closes an active post (the member may leave the unit's roster): confirm first.
+  const [ending, setEnding] = useState<AssignmentDto | null>(null)
+  const confirmEnd = async () => {
+    if (!ending) return
+    try { await endMutation.mutateAsync({ id: ending.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Poste terminé') }
+    catch (err) { toast.error(parseApiError(err)) }
+    setEnding(null)
+  }
   // "Corriger l'unité" (wrong placement fix): the active assignment being corrected + the chosen new unit.
   const [correcting, setCorrecting] = useState<AssignmentDto | null>(null)
   const [correctUnitId, setCorrectUnitId] = useState('')
@@ -240,7 +248,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                       </Button></Tip>
                     )}
                     {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
-                    <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" disabled={endMutation.isPending} onClick={async () => { try { await endMutation.mutateAsync({ id: a.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Affectation terminée') } catch (err) { toast.error(parseApiError(err)) } }}>
+                    <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" disabled={endMutation.isPending} onClick={() => setEnding(a)}>
                       <StopCircle className="h-4 w-4 text-orange-500" />
                     </Button></Tip>
                     <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => setDeleting(a)}>
@@ -460,6 +468,16 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
         variant="destructive"
         loading={deleteMutation.isPending}
         onConfirm={handleDelete}
+      />
+      <ConfirmDialog
+        open={!!ending}
+        onOpenChange={(o) => { if (!o) setEnding(null) }}
+        title="Terminer le poste"
+        description={`Terminer aujourd'hui le poste de ${ending?.functionalRoleName} dans ${ending?.unitName} ? S'il s'agit de son seul poste, le membre n'apparaîtra plus dans l'unité (il passera dans les anciens).`}
+        confirmLabel="Terminer"
+        variant="destructive"
+        loading={endMutation.isPending}
+        onConfirm={confirmEnd}
       />
     </div>
   )

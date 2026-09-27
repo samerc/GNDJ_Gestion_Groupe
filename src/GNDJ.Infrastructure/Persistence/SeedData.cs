@@ -494,7 +494,7 @@ public static class SeedData
         var docVerify2 = Add("Vérifier les documents — 2ème vérification", "Dossiers membres", CU, true, "novembre", "goto-documents", null, "documents.correction_deadline", docRelance);
         Add("Bloquer les membres dont les dossiers sont incomplets", "Dossiers membres", CG, false, "novembre", "goto-documents", null, "documents.final_deadline", docVerify2);
         Add("Suivre et enregistrer les cotisations", "Dossiers membres", CU, true, "octobre – novembre", "goto-documents", "cotisations-paid", "documents.deposit_deadline", pasFinalize);
-        Add("Les chefs mettent à jour les membres (badges, étapes…)", "Dossiers membres", CU, true, "novembre", "goto-progression", null, null, pasFinalize);
+        Add("Les chefs mettent à jour les membres (badges, étapes…)", "Dossiers membres", CU, true, "novembre", "goto-my-unit", null, null, pasFinalize);
         // ⑤ Organisation
         Add("Organiser la séance photo", "Organisation", CU, true, "octobre", "goto-photo", "photos-done", null, pasFinalize);
         var orgTeams = Add("Répartir les membres en sizaines / équipes", "Organisation", CU, true, "octobre", "goto-my-unit", null, null, pasFinalize);

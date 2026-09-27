@@ -225,7 +225,8 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
     if (!form.firstName?.trim()) missing.push('prénom')
     if (!form.lastName?.trim()) missing.push('nom')
     if (!form.dateOfBirth) missing.push('date de naissance')
-    if (!form.gender) missing.push('genre')
+    if (!form.gender) missing.push('sexe')
+    if (!form.cardNumber?.trim()) missing.push('matricule')
     if (!form.nationality?.trim()) missing.push('nationalité')
     if (!form.school?.trim()) missing.push('école')
     // Classe optional: older members (Clan/Noyau/maîtrise) fill Profession instead.
@@ -498,7 +499,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                     <RequiredLabel required>Nationalité</RequiredLabel>
                     <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
                   </div>
-                  <div className="space-y-1.5"><RequiredLabel>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel required>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
                   <div className="space-y-1.5"><RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel><Input value={form.externalCardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} /></div>
                   {/* Situation des parents (household attribute; from the demande wizard, editable here). */}
                   <div className="space-y-1.5">

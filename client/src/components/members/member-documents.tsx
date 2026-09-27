@@ -211,7 +211,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const handleQuickReview = async (docId: string, status: string) => {
     try {
       await reviewMutation.mutateAsync({ id: docId, status })
-      toast.success('Statut modifié')
+      toast.success(status === 'Approved' ? 'Document accepté' : 'Document refusé')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -221,7 +221,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     if (!reviewOpen) return
     try {
       await reviewMutation.mutateAsync({ id: reviewOpen.id, status, reviewNotes: reviewNotes || undefined })
-      toast.success('Statut modifié')
+      toast.success(status === 'Approved' ? 'Document accepté' : 'Document refusé')
       setReviewOpen(null)
       setReviewNotes('')
     } catch (err) {

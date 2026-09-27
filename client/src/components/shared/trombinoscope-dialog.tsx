@@ -158,6 +158,8 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
               ))}
               {teams.length === 0 && <p className="text-xs text-muted-foreground">Aucune équipe</p>}
             </div>
+            {/* One saved version per unit and year: a partial one replaces the full one members see. */}
+            {!allSelected && <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">Attention : ce trombinoscope partiel remplacera la version enregistrée de toute l'unité.</p>}
           </div>
 
           <label className="flex items-center gap-2 text-sm cursor-pointer">

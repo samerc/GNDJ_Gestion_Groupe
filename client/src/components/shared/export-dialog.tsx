@@ -28,7 +28,7 @@ interface ColumnGroup {
 
 const COLUMN_GROUPS: ColumnGroup[] = [
   {
-    label: 'Identite',
+    label: 'Identité',
     columns: [
       { key: 'name', label: 'Nom' },
       { key: 'cardNumber', label: 'Matricule' },
@@ -38,7 +38,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     ],
   },
   {
-    label: 'Scolarite',
+    label: 'Scolarité',
     columns: [
       { key: 'school', label: '\u00c9cole' },
       { key: 'classe', label: 'Classe' },
@@ -60,7 +60,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     ],
   },
   {
-    label: 'Medical',
+    label: 'Médical',
     columns: [
       { key: 'bloodType', label: 'Groupe sanguin' },
       { key: 'nationality', label: 'Nationalit\u00e9' },

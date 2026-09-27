@@ -78,7 +78,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
         <div className="flex shrink-0 items-center gap-2">
           {meeting.status === 'Pending' && meeting.canManage && (
             <Button size="sm" variant="outline" onClick={onApprove} disabled={busy}>
-              <CheckCircle2 className="mr-1 h-4 w-4" />Approuver
+              <CheckCircle2 className="mr-1 h-4 w-4" />Accepter
             </Button>
           )}
           <Button size="sm" onClick={onOpen}><ClipboardList className="mr-1 h-4 w-4" />Présences</Button>
@@ -381,7 +381,7 @@ export default function AttendancePage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const handleApprove = async (id: string) => {
-    try { await approve.mutateAsync(id); toast.success('Réunion approuvée') }
+    try { await approve.mutateAsync(id); toast.success('Réunion acceptée') }
     catch (err) { toast.error(parseApiError(err)) }
   }
   const handleDelete = async () => {

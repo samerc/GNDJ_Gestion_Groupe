@@ -299,8 +299,9 @@ export default function UnitDocumentsPage() {
   const handleReview = async (status: string) => {
     if (!previewCell?.cell.documentId) return
     try {
-      await reviewMutation.mutateAsync({ id: previewCell.cell.documentId, status, reviewNotes: reviewNotes || undefined })
-      toast.success('Statut modifié')
+      // The note is a refusal reason (shown to the member): only sent when refusing.
+      await reviewMutation.mutateAsync({ id: previewCell.cell.documentId, status, reviewNotes: status === 'Rejected' ? reviewNotes || undefined : undefined })
+      toast.success(status === 'Approved' ? 'Document accepté' : 'Document refusé')
       closePreview()
     } catch (err) {
       // toast (not setError): the preview dialog stays open on failure, so a page banner would hide behind it.
@@ -316,17 +317,6 @@ export default function UnitDocumentsPage() {
       toast.success('Document accepté')
     } catch (err) {
       toast.error(parseApiError(err)) // toast (not the top banner) so it's visible where the CU is looking
-    }
-  }
-
-  const handleQuickReject = async (e: React.MouseEvent, cell: MemberDocCellDto) => {
-    e.stopPropagation()
-    if (!cell.documentId || cell.status === 'Rejected' || reviewMutation.isPending) return
-    try {
-      await reviewMutation.mutateAsync({ id: cell.documentId, status: 'Rejected' })
-      toast.success('Document refusé')
-    } catch (err) {
-      toast.error(parseApiError(err))
     }
   }
 
@@ -588,8 +578,8 @@ export default function UnitDocumentsPage() {
                                 {cell.status !== 'Rejected' && (
                                   <button
                                     className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white shadow hover:bg-red-700"
-                                    onClick={(e) => handleQuickReject(e, cell)}
-                                    title="Refuser"
+                                    onClick={(e) => { e.stopPropagation(); openPreview(member, cell, docType) }}
+                                    title="Refuser (avec un motif)"
                                   >
                                     <XCircle className="h-2.5 w-2.5" />
                                   </button>
@@ -696,12 +686,12 @@ export default function UnitDocumentsPage() {
               )}
 
               <div className="space-y-2">
-                <RequiredLabel>Notes (optionnel)</RequiredLabel>
+                <RequiredLabel>Motif en cas de refus (optionnel, visible par le membre)</RequiredLabel>
                 <textarea
                   className="flex min-h-14 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Raison du refus ou remarques..."
+                  placeholder="Ex. document illisible, signature manquante…"
                 />
               </div>
 
@@ -714,11 +704,10 @@ export default function UnitDocumentsPage() {
                 <Button variant="outline" size="sm" onClick={handleDownloadDoc}>
                   <Download className="mr-1 h-4 w-4" />Télécharger
                 </Button>
-                {previewCell.cell.status !== 'Rejected' && (
-                  <Button variant="destructive" size="sm" onClick={() => handleReview('Rejected')} disabled={reviewMutation.isPending}>
-                    <XCircle className="mr-1 h-4 w-4" />Refuser
-                  </Button>
-                )}
+                {/* Also on a refused document: re-refusing saves the edited reason. */}
+                <Button variant="destructive" size="sm" onClick={() => handleReview('Rejected')} disabled={reviewMutation.isPending}>
+                  <XCircle className="mr-1 h-4 w-4" />Refuser
+                </Button>
                 {previewCell.cell.status !== 'Approved' && (
                   <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
                     <CheckCircle className="mr-1 h-4 w-4" />Accepter
