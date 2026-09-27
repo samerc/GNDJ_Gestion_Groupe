@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-27", "text": "Documents : le bouton « Refuser » ouvre une fenêtre de refus uniquement (motif visible par le membre) — le bouton « Accepter » n'y apparaît plus."},
       {"date": "2026-09-27", "text": "Accès délégués : quand un profil est attribué (ex. Chef de Groupe), les accès ciblés qu'il contient déjà sont retirés automatiquement ; seuls restent ceux qui s'ajoutent vraiment au profil."},
       {"date": "2026-09-27", "text": "La nouvelle icône (boussole aux couleurs du logo) remplace l'ancienne tuile dans l'en-tête de l'application, le site public, le portail des demandes et la page de scan mobile."},
       {"date": "2026-09-27", "text": "Plus rapide : la liste des demandes se télécharge environ 2,5 fois plus légère (compression améliorée), et elle est préchargée au démarrage du serveur pour que le premier chargement après une mise à jour ne prenne plus 2 à 3 secondes."},
