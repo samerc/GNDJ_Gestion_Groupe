@@ -18,12 +18,14 @@ import {
   useFinalizePassages,
   useSubmitPassageUnit,
   useReopenPassageUnit,
+  useRemindPassageUnits,
   usePassageNewcomerGroups,
   downloadPassageNewcomersDoc,
   type PassageDto,
 } from '@/services/passage-service'
 import { saveBlob } from '@/lib/download'
 import { PassageProjection } from '@/components/passage/passage-projection'
+import { BulkChangeDialog } from '@/components/passage/bulk-change-dialog'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
@@ -56,6 +58,7 @@ import {
   Flag,
   Lock,
   Unlock,
+  Bell,
   FileText,
   Send,
 } from 'lucide-react'
@@ -98,11 +101,23 @@ export default function PassageValidationPage() {
   const finalizeMutation = useFinalizePassages()
   const submitUnitMutation = useSubmitPassageUnit()
   const reopenUnitMutation = useReopenPassageUnit()
+  const remindMutation = useRemindPassageUnits()
+  // Remind the leaders of every unit not yet finished (also sent automatically 7 and 2 days before the date).
+  const handleRemind = async () => {
+    try {
+      const r = await remindMutation.mutateAsync({ scoutYear })
+      toast.success(`Rappel envoyé à ${r.units} unité(s) : ${r.notified} notification(s), ${r.emails} email(s)`)
+    } catch (err) {
+      toast.error(parseApiError(err))
+    }
+  }
   const [unitBusy, setUnitBusy] = useState<string | null>(null)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editDialog, setEditDialog] = useState<PassageDto | null>(null)
   const [finalizeDialog, setFinalizeDialog] = useState(false)
+  // "Changer la sélection": same decision for every selected line.
+  const [bulkChangeOpen, setBulkChangeOpen] = useState(false)
   // By default the CG only sees members actually changing unit (or leaving) — the real passages to review.
   // Toggle on to also show members staying in their unit (no change / équipe change).
   const [showSameUnit, setShowSameUnit] = useState(false)
@@ -431,7 +446,16 @@ export default function PassageValidationPage() {
       {unitRows.length > 0 && (
         <Card>
           <CardContent className="pt-4">
-            <p className="mb-2 text-sm font-medium">Avancement par unité</p>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium">Avancement par unité</p>
+              {unitsNotSubmitted > 0 && passageStatus?.isOpen && (
+                <Tip content="Notification et email aux chefs des unités qui n'ont pas terminé (envoyé aussi automatiquement 7 et 2 jours avant la date du passage)">
+                  <Button size="sm" variant="outline" className="ml-auto" onClick={handleRemind} disabled={remindMutation.isPending}>
+                    <Bell className="mr-1 h-4 w-4" />Relancer les unités non terminées ({unitsNotSubmitted})
+                  </Button>
+                </Tip>
+              )}
+            </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {unitRows.map(u => (
                 <div key={u.unitId} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
@@ -495,6 +519,9 @@ export default function PassageValidationPage() {
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
                 <Check className="mr-1 h-4 w-4" />Accepter la sélection
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setBulkChangeOpen(true)}>
+                <Pencil className="mr-1 h-4 w-4" />Changer la sélection
               </Button>
             </div>
           </CardContent>
@@ -848,6 +875,13 @@ export default function PassageValidationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkChangeDialog
+        open={bulkChangeOpen}
+        onOpenChange={setBulkChangeOpen}
+        passages={passageList.filter(p => selected.has(p.id))}
+        onDone={() => setSelected(new Set())}
+      />
 
       {/* Finalize Confirm */}
       <ConfirmDialog

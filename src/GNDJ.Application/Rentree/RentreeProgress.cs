@@ -25,6 +25,7 @@ public static class RentreeProgress
         ("demandes-open", "Inscriptions ouvertes", false),
         ("passage-open", "Passage ouvert", false),
         ("passage-proposed", "Passages proposés — par unité", true),
+        ("passage-finished", "Passage de l'unité terminé — par unité", true),
         ("passage-finalized", "Passages finalisés", false),
         ("demandes-reviewed", "Demandes révisées", false),
         ("demandes-sent", "Réponses envoyées", false),
@@ -90,6 +91,7 @@ public static class RentreeProgress
 
         // ── Per-unit signals ──
         var passageProposed = new Dictionary<Guid, State>();
+        var passageFinished = new Dictionary<Guid, State>();
         var documentsVerified = new Dictionary<Guid, State>();
         var photosDone = new Dictionary<Guid, State>();
         var cotisationsPaid = new Dictionary<Guid, State>();
@@ -119,6 +121,20 @@ public static class RentreeProgress
                     // total == 0 (empty/placeholder unit) → nothing to do → complete, so it never permanently
                     // blocks a dependent group task (e.g. "Finaliser les passages") or drags phase progress.
                     passageProposed[u] = new State(cur, total, cur >= total, $"{cur}/{total}");
+                }
+            }
+
+            if (present.Contains("passage-finished"))
+            {
+                // The CU clicked "Terminer le passage de l'unité" (a PassageUnitSubmission for the year).
+                var finished = (await context.PassageUnitSubmissions
+                    .Where(s => s.ScoutYear == scoutYear && unitIds.Contains(s.UnitId))
+                    .Select(s => s.UnitId).ToListAsync(ct)).ToHashSet();
+                foreach (var u in unitIds)
+                {
+                    // An empty unit has nothing to finish → complete, so it never blocks a dependent task.
+                    var done = finished.Contains(u) || UnitMembers(u).Count == 0;
+                    passageFinished[u] = new State(null, null, done, finished.Contains(u) ? "Terminé" : done ? "Aucun membre" : "À terminer");
                 }
             }
 
@@ -182,6 +198,7 @@ public static class RentreeProgress
                 "demandes-sent" => demandesSent,
                 "passage-finalized" => passageFinalized,
                 "passage-proposed" => t.UnitId.HasValue ? passageProposed.GetValueOrDefault(t.UnitId.Value) : null,
+                "passage-finished" => t.UnitId.HasValue ? passageFinished.GetValueOrDefault(t.UnitId.Value) : null,
                 "documents-verified" => t.UnitId.HasValue ? documentsVerified.GetValueOrDefault(t.UnitId.Value) : null,
                 "photos-done" => t.UnitId.HasValue ? photosDone.GetValueOrDefault(t.UnitId.Value) : null,
                 "cotisations-paid" => t.UnitId.HasValue ? cotisationsPaid.GetValueOrDefault(t.UnitId.Value) : null,

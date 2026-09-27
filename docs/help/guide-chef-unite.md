@@ -288,6 +288,9 @@ Pour chaque membre, trois choix :
 
 Quand chaque membre a une ligne, cliquez sur **Terminer le passage de l'unité** (en haut de la page).
 
+> 💡 Tant que votre unité n'est pas terminée, vous recevez un rappel (notification et email) 7 jours puis 2 jours
+> avant la date du passage. La tâche « Terminer le passage de l'unité » apparaît aussi dans votre liste de rentrée.
+
 > ⚠️ Une fois l'unité terminée, vous ne pouvez plus rien modifier : le chef de groupe fait ses calculs unité par
 > unité. Pour une correction, contactez-le : il peut changer une ligne ou rouvrir votre unité.
 

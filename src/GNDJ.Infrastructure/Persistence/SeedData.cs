@@ -607,6 +607,40 @@ public static class SeedData
         if (changed) await context.SaveChangesAsync();
     }
 
+    // Per-unit task "Terminer le passage de l'unité" (the CU clicks the button once every member has a line). Inserted
+    // right after "Proposer les passages…", depends on it, tracked live (passage-finished), due on the passage date;
+    // the "Finaliser/Publier" task then also waits for it. Idempotent (by title); a CG edit is never overwritten.
+    // Existing years pick it up with "Ajouter les nouvelles tâches" on the Rentrée page.
+    public static async Task SeedRentreePassageFinishTaskAsync(GndjDbContext context)
+    {
+        const string title = "Terminer le passage de l'unité";
+        var templates = await context.RentreeTaskTemplates.ToListAsync();
+        if (templates.Count == 0 || templates.Any(t => t.Title == title)) return;
+
+        var propose = templates.FirstOrDefault(t => t.Title.StartsWith("Proposer les passages"));
+        var order = (propose?.DisplayOrder ?? templates.Max(t => t.DisplayOrder)) + 1;
+        foreach (var t in templates.Where(t => t.DisplayOrder >= order)) t.DisplayOrder++;
+
+        var task = new RentreeTaskTemplate
+        {
+            Title = title,
+            Description = "Quand chaque membre a une ligne de passage, cliquez sur « Terminer le passage de l'unité » "
+                          + "(page Passage). Ensuite, seul le chef de groupe peut encore modifier les lignes.",
+            Phase = propose?.Phase ?? "Passage", DisplayOrder = order,
+            AssigneeType = "role", AssigneeRole = "chef-unite", FanOutPerUnit = true,
+            DefaultDeadlineLabel = "avant la date du passage", DeadlineAnchor = "passage.date",
+            ProgressKey = "passage-finished", ActionKey = "goto-passage",
+            DependsOnTemplateIds = propose is null ? [] : [propose.Id],
+        };
+        context.RentreeTaskTemplates.Add(task);
+
+        var finalize = templates.FirstOrDefault(t => t.Title.StartsWith("Finaliser les passages") || t.Title.StartsWith("Publier le passage"));
+        if (finalize is not null && !finalize.DependsOnTemplateIds.Contains(task.Id))
+            finalize.DependsOnTemplateIds = [.. finalize.DependsOnTemplateIds, task.Id];
+
+        await context.SaveChangesAsync();
+    }
+
     // Backfill the deadline ANCHOR (a date-setting key → live due date) + live PROGRESS signal on the default
     // rentrée tasks, by exact title. Fills BOTH templates and already-generated task instances, and only where
     // the field is still null (idempotent; never overwrites a CG's choice) so a fresh DB (seeded moments earlier)
@@ -904,6 +938,14 @@ public static class SeedData
                 Subject = "Nouveaux membres de votre unité après le passage — {{unitName}}",
                 BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Le passage {{scoutYear}} vient d'être publié.</p><p><strong>{{count}}</strong> membre(s) rejoignent l'unité <strong>{{unitName}}</strong> depuis une autre unité. Vous trouverez leur liste en pièce jointe (fichier Excel), avec leur unité d'origine.</p><p>Ils apparaissent déjà dans votre unité sur la plateforme : pensez à leur attribuer une équipe.</p><p>— Le Chef de Groupe</p>",
                 Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef d'unité\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"count\",\"label\":\"Nombre de nouveaux membres\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
+                Name = "Rappel — passage de l'unité à terminer (chefs d'unité)", Code = "passage_unit_reminder", Module = "passage",
+                Subject = "Rappel : terminez le passage de l'unité {{unitName}}",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Le passage {{scoutYear}} de l'unité <strong>{{unitName}}</strong> n'est pas encore terminé. Membres sans ligne de passage : <strong>{{missing}}</strong>.</p><p>Merci d'indiquer une ligne pour chaque membre puis de cliquer sur <strong>« Terminer le passage de l'unité »</strong> avant le <strong>{{passageDate}}</strong> : <a href=\"{{passageUrl}}\">{{passageUrl}}</a></p><p>— Le Chef de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"missing\",\"label\":\"Membres sans ligne\"},{\"key\":\"passageDate\",\"label\":\"Date du passage\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"},{\"key\":\"passageUrl\",\"label\":\"Lien de la page Passage\"}]",
                 IsActive = true
             },
             new EmailTemplate

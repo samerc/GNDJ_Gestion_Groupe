@@ -196,10 +196,13 @@ part **automatiquement** ou par **envoi manuel**, et à quel moment.
 3. Pour chaque ligne en attente : **accepter** (un par un ou en groupe), ou **Changer** : choisissez une autre
    unité, équipe ou fonction (ou « Quitte le groupe ») et, si vous voulez, une **raison**. Il n'y a pas de refus :
    ne pas être d'accord, c'est choisir autre chose. Le CU voit votre décision et votre raison, reçoit une
-   notification, et ne peut plus modifier cette ligne.
+   notification, et ne peut plus modifier cette ligne. Pour donner **la même décision à plusieurs membres**, cochez-les
+   puis **Changer la sélection** : une seule notification par unité liste les membres concernés.
 4. Accepter ne change encore rien pour les membres : vous pouvez commencer avant que toutes les unités aient fini.
 5. **Avancement par unité** : chaque CU clique sur **Terminer le passage de l'unité** quand tous ses membres ont une
    ligne ; l'unité est alors verrouillée pour lui. Vous pouvez la **rouvrir** (🔓) ou la terminer à sa place (🏁).
+   **Relancer les unités non terminées** envoie une notification et un email aux chefs de ces unités. Ce rappel part
+   aussi **automatiquement 7 jours et 2 jours avant la date du passage** (tant que le passage est ouvert).
 6. **Projection de l'année prochaine** : l'effectif de chaque unité après le passage, en simulation (comme si tout
    était accepté) ou en réel.
 7. **Publier le passage** (le jour du passage, réglable dans **Paramètres → Passage**), pour tout le groupe en une

@@ -96,7 +96,8 @@ builder.Services.AddHostedService<GNDJ.Api.Services.PushSenderBackgroundService>
 builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
-builder.Services.AddHostedService<GNDJ.Api.Services.LeaderWelcomeBackgroundService>(); // "Bienvenue dans la maîtrise" email to new chefs
+builder.Services.AddHostedService<GNDJ.Api.Services.LeaderWelcomeBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.PassageReminderBackgroundService>(); // 7 / 2 days before the passage date // "Bienvenue dans la maîtrise" email to new chefs
 builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.OpsAlertBackgroundService>(); // daily "système" problems email
 builder.Services.AddSingleton<GNDJ.Api.Help.HelpDocs>(); // in-app "Aide" guides (docs/help), role-filtered
@@ -376,6 +377,7 @@ using (var scope = app.Services.CreateScope())
             await SeedData.SeedRentreeActionKeysAsync(context);
             await SeedData.SeedRentreeReminderTaskAsync(context);
             await SeedData.SeedRentreeExtraTasksAsync(context);
+            await SeedData.SeedRentreePassageFinishTaskAsync(context); // per-unit "Terminer le passage de l'unité"
             await SeedData.SeedRentreeAnchorsAndProgressAsync(context);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })

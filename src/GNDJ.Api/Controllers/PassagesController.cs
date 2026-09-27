@@ -127,6 +127,26 @@ public class PassagesController : BaseApiController
         return Ok(new { count = result.Value });
     }
 
+    /// <summary>CG reminds the leaders of every unit that hasn't finished its passage (notification + email). Requires passage.manage.</summary>
+    [HttpPost("remind-units")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> RemindUnits([FromBody] RemindPassageUnitsCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>CG gives several lines the same decision (unit / équipe / fonction, or leaving) with an optional reason; returns the count. Requires passage.manage.</summary>
+    [HttpPost("bulk-change")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> BulkChange([FromBody] BulkChangePassagesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { count = result.Value });
+    }
+
     /// <summary>
     /// CG posts the passage for the whole group: accepts lines still pending, ends old assignments and creates new ones, then emails
     /// each receiving unit's CU its newcomers; returns the count posted. Requires passage.manage. Blocked until every active member has

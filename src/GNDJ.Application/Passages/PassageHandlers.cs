@@ -870,6 +870,118 @@ public class BulkReviewPassageCommandHandler(IApplicationDbContext context, ICur
     }
 }
 
+// 4b. BulkChangePassages — the CG gives SEVERAL lines the same decision in one go (e.g. "these 6 go to T3", or
+// "these leave the group"), with an optional reason. Same rules as the single ReviewPassage, but the unit /
+// équipe / fonction are checked once, and each unit's leaders get ONE notification listing the members changed
+// (instead of one per line).
+public record BulkChangePassagesCommand(
+    List<Guid> PassageIds, bool Leaving,
+    Guid? FinalUnitId, Guid? FinalTeamId, Guid? FinalRoleId,
+    string? CgNotes
+) : IRequest<Result<int>>;
+
+public class BulkChangePassagesCommandValidator : AbstractValidator<BulkChangePassagesCommand>
+{
+    public BulkChangePassagesCommandValidator()
+    {
+        RuleFor(x => x.PassageIds).NotEmpty().WithMessage("Au moins un passage est requis.")
+            .Must(list => list.Count <= 1000).WithMessage("Trop d'éléments (max 1000).");
+        RuleFor(x => x.FinalUnitId).NotEmpty().When(x => !x.Leaving).WithMessage("Choisissez l'unité.");
+        RuleFor(x => x.FinalRoleId).NotEmpty().When(x => !x.Leaving).WithMessage("Choisissez la fonction.");
+        RuleFor(x => x.CgNotes).MaximumLength(1000).NoHtml();
+    }
+}
+
+public class BulkChangePassagesCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService auditService,
+    INotificationService notifications) : IRequestHandler<BulkChangePassagesCommand, Result<int>>
+{
+    public async ValueTask<Result<int>> Handle(BulkChangePassagesCommand request, CancellationToken ct)
+    {
+        // CG-level operation (passage.manage) — controller-gated; defense-in-depth here.
+        if (!PassageLocks.IsManager(currentUser))
+            return Result<int>.Failure("Accès réservé à la maîtrise de groupe.");
+
+        if (!request.Leaving)
+        {
+            if (!await context.Units.AnyAsync(u => u.Id == request.FinalUnitId, ct))
+                return Result<int>.Failure("L'unité finale est introuvable.");
+            if (!await context.FunctionalRoles.AnyAsync(r => r.Id == request.FinalRoleId, ct))
+                return Result<int>.Failure("La fonction finale est introuvable.");
+            if (request.FinalTeamId.HasValue
+                && !await context.Teams.AnyAsync(t => t.Id == request.FinalTeamId.Value && t.UnitId == request.FinalUnitId, ct))
+                return Result<int>.Failure("L'équipe finale n'appartient pas à l'unité finale.");
+        }
+
+        var passages = await context.Passages
+            .Where(p => request.PassageIds.Contains(p.Id) && p.Status != PassageStatus.Finalized)
+            .ToListAsync(ct);
+        if (passages.Count == 0)
+            return Result<int>.Failure("Aucune ligne à modifier (déjà publiées ?).");
+
+        var notes = string.IsNullOrWhiteSpace(request.CgNotes) ? null : request.CgNotes.Trim();
+        foreach (var passage in passages)
+        {
+            if (request.Leaving)
+            {
+                passage.FinalUnitId = null;
+                passage.FinalTeamId = null;
+                passage.FinalRoleId = null;
+            }
+            else
+            {
+                passage.FinalUnitId = request.FinalUnitId;
+                passage.FinalTeamId = request.FinalTeamId;
+                passage.FinalRoleId = request.FinalRoleId;
+            }
+            passage.FinalIsLeaving = request.Leaving == passage.IsLeaving ? null : request.Leaving;
+            passage.CgModified = request.Leaving != passage.IsLeaving
+                || (!request.Leaving && (passage.FinalUnitId != passage.ProposedUnitId
+                                         || passage.FinalTeamId != passage.ProposedTeamId
+                                         || passage.FinalRoleId != passage.ProposedRoleId));
+            passage.CgNotes = notes;
+            passage.Status = PassageStatus.Approved;
+            passage.ReviewedByUserId = currentUser.UserId;
+            passage.ReviewedAt = DateTime.UtcNow;
+        }
+
+        await context.SaveChangesAsync(ct);
+
+        // Names of everyone changed, for the audit and the notifications (one query).
+        var memberIds = passages.Select(p => p.MemberId).Distinct().ToList();
+        var names = await context.Members.Where(m => memberIds.Contains(m.Id))
+            .ToDictionaryAsync(m => m.Id, m => m.FirstName + " " + m.LastName, ct);
+
+        var team = await AuditNames.TeamAsync(context, request.FinalTeamId, ct);
+        var decision = request.Leaving
+            ? "Quitte le groupe"
+            : $"{await AuditNames.UnitAsync(context, request.FinalUnitId, ct)}{(team is null ? "" : " / " + team)} · {await AuditNames.RoleAsync(context, request.FinalRoleId, ct)}";
+
+        await auditService.LogAsync("BulkChange", "Passage", null,
+            newValues: new
+            {
+                Count = passages.Count,
+                Decision = decision,
+                Members = string.Join(", ", passages.Select(p => names.GetValueOrDefault(p.MemberId, "?"))),
+                CgNotes = notes,
+            },
+            cancellationToken: ct);
+
+        // One notification per unit, to that unit's leaders, listing only the lines whose proposal was changed.
+        foreach (var unitGroup in passages.Where(p => p.CgModified).GroupBy(p => p.CurrentUnitId))
+        {
+            var list = unitGroup.Select(p => names.GetValueOrDefault(p.MemberId, "?")).OrderBy(n => n).ToList();
+            var title = list.Count == 1 ? $"Passage modifié : {list[0]}" : $"Passage modifié : {list.Count} membres";
+            var body = $"Décision : {decision}. Membres : {string.Join(", ", list)}"
+                       + (notes is null ? "" : $". Raison : {notes}");
+            var leaders = await UnitNewMembersMail.UnitLeaderIdsAsync(context, unitGroup.Key, ct);
+            await notifications.NotifyMembersAsync(leaders.Where(id => id != currentUser.MemberId), NotificationTypes.Info,
+                title, body, "/passage", ct);
+        }
+
+        return Result<int>.Success(passages.Count);
+    }
+}
+
 // 5. FinalizePassages ("Publier le passage") — group-wide only. Needs every active member to have a line and
 // every unit with active members to be finished by its CU. Lines still Pending are accepted automatically.
 // Ends the current assignments, creates the new ones, then emails each receiving unit's CU its newcomers.

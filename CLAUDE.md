@@ -6213,3 +6213,22 @@ Every member got their access in 2026, and new chefs are existing members, so th
 - Old `icons/icon-*.png` / `maskable-512.png` deleted; manifest, sw.js (gndj-v3) and index.html (`?v=3`) point at
   the new names — icons are cached by URL (browser, phone, Cloudflare 4 h), so a design change = new file names.
   Manifest `background_color` (install splash) → `#241b82`. The in-app brand mark (lucide Compass tile) is unchanged.
+
+### Passage — bulk change + reminders to unfinished units (2026-09-27, DEV until deploy)
+- **"Changer la sélection"** (CG page): `BulkChangePassagesCommand` + `POST /passages/bulk-change` (passage.manage) gives
+  every selected line the same decision (unit + optional équipe + fonction, or leaving) + optional reason — same rules
+  as the single review (sets CgModified/Final*, team must belong to the unit), ONE audit row and ONE notification per
+  current unit (to its members.edit leaders) listing the members. Dialog `components/passage/bulk-change-dialog.tsx`
+  (active units grouped by branch in parcours order; fonction = member roles of the destination branch, default first).
+- **Reminders** (`Application/Passages/PassageReminders.cs`): units with active members and no PassageUnitSubmission →
+  notification (bell + push) + email `passage_unit_reminder` (seeded; vars leaderName/unitName/missing/passageDate/
+  scoutYear/passageUrl) to every leader of the unit. Manual: `POST /passages/remind-units` ("Relancer les unités non
+  terminées" on "Avancement par unité", shown while the passage is open). Automatic: `PassageReminderBackgroundService`
+  (6 h, job "Rappels du passage aux unités") sends once at 7 and once at 2 days before `passage.date` while the passage
+  is open; marker setting `passage.reminders_sent` = "<year>:7,2" (hidden in Settings). Start delay overridable via
+  `Monitoring:PassageReminderInitialDelaySeconds` (tests).
+- **Rentrée:** progress key `passage-finished` (per unit: PassageUnitSubmission exists, or no active members) + template
+  task "Terminer le passage de l'unité" (per unit, CU, due passage.date, depends on "Proposer…", "Finaliser…" now waits
+  for it) via `SeedData.SeedRentreePassageFinishTaskAsync` (idempotent). Existing years: "Ajouter les nouvelles tâches".
+- Tested on a DB copy: 19/19 (auto run at the 7-day threshold only once, emails/notifications, CU 403, bulk change incl.
+  leaving + wrong-team 400, one notification per unit, rentrée task turns done when the unit is finished).

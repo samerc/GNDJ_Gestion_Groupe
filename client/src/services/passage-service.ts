@@ -202,6 +202,29 @@ export function useBulkReviewPassage() {
   })
 }
 
+// POST /passages/remind-units — CG reminds the leaders of every unit that hasn't finished its passage
+// (notification + email). Returns how many units / emails / notifications.
+export function useRemindPassageUnits() {
+  return useMutation({
+    mutationFn: (data: { scoutYear: string }) =>
+      apiClient.post<{ units: number; emails: number; notified: number }>('/passages/remind-units', data).then(r => r.data),
+  })
+}
+
+// POST /passages/bulk-change — CG gives several lines the same decision (unit / équipe / fonction, or
+// "Quitte le groupe") with an optional reason. The CU of each unit gets ONE notification. Returns { count }.
+export function useBulkChangePassages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      passageIds: string[]; leaving: boolean
+      finalUnitId: string | null; finalTeamId: string | null; finalRoleId: string | null
+      cgNotes: string | null
+    }) => apiClient.post<{ count: number }>('/passages/bulk-change', data).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['passages'] }),
+  })
+}
+
 // POST /passages/finalize — CG posts the whole group's passage (pending lines are accepted automatically;
 // ends old + creates new assignments); returns { count }. Blocked until every member has a line and every
 // unit is finished. Also invalidates ['members'].

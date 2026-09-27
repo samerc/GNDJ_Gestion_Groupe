@@ -11,6 +11,7 @@ export const RENTREE_PROGRESS: Record<string, RentreeProgressDef> = {
   'demandes-open': { label: 'Inscriptions ouvertes', perUnit: false },
   'passage-open': { label: 'Passage ouvert', perUnit: false },
   'passage-proposed': { label: 'Passages proposés — par unité', perUnit: true },
+  'passage-finished': { label: "Passage de l'unité terminé — par unité", perUnit: true },
   'passage-finalized': { label: 'Passages finalisés', perUnit: false },
   'demandes-reviewed': { label: 'Demandes révisées', perUnit: false },
   'demandes-sent': { label: 'Réponses envoyées', perUnit: false },
