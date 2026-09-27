@@ -69,7 +69,8 @@ export default function ForgotPasswordPage() {
               <HoneypotField value={website} onChange={setWebsite} />
               {result && !result.found && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  Compte introuvable. Vérifiez votre nom d'utilisateur.
+                  Compte introuvable. Vérifiez votre nom d'utilisateur (ex. prenom.nom@scouts.gndj).{' '}
+                  <Link to="/forgot-username" className="font-medium underline underline-offset-2">Identifiant oublié ?</Link>
                 </div>
               )}
               {error && (

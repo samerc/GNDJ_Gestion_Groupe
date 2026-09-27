@@ -92,7 +92,7 @@ export default function MyProfilePage() {
       })
       toast.success('Fiche mise à jour')
       setEditing(false)
-    } catch (err) { setError(parseApiError(err)) }
+    } catch (err) { setError(parseApiError(err)); setActiveTab('profile') } // required fields (école, nationalité) are on Profil
   }
 
   if (isLoading || !member) return <LoadingSpinner variant="profile" />
@@ -151,7 +151,7 @@ export default function MyProfilePage() {
                   <div className="space-y-2"><RequiredLabel>Sexe</RequiredLabel><Input value={member.gender ?? ''} disabled /></div>
                   <div className="space-y-2"><RequiredLabel>Matricule</RequiredLabel><Input value={member.cardNumber ?? ''} disabled /></div>
                   <div className="space-y-2">
-                    <RequiredLabel>Nationalité</RequiredLabel>
+                    <RequiredLabel required>Nationalité</RequiredLabel>
                     <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher..." />
                   </div>
                   <div className="space-y-2">

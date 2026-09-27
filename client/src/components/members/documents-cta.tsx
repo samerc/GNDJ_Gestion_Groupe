@@ -16,7 +16,8 @@ export function DocumentsCta({ memberId }: { memberId: string }) {
     documents?.filter((d) => d.documentTypeId === docTypeId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
   const total = docTypes.length
   // Per required document type, the status of its latest upload (or "missing" if none).
-  const statuses = docTypes.map((dt) => latestForType(dt.id)?.status ?? 'Missing')
+  // An accepted but expired document has to be renewed, so it counts as "to send", not accepted.
+  const statuses = docTypes.map((dt) => { const d = latestForType(dt.id); return !d || (d.status === 'Approved' && d.isExpired) ? 'Missing' : d.status })
   const approved = statuses.filter((s) => s === 'Approved').length
   const pending = statuses.filter((s) => s === 'Pending').length
   const rejected = statuses.filter((s) => s === 'Rejected').length

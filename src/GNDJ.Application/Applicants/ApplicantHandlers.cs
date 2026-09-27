@@ -695,7 +695,8 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
 
         // A draft left unsubmitted past the submission deadline is shown as "Expirée" (see ToDto).
         var deadline = ApplicantHelpers.ParseDate(await ApplicantHelpers.Setting(context, "demande.submission_deadline", ct));
-        var deadlinePassed = deadline.HasValue && LebanonClock.Today > deadline.Value;
+        var deadlinePassed = deadline.HasValue && LebanonClock.Today > deadline.Value
+            && !(account.LateSubmissionUntil.HasValue && account.LateSubmissionUntil.Value >= LebanonClock.Today); // late invite
 
         // For SENT + converted (accepted) demandes, surface what the result page needs: the admitted unit's
         // name, the created member's login username, and whether that member has already logged in (so the

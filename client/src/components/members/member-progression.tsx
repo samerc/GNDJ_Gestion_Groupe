@@ -195,7 +195,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                 </span>
                 <Tip content="Effacer">
                   <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" disabled={dismissMutation.isPending}
-                    onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Notification effacée')).catch(err => toast.error(parseApiError(err)))}>
+                    onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Message masqué')).catch(err => toast.error(parseApiError(err)))}>
                     <X className="h-4 w-4" />
                   </Button>
                 </Tip>

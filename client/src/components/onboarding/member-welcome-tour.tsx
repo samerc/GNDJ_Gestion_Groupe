@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   {
     icon: UserRound,
     title: 'Gardez vos infos à jour',
-    body: "Dans « Ma fiche », vérifiez et mettez à jour vos informations personnelles et vos coordonnées. De même, vous pourrez mettre à jour vos informations scoutes (badges, étapes scoutes…).",
+    body: "Dans « Ma fiche », vérifiez et mettez à jour vos informations personnelles et vos coordonnées. Vous pourrez aussi proposer vos progressions (badges, étapes), qui seront validées par vos chefs.",
   },
   {
     icon: SunMoon,

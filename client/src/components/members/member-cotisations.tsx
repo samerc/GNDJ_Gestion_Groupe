@@ -70,7 +70,8 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
   // Exemption is per current scout year; detected from the marker row's willNotPay flag. The marker's
   // notes hold the optional reason ("pourquoi il ne paiera pas").
-  const year = currentScoutYear ?? '2025-2026'
+  // Fallback while the setting loads: the scout year containing today (it starts in October).
+  const year = currentScoutYear ?? (() => { const d = new Date(); const y = d.getMonth() >= 9 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${y + 1}` })()
   const exemptMarker = cotisations?.find(c => c.scoutYear === year && c.willNotPay)
   const isExempt = !!exemptMarker
   const exemptReason = exemptMarker?.notes ?? null
@@ -174,7 +175,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
       } else {
         await createMutation.mutateAsync({
           memberId,
-          scoutYear: currentScoutYear ?? '2025-2026',
+          scoutYear: year,
           paymentDate,
           notes: notes || null,
           payments,
@@ -215,15 +216,18 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
   if (isLoading) return <LoadingSpinner />
 
-  const createButton = hasPermission(PERMISSIONS.COTISATIONS_CREATE)
-    ? <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle cotisation</Button>
-    : null
+  // One cotisation per member and year: when this year's exists, complete it (partial) instead of creating a
+  // second one (the server refuses); none to add once paid or while the member is marked "ne paiera pas".
+  const createButton = !hasPermission(PERMISSIONS.COTISATIONS_CREATE) || isExempt || isPaidThisYear ? null
+    : isPartialThisYear && currentYearCotisation
+      ? <Button size="sm" onClick={() => openEdit(currentYearCotisation)}><Plus className="mr-1 h-3 w-3" />Compléter le paiement</Button>
+      : <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle cotisation</Button>
 
   // Inner content shared by both the card and bare layouts: the exempt toggle + the cotisation list.
   const content = (
     <>
-          {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
-            // Current-year status: paid-in-full → partial → exempt (ne paiera pas) → expected.
+          {(hasPermission(PERMISSIONS.COTISATIONS_EDIT) || selfView) && (
+            // Current-year status (members see it read-only on their own dossier): paid-in-full → partial → exempt (ne paiera pas) → expected.
             // A payment supersedes the exempt/expected states, so when paid we hide the exempt toggle.
             isPartialThisYear ? (
               <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 px-3 py-2">
@@ -249,12 +253,14 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                     <Ban className={`h-4 w-4 shrink-0 ${isExempt ? 'text-foreground' : 'text-muted-foreground'}`} />
                     {isExempt ? <span className="font-medium text-foreground">Ne paiera pas pour {year}</span> : <span className="text-muted-foreground">Cotisation attendue pour {year}</span>}
                   </span>
-                  <Button variant="outline" size="sm" className="w-full shrink-0 sm:w-auto" disabled={exemptMutation.isPending} onClick={isExempt ? clearExempt : openExemptDialog}>
-                    {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
-                  </Button>
+                  {!selfView && (
+                    <Button variant="outline" size="sm" className="w-full shrink-0 sm:w-auto" disabled={exemptMutation.isPending} onClick={isExempt ? clearExempt : openExemptDialog}>
+                      {isExempt ? "Retirer l'exemption" : 'Marquer « ne paiera pas »'}
+                    </Button>
+                  )}
                 </div>
                 {/* Reason for the exemption (if noted) + a quick way to edit it. */}
-                {isExempt && (
+                {isExempt && !selfView && (
                   <div className="mt-1 flex flex-wrap items-center gap-2 pl-6 text-xs text-muted-foreground">
                     {exemptReason ? <span>Raison : {exemptReason}</span> : <span className="italic">Aucune raison indiquée</span>}
                     <button type="button" className="text-primary hover:underline" onClick={openExemptDialog}>Modifier</button>

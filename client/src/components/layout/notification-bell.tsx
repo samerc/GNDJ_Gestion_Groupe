@@ -163,8 +163,8 @@ export function NotificationBell() {
 // Categories a user can mute (label + type). Keep in sync with the backend Allowed set + NotificationTypes.
 const MUTABLE: { type: NotificationType; label: string; help: string }[] = [
   { type: 'document', label: 'Documents', help: 'Validation / refus de vos documents' },
-  { type: 'change_request', label: 'Modifications à valider', help: 'Propositions de progression / fonction' },
-  { type: 'demande', label: "Demandes d'inscription", help: 'Nouvelles demandes (responsables)' },
+  { type: 'change_request', label: 'Propositions', help: 'Progression / fonction : vos propositions acceptées ou refusées, et celles à valider (chefs)' },
+  { type: 'demande', label: "Demandes d'inscription", help: 'Nouvelles demandes (chef de groupe uniquement)' },
   { type: 'hold', label: 'Suspensions de compte', help: 'Mise en attente d\'un dossier' },
   { type: 'info', label: 'Informations générales', help: 'Messages de contact, annonces, divers' },
 ]

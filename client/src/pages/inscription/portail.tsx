@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { UserPlus, Pencil, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit, LogIn, Hourglass } from 'lucide-react'
+import { UserPlus, Pencil, Eye, Trash2, Users, MailWarning, CheckCircle2, XCircle, Clock, FileEdit, LogIn, Hourglass } from 'lucide-react'
 
 // Maps a demande to its status: a coloured row bar (green accepted / amber pending / blue under review /
 // red refused / grey draft) + a matching badge. The CG's decision is only revealed once the response batch
@@ -141,7 +141,7 @@ export default function ApplicantPortalPage() {
       )}
 
       {demandes.length === 0 ? (
-        <EmptyState icon={Users} title="Aucune demande" description="Cliquez sur « Ajouter une demande » pour présenter une demande d'inscription." />
+        <EmptyState icon={Users} title="Aucune demande" description={canSubmit ? "Cliquez sur « Ajouter une demande » pour présenter une demande d'inscription." : "La période de soumission des demandes est terminée."} />
       ) : (
         // Table (with a coloured status bar per row) so several children are easy to scan at a glance.
         <div className="overflow-x-auto rounded-lg border">
@@ -201,7 +201,7 @@ export default function ApplicantPortalPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="outline" onClick={openDemande}>
-                          {enteredMemberArea ? <LogIn className="mr-1 h-3.5 w-3.5" /> : <Pencil className="mr-1 h-3.5 w-3.5" />}{buttonLabel}
+                          {enteredMemberArea ? <LogIn className="mr-1 h-3.5 w-3.5" /> : buttonLabel === 'Continuer' ? <Pencil className="mr-1 h-3.5 w-3.5" /> : <Eye className="mr-1 h-3.5 w-3.5" />}{buttonLabel}
                         </Button>
                         {editable && !locked && (
                           <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(d)}>

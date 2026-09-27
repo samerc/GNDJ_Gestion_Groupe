@@ -290,10 +290,11 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   // Compute progress stats
   const docStats = docTypes ? {
     total: docTypes.length,
-    approved: docTypes.filter(dt => getDocForType(dt.id)?.status === 'Approved').length,
+    // An accepted but EXPIRED document must be renewed: it doesn't count as accepted.
+    approved: docTypes.filter(dt => { const d = getDocForType(dt.id); return d?.status === 'Approved' && !d.isExpired }).length,
     pending: docTypes.filter(dt => { const d = getDocForType(dt.id); return d && d.status !== 'Approved' && d.status !== 'Rejected'; }).length,
     rejected: docTypes.filter(dt => getDocForType(dt.id)?.status === 'Rejected').length,
-    missing: docTypes.filter(dt => !getDocForType(dt.id)).length,
+    missing: docTypes.filter(dt => { const d = getDocForType(dt.id); return !d || (d.status === 'Approved' && d.isExpired) }).length,
   } : null
 
   const statusColor = (doc: MemberDocumentDto | null) => {
@@ -479,7 +480,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                         disabled={uploadMutation.isPending}
                       >
                         <Upload className="mr-1.5 h-4 w-4" />
-                        {doc ? 'Renvoyer' : 'Envoyer'}
+                        {/* A pending document grows by pages (the server appends); refused/expired ones are re-sent. */}
+                        {!doc ? 'Envoyer' : doc.status === 'Pending' ? 'Ajouter une page' : 'Renvoyer'}
                       </Button>
                       {/* MOBILE ONLY: opens the rear camera to photograph the document (capture="environment").
                           Hidden on desktop, where it would just open a file picker (useless). Requires-expiry
@@ -722,7 +724,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 ))}
               </div>
               <DialogFooter>
-                {canUpload && (
+                {/* No new pages on an accepted (still valid) document: it would stay "Accepté" with an unchecked page. */}
+                {canUpload && openDoc && (openDoc.status !== 'Approved' || openDoc.isExpired) && (
                   <Button variant="outline" onClick={() => addPageRef.current?.click()} disabled={addPagesMutation.isPending}>
                     <Plus className="mr-1 h-4 w-4" />Ajouter une page
                   </Button>

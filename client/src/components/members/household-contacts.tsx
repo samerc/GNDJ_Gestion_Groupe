@@ -399,7 +399,7 @@ function OwnerField({ owners, value, onChange }: { owners: { key: string; label:
 // Parent-relationship picker (the contact's "type") shown in the edit dialogs for a parent's contact.
 function RelationField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className="space-y-2"><RequiredLabel>Type (relation du parent)</RequiredLabel>
+    <div className="space-y-2"><RequiredLabel>Lien avec l'enfant (modifie la relation de ce parent)</RequiredLabel>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>{RELATIONSHIP_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>

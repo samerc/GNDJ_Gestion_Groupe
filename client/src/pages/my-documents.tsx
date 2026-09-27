@@ -20,7 +20,7 @@ export default function MyDocumentsPage() {
 
   return (
     <Page size="narrow">
-      <PageHeader title="Mon dossier" icon={FolderOpen} description="Vos documents et cotisations" />
+      <PageHeader title="Mes documents" icon={FolderOpen} description="Vos documents et cotisations" />
 
       <Card>
         <CardHeader>

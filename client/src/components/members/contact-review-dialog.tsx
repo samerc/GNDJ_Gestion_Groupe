@@ -115,7 +115,9 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
+  // Deletes happen immediately (not on "Confirmer"), so ask first.
   const removeEmail = async (owner: 'self' | string, id: string, address: string) => {
+    if (!window.confirm(`Supprimer définitivement le courriel « ${address} » ?`)) return
     try {
       if (owner === 'self') await delEmail.mutateAsync(id); else await delGEmail.mutateAsync(id)
       if (primaryEmail.toLowerCase() === address.toLowerCase()) setPrimaryEmail('')
@@ -123,6 +125,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const removePhone = async (owner: 'self' | string, id: string) => {
+    if (!window.confirm('Supprimer définitivement ce numéro de téléphone ?')) return
     try {
       if (owner === 'self') await delPhone.mutateAsync(id); else await delGPhone.mutateAsync(id)
       if (primaryPhoneId === id) setPrimaryPhoneId('')
@@ -356,7 +359,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
             <form onSubmit={submitEditEmail} className="space-y-4">
               <div className="space-y-2"><label className="text-sm font-medium">Adresse</label><Input type="email" required value={editEmail.address} onChange={(e) => setEditEmail(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
               {editEmail.owner !== 'self' && (
-                <div className="space-y-2"><label className="text-sm font-medium">Type (relation du parent)</label>
+                <div className="space-y-2"><label className="text-sm font-medium">Lien avec l'enfant (modifie la relation de ce parent)</label>
                   <Select value={editEmail.relationship} onValueChange={(v) => setEditEmail(f => f && { ...f, relationship: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{RELATIONSHIP_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
@@ -380,7 +383,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
                 <div className="space-y-2 sm:col-span-2"><label className="text-sm font-medium">Numéro</label><PhoneInput dialCode={editPhone.countryCode} value={editPhone.number} onChange={(v) => setEditPhone(f => f && { ...f, number: v })} required /></div>
               </div>
               {editPhone.owner !== 'self' && (
-                <div className="space-y-2"><label className="text-sm font-medium">Type (relation du parent)</label>
+                <div className="space-y-2"><label className="text-sm font-medium">Lien avec l'enfant (modifie la relation de ce parent)</label>
                   <Select value={editPhone.relationship} onValueChange={(v) => setEditPhone(f => f && { ...f, relationship: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{RELATIONSHIP_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>

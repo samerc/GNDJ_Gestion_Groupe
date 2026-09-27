@@ -158,7 +158,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
     if (!validate({ firstName: !form.firstName, lastName: !form.lastName, relationshipType: !form.relationshipType })) return
     try {
       await createMutation.mutateAsync({ ...form, profession: form.profession || null, professionDomain: form.professionDomain || null })
-      toast.success('Tuteur ajouté')
+      toast.success('Parent ajouté')
       setAddDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
@@ -167,14 +167,14 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
     setError('')
     try {
       await linkMutation.mutateAsync({ ...linkForm, guardianId })
-      toast.success('Tuteur ajouté')
+      toast.success('Parent ajouté')
       setAddDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleUnlink = async () => {
     if (!unlinking) return
-    try { await unlinkMutation.mutateAsync(unlinking.linkId); toast.success('Tuteur dissocié'); setUnlinking(null) } catch (err) { setError(parseApiError(err)); setUnlinking(null) }
+    try { await unlinkMutation.mutateAsync(unlinking.linkId); toast.success('Parent retiré'); setUnlinking(null) } catch (err) { setError(parseApiError(err)); setUnlinking(null) }
   }
 
   const handleAddPhone = async (e: React.FormEvent) => {
@@ -611,7 +611,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
         open={!!unlinking}
         onOpenChange={() => setUnlinking(null)}
         title="Retirer le lien"
-        description={`Retirer ${unlinking?.guardian.firstName} ${unlinking?.guardian.lastName} de la famille de ce membre ?`}
+        description={`Retirer ${unlinking?.guardian.firstName} ${unlinking?.guardian.lastName} de cette famille ?`}
         confirmLabel="Retirer"
         variant="destructive"
         loading={unlinkMutation.isPending}
