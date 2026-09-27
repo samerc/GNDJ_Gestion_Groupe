@@ -347,8 +347,10 @@ export default function DemandeValidationPage() {
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(selectableIds))
   const clearSelection = () => setSelected(new Set())
 
-  const openApprove = (d: DemandeReview, preset?: string) => { setApproveTarget(d); setPickUnit(preset ?? d.decidedUnitId ?? ''); setDecisionNote(d.decisionNotes ?? '') }
-  const openDecline = (d: DemandeReview) => { setDeclineTarget(d); setDecisionNote(d.decisionNotes ?? '') }
+  // Keep the existing note only when re-opening the SAME decision: a refusal reason is emailed to the family,
+  // so an acceptance note must never pre-fill it (and vice versa).
+  const openApprove = (d: DemandeReview, preset?: string) => { setApproveTarget(d); setPickUnit(preset ?? d.decidedUnitId ?? ''); setDecisionNote(d.status === 'Approved' ? d.decisionNotes ?? '' : '') }
+  const openDecline = (d: DemandeReview) => { setDeclineTarget(d); setDecisionNote(d.status === 'Declined' ? d.decisionNotes ?? '' : '') }
 
   // Stage a single decision (not yet emailed). Approve requires a target unit.
   const decide = async (d: DemandeReview, newStatus: 'Approved' | 'Declined', unitId: string | null, note: string | null) => {
@@ -416,7 +418,8 @@ export default function DemandeValidationPage() {
     const results = await Promise.allSettled(ids.map((id) => deleteMutation.mutateAsync(id)))
     const ok = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.length - ok
-    toast.success(`${ok} demande(s) supprimée(s)${failed ? ` · ${failed} échec(s)` : ''}`)
+    const msg = `${ok} demande(s) supprimée(s)${failed ? ` · ${failed} échec(s)` : ''}`
+    if (ok === 0 && failed) toast.error(msg); else if (failed) toast.warning(msg); else toast.success(msg)
     clearSelection(); setBulkDeleteOpen(false)
   }
 

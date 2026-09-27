@@ -22,12 +22,12 @@ export default function ChangeRequestsPage() {
   const [reason, setReason] = useState('')
 
   const approve = async (r: ChangeRequestDto) => {
-    try { await reviewMutation.mutateAsync({ id: r.id, approve: true }); toast.success('Demande acceptée et appliquée') }
+    try { await reviewMutation.mutateAsync({ id: r.id, approve: true }); toast.success('Proposition acceptée et appliquée') }
     catch (err) { toast.error(parseApiError(err)) }
   }
   const confirmReject = async () => {
     if (!rejecting) return
-    try { await reviewMutation.mutateAsync({ id: rejecting.id, approve: false, decisionNotes: reason || null }); toast.success('Demande refusée'); setRejecting(null); setReason('') }
+    try { await reviewMutation.mutateAsync({ id: rejecting.id, approve: false, decisionNotes: reason || null }); toast.success('Proposition refusée'); setRejecting(null); setReason('') }
     catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -42,7 +42,7 @@ export default function ChangeRequestsPage() {
       />
 
       {!requests || requests.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="Aucune demande en attente" description="Les demandes de vos membres apparaîtront ici." />
+        <EmptyState icon={ClipboardList} title="Aucune proposition en attente" description="Les propositions de vos membres (progression, fonction) apparaîtront ici." />
       ) : (
         <div className="space-y-3">
           {requests.map(r => (
@@ -81,7 +81,7 @@ export default function ChangeRequestsPage() {
       {/* Reject dialog (optional reason) */}
       <Dialog open={!!rejecting} onOpenChange={(o) => { if (!o) setRejecting(null) }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Refuser la demande</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Refuser la proposition</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{rejecting?.summary}</p>
             <div className="space-y-2">

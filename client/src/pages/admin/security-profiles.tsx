@@ -245,7 +245,7 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
                 </>
               )}
               {/* Merge / delete stay super-admin-only. */}
-              {canManage && !dirty && (
+              {canManage && !dirty && !profile.isSystem && (
                 <Button variant="outline" size="sm" onClick={() => setMergeOpen(true)}>
                   <GitMerge className="mr-1 h-4 w-4" />Fusionner
                 </Button>

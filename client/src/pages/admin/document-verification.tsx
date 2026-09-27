@@ -92,7 +92,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
   const doSendErrors = async () => {
     try {
       const r = await sendErrors.mutateAsync()
-      toast.success(`Emails d'erreur envoyés — ${r.sent} envoyé(s)${r.noEmail ? `, ${r.noEmail} sans email` : ''}`)
+      toast.success(`Emails d'erreur mis en file d'envoi — ${r.sent} email(s)${r.noEmail ? `, ${r.noEmail} sans email` : ''}`)
     } catch (err) { toast.error(parseApiError(err)) }
     finally { setConfirmErrors(false) }
   }
@@ -138,11 +138,11 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
 
           {/* Manual steps */}
           <div className="flex flex-wrap gap-2 border-t pt-4">
-            <Button variant="outline" onClick={() => setConfirmErrors(true)} disabled={!status.enabled || sendErrors.isPending}>
-              <Mail className="mr-1.5 h-4 w-4" />Envoyer les emails d'erreur{data.errorsSent ? ' (déjà envoyés)' : ''}
+            <Button variant="outline" onClick={() => setConfirmErrors(true)} disabled={!status.enabled || sendErrors.isPending || data.errorsSent}>
+              <Mail className="mr-1.5 h-4 w-4" />Envoyer les emails d'erreur{data.errorsSent ? ' (déjà envoyés cette année)' : ''}
             </Button>
-            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmHold(true)} disabled={!status.enabled || applyHold.isPending}>
-              <Ban className="mr-1.5 h-4 w-4" />Mettre les incomplets en attente{data.holdApplied ? ' (déjà fait)' : ''}
+            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmHold(true)} disabled={!status.enabled || applyHold.isPending || data.holdApplied}>
+              <Ban className="mr-1.5 h-4 w-4" />Mettre les incomplets en attente{data.holdApplied ? ' (déjà fait cette année)' : ''}
             </Button>
           </div>
           {!data.verificationDone && (

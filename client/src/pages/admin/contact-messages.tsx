@@ -147,7 +147,7 @@ export default function ContactMessagesPage() {
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
         title="Supprimer ce message ?"
-        description={deleting ? `Le message de ${deleting.senderName} sera supprimé définitivement de la boîte de réception.` : ''}
+        description={deleting ? `Le message de ${deleting.senderName} sera retiré de la boîte de réception.` : ''}
         confirmLabel="Supprimer"
         variant="destructive"
         loading={del.isPending}

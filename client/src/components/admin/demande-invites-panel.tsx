@@ -37,9 +37,10 @@ export function DemandeInvitesPanel() {
   const create = useCreateDemandeInvite()
   const revoke = useRevokeDemandeInvite()
 
-  const copy = async (token: string) => {
-    try { await navigator.clipboard.writeText(inviteLink(token)); toast.success('Lien copié') }
-    catch { toast.error('Impossible de copier le lien') }
+  // Returns whether the copy worked; `silent` lets the create path show ONE combined toast instead of two.
+  const copy = async (token: string, silent = false) => {
+    try { await navigator.clipboard.writeText(inviteLink(token)); if (!silent) toast.success('Lien copié'); return true }
+    catch { if (!silent) toast.error('Impossible de copier le lien'); return false }
   }
 
   const handleCreate = async () => {
@@ -50,9 +51,10 @@ export function DemandeInvitesPanel() {
         email: email.trim() || undefined,
         validDays: Number.isFinite(days) ? days : undefined,
       })
-      await copy(inv.token) // put the fresh link on the clipboard immediately
+      const copied = await copy(inv.token, true) // put the fresh link on the clipboard immediately
       setCreateOpen(false); setLabel(''); setEmail(''); setValidDays('14')
-      toast.success('Invitation créée — le lien est copié dans le presse-papiers')
+      if (copied) toast.success('Invitation créée — le lien est copié dans le presse-papiers')
+      else toast.warning('Invitation créée — copiez le lien depuis la liste (copie automatique impossible)')
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -123,6 +125,7 @@ export function DemandeInvitesPanel() {
             <div className="space-y-2">
               <Label htmlFor="inv-email">Email de la famille (facultatif)</Label>
               <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="parent@email.com" />
+              <p className="text-xs text-muted-foreground">Pour mémoire uniquement : le lien n'est pas envoyé par email. Copiez-le et transmettez-le à la famille.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="inv-days">Validité (jours)</Label>
@@ -139,15 +142,16 @@ export function DemandeInvitesPanel() {
       <ConfirmDialog
         open={!!revokeTarget}
         onOpenChange={(o) => !o && setRevokeTarget(null)}
-        title="Annuler cette invitation ?"
+        title="Révoquer cette invitation ?"
         description={`Le lien ${revokeTarget?.label ? `« ${revokeTarget.label} » ` : ''}ne fonctionnera plus.`}
-        confirmLabel="Annuler l'invitation"
+        confirmLabel="Révoquer"
+        cancelLabel="Garder l'invitation"
         variant="destructive"
         loading={revoke.isPending}
         onConfirm={() => {
           if (!revokeTarget) return
           revoke.mutate(revokeTarget.id, {
-            onSuccess: () => { toast.success('Invitation annulée'); setRevokeTarget(null) },
+            onSuccess: () => { toast.success('Invitation révoquée'); setRevokeTarget(null) },
             onError: (e) => toast.error(parseApiError(e)),
           })
         }}

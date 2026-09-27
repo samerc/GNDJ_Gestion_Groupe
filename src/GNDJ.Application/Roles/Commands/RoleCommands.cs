@@ -301,6 +301,8 @@ public class MergeSecurityProfilesCommandHandler(IApplicationDbContext context, 
         var source = await context.SecurityProfiles.Include(sp => sp.Permissions)
             .FirstOrDefaultAsync(sp => sp.Id == request.SourceId, ct);
         if (source is null) return Result<int>.Failure("Profil source introuvable.");
+        // Merging deletes the source: a built-in profile (chef-unite, chef-de-groupe…) must never be removed.
+        if (source.IsSystem) return Result<int>.Failure("Un profil système ne peut pas être fusionné (il serait supprimé).");
 
         var target = await context.SecurityProfiles.FirstOrDefaultAsync(sp => sp.Id == request.TargetId, ct);
         if (target is null) return Result<int>.Failure("Profil cible introuvable.");

@@ -355,7 +355,8 @@ export default function PassageValidationPage() {
           <Select value={scoutYear} onValueChange={setScoutYear}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {['2026-2027', '2025-2026', '2024-2025'].map(y => (
+              {/* The configured passage year and the two before it (e.g. 2027-2028, 2026-2027, 2025-2026). */}
+              {[0, 1, 2].map(i => { const start = parseInt(passageScoutYear, 10) - i; return `${start}-${start + 1}` }).map(y => (
                 <SelectItem key={y} value={y}>{y}</SelectItem>
               ))}
             </SelectContent>
@@ -613,8 +614,9 @@ export default function PassageValidationPage() {
                   </td>
                   <td className="px-3 py-2">{statusBadge(p)}</td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-1">
-                      <Tip content="Accepter">
+                    {/* Published lines can no longer change; "Accepter" only makes sense on a pending line. */}
+                    {p.status !== 'Finalized' && <div className="flex gap-1">
+                      {p.status === 'Pending' && <Tip content="Accepter">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -624,7 +626,7 @@ export default function PassageValidationPage() {
                         >
                           <Check className="h-3.5 w-3.5 text-green-600" />
                         </Button>
-                      </Tip>
+                      </Tip>}
                       <Tip content="Changer (unité, équipe, fonction) avec une raison">
                         <Button
                           variant="ghost"
@@ -635,7 +637,7 @@ export default function PassageValidationPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </Tip>
-                    </div>
+                    </div>}
                   </td>
                 </tr>
               ))}
@@ -678,10 +680,10 @@ export default function PassageValidationPage() {
                   {p.cgNotes && <p className="mt-1 text-xs italic text-muted-foreground">Raison : {p.cgNotes}</p>}
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5 border-t pt-2">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => quickApprove(p)} disabled={pendingId === p.id}><Check className="mr-1 h-4 w-4 text-green-600" />Accepter</Button>
+              {p.status !== 'Finalized' && <div className="mt-2 flex flex-wrap gap-1.5 border-t pt-2">
+                {p.status === 'Pending' && <Button size="sm" variant="outline" className="flex-1" onClick={() => quickApprove(p)} disabled={pendingId === p.id}><Check className="mr-1 h-4 w-4 text-green-600" />Accepter</Button>}
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => openEditDialog(p)}><Pencil className="mr-1 h-4 w-4" />Changer</Button>
-              </div>
+              </div>}
             </div>
           ))}
         </div>

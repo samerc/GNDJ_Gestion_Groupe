@@ -70,7 +70,7 @@ export default function MaitrisesPage() {
       <PageHeader
         title="Maîtrises"
         icon={Crown}
-        description="Les responsables de chaque unité, classés par rang (du plus ancien au plus récent)."
+        description="Les responsables de chaque unité, classés par fonction (chef d'unité en premier)."
       />
 
       {(!units || units.length === 0) && (
@@ -128,9 +128,9 @@ export default function MaitrisesPage() {
       <ConfirmDialog
         open={!!removeTarget}
         onOpenChange={(o) => { if (!o) setRemoveTarget(null) }}
-        title="Retirer de la maîtrise"
+        title="Retirer cette fonction"
         description={removeTarget
-          ? `Retirer ${removeTarget.firstName} ${removeTarget.lastName} de la maîtrise ? Sa fonction « ${removeTarget.functionName} » sera clôturée et il n'apparaîtra plus dans son unité.`
+          ? `La fonction « ${removeTarget.functionName} » de ${removeTarget.firstName} ${removeTarget.lastName} sera clôturée aujourd'hui. S'il s'agit de sa seule fonction, la personne n'apparaîtra plus dans l'unité.`
           : ''}
         confirmLabel="Retirer"
         variant="destructive"
