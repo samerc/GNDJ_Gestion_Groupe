@@ -141,6 +141,7 @@ public class SetMemberDelegationCommandHandler(IApplicationDbContext context, IC
         // Validate the attached profile (if any) + no-escalation cap: a non-super granter can only delegate a
         // profile whose permissions they all hold themselves.
         Guid? profileId = null;
+        List<string> profilePerms = [];
         if (request.ProfileId is Guid pid)
         {
             var prof = await context.SecurityProfiles
@@ -151,6 +152,7 @@ public class SetMemberDelegationCommandHandler(IApplicationDbContext context, IC
             if (!isSuper && !prof.Perms.All(callerPerms.Contains))
                 return Result<bool>.Failure("Vous ne pouvez pas déléguer un profil qui dépasse vos propres accès.");
             profileId = pid;
+            profilePerms = prof.Perms;
         }
 
         // Granular ad-hoc areas → a permission set (never system/appointment perms; capped to the granter).
@@ -165,6 +167,9 @@ public class SetMemberDelegationCommandHandler(IApplicationDbContext context, IC
             adHoc.ExceptWith(GroupAccessAreas.NonDelegatable);
             if (!isSuper) adHoc.IntersectWith(callerPerms);
         }
+        // Extra accesses the attached profile already gives are redundant (e.g. "Membres (complet)" next to the Chef
+        // de Groupe profile): drop them so the list shows only what is really added on top of the profile.
+        adHoc.ExceptWith(profilePerms);
 
         if (profileId is null && adHoc.Count == 0)
         {
