@@ -22,13 +22,11 @@ public record RecordEmailBounceCommand(string Provider, string Address, string K
 
 public class RecordEmailBounceCommandHandler(IApplicationDbContext context) : IRequestHandler<RecordEmailBounceCommand, Result<bool>>
 {
-    public async ValueTask<Result<bool>> Handle(RecordEmailBounceCommand request, CancellationToken ct)
-    {
-        var address = (request.Address ?? "").Trim().ToLowerInvariant();
-        if (address.Length is 0 or > 254 || !address.Contains('@')) return Result<bool>.Success(false);
-        var now = DateTime.UtcNow;
-        var reason = request.Reason is { Length: > 500 } r ? r[..500] : request.Reason;
+    private static readonly SemaphoreSlim Gate = new(1, 1);
 
+    private async Task UpsertAsync(string address, RecordEmailBounceCommand request, string? reason, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
         var row = await context.EmailBounces.FirstOrDefaultAsync(b => b.Address == address, ct);
         if (row is null)
         {
@@ -42,6 +40,35 @@ public class RecordEmailBounceCommandHandler(IApplicationDbContext context) : IR
         row.LastAt = now;
         row.Suppressed = row.Kind != EmailBounceKinds.Soft || row.Count >= EmailBounceKinds.SoftSuppressAfter;
         await context.SaveChangesAsync(ct);
+    }
+
+    public async ValueTask<Result<bool>> Handle(RecordEmailBounceCommand request, CancellationToken ct)
+    {
+        var address = (request.Address ?? "").Trim().ToLowerInvariant();
+        if (address.Length is 0 or > 254 || !address.Contains('@')) return Result<bool>.Success(false);
+        var reason = request.Reason is { Length: > 500 } r ? r[..500] : request.Reason;
+
+        // Providers often post several events for the same address at the same instant (Mailgun's "Test" sends
+        // three at once): without serializing, each one inserts a first row and the unique index on Address
+        // turns all but one into 409. One process serves the app, so a static lock is enough; the retry covers
+        // the rare cross-process case (overlapping IIS recycle).
+        await Gate.WaitAsync(ct);
+        try
+        {
+            for (var attempt = 0; ; attempt++)
+            {
+                try { await UpsertAsync(address, request, reason, ct); break; }
+                catch (DbUpdateException) when (attempt == 0)
+                {
+                    // Another process inserted the row between our read and our insert: forget our pending insert
+                    // and apply the event to the now-existing row.
+                    // (Remove on an Added entity just detaches it.)
+                    foreach (var pending in context.EmailBounces.Local.Where(b => b.Address == address).ToList())
+                        context.EmailBounces.Remove(pending);
+                }
+            }
+        }
+        finally { Gate.Release(); }
         return Result<bool>.Success(true);
     }
 }
