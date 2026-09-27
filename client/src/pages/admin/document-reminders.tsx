@@ -23,6 +23,7 @@ import { Callout } from '@/components/shared/callout'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 // Reason key → French label + chip colour. missing = manquant, rejected = à corriger, expired = à renouveler.
 const REASON: Record<string, { label: string; cls: string }> = {
@@ -33,6 +34,7 @@ const REASON: Record<string, { label: string; cls: string }> = {
 
 // `embedded` = rendered as a tab inside the merged "Suivi des documents" page; suppress the page's own header.
 export default function DocumentRemindersPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const emailToast = useEmailQueuedToast()
   const { data: summary, isLoading } = useDocumentReminderSummary()
   const send = useSendDocumentReminders()
   const [selectedUnitId, setSelectedUnitId] = useState('')
@@ -49,7 +51,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
   const { data: members, isLoading: loadingMembers } = useDocumentReminderCandidates(selectedUnitId || undefined)
 
   const reportToast = (res: SendRemindersResult) =>
-    toast.success(`${res.sent} relance(s) envoyée(s)` + (res.noEmail ? ` · ${res.noEmail} sans email` : ''))
+    emailToast(`${res.sent} relance(s) mise(s) en file d'envoi` + (res.noEmail ? ` · ${res.noEmail} sans email` : ''))
 
   // One-click: relance every incomplete member (with an email) of the selected unit.
   const sendUnit = async (u: UnitReminderSummary) => {

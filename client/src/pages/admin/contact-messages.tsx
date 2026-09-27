@@ -23,6 +23,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 // In-app inbox for public contact-form submissions. Managers (content.manage) read, reply, and delete here
 // instead of digging through email. Opening a message marks it read; "Répondre" queues a "Re:" email to the
@@ -183,6 +184,7 @@ function MessageDialog({
   onMarkUnread: () => void
   onDelete: () => void
 }) {
+  const emailToast = useEmailQueuedToast()
   const reply = useReplyContactMessage()
   const claim = useClaimContactMessage()
   const [subject, setSubject] = useState('')
@@ -208,7 +210,7 @@ function MessageDialog({
 
   const send = () => {
     reply.mutate({ id: message.id, subject, body }, {
-      onSuccess: () => { toast.success('Réponse envoyée à ' + (replyTo ?? message.senderEmail)); onClose() },
+      onSuccess: () => { emailToast("Réponse mise en file d'envoi pour " + (replyTo ?? message.senderEmail)); onClose() },
       onError: (e) => toast.error(parseApiError(e)),
     })
   }
@@ -244,20 +246,30 @@ function MessageDialog({
           {/* Message body */}
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.message}</p>
 
-          {/* Previous reply (if any) */}
-          {message.repliedAt && (
-            <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 text-sm">
-              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                <CornerUpLeft className="h-3.5 w-3.5" /> Réponse envoyée le {fmt(message.repliedAt)}
+          {/* Every reply already sent (oldest first) — a new reply is added, it never replaces an earlier one. */}
+          {(message.replies ?? []).map((r) => (
+            <div key={r.id} className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 text-sm">
+              <p className="mb-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                <CornerUpLeft className="h-3.5 w-3.5" /> Réponse du {fmt(r.createdAt)}
+                {r.repliedByName && <span className="font-normal">par {r.repliedByName}</span>}
+                <span className="font-normal text-muted-foreground">→ {r.sentTo}</span>
               </p>
-              {message.replySubject && <p className="font-medium">{message.replySubject}</p>}
-              {message.replyBody && <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{message.replyBody}</p>}
+              <p className="font-medium">{r.subject}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{r.body}</p>
             </div>
-          )}
+          ))}
 
           {/* Reply composer */}
           {replyOpen && (
             <div className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-3">
+              {(message.replies?.length ?? 0) > 0 && (() => {
+                const last = message.replies[message.replies.length - 1]
+                return (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Une réponse a déjà été envoyée le {fmt(last.createdAt)}{last.repliedByName ? ` par ${last.repliedByName}` : ''}. Celle-ci sera envoyée en plus et gardée dans l'historique.
+                  </p>
+                )
+              })()}
               <div className="space-y-1.5">
                 <Label htmlFor="reply-subject">Objet</Label>
                 <Input id="reply-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} />

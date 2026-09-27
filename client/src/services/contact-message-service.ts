@@ -20,6 +20,17 @@ export interface ContactMessageDto {
   // Deliverable reply address: the senderEmail for a normal address, the member's real contact email when the
   // sender typed their login username, or null when it's a username with no real email on file (can't reply).
   replyToEmail: string | null
+  // Every reply sent, oldest first.
+  replies: ContactMessageReplyDto[]
+}
+
+export interface ContactMessageReplyDto {
+  id: string
+  subject: string
+  body: string
+  sentTo: string
+  repliedByName: string | null
+  createdAt: string
 }
 
 export interface ContactMessageListDto {

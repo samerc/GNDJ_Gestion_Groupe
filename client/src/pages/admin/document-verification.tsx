@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
 import { CalendarClock, Mail, Ban, RotateCcw, CheckCircle2, Clock, Save, Users } from 'lucide-react'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 // CG "Vérification des documents" — the group-wide campaign console. Set the schedule (dates), watch the phase +
 // per-unit completion, and run the two steps (error emails / on-hold) manually if the CU verification wasn't
@@ -50,6 +51,7 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
 // `embedded` = rendered inside the merged "Suivi des documents" page (whose title/tabs own the header), so the
 // page's own h1 + description are suppressed to avoid a double header.
 export default function DocumentVerificationPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const emailToast = useEmailQueuedToast()
   const { data, isLoading } = useDocumentCampaignAdmin()
   const update = useUpdateDocumentCampaign()
   const sendErrors = useSendCampaignErrors()
@@ -92,7 +94,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
   const doSendErrors = async () => {
     try {
       const r = await sendErrors.mutateAsync()
-      toast.success(`Emails d'erreur mis en file d'envoi — ${r.sent} email(s)${r.noEmail ? `, ${r.noEmail} sans email` : ''}`)
+      emailToast(`Emails d'erreur mis en file d'envoi — ${r.sent} email(s)${r.noEmail ? `, ${r.noEmail} sans email` : ''}`)
     } catch (err) { toast.error(parseApiError(err)) }
     finally { setConfirmErrors(false) }
   }
@@ -100,7 +102,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
   const doApplyHold = async () => {
     try {
       const r = await applyHold.mutateAsync()
-      toast.success(`${r.held} dossier(s) mis en attente${r.emailed ? `, ${r.emailed} email(s) envoyé(s)` : ''}`)
+      emailToast(`${r.held} dossier(s) mis en attente${r.emailed ? `, ${r.emailed} email(s) mis en file d'envoi` : ''}`)
     } catch (err) { toast.error(parseApiError(err)) }
     finally { setConfirmHold(false) }
   }

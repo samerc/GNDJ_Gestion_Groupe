@@ -26,4 +26,7 @@ public class ContactMessage : BaseEntity
     public string? ReplySubject { get; set; }
     public string? ReplyBody { get; set; }
     public Guid? RepliedByUserId { get; set; }
+
+    // Every reply ever sent (the Reply* fields above hold only the LATEST, for the list's "Répondu" chip).
+    public ICollection<ContactMessageReply> Replies { get; set; } = new List<ContactMessageReply>();
 }

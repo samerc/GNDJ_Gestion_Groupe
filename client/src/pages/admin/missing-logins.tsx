@@ -18,11 +18,13 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoginCredsDialog, type LoginCred } from '@/components/admin/login-creds-dialog'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 const ALL_ACTIVE = '__all_active__'
 
 // `embedded` = rendered as a tab elsewhere (hides its own header).
 export default function MissingLoginsPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const emailToast = useEmailQueuedToast()
   const { data: units } = useUnits({ pageSize: 100, isActive: true })
   const isManager = useIsManager()
   const [unitId, setUnitId] = useState<string>(isManager ? ALL_ACTIVE : '')
@@ -41,7 +43,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
     setBusyId(m.memberId)
     try {
       const r = await createOne.mutateAsync(m.memberId)
-      if (r.sentToEmail) toast.success(`Email d'activation envoyé à ${r.sentToEmail}`)
+      if (r.sentToEmail) emailToast(`Email d'activation mis en file d'envoi pour ${r.sentToEmail}`)
       else setCreds({ emailSent: 0, alreadyHad: 0, list: [{ memberName: m.memberName, username: r.username, temporaryPassword: r.temporaryPassword! }] })
     } catch (e) { toast.error(parseApiError(e)) } finally { setBusyId(null) }
   }
@@ -51,7 +53,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
       const r = await createAll.mutateAsync(isAll ? { allActive: true } : { unitId })
       setConfirmAll(false)
       setCreds({ emailSent: r.emailSent, alreadyHad: r.alreadyHad, list: r.noEmailCreds })
-      toast.success(`${r.created} compte(s) créé(s)` + (r.emailSent ? ` · ${r.emailSent} email(s) d'activation` : ''))
+      if (r.emailSent) emailToast(`${r.created} compte(s) créé(s) · ${r.emailSent} email(s) d'activation mis en file d'envoi`); else toast.success(`${r.created} compte(s) créé(s)`)
     } catch (e) { toast.error(parseApiError(e)); setConfirmAll(false) }
   }
 

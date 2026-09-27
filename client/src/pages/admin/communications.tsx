@@ -29,10 +29,13 @@ import { RichContent } from '@/components/public/rich-content'
 import { Send, Users, MailWarning, KeyRound, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
+
 type Audience = 'all' | 'unit'
 
 // `embedded` = rendered inside the "Emails aux chefs" page (which owns the header).
 export default function CommunicationsPage({ embedded = false }: { embedded?: boolean } = {}) {
+  const emailToast = useEmailQueuedToast()
   const [templateCode, setTemplateCode] = useState('')
   const [audience, setAudience] = useState<Audience>('all')
   const [unitId, setUnitId] = useState('') // only used when audience === 'unit'
@@ -120,7 +123,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
       setConfirmOpen(false)
       // noAccount only applies to an activation-link template (recipients without a login can't get a set-password link).
       const extra = `${res.noEmail > 0 ? ` ${res.noEmail} sans email.` : ''}${res.noAccount > 0 ? ` ${res.noAccount} sans compte (accès non envoyé).` : ''}`
-      if (res.sent > 0) toast.success(`${res.sent} message(s) envoyé(s).${extra}`)
+      if (res.sent > 0) emailToast(`${res.sent} message(s) mis en file d'envoi.${extra}`)
       else toast.warning(`Aucun message envoyé.${extra}`)
     } catch (err) {
       toast.error(parseApiError(err))

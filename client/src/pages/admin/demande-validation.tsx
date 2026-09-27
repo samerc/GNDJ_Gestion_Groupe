@@ -42,6 +42,7 @@ import {
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function eligible(u: UnitOccupancy, d: DemandeReview): boolean {
@@ -139,6 +140,7 @@ function relationsSummary(d: DemandeReview): string {
 type SortKey = 'lastName' | 'firstName' | 'age' | 'classe' | 'status'
 
 export default function DemandeValidationPage() {
+  const emailToast = useEmailQueuedToast()
   const scoutYear = useSettingValue('demande.scout_year') ?? '2026-2027'
   const siblingsTogether = useSettingValue('demande.decide_siblings_together') === 'true'
   const schoolCode = useSchoolCode()
@@ -215,7 +217,7 @@ export default function DemandeValidationPage() {
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const handleReminders = async () => {
-    try { const r = await remindersMutation.mutateAsync(scoutYear); toast.success(`${r.sent} rappel(s) envoyé(s)`) }
+    try { const r = await remindersMutation.mutateAsync(scoutYear); emailToast(`${r.sent} rappel(s) mis en file d'envoi`) }
     catch (err) { toast.error(parseApiError(err)) }
     finally { setReminderConfirm(false) }
   }
@@ -428,7 +430,7 @@ export default function DemandeValidationPage() {
   const handleSend = async () => {
     try {
       const r = await sendMutation.mutateAsync(scoutYear)
-      toast.success(`${r.approved} acceptée(s) converties en membres, ${r.declined} refusée(s) notifiée(s)`)
+      emailToast(`${r.approved} acceptée(s) converties en membres, ${r.declined} refusée(s) · emails aux familles mis en file d'envoi`)
       setSendOpen(false)
     } catch (err) { toast.error(parseApiError(err)); setSendOpen(false) }
   }

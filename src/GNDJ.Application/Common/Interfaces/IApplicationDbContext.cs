@@ -81,6 +81,7 @@ public interface IApplicationDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<NotificationBroadcast> NotificationBroadcasts { get; }
     DbSet<ContactMessage> ContactMessages { get; }
+    DbSet<ContactMessageReply> ContactMessageReplies { get; }
     DbSet<PushSubscription> PushSubscriptions { get; }
     DbSet<PushOutbox> PushOutbox { get; }
     DbSet<UploadSession> UploadSessions { get; }

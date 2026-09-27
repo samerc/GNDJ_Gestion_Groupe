@@ -33,6 +33,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2, Mail, Copy, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 export default function MemberGroupsPage() {
   const { data: groups, isLoading } = useMemberGroups()
@@ -397,6 +398,7 @@ function MemberPane({ group, members, unitId, unitName, grouped }: {
 // Compose + send an email to a group's members: a saved template OR a free-text subject/body. Delivery is queued
 // (durable outbox) — the toast reports how many were queued and who has no reachable email.
 function SendMessageDialog({ group, unitId, unitName, onClose }: { group: MemberGroupDto; unitId?: string | null; unitName?: string | null; onClose: () => void }) {
+  const emailToast = useEmailQueuedToast()
   const { data: templates } = useLeaderMessageTemplates()
   const send = useSendGroupMessage()
   const [mode, setMode] = useState<'free' | 'template'>('free')
@@ -415,7 +417,7 @@ function SendMessageDialog({ group, unitId, unitName, onClose }: { group: Member
         ? { ...base, templateCode }
         : { ...base, subject: subject.trim(), bodyHtml: body.trim() })
       const extra = r.noContact > 0 ? ` · ${r.noContact} sans email` : ''
-      toast.success(`Email envoyé à ${r.recipients} destinataire(s)${extra}`)
+      emailToast(`Email mis en file d'envoi pour ${r.recipients} destinataire(s)${extra}`)
       onClose()
     } catch (e) { setError(parseApiError(e)) }
   }

@@ -34,6 +34,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
       { key: 'gender', label: 'Sexe' },
       { key: 'dateOfBirth', label: 'Date de naissance' },
       { key: 'age', label: 'Âge' },
+      { key: 'nationality', label: 'Nationalité' },
     ],
   },
   {
@@ -62,7 +63,6 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     label: 'Médical',
     columns: [
       { key: 'bloodType', label: 'Groupe sanguin' },
-      { key: 'nationality', label: 'Nationalité' },
     ],
   },
 ]

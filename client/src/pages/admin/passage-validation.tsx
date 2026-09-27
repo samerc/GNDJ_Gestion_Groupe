@@ -63,6 +63,7 @@ import {
   Send,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 // One allowed move target for a member from the parcours scout: kind 'same' = stay in the branch
 // (équipe/fonction change), kind 'up' = a progression target unit (unité supérieure). Mirrors the CU page.
@@ -77,6 +78,7 @@ interface PassageDestination {
 }
 
 export default function PassageValidationPage() {
+  const emailToast = useEmailQueuedToast()
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
   const [scoutYear, setScoutYear] = useState('2026-2027')
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
@@ -106,7 +108,7 @@ export default function PassageValidationPage() {
   const handleRemind = async () => {
     try {
       const r = await remindMutation.mutateAsync({ scoutYear })
-      toast.success(`Rappel envoyé à ${r.units} unité(s) : ${r.notified} notification(s), ${r.emails} email(s)`)
+      emailToast(`Rappel à ${r.units} unité(s) : ${r.notified} notification(s) envoyée(s), ${r.emails} email(s) mis en file d'envoi`)
     } catch (err) {
       toast.error(parseApiError(err))
     }

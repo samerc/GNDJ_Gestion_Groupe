@@ -43,6 +43,7 @@ import { AccessViewerDialog } from '@/pages/members/access-viewer-dialog'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { credentialsMessage } from '@/lib/credentials'
+import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -89,6 +90,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
   // Mobile master/detail: shows a "Retour" arrow in the header that returns to the list.
   onBack?: () => void
 }) {
+  const emailToast = useEmailQueuedToast()
   const { data: member, isLoading } = useMember(memberId)
   // Record this member as recently-viewed (localStorage) for quick jump-back in the Ctrl-K palette.
   useEffect(() => {
@@ -256,7 +258,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
     try {
       const creds = await resetPassword.mutateAsync(memberId)
       setResetCreds({ username: creds.username, password: creds.temporaryPassword, sentToEmail: creds.sentToEmail })
-      toast.success(creds.sentToEmail ? `Mot de passe réinitialisé — email envoyé à ${creds.sentToEmail}` : 'Mot de passe réinitialisé')
+      if (creds.sentToEmail) emailToast(`Mot de passe réinitialisé — email mis en file d'envoi pour ${creds.sentToEmail}`); else toast.success('Mot de passe réinitialisé')
     } catch (err) { toast.error(parseApiError(err)) }
     finally { setResetConfirmOpen(false) }
   }
@@ -286,7 +288,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
   const handleResendAccess = async () => {
     try {
       const res = await sendAccess.mutateAsync({ memberIds: [memberId] })
-      if (res.sent > 0) toast.success(`Accès envoyé à ${res.details[0]?.email ?? "l'email de contact"}`)
+      if (res.sent > 0) emailToast(`Accès mis en file d'envoi pour ${res.details[0]?.email ?? "l'email de contact"}`)
       else if (res.noEmail > 0) toast.error('Aucun email de contact sur la fiche')
       else if (res.noAccount > 0) toast.error("Ce membre n'a pas de compte utilisateur")
       else toast.error('Envoi impossible')

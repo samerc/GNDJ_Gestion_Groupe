@@ -16,7 +16,11 @@ public record ContactMessageDto(
     // Deliverable reply address: the SenderEmail for a normal address, the member's REAL contact email when the
     // sender typed their "@{user_domain}" login username, or null when it's a username with no real email on file
     // (so the dialog can warn instead of pretending it will be delivered).
-    string? ReplyToEmail = null);
+    string? ReplyToEmail = null,
+    // Every reply sent, oldest first (a second reply no longer replaces the first one).
+    IReadOnlyList<ContactMessageReplyDto>? Replies = null);
+
+public record ContactMessageReplyDto(Guid Id, string Subject, string Body, string SentTo, string? RepliedByName, DateTime CreatedAt);
 
 public record ContactMessageListDto(IReadOnlyList<ContactMessageDto> Items, int Total, int UnreadCount, bool HasMore);
 
@@ -67,9 +71,19 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
         // Resolve each sender's deliverable reply address (a login username -> the member's real email) so the
         // inbox dialog shows/uses the address a reply would actually reach. Batched (one lookup for the page).
         var replyMap = await ContactReplyEmail.ResolveManyAsync(context, items.Select(i => i.SenderEmail), ct);
+        // Reply history for the page, one query.
+        var ids = items.Select(i => i.Id).ToList();
+        var replies = (await context.ContactMessageReplies
+                .Where(r => ids.Contains(r.ContactMessageId))
+                .OrderBy(r => r.CreatedAt)
+                .Select(r => new { r.ContactMessageId, Dto = new ContactMessageReplyDto(r.Id, r.Subject, r.Body, r.SentTo, r.RepliedByName, r.CreatedAt) })
+                .ToListAsync(ct))
+            .ToLookup(r => r.ContactMessageId, r => r.Dto);
+
         items = items.Select(i => i with
         {
             ReplyToEmail = replyMap.TryGetValue(i.SenderEmail?.Trim() ?? "", out var to) ? to : i.SenderEmail,
+            Replies = replies[i.Id].ToList(),
         }).ToList();
 
         return new ContactMessageListDto(items, total, unreadCount, hasMore);
@@ -143,7 +157,25 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
             ["body"] = body,
         }), ct);
 
-        m.RepliedAt = DateTime.UtcNow;
+        var replier = currentUser.MemberId is Guid mid
+            ? await context.Members.Where(x => x.Id == mid).Select(x => (x.FirstName + " " + x.LastName).Trim()).FirstOrDefaultAsync(ct)
+            : null;
+        var now = DateTime.UtcNow;
+
+        // Keep every reply (history); the fields on the message itself only hold the latest one.
+        // Added through the DbSet with the FK, never through m.Replies (that would issue a spurious parent update).
+        context.ContactMessageReplies.Add(new Domain.Entities.ContactMessageReply
+        {
+            ContactMessageId = m.Id,
+            Subject = subject,
+            Body = body,
+            SentTo = replyTo.Trim(),
+            RepliedByUserId = currentUser.UserId,
+            RepliedByName = string.IsNullOrWhiteSpace(replier) ? null : replier,
+            CreatedAt = now,
+        });
+
+        m.RepliedAt = now;
         m.ReplySubject = subject;
         m.ReplyBody = body;
         m.RepliedByUserId = currentUser.UserId;
@@ -153,9 +185,6 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
 
         // Tell the OTHER managers who answered, so two people don't reply to the same message. Best-effort,
         // after the commit; excludes the replier (they know they replied).
-        var replier = currentUser.MemberId is Guid mid
-            ? await context.Members.Where(x => x.Id == mid).Select(x => (x.FirstName + " " + x.LastName).Trim()).FirstOrDefaultAsync(ct)
-            : null;
         await notifications.NotifyGroupManagersAsync(NotificationTypes.Info, "Réponse à un message de contact",
             $"{(string.IsNullOrWhiteSpace(replier) ? "Un responsable" : replier)} a répondu à {m.SenderName}",
             "/admin/contact-messages", excludeMemberId: currentUser.MemberId, ct: ct);
