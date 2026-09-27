@@ -36,7 +36,7 @@ notepad ops-alert.config.json     # fill in SMTP password, DB password, alertTo,
 - **database.password** — the `gndj_admin` password.
 - **alertTo** — **admin + chef(s) de groupe** addresses. These receive the backup status AND the yearly
   audit-archive off-server sync notice.
-- **health.url** — `https://new.gndj.org/health` (public URL; the probe uses a browser UA so
+- **health.url** — `https://gndj.org/health` (public URL; the probe uses a browser UA so
   Cloudflare doesn't block it).
 - **backup.auditArchiveDir** — the folder the APP writes the yearly audit-log CSV archives to (when a new
   scout year is created the audit trail is exported there, then cleared). MUST match the app's
