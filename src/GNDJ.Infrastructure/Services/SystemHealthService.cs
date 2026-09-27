@@ -50,7 +50,7 @@ public class SystemHealthService : ISystemHealthService
                                       && (e.LastError == null || !e.LastError.StartsWith(bounceMark))),
                 Sent = g.Count(e => e.Status == OutboxEmailStatus.Sent && e.SentAt >= dayAgo),
                 LastSent = g.Max(e => e.SentAt),
-            }).FirstOrDefaultAsync(ct);
+            }).SingleOrDefaultAsync(ct); // one group at most (Single: no "First without OrderBy" warning)
         var emailFailures = await db.OutboxEmails.AsNoTracking()
             .Where(e => e.Status == OutboxEmailStatus.Failed && e.CreatedAt >= dayAgo
                         && (e.LastError == null || !e.LastError.StartsWith(bounceMark)))
@@ -69,7 +69,7 @@ public class SystemHealthService : ISystemHealthService
                 Failed = g.Count(p => p.Status == PushOutboxStatus.Failed && p.CreatedAt >= dayAgo),
                 Sent = g.Count(p => p.Status == PushOutboxStatus.Sent && p.SentAt >= dayAgo),
                 LastSent = g.Max(p => p.SentAt),
-            }).FirstOrDefaultAsync(ct);
+            }).SingleOrDefaultAsync(ct);
         var pushFailures = await db.PushOutbox.AsNoTracking()
             .Where(p => p.Status == PushOutboxStatus.Failed && p.CreatedAt >= dayAgo)
             .OrderByDescending(p => p.CreatedAt).Take(10)

@@ -44,5 +44,7 @@ public class PassageUnitSubmissionConfiguration : IEntityTypeConfiguration<Passa
         builder.Property(e => e.ScoutYear).HasMaxLength(20);
         builder.HasOne(e => e.Unit).WithMany().HasForeignKey(e => e.UnitId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(e => new { e.ScoutYear, e.UnitId }).IsUnique();
+        // Match Unit's soft-delete filter (required relationship) so EF doesn't warn at startup.
+        builder.HasQueryFilter(e => !e.Unit.IsDeleted);
     }
 }
