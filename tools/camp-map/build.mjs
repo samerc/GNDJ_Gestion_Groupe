@@ -82,7 +82,6 @@ function svg() {
   s += road([[160, 420], [280, 460], [500, 495]], 12)
   s += road([[250, 480], [230, 520], [260, 560]], 8)
   s += road([[760, 190], [880, 150]], 10)
-  s += road([[1160, 760], [1015, 760]], 10)
   s += road([[1340, 380], [1420, 410], [1542, 360]], 14)
 
   // Beirut–Damascus highway (with the Louaizé interchange loop).
@@ -167,24 +166,41 @@ function svg() {
   s += `<circle cx="${ccx}" cy="${ccy}" r="7" fill="${C.churchEdge}"/>`
   s += bld(rect(398, 548, 38, 50))
 
-  // Sports hall + the buildings east of it.
-  s += bld(rect(830, 485, 128, 155))
-  s += `<path d="M836,562 H952" stroke="${C.roofShade}" stroke-width="4"/>`
-  s += bld(rect(965, 460, 72, 100), C.roofShade)
-  for (let y = 475; y < 555; y += 16) s += `<line x1="970" y1="${y}" x2="1032" y2="${y}" stroke="#c9c3b6" stroke-width="2"/>`
-  s += bld(rect(1015, 545, 118, 75))
-  s += bld(rect(1040, 470, 60, 45))
-
-  // Parking + red multisport court.
-  s += path(rect(1000, 645, 145, 90, 4), C.parking, C.pavedEdge, 1.2)
-  for (let x = 1012; x < 1140; x += 14) s += `<line x1="${x}" y1="652" x2="${x}" y2="680" stroke="#fff" stroke-width="1.5"/><line x1="${x}" y1="700" x2="${x}" y2="728" stroke="#fff" stroke-width="1.5"/>`
-  s += path(rect(965, 655, 32, 78, 2), C.courtRed, C.pavedEdge, 1)
-
-  // Green courts (south) + the building next to them.
-  s += path(rect(835, 780, 170, 72, 3), C.court, C.pavedEdge, 1.2)
-  for (const x of [880, 925, 965]) s += `<line x1="${x}" y1="786" x2="${x}" y2="846" stroke="${C.courtLine}" stroke-width="2"/>`
-  s += bld(rect(1025, 780, 95, 70))
-  s += bld(rect(1125, 775, 45, 40))
+  // East side (sports hall → stadium), traced from a close-up satellite view mapped onto the main map with ce(),
+  // anchored on the stadium track and the sports hall.
+  const ce = pts => pts.map(([x, y]) => [+(1183 + (x - 822) * 0.503).toFixed(1), +(488 + (y - 95) * 0.497).toFixed(1)])
+  const cePoly = pts => poly(ce(pts))
+  const ceRect = (x0, y0, x1, y1, r = 2) => { const [[p, q], [u, v]] = ce([[x0, y0], [x1, y1]]); return rect(p, q, u - p, v - q, r) }
+  const ceLine = (pts, color, w) => `<path d="M${ce(pts).map(p => p.join(',')).join(' L')}" stroke="${color}" stroke-width="${w}" fill="none"/>`
+  // Service road from the parking to the east road.
+  s += road(ce([[460, 622], [640, 620], [790, 628]]), 9)
+  // Sports hall: dark upper roof, light main roof, flat lower part.
+  s += bld(ceRect(120, 95, 365, 395))
+  s += path(ceRect(140, 108, 352, 180, 1), '#dcd8cf')
+  s += ceLine([[135, 300], [360, 300]], C.buildingEdge, 1.2)
+  // Vaulted building (four barrel roofs) and the lawn east of it.
+  s += bld(ceRect(393, 50, 525, 215), C.roofShade)
+  for (let i = 1; i < 4; i++) s += ceLine([[398, 50 + i * 41], [520, 50 + i * 41]], '#c9c3b6', 2)
+  s += path(ceRect(528, 70, 665, 210, 3), C.garden, C.forestEdge, 1)
+  // Building block with rooftop equipment.
+  s += bld(cePoly([[380, 215], [550, 215], [550, 262], [735, 262], [735, 282], [720, 282], [720, 365], [500, 365], [500, 300], [380, 300]]))
+  for (const [x, y] of [[420, 235], [460, 235], [560, 300], [610, 320], [660, 300]]) s += path(ceRect(x, y, x + 28, y + 22, 1), '#e4e0d8', C.buildingEdge, .8)
+  // Red multisport court + parking.
+  s += path(ceRect(385, 432, 455, 590), C.courtRed, C.pavedEdge, 1)
+  s += path(ceRect(458, 420, 742, 600, 3), C.parking, C.pavedEdge, 1.2)
+  for (const row of [[430, 470], [500, 545], [555, 595]]) for (let x = 470; x < 735; x += 16)
+    s += ceLine([[x, row[0]], [x, row[1]]], '#fff', 1.4)
+  // Tennis courts, the sand court next to them, and the buildings south of the parking.
+  s += path(ceRect(145, 680, 320, 842, 2), C.court, C.pavedEdge, 1.2)
+  s += ceLine([[232, 684], [232, 838]], C.courtLine, 2.5)
+  for (const x0 of [160, 248]) s += path(ceRect(x0, 705, x0 + 58, 815, 1), 'none', C.courtLine, 1.4)
+  s += path(ceRect(322, 678, 462, 812, 2), '#e7dfcc', C.pavedEdge, 1)
+  s += bld(ceRect(500, 690, 700, 822))
+  s += path(ceRect(555, 715, 665, 800, 1), '#ffffff', C.buildingEdge, .8)
+  s += bld(ceRect(700, 668, 800, 738))
+  s += bld(ceRect(845, 690, 895, 765))
+  // Stand along the west side of the pitch.
+  s += bld(ceRect(806, 420, 858, 568), '#f0c9a3')
 
   // Stadium: running track around the football pitch.
   s += `<rect x="1183" y="488" width="228" height="350" rx="100" fill="${C.track}" stroke="#b9644a" stroke-width="2"/>`
