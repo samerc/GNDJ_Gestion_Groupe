@@ -44,26 +44,11 @@ public static class CampPlaces
     public static async Task<List<CampPlace>> LoadAsync(IApplicationDbContext context, CancellationToken ct) =>
         Parse(await context.Settings.Where(s => s.Key == SettingKey).Select(s => s.Value).FirstOrDefaultAsync(ct));
 
-    // Assigns one side (A or B) for the given games, in game-number order: each game takes the first place of the
-    // list that still has room (`used` = how many games already hold each place on that side — the games NOT being
-    // reassigned). When no place is free, the game stays without a place.
-    public static List<(Guid GameId, string? Place)> Assign(
-        IReadOnlyList<CampPlace> places, IReadOnlyList<(Guid Id, int? Number, string Name)> games, Dictionary<string, int> used)
-    {
-        var free = places.ToDictionary(p => p.Name, p => p.Capacity - used.GetValueOrDefault(p.Name), StringComparer.OrdinalIgnoreCase);
-        var result = new List<(Guid, string?)>();
-        foreach (var g in games.OrderBy(g => g.Number ?? int.MaxValue).ThenBy(g => g.Name))
-        {
-            var pick = places.FirstOrDefault(p => free[p.Name] > 0);
-            if (pick is not null) free[pick.Name]--;
-            result.Add((g.Id, pick?.Name));
-        }
-        return result;
-    }
 }
 
 // Auto-assign the places of a camp's games: lieu A, lieu B or both. Replace = redo every game; otherwise only the
-// games without a place on that side get one (the places they already hold count as taken). Jeux edit rights.
+// games without a place on that side get one (the places they already hold count as taken). A place that is both
+// lieu A and lieu B is put on both sides of the game (when the other side is free). Jeux edit rights.
 public record AutoAssignCampPlacesCommand(Guid CampId, bool Main, bool Backup, bool Replace) : IRequest<Result<CampPlacesAssignResult>>;
 public record CampPlacesAssignResult(int AssignedMain, int AssignedBackup, IReadOnlyList<string> NoPlace);
 
@@ -84,29 +69,47 @@ public class AutoAssignCampPlacesCommandHandler(IApplicationDbContext context, I
         var games = await context.CampGames.Where(g => g.CampId == request.CampId && !g.IsDeleted).ToListAsync(ct);
         if (games.Count == 0) return Result<CampPlacesAssignResult>.Failure("Aucun jeu dans ce camp.");
 
+        // Which games get a place on each side in this run: every game when replacing, else those without one.
+        // Their current place on that side is cleared first, so the capacity count below only sees the kept ones.
+        static string? Get(Domain.Entities.CampGame g, bool main) => main ? g.MainLocation : g.BackupLocation;
+        static void Set(Domain.Entities.CampGame g, bool main, string? v) { if (main) g.MainLocation = v; else g.BackupLocation = v; }
+        var todoA = request.Main ? games.Where(g => request.Replace || string.IsNullOrWhiteSpace(g.MainLocation)).ToHashSet() : [];
+        var todoB = request.Backup ? games.Where(g => request.Replace || string.IsNullOrWhiteSpace(g.BackupLocation)).ToHashSet() : [];
+        foreach (var g in todoA) g.MainLocation = null;
+        foreach (var g in todoB) g.BackupLocation = null;
+
+        // Games currently holding a place on a side (live, so mirrored places count too).
+        int Occupied(string place, bool main) => games.Count(g => string.Equals(Get(g, main), place, StringComparison.OrdinalIgnoreCase));
+        bool HasRoom(CampPlace p, bool main) => Occupied(p.Name, main) < p.Capacity;
+
         var noPlace = new List<string>();
-        int RunSide(bool main)
+        int a = 0, b = 0;
+        // In game-number order, each game takes the first place of the list (usable on that side) with room left.
+        // A place that is BOTH lieu A and lieu B also goes on the game's other side when that side is being assigned
+        // in this run or is still empty (never over a place chosen by hand), if it has room there too.
+        void RunSide(bool main, HashSet<Domain.Entities.CampGame> todo)
         {
             var sidePlaces = places.Where(p => main ? p.A : p.B).ToList();
-            string? Get(Domain.Entities.CampGame g) => main ? g.MainLocation : g.BackupLocation;
-            var todo = games.Where(g => request.Replace || string.IsNullOrWhiteSpace(Get(g))).ToList();
-            var used = games.Except(todo).Where(g => !string.IsNullOrWhiteSpace(Get(g)))
-                .GroupBy(g => Get(g)!, StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.Key, x => x.Count(), StringComparer.OrdinalIgnoreCase);
-            var picks = CampPlaces.Assign(sidePlaces, todo.Select(g => (g.Id, g.Number, g.Name)).ToList(), used);
-            var side = main ? "lieu A" : "lieu B";
-            var count = 0;
-            foreach (var (id, place) in picks)
+            foreach (var g in todo.OrderBy(g => g.Number ?? int.MaxValue).ThenBy(g => g.Name))
             {
-                var g = todo.First(x => x.Id == id);
-                if (main) g.MainLocation = place; else g.BackupLocation = place;
-                if (place is null) noPlace.Add($"{g.Name} ({side})");
-                else count++;
+                if (!string.IsNullOrWhiteSpace(Get(g, main))) continue; // already filled by a mirror from the other side
+                var pick = sidePlaces.FirstOrDefault(p => HasRoom(p, main));
+                if (pick is null) { noPlace.Add($"{g.Name} ({(main ? "lieu A" : "lieu B")})"); continue; }
+                Set(g, main, pick.Name);
+                if (main) a++; else b++;
+                var other = !main;
+                // (The other side is empty when it's being redone in this run — its old place was cleared above.)
+                if (pick.A && pick.B && string.IsNullOrWhiteSpace(Get(g, other)) && HasRoom(pick, other))
+                {
+                    Set(g, other, pick.Name);
+                    if (other) a++; else b++;
+                }
             }
-            return count;
         }
 
-        var a = request.Main ? RunSide(true) : 0;
-        var b = request.Backup ? RunSide(false) : 0;
+        // A first, then B (games that got their B by mirroring are skipped).
+        if (request.Main) RunSide(true, todoA);
+        if (request.Backup) RunSide(false, todoB);
         await context.SaveChangesAsync(ct);
         return Result<CampPlacesAssignResult>.Success(new CampPlacesAssignResult(a, b, noPlace));
     }

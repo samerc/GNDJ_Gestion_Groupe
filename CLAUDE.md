@@ -6274,4 +6274,5 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
 - **Auto-assign** `AutoAssignCampPlacesCommand` (`POST /camps/{id}/games/auto-places {main, backup, replace}`, Jeux
   edit): per side, in game-number order, each game takes the first place of the list with room left; none free →
   reported in `noPlace`. Without `replace`, only games with no place on that side are filled and the kept ones count
-  against capacity. Capacity is per side.
+  against capacity. Capacity is per side. A place marked both A and B is mirrored onto the game's other side when
+  that side is empty (or being redone in this run) and has room — same in the game editor (picking it on either side).

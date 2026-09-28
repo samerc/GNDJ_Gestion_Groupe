@@ -328,7 +328,7 @@ Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vo
   **Superfamilles** (facultatif) : regroupez les familles, par exemple 5 univers de 10 familles.
 - **Jeux** : les 25 jeux, chacun avec son **numéro** (jeu 1 à 25), son **lieu A**, son **lieu B** (repli en cas de mauvais temps) et ses étapistes. Le numéro place le jeu
   dans la grille de rotation. **Attribuer les lieux** donne à chaque jeu un lieu libre de la liste (lieu A, lieu B
-  ou les deux). Un jeu qui ne peut pas se jouer au lieu B reçoit un **jeu de repli** : en plan B, c'est
+  ou les deux). Un lieu qui sert à la fois de lieu A et de lieu B est mis des deux côtés du jeu. Un jeu qui ne peut pas se jouer au lieu B reçoit un **jeu de repli** : en plan B, c'est
   lui qui est joué à cette étape.
 - **Les lieux** se gèrent dans **Paramètres → Camp BP** (les mêmes chaque année) : pour chaque lieu, s'il sert de
   lieu A et/ou de lieu B et combien de jeux il peut accueillir en même temps.
