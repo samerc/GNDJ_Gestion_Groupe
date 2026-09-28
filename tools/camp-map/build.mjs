@@ -97,16 +97,28 @@ function svg() {
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
   s += path(poly([[390, 555], [470, 540], [520, 600], [520, 690], [420, 690]]), C.paved, C.pavedEdge, 1.5)
 
-  // Petit collège CNDJ (north, in the forest clearing).
-  s += path(poly([[285, 125], [770, 120], [775, 285], [300, 290]]), C.paved, C.pavedEdge, 1.2)
-  s += bld(rect(300, 152, 64, 48))
-  s += bld(rect(385, 160, 90, 50))
-  s += bld(rect(500, 130, 108, 50))
-  s += bld(rect(495, 178, 110, 55), '#dfe9ee')
-  s += bld(rect(485, 228, 95, 45))
-  s += bld(rect(600, 170, 140, 50))
-  s += bld(rect(675, 205, 60, 45))
-  s += bld(rect(590, 235, 70, 40))
+  // Petit collège CNDJ (north, in the forest clearing). Traced from a closer satellite view (its own pixel space,
+  // mapped onto the main map with pc(), anchored on the white hall at the west end).
+  const pc = pts => pts.map(([x, y]) => [+(300 + (x - 60) * 0.34).toFixed(1), +(152 + (y - 265) * 0.345).toFixed(1)])
+  const pcPoly = pts => poly(pc(pts))
+  s += path(curve(pc([[40, 250], [300, 230], [520, 150], [900, 160], [1200, 250], [1420, 300], [1420, 560], [1330, 640], [1000, 650], [600, 630], [300, 470], [60, 420]]), true), C.paved, C.pavedEdge, 1.2)
+  s += bld(pcPoly([[95, 260], [252, 300], [228, 405], [60, 370]]))                                     // white hall
+  s += `<path d="${pcPoly([[90, 300], [240, 335]]).replace('Z', '')}" stroke="${C.roofShade}" stroke-width="3"/>`
+  s += bld(pcPoly([[320, 265], [415, 280], [405, 410], [310, 400]]))                                   // small block
+  s += bld(pcPoly([[430, 300], [520, 305], [530, 340], [570, 345], [575, 470], [415, 465]]))           // stepped block
+  s += bld(pcPoly([[510, 265], [615, 270], [612, 325], [505, 320]]))
+  s += bld(pcPoly([[640, 185], [930, 240], [915, 345], [630, 320]]))                                   // north wing (solar roof)
+  for (let i = 0; i < 4; i++) s += `<path d="${pcPoly([[680, 215 + i * 28], [900, 255 + i * 28]]).replace('Z', '')}" stroke="#aeb7c6" stroke-width="3"/>`
+  // Covered sports courts in the courtyard (green courts under a purple roof band).
+  s += path(pcPoly([[620, 318], [910, 350], [900, 500], [615, 470]]), C.court, C.pavedEdge, 1.2)
+  s += path(pcPoly([[710, 330], [790, 338], [775, 485], [700, 478]]), '#b9a6d8', '#9a86bf', 1)
+  s += bld(pcPoly([[590, 470], [865, 510], [860, 610], [585, 590]]))                                   // south block
+  s += bld(pcPoly([[855, 500], [990, 510], [980, 630], [855, 615]]))                                   // link
+  s += bld(pcPoly([[935, 245], [1180, 275], [1175, 355], [930, 340]]))                                 // north-east block
+  s += bld(pcPoly([[1035, 320], [1180, 335], [1178, 385], [1030, 375]]))
+  s += bld(pcPoly([[960, 380], [1300, 420], [1295, 545], [930, 520]]))                                 // east wing (solar roof)
+  for (let i = 0; i < 3; i++) s += `<path d="${pcPoly([[1125, 420 + i * 35], [1285, 440 + i * 35]]).replace('Z', '')}" stroke="#aeb7c6" stroke-width="3"/>`
+  s += bld(pcPoly([[1215, 630], [1375, 640], [1370, 705], [1210, 698]]))                               // small building below
 
   // Collège Notre-Dame de Jamhour: the long L of buildings around the church courtyard.
   s += path(poly([[545, 560], [700, 555], [705, 760], [560, 760]]), C.garden, C.pavedEdge, 1)
