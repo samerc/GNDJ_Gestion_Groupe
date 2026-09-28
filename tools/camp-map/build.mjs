@@ -125,22 +125,47 @@ function svg() {
   g += bld(pr(1215, 573, 1372, 640))                                // small building below
   s += `<g transform="rotate(${PC_ROT} ${pcx} ${pcy})">${g}</g>`
 
-  // Collège Notre-Dame de Jamhour: the long L of buildings around the church courtyard.
-  s += path(poly([[545, 560], [700, 555], [705, 760], [560, 760]]), C.garden, C.pavedEdge, 1)
-  s += bld(poly([[520, 520], [715, 530], [715, 572], [520, 560]]))
-  s += bld(poly([[700, 555], [748, 555], [752, 770], [704, 770]]))
-  s += bld(poly([[530, 770], [760, 770], [760, 820], [530, 820]]))
-  s += bld(rect(752, 725, 110, 45))
-  s += bld(rect(398, 548, 38, 50))
-  s += bld(rect(725, 520, 60, 35))
+  // Collège Notre-Dame de Jamhour, traced from a close-up satellite view (its own pixel space, mapped onto the main
+  // map with cm(), anchored on the church): the Jesuit fathers' wing (north), the long solar-roofed wing (east), the
+  // south wing, the church with its garden, and the Cour de la Vierge between the church and the south wing.
+  const cm = pts => pts.map(([x, y]) => [+(620 + (x - 932) * 0.467).toFixed(1), +(700 + (y - 458) * 0.467).toFixed(1)])
+  const cmPoly = pts => poly(cm(pts))
+  const cmRect = (x0, y0, x1, y1) => { const [[p, q], [r, t]] = cm([[x0, y0], [x1, y1]]); return rect(p, q, r - p, t - q, 2) }
+  // Garden around the church (lawn + trees), then the paved square east of the church.
+  s += path(curve(cm([[650, 300], [760, 245], [1050, 285], [1085, 380], [1080, 540], [880, 545], [700, 470], [640, 390]]), true), C.garden, C.forestEdge, 1)
+  s += treeDots(cm([[660, 0]])[0].concat(cm([[1050, 0]])[0]).filter((_, i) => i % 2 === 0), [cm([[0, 270]])[0][1], cm([[0, 400]])[0][1]], 40, 5,
+    (x, y) => Math.hypot(x - 620, y - 700) > 52)
+  s += path(cmRect(1015, 390, 1088, 535), C.paved, C.pavedEdge, 1)
+  // Cour de la Vierge: the paved court between the church and the south wing, with the statue in the middle.
+  s += path(curve(cm([[868, 592], [905, 560], [990, 552], [1082, 562], [1086, 628], [985, 634], [892, 624]]), true), '#ebdfc6', '#b8a37c', 1.6)
+  const [vx, vy] = cm([[985, 594]])[0]
+  s += `<circle cx="${vx}" cy="${vy}" r="6" fill="#dbe7f3" stroke="#6d86a6" stroke-width="1.5"/><circle cx="${vx}" cy="${vy}" r="2" fill="#6d86a6"/>`
+  // Jesuit fathers' wing (north), slanting down to the east, with the small house at its west end.
+  s += bld(cmPoly([[755, 158], [1105, 212], [1110, 272], [1060, 272], [755, 222]]))
+  for (let i = 0; i < 2; i++) s += `<path d="M${cm([[820, 178 + i * 22]])[0]} L${cm([[1060, 215 + i * 22]])[0]}" stroke="#aeb7c6" stroke-width="2.5"/>`
+  s += bld(cmRect(690, 158, 752, 198), '#f3d9c8')
+  s += bld(cmPoly([[1120, 140], [1265, 160], [1260, 205], [1115, 190]]))
+  // East wing: the long solar-roofed building running south, then the entrance block.
+  s += bld(cmRect(1088, 225, 1180, 552))
+  for (let i = 0; i < 9; i++) s += `<path d="M${cm([[1100, 250 + i * 32]])[0]} L${cm([[1168, 250 + i * 32]])[0]}" stroke="#aeb7c6" stroke-width="2"/>`
+  s += bld(cmRect(1098, 552, 1160, 700))
+  // Local Clan building (east of the entrance) + the small blocks south of the south wing.
+  s += bld(cmRect(1160, 548, 1410, 640))
+  for (let i = 0; i < 2; i++) s += `<path d="M${cm([[1200, 575 + i * 30]])[0]} L${cm([[1395, 575 + i * 30]])[0]}" stroke="#aeb7c6" stroke-width="2"/>`
+  // South wing (solar roof) and the blocks along its south side.
+  s += bld(cmRect(752, 645, 1100, 725))
+  for (let i = 0; i < 2; i++) s += `<path d="M${cm([[785, 668 + i * 30]])[0]} L${cm([[1085, 668 + i * 30]])[0]}" stroke="#aeb7c6" stroke-width="2"/>`
+  for (const [x0, x1] of [[742, 785], [915, 965], [1100, 1148]]) s += bld(cmRect(x0, 725, x1, 800))
   // Church: round nave with its ribbed roof.
-  s += `<circle cx="620" cy="700" r="60" fill="rgba(40,50,60,.18)" transform="translate(4,5)"/>`
-  s += `<circle cx="620" cy="700" r="60" fill="${C.church}" stroke="${C.churchEdge}" stroke-width="1.8"/>`
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2
-    s += `<line x1="620" y1="700" x2="${(620 + 58 * Math.cos(a)).toFixed(1)}" y2="${(700 + 58 * Math.sin(a)).toFixed(1)}" stroke="${C.churchEdge}" stroke-width=".8" opacity=".55"/>`
+  const [ccx, ccy] = cm([[932, 458]])[0], cr = 100 * 0.467
+  s += `<circle cx="${ccx}" cy="${ccy}" r="${cr}" fill="rgba(40,50,60,.18)" transform="translate(4,5)"/>`
+  s += `<circle cx="${ccx}" cy="${ccy}" r="${cr}" fill="${C.church}" stroke="${C.churchEdge}" stroke-width="1.8"/>`
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2
+    s += `<line x1="${ccx}" y1="${ccy}" x2="${(ccx + (cr - 2) * Math.cos(a)).toFixed(1)}" y2="${(ccy + (cr - 2) * Math.sin(a)).toFixed(1)}" stroke="${C.churchEdge}" stroke-width=".8" opacity=".55"/>`
   }
-  s += `<circle cx="620" cy="700" r="9" fill="${C.churchEdge}"/>`
+  s += `<circle cx="${ccx}" cy="${ccy}" r="7" fill="${C.churchEdge}"/>`
+  s += bld(rect(398, 548, 38, 50))
 
   // Sports hall + the buildings east of it.
   s += bld(rect(830, 485, 128, 155))
