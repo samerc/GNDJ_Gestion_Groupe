@@ -84,6 +84,25 @@ function svg() {
   s += road([[760, 190], [880, 150]], 10)
   s += road([[1340, 380], [1420, 410], [1542, 360]], 14)
 
+  // Campus roads added from the commission's corrections:
+  // west road around the open court, then along the south of the college;
+  s += road([[259, 563], [273, 599], [285, 638], [292, 677], [308, 731], [331, 778], [366, 813], [413, 835], [452, 846], [511, 862], [569, 874], [647, 879], [698, 878]], 12)
+  // road along the north-east side of the court (bus parking) towards the Cour de la Vierge;
+  s += road([[283, 626], [296, 645], [320, 665], [355, 684], [394, 704], [433, 723], [472, 739], [511, 755], [550, 772], [589, 778], [640, 778]], 10)
+  // road between the forest and the college, then down past the sports hall to the courts;
+  s += road([[443, 487], [540, 489], [645, 517], [700, 522], [750, 540], [785, 560], [805, 592], [814, 640], [818, 700], [822, 750], [835, 784]], 12)
+  // road above the tennis courts to the east road.
+  s += road([[835, 787], [880, 778], [930, 773], [1000, 766], [1080, 766], [1165, 768]], 10)
+  // Stairway between the Petit collège and the Grand collège (steps across a narrow flight).
+  {
+    const top = [686, 298], bottom = [668, 494], n = 22
+    s += `<path d="M${top} L${bottom}" stroke="#d8d2c4" stroke-width="12" stroke-linecap="round"/>`
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = top[0] + (bottom[0] - top[0]) * t, y = top[1] + (bottom[1] - top[1]) * t
+      s += `<line x1="${(x - 6).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + 6).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#a79f8c" stroke-width="1.4"/>`
+    }
+  }
+
   // Beirut–Damascus highway (with the Louaizé interchange loop).
   const hwy = [[860, 0], [960, 70], [1080, 140], [1220, 190], [1310, 250], [1380, 340], [1430, 470], [1470, 620], [1500, 780], [1525, 920], [1542, 1000]]
   s += path(curve(hwy), 'none', C.hwyEdge, 34) + path(curve(hwy), 'none', C.hwy, 28)
@@ -92,7 +111,9 @@ function svg() {
   s += path(curve([[1265, 150], [1300, 230], [1330, 300]]), 'none', C.hwyEdge, 14) + path(curve([[1265, 150], [1300, 230], [1330, 300]]), 'none', C.hwy, 10)
 
   // Paved yards / esplanade around the main school.
-  s += path(poly([[330, 700], [470, 690], [480, 790], [345, 800]]), C.paved, C.pavedEdge, 1.5)
+  // Open court west of the church (a slanted flat terrain, NOT a building): light ground + dashed inner line.
+  s += path(poly([[372, 710], [467, 762], [456, 829], [346, 785]]), '#ece6d6', '#bdb49c', 1.6)
+  s += path(poly([[378, 722], [458, 766], [449, 818], [357, 781]]), 'none', '#c9bfa5', 1.2, 'stroke-dasharray="6 5"')
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
   s += path(poly([[390, 555], [470, 540], [520, 600], [520, 690], [420, 690]]), C.paved, C.pavedEdge, 1.5)
 
@@ -172,8 +193,6 @@ function svg() {
   const cePoly = pts => poly(ce(pts))
   const ceRect = (x0, y0, x1, y1, r = 2) => { const [[p, q], [u, v]] = ce([[x0, y0], [x1, y1]]); return rect(p, q, u - p, v - q, r) }
   const ceLine = (pts, color, w) => `<path d="M${ce(pts).map(p => p.join(',')).join(' L')}" stroke="${color}" stroke-width="${w}" fill="none"/>`
-  // Service road from the parking to the east road.
-  s += road(ce([[460, 622], [640, 620], [790, 628]]), 9)
   // Sports hall: dark upper roof, light main roof, flat lower part.
   s += bld(ceRect(120, 95, 365, 395))
   s += path(ceRect(140, 108, 352, 180, 1), '#dcd8cf')
