@@ -94,9 +94,10 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
         const byOrigin = countBy(arrivals, m => m.currentUnitId)
         const byDest = countBy(departures, m => eff.get(m.memberId) ?? '')
         const projected = stays.length + arrivals.length
+        const noLine = current.filter(m => m.lineStatus === 'None')
         return {
           u, s: summaryById.get(u.unitId), currentCount: current.length, projected,
-          stays, arrivals, departures, byOrigin, byDest, eff,
+          stays, noLine, arrivals, departures, byOrigin, byDest, eff,
           overQuota: !!u.quota && projected > u.quota,
         }
       })
@@ -206,7 +207,15 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                         <tr className="bg-muted/10">
                           <td colSpan={6} className="px-4 pb-4 pt-2">
                             <div className="grid gap-4 sm:grid-cols-3">
-                              <MemberList title="Restent" tone="slate" items={r.stays.map(m => m.memberName)} />
+                              <div className="space-y-3">
+                                {/* Members the chef hasn't given a line yet — counted as staying, listed apart so the CG sees who. */}
+                                {r.noLine.length > 0 && (
+                                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 dark:border-amber-800 dark:bg-amber-950/30">
+                                    <MemberList title="Sans proposition (restent pour l'instant)" tone="amber" items={r.noLine.map(m => m.memberName)} />
+                                  </div>
+                                )}
+                                <MemberList title="Restent" tone="slate" items={r.stays.filter(m => m.lineStatus !== 'None').map(m => m.memberName)} />
+                              </div>
                               <MemberList title="Arrivent" tone="green"
                                 groups={r.byOrigin.map(([id]) => ({
                                   label: `de ${codeById.get(id) ?? '?'}`,
@@ -253,11 +262,11 @@ function countBy<T>(items: T[], key: (t: T) => string): [string, number][] {
 // One coloured column of the unit detail: a flat list, or names grouped (e.g. "de M2 — 12").
 function MemberList({ title, tone, items, groups }: {
   title: string
-  tone: 'slate' | 'green' | 'orange'
+  tone: 'slate' | 'green' | 'orange' | 'amber'
   items?: string[]
   groups?: { label: string; names: string[] }[]
 }) {
-  const head = tone === 'green' ? 'text-green-700 dark:text-green-400' : tone === 'orange' ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'
+  const head = tone === 'amber' ? 'text-amber-700 dark:text-amber-400' : tone === 'green' ? 'text-green-700 dark:text-green-400' : tone === 'orange' ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground'
   const count = items ? items.length : (groups ?? []).reduce((n, g) => n + g.names.length, 0)
   return (
     <div>

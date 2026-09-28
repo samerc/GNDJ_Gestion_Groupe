@@ -310,9 +310,9 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
         if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
             return Result<PassageProjectionDto>.Failure("Accès réservé à la maîtrise de groupe.");
 
-        // Who's active now (the projection universe) with name + current unit.
-        var active = await context.MemberAssignments
-            .Where(a => a.EndDate == null)
+        // Who's active now (the projection universe) with name + current unit. Youth only: chefs (active maîtrise
+        // function anywhere) aren't part of the passage, so they're not in the headcounts or the lists.
+        var active = await PassageScope.ActiveYouth(context)
             .Select(a => new { a.MemberId, Name = a.Member.FirstName + " " + a.Member.LastName, a.UnitId })
             .ToListAsync(ct);
 
@@ -339,9 +339,7 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
             })
             .ToList();
 
-        // Chefs aren't part of the passage (they simply stay): not counted as "sans proposition".
-        var leaders = (await PassageScope.LeaderIds(context).Distinct().ToListAsync(ct)).ToHashSet();
-        var missingLines = members.Count(m => m.LineStatus == "None" && !leaders.Contains(m.MemberId));
+        var missingLines = members.Count(m => m.LineStatus == "None");
 
         // Unit metadata: every active unit + any unit referenced as a current/destination unit.
         var quotas = await context.UnitIntakeQuotas.Where(q => q.ScoutYear == request.ScoutYear)
