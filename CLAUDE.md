@@ -6232,3 +6232,31 @@ Every member got their access in 2026, and new chefs are existing members, so th
   for it) via `SeedData.SeedRentreePassageFinishTaskAsync` (idempotent). Existing years: "Ajouter les nouvelles tâches".
 - Tested on a DB copy: 19/19 (auto run at the 7-day threshold only once, emails/notifications, CU 403, bulk change incl.
   leaving + wrong-team 400, one notification per unit, rentrée task turns done when the unit is finished).
+
+### Camp BP — grand jeu: rotation, lookup, scoring (2026-09-28, DEV until deploy)
+From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScoring`.
+- **Fixed rotation grid** `Application/Camps/CampRotationGrid.cs` (generated from "Grille de Rotation.xlsx" — do not edit by
+  hand): 50 familles × 25 games × 25 slots (15 day 1, 10 day 2), every famille plays each game once and never meets the
+  same famille twice (unit-tested). Per camp only the dates / hours and the games' places change. `CampRotationSlot`
+  (camp_rotation_slots) + `CampRotationMatch` (camp_rotation_matches, famille NUMBERS so re-drafting never breaks it; the
+  score lives on the row). `CampGame.Number` (1–25, unique per camp) links a game to the grid. `Camp.UseBackupLocations`
+  = Plan B (lookup + passports show the backup places).
+- **Lookup** (`SearchCampPeopleQuery` / `GetFamilleScheduleQuery`, `GET /camps/{id}/lookup?q=`, `/familles/{n}/schedule`,
+  no permission attribute — handler: CG / commission / camp.grade (CUs) / étapistes): name (accent-insensitive; members,
+  Père, Mère) or famille number → the famille's 25 steps + Père/Mère phones + server camp time. Client
+  (`components/camp/camp-lookup.tsx`) shows the step before / in progress (or next) / after, time selectable.
+- **Scoring** `CampScoring` (Application, unit-tested against the rules sheet; mirrored in `client/src/lib/camp-scoring.ts`
+  for the live preview): 2 rounds × 50 (tie 25/25), 5 esprit points split, lateness A (3–7 min: round 1 to the on-time
+  famille, round 2 on 50; A vs A → round 2 on 100) / B (7–10 min: 100 to the other; A vs B → 100 to A; B vs B → 0),
+  énigme = winner of the rounds, tie → first arrived (inferred from lateness when it differs), never a retard-B famille.
+  Inputs + computed points stored on the match with `Source` online|paper and `ScoredByName`. Edit = Jeux edit or an
+  étapiste of THAT game (`CampMatchEdit`); refused once the camp is archived. `GET /camps/{id}/ranking` (Jeux view).
+- **PDFs** `ICampRotationReportService` (QuestPDF): famille passports (1 A4 page each: members, 25 steps with place,
+  opponent, blank note/énigme/signature) and paper score sheets (1 landscape page per game, one line per match, both
+  familles side by side). `GET /camps/{id}/passports/pdf?famille=`, `/score-sheets/pdf?game=` (étapiste: own game).
+- **Familles**: `Famille.Description` + optional `CampSuperFamille` (camp_super_familles; auto split in number order).
+  **Sub-commissions**: `Camp.SubCommissionsJson` (default Trésor / Jeu / Code / Logistique – Intendance / Logistique –
+  Animation / Veillée) + `CampCommissionMember.SubCommissions` (text[]), set by the CG / chefs de commission.
+- UI: camp page tabs **Rotation / Pointage / Où est… ?** (+ superfamilles, famille name, game number, sub-commission
+  chips + overview); CU `/camp` and étapistes' "Mes jeux" get the lookup card; étapistes score their game there.
+  Tested: 37 API checks, 11 browser checks, grid + scoring unit tests, smoke suite 60/60.

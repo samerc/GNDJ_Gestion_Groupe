@@ -318,6 +318,33 @@ dans chaque devise (payer ce montant dans une devise = cotisation complète), le
 
 ![Accès & permissions](img/cg-acces.png)
 
+## Le Camp BP
+
+Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vous nommez). Les onglets :
+
+- **Familles** : le tirage répartit les membres notés par leurs chefs d'unité en familles équilibrées ; vous
+  ajustez à la main (glisser-déposer) et choisissez le Père et la Mère de chaque famille. Le crayon à côté d'une
+  famille lui donne un **nom** (son personnage) et une **description**, imprimés sur son passeport.
+  **Superfamilles** (facultatif) : regroupez les familles, par exemple 5 univers de 10 familles.
+- **Jeux** : les 25 jeux, chacun avec son **numéro** (jeu 1 à 25), son lieu, son lieu de repli et ses étapistes.
+  Le numéro place le jeu dans la grille de rotation.
+- **Rotation** : la grille est **fixe** (50 familles, 25 jeux, 25 étapes : 15 le premier jour, 10 le second ;
+  chaque famille joue chaque jeu une fois et ne rencontre jamais deux fois la même famille). Choisissez les deux
+  jours du camp, ajustez les horaires si besoin, et imprimez les **passeports des familles** et les **feuilles de
+  pointage**. S'il pleut, activez **Plan B** : tous les lieux passent aux lieux de repli.
+- **Pointage** : saisissez les scores par jeu ou par étape — sur place, ou plus tard depuis la feuille papier.
+  Les règles sont appliquées toutes seules (manches de 50 points, retards A et B, 5 points d'esprit, énigme) et le
+  **Classement** se met à jour.
+- **Où est… ?** : un membre a perdu sa famille ? Tapez son nom (ou le numéro de la famille) : vous voyez sa
+  famille, l'étape d'avant, celle en cours (ou la prochaine) et celle d'après, avec le lieu et le téléphone du
+  Père et de la Mère.
+- **Commission** : les membres de la commission, leurs droits, et leurs **sous-commissions** (Trésor, Jeu, Code,
+  Logistique, Veillée… — la liste se modifie).
+
+> 💡 Les étapistes saisissent eux-mêmes les scores de leur jeu depuis **Mes jeux** (ou la page Camp BP de leur
+> unité). S'ils ont pointé sur papier, la commission saisit la feuille ensuite en choisissant « Depuis la feuille
+> papier ».
+
 ## Notifications et messages
 
 - **Envoyer une notification** : un message dans l'application (et sur le téléphone de ceux qui ont activé les

@@ -123,7 +123,7 @@ public class GetCampQueryHandler(IApplicationDbContext context, ICurrentUserServ
 // set each other member's rights per area. Only maîtrise
 // (members holding an active leadership role) can be on a commission — never a regular member.
 public record CampCommissionMemberDto(Guid MemberId, string FirstName, string LastName, string? Roles,
-    bool IsChef, string FamillesAccess, string JeuxAccess, string ParametresAccess);
+    bool IsChef, string FamillesAccess, string JeuxAccess, string ParametresAccess, IReadOnlyList<string> SubCommissions);
 public record GetCampCommissionQuery(Guid CampId) : IRequest<Result<IReadOnlyList<CampCommissionMemberDto>>>;
 
 public class GetCampCommissionQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -137,7 +137,7 @@ public class GetCampCommissionQueryHandler(IApplicationDbContext context, ICurre
         var rows = await context.CampCommissionMembers.Where(c => c.CampId == request.CampId)
             .Select(c => new
             {
-                c.MemberId, c.Member.FirstName, c.Member.LastName, c.IsChef, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess,
+                c.MemberId, c.Member.FirstName, c.Member.LastName, c.IsChef, c.FamillesAccess, c.JeuxAccess, c.ParametresAccess, c.SubCommissions,
                 // Their current active function(s), for context ("Assistant(e) de Groupe", "ACU Troupe 2"…).
                 Roles = c.Member.Assignments.Where(a => a.EndDate == null && !a.IsDeleted)
                     .Select(a => a.FunctionalRole.Name + " · " + a.Unit.Code).ToList(),
@@ -146,7 +146,7 @@ public class GetCampCommissionQueryHandler(IApplicationDbContext context, ICurre
         return Result<IReadOnlyList<CampCommissionMemberDto>>.Success(rows
             .OrderByDescending(r => r.IsChef).ThenBy(r => r.LastName).ThenBy(r => r.FirstName)
             .Select(r => new CampCommissionMemberDto(r.MemberId, r.FirstName, r.LastName, r.Roles.Count == 0 ? null : string.Join(", ", r.Roles),
-                r.IsChef, r.FamillesAccess, r.JeuxAccess, r.ParametresAccess))
+                r.IsChef, r.FamillesAccess, r.JeuxAccess, r.ParametresAccess, r.SubCommissions))
             .ToList());
     }
 }

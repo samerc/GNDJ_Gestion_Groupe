@@ -183,13 +183,13 @@ public class CampsController : BaseApiController
     /// <summary>Creates a game for the camp. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPost("{id:guid}/games")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> CreateGame(Guid id, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new CreateCampGameCommand(id, body.Name, body.Description, body.MainLocation, body.BackupLocation)));
-    public record CreateGameBody(string Name, string? Description, string? MainLocation = null, string? BackupLocation = null);
+    public async Task<IActionResult> CreateGame(Guid id, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new CreateCampGameCommand(id, body.Name, body.Description, body.MainLocation, body.BackupLocation, body.Number)));
+    public record CreateGameBody(string Name, string? Description, string? MainLocation = null, string? BackupLocation = null, int? Number = null);
 
     /// <summary>Updates a game's name and description. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPut("games/{gameId:guid}")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> UpdateGame(Guid gameId, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new UpdateCampGameCommand(gameId, body.Name, body.Description, body.MainLocation, body.BackupLocation)));
+    public async Task<IActionResult> UpdateGame(Guid gameId, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new UpdateCampGameCommand(gameId, body.Name, body.Description, body.MainLocation, body.BackupLocation, body.Number)));
 
     /// <summary>Deletes a game. Rights checked per area in the handler (CampAccess).</summary>
     [HttpDelete("games/{gameId:guid}")]
@@ -213,6 +213,114 @@ public class CampsController : BaseApiController
         var r = await Mediator.Send(new GetCampGamePdfQuery(gameId));
         return r.IsSuccess ? File(r.Value!.Data, "application/pdf", r.Value.FileName) : BadRequest(new { error = r.Error });
     }
+
+    // ── Grand jeu: rotation, lookup, scoring ──
+    /// <summary>The camp's rotation: slots (dates / hours), the 25 game numbers with their game, rain plan, scoring
+    /// progress. Commission / CG (Jeux view).</summary>
+    [HttpGet("{id:guid}/rotation")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> Rotation(Guid id) => Res(await Mediator.Send(new GetCampRotationQuery(id)));
+
+    /// <summary>Creates the slots + matches of the fixed grid for the camp's two days (refused once a score exists).</summary>
+    [HttpPost("{id:guid}/rotation/generate")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> GenerateRotation(Guid id, [FromBody] GenerateRotationBody body)
+        => Res(await Mediator.Send(new GenerateCampRotationCommand(id, body.FirstDay, body.SecondDay)));
+    public record GenerateRotationBody(DateOnly FirstDay, DateOnly SecondDay);
+
+    /// <summary>Updates the dates / hours of the slots.</summary>
+    [HttpPut("{id:guid}/rotation/slots")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> UpdateRotationSlots(Guid id, [FromBody] List<CampRotationSlotInput> slots)
+        => Res(await Mediator.Send(new UpdateCampRotationSlotsCommand(id, slots)));
+
+    /// <summary>Turns the rain plan (backup places) on or off.</summary>
+    [HttpPut("{id:guid}/rotation/plan-b")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> SetPlanB(Guid id, [FromBody] PlanBBody body) => Res(await Mediator.Send(new SetCampBackupLocationsCommand(id, body.UseBackup)));
+    public record PlanBBody(bool UseBackup);
+
+    /// <summary>Finds a person (famille member, Père or Mère) or a famille number. CG, commission, CUs and étapistes
+    /// (checked in the handler — some étapistes hold no camp permission).</summary>
+    [HttpGet("{id:guid}/lookup")]
+    public async Task<IActionResult> Lookup(Guid id, [FromQuery] string? q) => Res(await Mediator.Send(new SearchCampPeopleQuery(id, q ?? "")));
+
+    /// <summary>A famille's full route (time, game, place, opponent) + its Père / Mère. Same access as the lookup.</summary>
+    [HttpGet("{id:guid}/familles/{number:int}/schedule")]
+    public async Task<IActionResult> FamilleSchedule(Guid id, int number) => Res(await Mediator.Send(new GetFamilleScheduleQuery(id, number)));
+
+    /// <summary>Matches with their score (optionally one game / one slot). Commission, or an étapiste for their games.</summary>
+    [HttpGet("{id:guid}/matches")]
+    public async Task<IActionResult> Matches(Guid id, [FromQuery] int? game, [FromQuery] int? slot)
+        => Res(await Mediator.Send(new GetCampMatchesQuery(id, game, slot)));
+
+    /// <summary>Enters or corrects a match score (source online / paper). Commission (Jeux edit) or the game's étapistes.</summary>
+    [HttpPut("matches/{matchId:guid}/score")]
+    public async Task<IActionResult> SaveScore(Guid matchId, [FromBody] SaveCampMatchScoreCommand command)
+        => Res(await Mediator.Send(command with { MatchId = matchId }));
+
+    /// <summary>Removes a score entered by mistake.</summary>
+    [HttpDelete("matches/{matchId:guid}/score")]
+    public async Task<IActionResult> ClearScore(Guid matchId) => Res(await Mediator.Send(new ClearCampMatchScoreCommand(matchId)));
+
+    /// <summary>Ranking of the familles (and superfamilles). Commission / CG (Jeux view).</summary>
+    [HttpGet("{id:guid}/ranking")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> Ranking(Guid id) => Res(await Mediator.Send(new GetCampRankingQuery(id)));
+
+    /// <summary>Famille passports (all, or ?famille=N) as a PDF.</summary>
+    [HttpGet("{id:guid}/passports/pdf")]
+    public async Task<IActionResult> PassportsPdf(Guid id, [FromQuery] int? famille)
+        => PdfFile(await Mediator.Send(new GenerateCampRotationPdfQuery(id, "passports", famille)));
+
+    /// <summary>Paper score sheets (all games, or ?game=N) as a PDF. An étapiste may print their own game's sheet.</summary>
+    [HttpGet("{id:guid}/score-sheets/pdf")]
+    public async Task<IActionResult> ScoreSheetsPdf(Guid id, [FromQuery] int? game)
+        => PdfFile(await Mediator.Send(new GenerateCampRotationPdfQuery(id, "scoresheets", game)));
+
+    private IActionResult PdfFile(GNDJ.Application.Common.Models.Result<CampPdf> r)
+        => r.IsSuccess ? File(r.Value!.Data, "application/pdf", r.Value.FileName) : BadRequest(new { error = r.Error });
+
+    // ── Familles info, superfamilles, sub-commissions ──
+    /// <summary>A famille's name, description and superfamille (Familles edit).</summary>
+    [HttpPut("familles/{familleId:guid}/info")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> UpdateFamilleInfo(Guid familleId, [FromBody] FamilleInfoBody body)
+        => Res(await Mediator.Send(new UpdateFamilleInfoCommand(familleId, body.Name, body.Description, body.SuperFamilleId)));
+    public record FamilleInfoBody(string? Name, string? Description, Guid? SuperFamilleId);
+
+    /// <summary>The camp's superfamilles (optional groups of familles).</summary>
+    [HttpGet("{id:guid}/superfamilles")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> SuperFamilles(Guid id) => Res(await Mediator.Send(new GetCampSuperFamillesQuery(id)));
+
+    /// <summary>Replaces the list of superfamilles.</summary>
+    [HttpPut("{id:guid}/superfamilles")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> SaveSuperFamilles(Guid id, [FromBody] List<CampSuperFamilleInput> items)
+        => Res(await Mediator.Send(new SaveCampSuperFamillesCommand(id, items)));
+
+    /// <summary>Splits the familles evenly across the superfamilles, in number order.</summary>
+    [HttpPost("{id:guid}/superfamilles/auto")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> AutoSuperFamilles(Guid id) => Res(await Mediator.Send(new AutoAssignSuperFamillesCommand(id)));
+
+    /// <summary>The camp's sub-commissions (Trésor, Jeu, Code…).</summary>
+    [HttpGet("{id:guid}/sub-commissions")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> SubCommissions(Guid id) => Res(await Mediator.Send(new GetCampSubCommissionsQuery(id)));
+
+    /// <summary>Replaces the list of sub-commissions (CG or a chef de commission).</summary>
+    [HttpPut("{id:guid}/sub-commissions")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> SetSubCommissions(Guid id, [FromBody] List<string> names)
+        => Res(await Mediator.Send(new SetCampSubCommissionsCommand(id, names)));
+
+    /// <summary>Puts a commission member in one or more sub-commissions (CG or a chef de commission).</summary>
+    [HttpPut("{id:guid}/commission/{memberId:guid}/sub-commissions")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> SetMemberSubCommissions(Guid id, Guid memberId, [FromBody] List<string> names)
+        => Res(await Mediator.Send(new SetCommissionMemberSubCommissionsCommand(id, memberId, names)));
 
     /// <summary>Lists members eligible to be game étapistes. Rights checked per area in the handler (CampAccess).</summary>
     [HttpGet("{id:guid}/etapiste-candidates")]

@@ -71,6 +71,9 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<CampGame> CampGames => Set<CampGame>();
     public DbSet<CampCommissionMember> CampCommissionMembers => Set<CampCommissionMember>();
     public DbSet<CampGameEtapiste> CampGameEtapistes => Set<CampGameEtapiste>();
+    public DbSet<CampSuperFamille> CampSuperFamilles => Set<CampSuperFamille>();
+    public DbSet<CampRotationSlot> CampRotationSlots => Set<CampRotationSlot>();
+    public DbSet<CampRotationMatch> CampRotationMatches => Set<CampRotationMatch>();
     public DbSet<TrombinoscopeArchive> TrombinoscopeArchives => Set<TrombinoscopeArchive>();
     public DbSet<OutboxEmail> OutboxEmails => Set<OutboxEmail>();
     public DbSet<Meeting> Meetings => Set<Meeting>();

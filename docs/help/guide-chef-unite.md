@@ -360,6 +360,17 @@ les régénérer en un clic.
 
 ![Rapports personnalisés](img/cu-rapports.png)
 
+## Le Camp BP
+
+Pendant le camp, la page **Camp BP** vous aide aussi sur place :
+
+- **Où est une famille ?** : un membre a perdu sa famille ? Tapez son nom (ou le numéro de la famille). Vous
+  voyez où la famille joue en ce moment, où elle était avant et où elle va ensuite, avec le téléphone du Père et
+  de la Mère.
+- **Vos jeux** (si vous êtes étapiste) : la description du jeu, et le **pointage** de chaque passage — touchez
+  « Saisir » après chaque étape. Vous préférez le papier ? Imprimez la **feuille papier** du jeu et remettez-la à
+  la commission, qui la saisira.
+
 ## Votre liste de rentrée
 
 Le menu **Rentrée scoute** montre **vos** tâches de l'année, dans l'ordre, avec leur date limite (en rouge si elle

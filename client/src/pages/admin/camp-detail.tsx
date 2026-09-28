@@ -4,7 +4,9 @@
 //  - FamillesTab: the familles board. CG runs the balanced randomized draft (useRunDraft), then fine-tunes by
 //    picking two familles (slots A/B) and drag-dropping members between the two columns (onto a column = move,
 //    onto a member = swap); assigns Père/Mère per famille (gender-restricted).
-//  - GamesTab: define jeux/étapes and pick their étapiste sets (maîtrise members).
+//  - GamesTab: define jeux/étapes (with their number 1–25 in the rotation grid) and pick their étapiste sets.
+//  - Rotation / Pointage / Recherche (components/camp): the grand jeu — fixed rotation grid (dates, hours, rain
+//    plan, printouts), score entry + ranking, and "where is this famille now".
 //  - SettingsTab: edit camp metadata + the Note formula coefficients (the per-branch multiplier is read-only,
 //    sourced from each unit type's NumberOfYears).
 import { useState } from 'react'
@@ -38,6 +40,10 @@ import { optionsWithCurrent } from '@/lib/options'
 import { Tip } from '@/components/ui/tooltip'
 import { CampCommissionTab } from '@/components/camp/camp-commission-tab'
 import { useIsCampCg } from '@/components/camp/use-is-camp-cg'
+import { CampRotationTab } from '@/components/camp/camp-rotation-tab'
+import { CampScoringTab } from '@/components/camp/camp-scoring'
+import { CampLookup } from '@/components/camp/camp-lookup'
+import { FamilleInfoDialog, SuperFamillesDialog } from '@/components/camp/camp-familles-extras'
 import { toast } from 'sonner'
 
 export default function CampDetailPage() {
@@ -55,6 +61,9 @@ export default function CampDetailPage() {
   const tabs = [
     access.familles !== 'none' && 'familles',
     access.jeux !== 'none' && 'jeux',
+    access.jeux !== 'none' && 'rotation',
+    access.jeux !== 'none' && 'pointage',
+    (access.isAdmin || access.isCommissionMember) && 'recherche',
     access.parametres !== 'none' && 'parametres',
     (access.isAdmin || access.isCommissionMember) && 'commission',
   ].filter(Boolean) as string[]
@@ -99,11 +108,17 @@ export default function CampDetailPage() {
           <TabsList>
             {tabs.includes('familles') && <TabsTrigger value="familles">Familles</TabsTrigger>}
             {tabs.includes('jeux') && <TabsTrigger value="jeux">Jeux</TabsTrigger>}
+            {tabs.includes('rotation') && <TabsTrigger value="rotation">Rotation</TabsTrigger>}
+            {tabs.includes('pointage') && <TabsTrigger value="pointage">Pointage</TabsTrigger>}
+            {tabs.includes('recherche') && <TabsTrigger value="recherche">Où est… ?</TabsTrigger>}
             {tabs.includes('parametres') && <TabsTrigger value="parametres">Paramètres</TabsTrigger>}
             {tabs.includes('commission') && <TabsTrigger value="commission">Commission</TabsTrigger>}
           </TabsList>
           {tabs.includes('familles') && <TabsContent value="familles" className="mt-4"><FamillesTab campId={id} readOnly={access.familles !== 'edit'} /></TabsContent>}
           {tabs.includes('jeux') && <TabsContent value="jeux" className="mt-4"><GamesTab campId={id} readOnly={access.jeux !== 'edit'} /></TabsContent>}
+          {tabs.includes('rotation') && <TabsContent value="rotation" className="mt-4"><CampRotationTab campId={id} readOnly={access.jeux !== 'edit' || camp.isArchived} /></TabsContent>}
+          {tabs.includes('pointage') && <TabsContent value="pointage" className="mt-4"><CampScoringTab campId={id} /></TabsContent>}
+          {tabs.includes('recherche') && <TabsContent value="recherche" className="mt-4"><CampLookup campId={id} /></TabsContent>}
           {tabs.includes('parametres') && <TabsContent value="parametres" className="mt-4"><SettingsTab campId={id} readOnly={access.parametres !== 'edit'} /></TabsContent>}
           {tabs.includes('commission') && <TabsContent value="commission" className="mt-4"><CampCommissionTab campId={id} access={access} /></TabsContent>}
         </Tabs>
@@ -222,6 +237,8 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   const [slotA, setSlotA] = useState<string | null>(null)
   const [slotB, setSlotB] = useState<string | null>(null)
   const [leaderDialog, setLeaderDialog] = useState<CampFamilleDto | null>(null)
+  const [infoDialog, setInfoDialog] = useState<CampFamilleDto | null>(null)
+  const [supersOpen, setSupersOpen] = useState(false)
   const [drag, setDrag] = useState<DragData | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -286,6 +303,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
           <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
+          <Button variant="outline" size="sm" onClick={() => setSupersOpen(true)}>Superfamilles</Button>
           {!readOnly && <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>}
         </div>
       </div>
@@ -306,7 +324,10 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
                   className={cn('flex w-full items-center gap-2 border-b px-3 py-2 text-left last:border-b-0', (isA || isB) ? 'bg-primary/10' : 'hover:bg-muted/40')}>
                   <span className="flex w-14 items-center gap-1.5">
                     {(isA || isB) && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{isA ? 'A' : 'B'}</span>}
-                    <span className="text-base font-semibold">F{f.number}</span>
+                    <span className="min-w-0">
+                      <span className="block text-base font-semibold leading-tight">F{f.number}</span>
+                      {f.name && <span className="block truncate text-[11px] leading-tight text-muted-foreground">{f.name}</span>}
+                    </span>
                   </span>
                   <span className="w-8 shrink-0 text-right text-sm text-muted-foreground tabular-nums">{f.size}</span>
                   <span className="flex flex-1 items-center gap-2">
@@ -326,7 +347,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
           <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={e => setDrag(e.active.data.current as DragData)} onDragEnd={onDragEnd}>
             <div className="grid gap-3 md:grid-cols-2">
               {[famA, famB].map((f, i) => f
-                ? <FamilleColumn key={f.id} campId={campId} f={f} label={i === 0 ? 'A' : 'B'} readOnly={readOnly} onEditLeaders={() => setLeaderDialog(f)} />
+                ? <FamilleColumn key={f.id} campId={campId} f={f} label={i === 0 ? 'A' : 'B'} readOnly={readOnly} onEditLeaders={() => setLeaderDialog(f)} onEditInfo={() => setInfoDialog(f)} />
                 : <div key={i} className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                     Sélectionnez une famille <b className="mx-1">{i === 0 ? 'A' : 'B'}</b> dans le tableau.
                   </div>)}
@@ -341,11 +362,13 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         confirmLabel="Lancer" onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } }} />
 
       {leaderDialog && <LeaderDialog campId={campId} famille={leaderDialog} onClose={() => setLeaderDialog(null)} />}
+      {infoDialog && <FamilleInfoDialog campId={campId} famille={infoDialog} onClose={() => setInfoDialog(null)} />}
+      {supersOpen && <SuperFamillesDialog campId={campId} readOnly={readOnly} onClose={() => setSupersOpen(false)} />}
     </div>
   )
 }
 
-function FamilleColumn({ campId, f, label, readOnly, onEditLeaders }: { campId: string; f: CampFamilleDto; label: string; readOnly: boolean; onEditLeaders: () => void }) {
+function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }: { campId: string; f: CampFamilleDto; label: string; readOnly: boolean; onEditLeaders: () => void; onEditInfo: () => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${f.id}`, data: { type: 'col', familleId: f.id }, disabled: readOnly })
   return (
     <div ref={setNodeRef} className={cn('rounded-lg border transition-colors', isOver && 'ring-2 ring-primary')}>
@@ -353,7 +376,11 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders }: { campId: 
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{label}</span>
           <div>
-            <h3 className="font-semibold">Famille {f.number}</h3>
+            <h3 className="flex items-center gap-1 font-semibold">
+              Famille {f.number}{f.name && <span className="font-normal text-muted-foreground"> · {f.name}</span>}
+              {!readOnly && <Tip content="Nom, description, superfamille"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEditInfo}><Pencil className="h-3.5 w-3.5" /></Button></Tip>}
+            </h3>
+            {f.superFamilleName && <p className="text-xs text-muted-foreground">{f.superFamilleName}</p>}
             <p className="text-sm text-muted-foreground">{f.size} membres · moy. {f.avgNote} · {f.boys}♂ {f.girls}♀</p>
           </div>
         </div>
@@ -476,7 +503,12 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
         <div className="space-y-2">{games!.map(g => (
           <div key={g.id} className="rounded-lg border p-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="font-medium">{g.name}</p>
+              <p className="font-medium">
+                {g.number != null
+                  ? <span className="mr-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">Jeu {g.number}</span>
+                  : <span className="mr-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">sans numéro</span>}
+                {g.name}
+              </p>
               <div className="flex gap-1">
                 <Tip content="Imprimer la fiche du jeu (PDF)"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printGame(g.id, g.name).catch(e => toast.error(parseApiError(e)))}><Printer className="h-4 w-4" /></Button></Tip>
                 {readOnly
@@ -495,7 +527,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
             {g.etapistes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{g.etapistes.map(e => `${e.firstName} ${e.lastName}`).join(', ')}</p>}
           </div>
         ))}</div>}
-      {editingGame && <GameEditDialog campId={campId} game={editingGame} onClose={() => setEditingGame(null)} />}
+      {editingGame && <GameEditDialog campId={campId} game={editingGame} taken={(games ?? []).filter(x => x.id !== editingGame.id && x.number != null).map(x => x.number!)} onClose={() => setEditingGame(null)} />}
       {etapisteFor && <EtapisteDialog campId={campId} game={etapisteFor} onClose={() => setEtapisteFor(null)} />}
 
       <ConfirmDialog open={!!deletingGame} onOpenChange={() => setDeletingGame(null)} title="Supprimer le jeu" variant="destructive"
@@ -511,8 +543,9 @@ function hasText(html: string | null) {
 }
 
 // Edit a game's name + its formatted description (TipTap; shown sanitized on the game card).
-function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampGameDto; onClose: () => void }) {
+function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game: CampGameDto; taken: number[]; onClose: () => void }) {
   const update = useUpdateGame(campId)
+  const [number, setNumber] = useState<number | null>(game.number)
   const [name, setName] = useState(game.name)
   const [description, setDescription] = useState(game.description ?? '')
   const [mainLocation, setMainLocation] = useState(game.mainLocation ?? '')
@@ -522,7 +555,7 @@ function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampG
   const save = async () => {
     if (!name.trim()) { toast.error('Saisissez un nom pour le jeu.'); return }
     try {
-      await update.mutateAsync({ id: game.id, name: name.trim(), description: hasText(description) ? description : null, mainLocation: mainLocation || null, backupLocation: backupLocation || null })
+      await update.mutateAsync({ id: game.id, number, name: name.trim(), description: hasText(description) ? description : null, mainLocation: mainLocation || null, backupLocation: backupLocation || null })
       toast.success('Jeu enregistré'); onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -531,10 +564,25 @@ function GameEditDialog({ campId, game, onClose }: { campId: string; game: CampG
       <DialogContent className="max-w-[95vw] sm:max-w-3xl">
         <DialogHeader><DialogTitle>Modifier le jeu</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1">
-            <RequiredLabel required>Nom</RequiredLabel>
-            <Input value={name} onChange={e => setName(e.target.value)} />
+          <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Numéro (grille)</p>
+              <Select value={number == null ? NO_PLACE : String(number)} onValueChange={v => setNumber(v === NO_PLACE ? null : Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PLACE}>Aucun</SelectItem>
+                  {Array.from({ length: 25 }, (_, i) => i + 1).map(n => (
+                    <SelectItem key={n} value={String(n)} disabled={taken.includes(n)}>Jeu {n}{taken.includes(n) ? ' (pris)' : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <RequiredLabel required>Nom</RequiredLabel>
+              <Input value={name} onChange={e => setName(e.target.value)} />
+            </div>
           </div>
+          <p className="-mt-1 text-xs text-muted-foreground">Le numéro place le jeu dans la grille de rotation (jeu 1 à 25) : c'est ce qui donne son lieu à chaque famille.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <LocationSelect label="Lieu" value={mainLocation} onChange={setMainLocation} options={optionsWithCurrent(places, mainLocation)} />
             <LocationSelect label="Lieu de repli (mauvais temps)" value={backupLocation} onChange={setBackupLocation} options={optionsWithCurrent(places, backupLocation)} />

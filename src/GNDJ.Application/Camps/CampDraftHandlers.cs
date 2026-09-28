@@ -15,7 +15,7 @@ namespace GNDJ.Application.Camps;
 public record CampFamilleMemberDto(Guid ParticipantId, Guid MemberId, string FirstName, string LastName,
     string? Gender, string? Branche, string? UnitName, string? UnitCode, double? Note, string Role);
 
-public record CampFamilleDto(Guid Id, int Number, string? Name,
+public record CampFamilleDto(Guid Id, int Number, string? Name, string? Description, Guid? SuperFamilleId, string? SuperFamilleName,
     Guid? PereMemberId, string? PereName, Guid? MereMemberId, string? MereName,
     int Size, double NoteSum, double AvgNote, int Boys, int Girls,
     IReadOnlyDictionary<string, int> BranchCounts, IReadOnlyList<CampFamilleMemberDto> Members);
@@ -102,6 +102,8 @@ public class GetCampFamillesQueryHandler(IApplicationDbContext context, ICurrent
 
         var familles = await context.Familles.Where(f => f.CampId == request.CampId && !f.IsDeleted && f.Number <= camp.FamillesCount)
             .OrderBy(f => f.Number).ToListAsync(ct);
+        var superNames = await context.CampSuperFamilles.Where(s => s.CampId == request.CampId && !s.IsDeleted)
+            .ToDictionaryAsync(s => s.Id, s => s.Name, ct);
 
         // Members flat (group in memory — avoids an untranslatable SQL GroupBy over entities).
         var memberRows = await context.CampParticipants
@@ -121,7 +123,8 @@ public class GetCampFamillesQueryHandler(IApplicationDbContext context, ICurrent
         {
             var mem = map.GetValueOrDefault(f.Id, []);
             var noteSum = mem.Sum(m => m.Note ?? 0);
-            return new CampFamilleDto(f.Id, f.Number, f.Name,
+            return new CampFamilleDto(f.Id, f.Number, f.Name, f.Description, f.SuperFamilleId,
+                f.SuperFamilleId is { } sid ? superNames.GetValueOrDefault(sid) : null,
                 f.PereMemberId, f.PereMemberId != null ? leaderNames.GetValueOrDefault(f.PereMemberId.Value) : null,
                 f.MereMemberId, f.MereMemberId != null ? leaderNames.GetValueOrDefault(f.MereMemberId.Value) : null,
                 mem.Count, noteSum, mem.Count > 0 ? Math.Round(noteSum / mem.Count, 1) : 0,

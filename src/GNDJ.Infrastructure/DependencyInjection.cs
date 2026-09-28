@@ -109,6 +109,7 @@ public static class DependencyInjection
         services.AddSingleton<IMemberCardService, MemberCardService>();
         services.AddSingleton<IRosterService, RosterService>();
         services.AddSingleton<ICampReportService, CampReportService>();
+        services.AddSingleton<ICampRotationReportService, CampRotationReportService>();
         services.AddSingleton<IExportService, ExportService>();
         services.AddSingleton<IDemandeSheetService, DemandeSheetService>(); // Excel export/import of CG decisions
         services.AddSingleton<IUnitNewMembersSheet, UnitNewMembersSheet>(); // Excel of new members emailed to each CU

@@ -9,9 +9,10 @@ import { toast } from 'sonner'
 import { UserPlus, X, Users, Search, ShieldCheck, Pencil } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import {
-  useCampCommission, useSetCampCommission, useSetCampCommissionAccess, useCampCommissionCandidates, useSetCampChefs,
+  useCampCommission, useSetCampCommission, useSetCampCommissionAccess, useCampCommissionCandidates, useSetCampChefs, useCampSubCommissions,
   type CampAccessLevel, type CampCommissionMemberDto, type CampMyAccessDto,
 } from '@/services/camp-service'
+import { SubCommissionChips, SubCommissionsOverview, SubCommissionsDialog } from '@/components/camp/camp-sub-commissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +40,8 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
   const setChefsMut = useSetCampChefs(campId)
   const [picking, setPicking] = useState(false)
   const [editingChefs, setEditingChefs] = useState<string[] | null>(null) // CG: chefs being edited
+  const { data: subNames } = useCampSubCommissions(campId)
+  const [editingSubs, setEditingSubs] = useState(false)
 
   const list = members ?? []
   const ids = list.map((m) => m.memberId)
@@ -71,6 +74,9 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
             </Button>
           )}
           {access.canManageCommission && (
+            <Button size="sm" variant="outline" onClick={() => setEditingSubs(true)}>Sous-commissions</Button>
+          )}
+          {access.canManageCommission && (
             <Button size="sm" onClick={() => setPicking(true)} disabled={save.isPending}>
               <UserPlus className="mr-1.5 h-4 w-4" />Ajouter un membre
             </Button>
@@ -91,6 +97,7 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
                   {m.isChef && <Badge variant="outline" className="gap-1 border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300"><ShieldCheck className="h-3 w-3" />Chef de commission</Badge>}
                 </p>
                 {m.roles && <p className="truncate text-xs text-muted-foreground">{m.roles}</p>}
+                <SubCommissionChips campId={campId} member={m} names={subNames ?? []} editable={access.canManageCommission} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {m.isChef ? (
@@ -121,6 +128,14 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
           ))}
         </div>
       )}
+
+      {list.length > 0 && (subNames ?? []).length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">Par sous-commission</h3>
+          <SubCommissionsOverview members={list} names={subNames!} />
+        </div>
+      )}
+      {editingSubs && subNames && <SubCommissionsDialog campId={campId} names={subNames} onClose={() => setEditingSubs(false)} />}
 
       {editingChefs && (
         <Dialog open onOpenChange={() => setEditingChefs(null)}>

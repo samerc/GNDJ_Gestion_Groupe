@@ -4,7 +4,9 @@
 // the standalone "Mes jeux" page (étapistes who don't have the Camp BP page, e.g. routiers).
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useMyCampGames, printGame, type MyCampGameDto } from '@/services/camp-service'
+import { useMyCampGames, printGame, useCampMatches, printScoreSheets, type MyCampGameDto } from '@/services/camp-service'
+import { MatchList } from '@/components/camp/camp-scoring'
+import { parseBlobError } from '@/lib/error-utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +14,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { RichContent } from '@/components/public/rich-content'
-import { Tent, Printer, Users, MapPin, CloudRain } from 'lucide-react'
+import { Tent, Printer, Users, MapPin, CloudRain, ClipboardList } from 'lucide-react'
 
 // Main place + bad-weather place of a game (either may be unset).
 export function GameLocations({ main, backup }: { main: string | null; backup: string | null }) {
@@ -61,6 +63,7 @@ export function MyGamesList({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean
                 {others.length > 0 ? <>Avec : {others.map((e) => `${e.firstName} ${e.lastName}`).join(', ')}</> : 'Vous êtes le seul étapiste de ce jeu.'}
               </p>
               <GameLocations main={g.mainLocation} backup={g.backupLocation} />
+              {g.number != null && <GameScoring campId={g.campId} gameNumber={g.number} />}
               {g.description && g.description.replace(/<[^>]*>/g, '').trim()
                 ? <RichContent html={g.description} className="border-t pt-3 text-sm" />
                 : <p className="border-t pt-3 text-sm italic text-muted-foreground">La description de ce jeu n'a pas encore été rédigée.</p>}
@@ -68,6 +71,27 @@ export function MyGamesList({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean
           </Card>
         )
       })}
+    </div>
+  )
+}
+
+// The étapiste's scoring of their game: the matches (one per time slot) with "Saisir" — or the paper sheet to fill
+// by hand and hand over to the commission, who types it in later.
+function GameScoring({ campId, gameNumber }: { campId: string; gameNumber: number }) {
+  const [open, setOpen] = useState(false)
+  const { data: matches, isLoading } = useCampMatches(campId, { game: gameNumber }, open)
+  const done = (matches ?? []).filter(m => m.scoredAt).length
+  return (
+    <div className="rounded-lg border">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+        <button type="button" onClick={() => setOpen(v => !v)} className="flex items-center gap-2 text-sm font-medium">
+          <ClipboardList className="h-4 w-4 text-primary" />Pointage du jeu {gameNumber}{open && matches && <span className="font-normal text-muted-foreground">· {done}/{matches.length} saisis</span>}
+        </button>
+        <Button size="sm" variant="ghost" onClick={() => printScoreSheets(campId, gameNumber).catch(async e => toast.error(await parseBlobError(e)))}>
+          <Printer className="mr-1 h-4 w-4" />Feuille papier
+        </Button>
+      </div>
+      {open && <div className="border-t p-2">{isLoading ? <LoadingSpinner /> : <MatchList campId={campId} matches={matches ?? []} defaultSource="online" />}</div>}
     </div>
   )
 }

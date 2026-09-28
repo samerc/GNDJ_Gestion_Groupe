@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { MyGamesList } from '@/components/camp/my-games-list'
+import { CampLookupCard } from '@/components/camp/camp-lookup'
 import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError } from '@/lib/error-utils'
 import { Tent, Save, ArrowUp, ArrowDown, Users } from 'lucide-react'
@@ -134,6 +135,9 @@ export default function CampPage() {
 
       {/* The member's own game(s) as étapiste — description, other étapistes, locations. Hidden when none. */}
       <MyGamesList hideWhenEmpty />
+
+      {/* During the camp: find where a (lost) member's famille is now. */}
+      {!active.isArchived && <CampLookupCard campId={active.id} />}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="w-full sm:max-w-xs sm:flex-1" />

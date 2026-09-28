@@ -17,6 +17,7 @@ public class CampConfiguration : IEntityTypeConfiguration<Camp>
         builder.Property(e => e.Status).HasMaxLength(20).IsRequired();
         // Per-branch note multipliers serialized as jsonb (a small open-ended branche→coef map).
         builder.Property(e => e.NoteBranchMultipliers).HasColumnType("jsonb");
+        builder.Property(e => e.SubCommissionsJson).HasColumnType("text");
 
         // The camp owns its familles/participants/games — deleting the edition cascades them all.
         builder.HasMany(e => e.Familles).WithOne(f => f.Camp).HasForeignKey(f => f.CampId).OnDelete(DeleteBehavior.Cascade);
@@ -38,6 +39,7 @@ public class CampCommissionMemberConfiguration : IEntityTypeConfiguration<CampCo
         builder.Property(e => e.FamillesAccess).HasMaxLength(10).HasDefaultValue("none");
         builder.Property(e => e.JeuxAccess).HasMaxLength(10).HasDefaultValue("none");
         builder.Property(e => e.ParametresAccess).HasMaxLength(10).HasDefaultValue("none");
+        builder.Property(e => e.SubCommissions).HasColumnType("text[]").HasDefaultValueSql("'{}'");
         builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
         // Plain child of two soft-deleted parents: hide the row when either is soft-deleted (matching filters —
@@ -54,6 +56,9 @@ public class FamilleConfiguration : IEntityTypeConfiguration<Famille>
         builder.ToTable("camp_familles");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Name).HasMaxLength(100);
+        builder.Property(e => e.Description).HasMaxLength(1000);
+        // Removing a superfamille just ungroups its familles.
+        builder.HasOne(e => e.SuperFamille).WithMany().HasForeignKey(e => e.SuperFamilleId).OnDelete(DeleteBehavior.SetNull);
 
         // SetNull: the Père/Mère slots are optional and survive the member being removed (re-assign later).
         builder.HasOne(e => e.PereMember).WithMany().HasForeignKey(e => e.PereMemberId).OnDelete(DeleteBehavior.SetNull);
@@ -94,6 +99,7 @@ public class CampGameConfiguration : IEntityTypeConfiguration<CampGame>
         builder.Property(e => e.Description).HasColumnType("text");
         builder.Property(e => e.MainLocation).HasMaxLength(150);
         builder.Property(e => e.BackupLocation).HasMaxLength(150);
+        builder.HasIndex(e => new { e.CampId, e.Number });
 
         builder.HasMany(e => e.Etapistes).WithOne(x => x.CampGame).HasForeignKey(x => x.CampGameId).OnDelete(DeleteBehavior.Cascade);
     }
@@ -109,5 +115,54 @@ public class CampGameEtapisteConfiguration : IEntityTypeConfiguration<CampGameEt
         builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Restrict);
         // A member can be listed once per game.
         builder.HasIndex(e => new { e.CampGameId, e.MemberId }).IsUnique().HasFilter("is_deleted = false");
+    }
+}
+
+// Optional group of familles within a camp.
+public class CampSuperFamilleConfiguration : IEntityTypeConfiguration<CampSuperFamille>
+{
+    public void Configure(EntityTypeBuilder<CampSuperFamille> builder)
+    {
+        builder.ToTable("camp_super_familles");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.Name).HasMaxLength(100).IsRequired();
+        builder.Property(e => e.Description).HasMaxLength(1000);
+        builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(e => e.CampId);
+    }
+}
+
+// Time slots of the grand jeu (one per slot number per camp).
+public class CampRotationSlotConfiguration : IEntityTypeConfiguration<CampRotationSlot>
+{
+    public void Configure(EntityTypeBuilder<CampRotationSlot> builder)
+    {
+        builder.ToTable("camp_rotation_slots");
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.CampId, e.Number }).IsUnique();
+        builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasQueryFilter(e => !e.Camp.IsDeleted);
+    }
+}
+
+// Matches of the grand jeu (one per slot × game per camp) with their score.
+public class CampRotationMatchConfiguration : IEntityTypeConfiguration<CampRotationMatch>
+{
+    public void Configure(EntityTypeBuilder<CampRotationMatch> builder)
+    {
+        builder.ToTable("camp_rotation_matches");
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.CampId, e.SlotNumber, e.GameNumber }).IsUnique();
+        builder.HasIndex(e => new { e.CampId, e.GameNumber });
+        builder.Property(e => e.RetardA).HasMaxLength(10);
+        builder.Property(e => e.RetardB).HasMaxLength(10);
+        builder.Property(e => e.Manche1).HasMaxLength(10);
+        builder.Property(e => e.Manche2).HasMaxLength(10);
+        builder.Property(e => e.FirstArrived).HasMaxLength(10);
+        builder.Property(e => e.Enigme).HasMaxLength(10);
+        builder.Property(e => e.ScoredByName).HasMaxLength(200);
+        builder.Property(e => e.Source).HasMaxLength(10);
+        builder.HasOne(e => e.Camp).WithMany().HasForeignKey(e => e.CampId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasQueryFilter(e => !e.Camp.IsDeleted);
     }
 }

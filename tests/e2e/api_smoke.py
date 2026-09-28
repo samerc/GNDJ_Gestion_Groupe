@@ -174,6 +174,25 @@ def main() -> int:
         s, _ = call("GET", "/notifications/unread-count", token=youth)
         check("notification count", s == 200, s)
 
+        # ---------------------------------------------------------------- Camp BP grand jeu (read-only)
+        section("Camp BP grand jeu")
+        s, camps = call("GET", "/camps", token=cg)
+        live = [c for c in (camps or []) if not c.get("isArchived")] if s == 200 else []
+        if live:
+            cid = live[0]["id"]
+            s, rot = call("GET", f"/camps/{cid}/rotation", token=cg)
+            check("CG reads the rotation", s == 200 and "slots" in rot, s)
+            s, _ = call("GET", f"/camps/{cid}/lookup?q=ab", token=cu)
+            check("CU may use the famille lookup", s == 200, s)
+            s, _ = call("GET", f"/camps/{cid}/lookup?q=ab", token=youth)
+            check("member refused on the famille lookup", s == 400, s)
+            s, _ = call("GET", f"/camps/{cid}/matches", token=youth)
+            check("member refused on the scores", s == 400, s)
+            s, _ = call("GET", f"/camps/{cid}/ranking", token=cg)
+            check("CG reads the ranking", s == 200, s)
+        else:
+            print("  (no active camp — grand jeu checks skipped)")
+
         # ---------------------------------------------------------------- data quality + bounces
         section("Data quality + bounce webhooks")
         s, rep = call("GET", "/data-quality", token=cg)

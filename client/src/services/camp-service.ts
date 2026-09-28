@@ -29,7 +29,7 @@ export interface CampGradeRowDto {
 }
 export interface CampFamilleMemberDto { participantId: string; memberId: string; firstName: string; lastName: string; gender: string | null; branche: string | null; unitName: string | null; unitCode: string | null; note: number | null; role: string }
 export interface CampFamilleDto {
-  id: string; number: number; name: string | null
+  id: string; number: number; name: string | null; description: string | null; superFamilleId: string | null; superFamilleName: string | null
   pereMemberId: string | null; pereName: string | null; mereMemberId: string | null; mereName: string | null
   size: number; noteSum: number; avgNote: number; boys: number; girls: number
   branchCounts: Record<string, number>; members: CampFamilleMemberDto[]
@@ -37,7 +37,7 @@ export interface CampFamilleDto {
 export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
 // mainLocation / backupLocation (bad weather) are picked from the camp.game_locations setting.
-export interface CampGameDto { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
+export interface CampGameDto { id: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
 // isAine = routier / caravelle / JEM (offered only when the camp.etapistes_aines setting is on); branch = their branch name.
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null; isAine: boolean; branch: string | null }
 
@@ -62,6 +62,7 @@ export interface CampMyAccessDto {
 export interface CampCommissionMemberDto {
   memberId: string; firstName: string; lastName: string; roles: string | null
   isChef: boolean; famillesAccess: CampAccessLevel; jeuxAccess: CampAccessLevel; parametresAccess: CampAccessLevel
+  subCommissions: string[]
 }
 export interface CampCommissionCandidateDto { memberId: string; firstName: string; lastName: string; roles: string | null }
 // GET /camps/{id}/commission → the members named to run this camp, with their rights.
@@ -176,12 +177,12 @@ export const useCampGames = (campId?: string) =>
 // POST /camps/{id}/games → create a game; invalidates ['camp-games', campId].
 export function useCreateGame(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: (data: { name: string; description: string | null }) => apiClient.post(`/camps/${campId}/games`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+  return useMutation({ mutationFn: (data: { name: string; description: string | null; number?: number | null }) => apiClient.post(`/camps/${campId}/games`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
 // PUT /camps/games/{gameId} → rename a game / edit its description (rich-text HTML); invalidates ['camp-games', campId].
 export function useUpdateGame(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; number: number | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
 // DELETE /camps/games/{gameId} → delete a game; invalidates ['camp-games', campId].
 export function useDeleteGame(campId: string) {
@@ -204,7 +205,7 @@ async function downloadPdf(url: string, filename: string) {
   saveBlob(r.data, filename, 'application/pdf')
 }
 // ── Étapistes: my games ──
-export interface MyCampGameDto { id: string; campId: string; campName: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
+export interface MyCampGameDto { id: string; campId: string; campName: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
 // GET /camps/my-games → games of live camps where I am an étapiste (any signed-in member).
 export const useMyCampGames = () =>
   useQuery({ queryKey: ['camp-my-games'], queryFn: () => apiClient.get<MyCampGameDto[]>('/camps/my-games').then(r => r.data) })
@@ -216,3 +217,150 @@ export const printFamille = (campId: string, number: number) => downloadPdf(`/ca
 export const printAllFamilles = (campId: string) => downloadPdf(`/camps/${campId}/familles/pdf`, 'Familles.pdf')
 // GET /camps/{id}/unit-list/pdf → members grouped by unit with famille number (blob → save).
 export const printUnitList = (campId: string) => downloadPdf(`/camps/${campId}/unit-list/pdf`, 'Liste_par_unite.pdf')
+
+
+// ── Grand jeu: rotation (fixed grid), lookup, scoring ──
+// Dates are 'yyyy-MM-dd', times 'HH:mm:ss' (camp time, Lebanon). `now` is the server's camp-local time.
+export interface CampRotationSlotDto { number: number; date: string; startTime: string; endTime: string }
+export interface CampRotationGameDto { number: number; gameId: string | null; name: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: string[] }
+export interface CampRotationDto {
+  generated: boolean; useBackupLocations: boolean; famillesCount: number; existingFamilles: number
+  matchCount: number; scoredCount: number; slots: CampRotationSlotDto[]; games: CampRotationGameDto[]; now: string
+}
+export interface CampPersonMatchDto { memberId: string; firstName: string; lastName: string; unitCode: string | null; role: string; familleNumber: number | null; familleName: string | null }
+export interface CampScheduleStepDto {
+  slot: number; date: string; startTime: string; endTime: string; gameNumber: number; gameName: string | null
+  mainLocation: string | null; backupLocation: string | null; opponent: number; opponentName: string | null; etapistes: string[]
+}
+export interface CampFamilleScheduleDto {
+  number: number; name: string | null; superFamille: string | null; pereName: string | null; perePhone: string | null
+  mereName: string | null; merePhone: string | null; memberCount: number; useBackupLocations: boolean; now: string; steps: CampScheduleStepDto[]
+}
+export type CampLateness = 'none' | 'A' | 'B'
+export type CampSide = 'A' | 'B' | 'tie'
+export interface CampMatchDto {
+  id: string; slotNumber: number; date: string | null; startTime: string | null; endTime: string | null; gameNumber: number; gameName: string | null
+  familleA: number; familleAName: string | null; familleB: number; familleBName: string | null
+  retardA: CampLateness | null; retardB: CampLateness | null; manche1: CampSide | null; manche2: CampSide | null; espritA: number | null; firstArrived: 'A' | 'B' | null
+  pointsA: number | null; pointsB: number | null; espritB: number | null; enigme: 'A' | 'B' | null
+  scoredAt: string | null; scoredByName: string | null; source: 'online' | 'paper' | null; canEdit: boolean
+}
+export interface CampRankingRowDto { rank: number; number: number; name: string | null; superFamille: string | null; gamePoints: number; esprit: number; total: number; enigmes: number; played: number }
+export interface CampRankingDto { scoredCount: number; matchCount: number; familles: CampRankingRowDto[]; superFamilles: { name: string; familles: number; total: number; average: number }[] }
+export interface CampSuperFamilleDto { id: string; name: string; description: string | null; displayOrder: number; familleNumbers: number[] }
+
+// Everything that depends on the rotation / scores is refreshed together.
+const invalidateGrandJeu = (qc: ReturnType<typeof useQueryClient>, campId: string) => {
+  qc.invalidateQueries({ queryKey: ['camp-rotation', campId] })
+  qc.invalidateQueries({ queryKey: ['camp-schedule', campId] })
+  qc.invalidateQueries({ queryKey: ['camp-matches', campId] })
+  qc.invalidateQueries({ queryKey: ['camp-ranking', campId] })
+}
+// GET /camps/{id}/rotation → slots, the 25 game numbers with their game, rain plan, progress (commission).
+export const useCampRotation = (campId?: string, enabled = true) =>
+  useQuery({ queryKey: ['camp-rotation', campId], queryFn: () => apiClient.get<CampRotationDto>(`/camps/${campId}/rotation`).then(r => r.data), enabled: !!campId && enabled })
+// POST /camps/{id}/rotation/generate → slots + matches of the fixed grid for the two camp days.
+export function useGenerateRotation(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (b: { firstDay: string; secondDay: string }) => apiClient.post(`/camps/${campId}/rotation/generate`, b), onSuccess: () => invalidateGrandJeu(qc, campId) })
+}
+// PUT /camps/{id}/rotation/slots → dates / hours of the slots.
+export function useUpdateRotationSlots(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (slots: CampRotationSlotDto[]) => apiClient.put(`/camps/${campId}/rotation/slots`, slots), onSuccess: () => invalidateGrandJeu(qc, campId) })
+}
+// PUT /camps/{id}/rotation/plan-b → rain plan (backup places) on / off.
+export function useSetPlanB(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (useBackup: boolean) => apiClient.put(`/camps/${campId}/rotation/plan-b`, { useBackup }), onSuccess: () => invalidateGrandJeu(qc, campId) })
+}
+// GET /camps/{id}/lookup?q= → people (famille member / Père / Mère) or a famille number.
+export const useCampLookup = (campId: string | undefined, q: string) =>
+  useQuery({
+    queryKey: ['camp-lookup', campId, q],
+    queryFn: () => apiClient.get<CampPersonMatchDto[]>(`/camps/${campId}/lookup`, { params: { q } }).then(r => r.data),
+    enabled: !!campId && q.trim().length >= 1, staleTime: 30_000,
+  })
+// GET /camps/{id}/familles/{n}/schedule → the famille's full route.
+export const useFamilleSchedule = (campId: string | undefined, number: number | null) =>
+  useQuery({
+    queryKey: ['camp-schedule', campId, number],
+    queryFn: () => apiClient.get<CampFamilleScheduleDto>(`/camps/${campId}/familles/${number}/schedule`).then(r => r.data),
+    enabled: !!campId && number != null,
+  })
+// GET /camps/{id}/matches?game=&slot= → matches with their score (an étapiste only gets their own games).
+export const useCampMatches = (campId: string | undefined, filter: { game?: number | null; slot?: number | null }, enabled = true) =>
+  useQuery({
+    queryKey: ['camp-matches', campId, filter.game ?? null, filter.slot ?? null],
+    queryFn: () => apiClient.get<CampMatchDto[]>(`/camps/${campId}/matches`, { params: { game: filter.game ?? undefined, slot: filter.slot ?? undefined } }).then(r => r.data),
+    enabled: !!campId && enabled,
+  })
+export interface CampScoreBody { retardA: CampLateness; retardB: CampLateness; manche1: CampSide | null; manche2: CampSide | null; espritA: number | null; firstArrived: 'A' | 'B' | null; source: 'online' | 'paper' }
+// PUT /camps/matches/{id}/score → enter / correct a score (points computed server-side).
+export function useSaveMatchScore(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ matchId, ...b }: CampScoreBody & { matchId: string }) => apiClient.put(`/camps/matches/${matchId}/score`, b), onSuccess: () => invalidateGrandJeu(qc, campId) })
+}
+// DELETE /camps/matches/{id}/score → back to "not scored".
+export function useClearMatchScore(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: (matchId: string) => apiClient.delete(`/camps/matches/${matchId}/score`), onSuccess: () => invalidateGrandJeu(qc, campId) })
+}
+// GET /camps/{id}/ranking → familles (and superfamilles) ranking.
+export const useCampRanking = (campId?: string, enabled = true) =>
+  useQuery({ queryKey: ['camp-ranking', campId], queryFn: () => apiClient.get<CampRankingDto>(`/camps/${campId}/ranking`).then(r => r.data), enabled: !!campId && enabled })
+// Printouts: famille passports (all or one) and the paper score sheets (all games or one).
+export const printPassports = (campId: string, famille?: number) =>
+  downloadPdf(`/camps/${campId}/passports/pdf${famille ? `?famille=${famille}` : ''}`, famille ? `Passeport - Famille ${famille}.pdf` : 'Passeports des familles.pdf')
+export const printScoreSheets = (campId: string, game?: number) =>
+  downloadPdf(`/camps/${campId}/score-sheets/pdf${game ? `?game=${game}` : ''}`, game ? `Pointage - Jeu ${game}.pdf` : 'Pointage - tous les jeux.pdf')
+
+// ── Familles info + superfamilles ──
+// PUT /camps/familles/{id}/info → name, description, superfamille of a famille.
+export function useUpdateFamilleInfo(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ familleId, ...b }: { familleId: string; name: string | null; description: string | null; superFamilleId: string | null }) => apiClient.put(`/camps/familles/${familleId}/info`, b),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-familles', campId] }); qc.invalidateQueries({ queryKey: ['camp-superfamilles', campId] }); invalidateGrandJeu(qc, campId) },
+  })
+}
+// GET /camps/{id}/superfamilles → the optional groups of familles.
+export const useCampSuperFamilles = (campId?: string) =>
+  useQuery({ queryKey: ['camp-superfamilles', campId], queryFn: () => apiClient.get<CampSuperFamilleDto[]>(`/camps/${campId}/superfamilles`).then(r => r.data), enabled: !!campId })
+// PUT /camps/{id}/superfamilles → replace the list (a removed one ungroups its familles).
+export function useSaveSuperFamilles(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items: { id: string | null; name: string; description: string | null }[]) => apiClient.put(`/camps/${campId}/superfamilles`, items),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-superfamilles', campId] }); qc.invalidateQueries({ queryKey: ['camp-familles', campId] }) },
+  })
+}
+// POST /camps/{id}/superfamilles/auto → split the familles evenly, in number order.
+export function useAutoSuperFamilles(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiClient.post(`/camps/${campId}/superfamilles/auto`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-superfamilles', campId] }); qc.invalidateQueries({ queryKey: ['camp-familles', campId] }) },
+  })
+}
+
+// ── Sub-commissions ──
+// GET /camps/{id}/sub-commissions → the camp's list (Trésor, Jeu, Code… by default).
+export const useCampSubCommissions = (campId?: string) =>
+  useQuery({ queryKey: ['camp', campId, 'sub-commissions'], queryFn: () => apiClient.get<string[]>(`/camps/${campId}/sub-commissions`).then(r => r.data), enabled: !!campId })
+// PUT /camps/{id}/sub-commissions → replace the list (CG or a chef de commission).
+export function useSetCampSubCommissions(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (names: string[]) => apiClient.put(`/camps/${campId}/sub-commissions`, names),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp', campId, 'sub-commissions'] }); qc.invalidateQueries({ queryKey: ['camp', campId, 'commission'] }) },
+  })
+}
+// PUT /camps/{id}/commission/{memberId}/sub-commissions → the sub-commissions of one member.
+export function useSetMemberSubCommissions(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ memberId, names }: { memberId: string; names: string[] }) => apiClient.put(`/camps/${campId}/commission/${memberId}/sub-commissions`, names),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['camp', campId, 'commission'] }),
+  })
+}
