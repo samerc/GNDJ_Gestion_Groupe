@@ -142,7 +142,8 @@ export default function PassageValidationPage() {
   const { data: rolesData } = useFunctionalRoles()
   const roles = rolesData ?? []
   const { data: teamsData } = useTeams({ unitId: editFinalUnitId || undefined, pageSize: 100 })
-  const teams = teamsForSelect(teamsData?.items) // Maîtrise first, then the rest
+  // Youth teams only: chefs aren't part of the passage, so the Maîtrise team is never offered.
+  const teams = teamsForSelect(teamsData?.items).filter(t => !t.isMaitrise)
 
   const isLoading = statusLoading || summaryLoading || passagesLoading
   const passageList = passages ?? []

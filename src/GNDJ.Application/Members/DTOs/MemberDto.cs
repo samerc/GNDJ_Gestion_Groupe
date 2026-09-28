@@ -21,7 +21,9 @@ public record MemberListDto(
     // document exists for every active document type. CotisationOk = current-year cotisation paid or
     // exempt; null when no current scout year is configured (cotisation not tracked). Computed per page.
     bool? DocsComplete = null,
-    bool? CotisationOk = null
+    bool? CotisationOk = null,
+    // Holds an active maîtrise (chef) function somewhere — chefs take no part in the passage.
+    bool IsLeader = false
 );
 
 // Full member profile incl. contact collections (phones/emails/addresses), primary-first.

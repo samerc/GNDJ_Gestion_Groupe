@@ -68,7 +68,7 @@ public class GetDashboardOverviewQueryHandler(IApplicationDbContext context, ICu
             .CountAsync(d => d.ScoutYear == demandeYear && d.Status == DemandeStatus.Submitted && d.ResponseSentAt == null, ct);
         var pendingChangeRequests = await context.MemberChangeRequests
             .CountAsync(r => r.Status == ChangeRequests.ChangeRequestStatus.Pending, ct);
-        var passagesToFinalize = await context.Passages
+        var passagesToFinalize = await GNDJ.Application.Passages.PassageScope.Lines(context)
             .CountAsync(p => p.ScoutYear == operatingYear && p.Status == PassageStatus.Approved, ct);
         var pendingDocuments = await context.MemberDocuments
             .CountAsync(d => d.Status == DocumentStatus.Pending && d.DocumentType.IsActive, ct);

@@ -45,7 +45,7 @@ export function BulkChangeDialog({ open, onOpenChange, passages, onDone }: {
 
   const units = unitsData?.items
   const roles = useMemo(() => rolesData ?? [], [rolesData])
-  const teams = teamsForSelect(teamsData?.items)
+  const teams = teamsForSelect(teamsData?.items).filter(t => !t.isMaitrise) // no Maîtrise team in the passage
 
   // Active units grouped by branch, in parcours order.
   const groups = useMemo(() => {

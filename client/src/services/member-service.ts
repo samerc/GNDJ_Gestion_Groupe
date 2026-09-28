@@ -22,6 +22,7 @@ export interface MemberListDto {
   fatherName: string | null
   docsComplete?: boolean | null // dossier compliance (active members only; null in the alumni view)
   cotisationOk?: boolean | null // current-year cotisation paid/exempt; null when not tracked
+  isLeader?: boolean // holds an active maîtrise (chef) function — not part of the passage
 }
 
 export interface MemberDetailDto {

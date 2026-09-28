@@ -196,7 +196,9 @@ public class GetMembersQueryHandler : IRequestHandler<GetMembersQuery, Paginated
                 // Father's FIRST name only (relationship stored as "Pere" or "Père"). The family name is
                 // redundant next to the member's own last name in the roster, so we drop it.
                 m.GuardianLinks.Where(l => !l.IsDeleted && (l.RelationshipType == "Pere" || l.RelationshipType == "Père"))
-                    .Select(l => l.Guardian.FirstName).FirstOrDefault()
+                    .Select(l => l.Guardian.FirstName).FirstOrDefault(),
+                null, null,
+                m.Assignments.Any(a => a.EndDate == null && a.FunctionalRole.IsMaitrise)
             ));
 
         var result = await PaginatedList<MemberListDto>.CreateAsync(projected, request.Page, request.PageSize, cancellationToken);

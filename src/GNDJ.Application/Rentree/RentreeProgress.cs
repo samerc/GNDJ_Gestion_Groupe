@@ -105,19 +105,24 @@ public static class RentreeProgress
                     .Where(a => a.EndDate == null && !a.IsDeleted && unitIds.Contains(a.UnitId))
                     .Select(a => new { a.UnitId, a.MemberId }).ToListAsync(ct))
                 .GroupBy(a => a.UnitId).ToDictionary(g => g.Key, g => g.Select(x => x.MemberId).Distinct().ToList());
+            // Chefs aren't part of the passage: the passage signals count the youth only.
+            var passageLeaders = present.Contains("passage-proposed") || present.Contains("passage-finished")
+                ? (await Passages.PassageScope.LeaderIds(context).Distinct().ToListAsync(ct)).ToHashSet()
+                : new HashSet<Guid>();
+            List<Guid> UnitYouth(Guid u) => UnitMembers(u).Where(m => !passageLeaders.Contains(m)).ToList();
             var allMemberIds = activeByUnit.Values.SelectMany(x => x).Distinct().ToList();
 
             List<Guid> UnitMembers(Guid u) => activeByUnit.TryGetValue(u, out var l) ? l : [];
 
             if (present.Contains("passage-proposed"))
             {
-                var proposed = (await context.Passages
+                var proposed = (await Passages.PassageScope.Lines(context)
                         .Where(p => p.ScoutYear == scoutYear && unitIds.Contains(p.CurrentUnitId))
                         .Select(p => new { p.CurrentUnitId, p.MemberId }).ToListAsync(ct))
                     .GroupBy(p => p.CurrentUnitId).ToDictionary(g => g.Key, g => g.Select(x => x.MemberId).Distinct().Count());
                 foreach (var u in unitIds)
                 {
-                    int total = UnitMembers(u).Count, cur = proposed.GetValueOrDefault(u);
+                    int total = UnitYouth(u).Count, cur = proposed.GetValueOrDefault(u);
                     // total == 0 (empty/placeholder unit) → nothing to do → complete, so it never permanently
                     // blocks a dependent group task (e.g. "Finaliser les passages") or drags phase progress.
                     passageProposed[u] = new State(cur, total, cur >= total, $"{cur}/{total}");
@@ -133,7 +138,7 @@ public static class RentreeProgress
                 foreach (var u in unitIds)
                 {
                     // An empty unit has nothing to finish → complete, so it never blocks a dependent task.
-                    var done = finished.Contains(u) || UnitMembers(u).Count == 0;
+                    var done = finished.Contains(u) || UnitYouth(u).Count == 0;
                     passageFinished[u] = new State(null, null, done, finished.Contains(u) ? "Terminé" : done ? "Aucun membre" : "À terminer");
                 }
             }

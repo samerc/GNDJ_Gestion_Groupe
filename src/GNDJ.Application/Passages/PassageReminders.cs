@@ -28,8 +28,8 @@ public static class PassageReminders
         IApplicationDbContext context, string scoutYear, CancellationToken ct)
     {
         var finished = await context.PassageUnitSubmissions.Where(s => s.ScoutYear == scoutYear).Select(s => s.UnitId).ToListAsync(ct);
-        var active = await context.MemberAssignments
-            .Where(a => a.EndDate == null && !a.IsDeleted && !a.Member.IsDeleted && !finished.Contains(a.UnitId))
+        var active = await PassageScope.ActiveYouth(context)
+            .Where(a => !a.IsDeleted && !a.Member.IsDeleted && !finished.Contains(a.UnitId))
             .Select(a => new { a.UnitId, a.Unit.Name, a.MemberId })
             .Distinct().ToListAsync(ct);
         if (active.Count == 0) return [];

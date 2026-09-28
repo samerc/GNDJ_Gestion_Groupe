@@ -107,7 +107,7 @@ public class GetPassagesByUnitQueryHandler(IApplicationDbContext context, ICurre
 
         var today = LebanonClock.Today;
 
-        var items = await context.Passages
+        var items = await PassageScope.Lines(context)
             .Where(p => p.CurrentUnitId == request.UnitId && p.ScoutYear == request.ScoutYear)
             .OrderBy(p => p.Member.LastName).ThenBy(p => p.Member.FirstName)
             .Select(p => new PassageDto(
@@ -155,7 +155,7 @@ public class GetAllPassagesQueryHandler(IApplicationDbContext context, ICurrentU
 
         var today = LebanonClock.Today;
 
-        var query = context.Passages
+        var query = PassageScope.Lines(context)
             .Where(p => p.ScoutYear == request.ScoutYear);
 
         if (!string.IsNullOrEmpty(request.Status))
@@ -207,15 +207,14 @@ public class GetPassageSummaryQueryHandler(IApplicationDbContext context, ICurre
         if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(GNDJ.Domain.Enums.Permissions.PassageManage))
             return Result<PassageSummaryDto>.Failure("Accès réservé à la maîtrise de groupe.");
 
-        var passages = await context.Passages
+        var passages = await PassageScope.Lines(context)
             .Where(p => p.ScoutYear == request.ScoutYear)
             .Include(p => p.CurrentUnit)
             .ToListAsync(ct);
 
         // Every active member is expected to have a passage line. "Expected" / "missing" let the CG
         // see (and the finalize gate enforce) that the process is complete before finalizing.
-        var activeAssignments = await context.MemberAssignments
-            .Where(a => a.EndDate == null)
+        var activeAssignments = await PassageScope.ActiveYouth(context)
             .Select(a => new { a.MemberId, a.UnitId, a.Unit.Code, a.Unit.Name })
             .ToListAsync(ct);
 
@@ -319,7 +318,7 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
 
         // This year's lines that still represent a pending movement/decision. Finalized = already applied
         // (skip — the assignment already moved); rejected kept so we can show the member as "stays".
-        var lines = await context.Passages
+        var lines = await PassageScope.Lines(context)
             .Where(p => p.ScoutYear == request.ScoutYear && p.Status != PassageStatus.Finalized)
             .Select(p => new { p.MemberId, p.CurrentUnitId, p.Status, IsLeaving = p.FinalIsLeaving ?? p.IsLeaving, Dest = p.FinalUnitId ?? p.ProposedUnitId })
             .ToListAsync(ct);
@@ -340,7 +339,9 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
             })
             .ToList();
 
-        var missingLines = members.Count(m => m.LineStatus == "None");
+        // Chefs aren't part of the passage (they simply stay): not counted as "sans proposition".
+        var leaders = (await PassageScope.LeaderIds(context).Distinct().ToListAsync(ct)).ToHashSet();
+        var missingLines = members.Count(m => m.LineStatus == "None" && !leaders.Contains(m.MemberId));
 
         // Unit metadata: every active unit + any unit referenced as a current/destination unit.
         var quotas = await context.UnitIntakeQuotas.Where(q => q.ScoutYear == request.ScoutYear)
@@ -422,6 +423,8 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
 
         if (assignment is null)
             return Result<Guid>.Failure("Ce membre n'a pas d'affectation active.");
+        if (await PassageScope.LeaderIds(context).AnyAsync(id => id == request.MemberId, ct))
+            return Result<Guid>.Failure(PassageScope.LeaderRefused);
 
         // Check unit-scoped access
         if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, assignment.UnitId, ct))
@@ -608,9 +611,16 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
             .Where(m => memberIds.Contains(m.Id))
             .Select(m => new { m.Id, m.FirstName, m.LastName })
             .ToDictionaryAsync(m => m.Id, m => $"{m.FirstName} {m.LastName}", ct);
+        var leaderIds = (await PassageScope.LeaderIds(context).Where(id => memberIds.Contains(id)).ToListAsync(ct)).ToHashSet();
 
         foreach (var memberId in memberIds)
         {
+            if (leaderIds.Contains(memberId))
+            {
+                memberNames.TryGetValue(memberId, out var leaderName);
+                errors.Add($"{leaderName}: chef, pas de passage.");
+                continue;
+            }
             if (!assignmentByMember.TryGetValue(memberId, out var assignment))
             {
                 memberNames.TryGetValue(memberId, out var memberName);
@@ -1017,9 +1027,9 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         await context.AcquireAdvisoryLockAsync(917320250, ct);
 
         // Gate 1: every active member has a passage line (a real change or "Pas de changement").
-        var active = await context.MemberAssignments.Where(a => a.EndDate == null)
+        var active = await PassageScope.ActiveYouth(context)
             .Select(a => new { a.MemberId, a.UnitId }).ToListAsync(ct);
-        var lineMemberIds = (await context.Passages.Where(p => p.ScoutYear == request.ScoutYear)
+        var lineMemberIds = (await PassageScope.Lines(context).Where(p => p.ScoutYear == request.ScoutYear)
             .Select(p => p.MemberId).ToListAsync(ct)).ToHashSet();
         var missing = active.Select(a => a.MemberId).Distinct().Count(mid => !lineMemberIds.Contains(mid));
         if (missing > 0)
@@ -1036,10 +1046,10 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         }
 
         // Gate 3: legacy rejected lines (from before "reject" was removed) must be changed first.
-        if (await context.Passages.AnyAsync(p => p.ScoutYear == request.ScoutYear && p.Status == PassageStatus.Rejected, ct))
+        if (await PassageScope.Lines(context).AnyAsync(p => p.ScoutYear == request.ScoutYear && p.Status == PassageStatus.Rejected, ct))
             return Result<int>.Failure("Des lignes sont encore « rejetées » : ouvrez-les et choisissez la destination voulue avant de publier.");
 
-        var passages = await context.Passages
+        var passages = await PassageScope.Lines(context)
             .Where(p => p.ScoutYear == request.ScoutYear && (p.Status == PassageStatus.Approved || p.Status == PassageStatus.Pending))
             .ToListAsync(ct);
 
@@ -1199,7 +1209,7 @@ internal static class PassageUnitStatus
     public static async Task<PassageUnitStatusDto> LoadAsync(IApplicationDbContext context, Guid unitId, string scoutYear, CancellationToken ct)
     {
         var submission = await context.PassageUnitSubmissions.FirstOrDefaultAsync(s => s.UnitId == unitId && s.ScoutYear == scoutYear, ct);
-        var activeIds = await context.MemberAssignments.Where(a => a.UnitId == unitId && a.EndDate == null)
+        var activeIds = await PassageScope.ActiveYouth(context).Where(a => a.UnitId == unitId)
             .Select(a => a.MemberId).Distinct().ToListAsync(ct);
         var withLine = (await context.Passages.Where(p => p.ScoutYear == scoutYear && activeIds.Contains(p.MemberId))
             .Select(p => p.MemberId).ToListAsync(ct)).ToHashSet();

@@ -150,11 +150,13 @@ export default function PassagePage() {
 
   // Teams of the destination unit currently chosen in the propose dialog (only relevant when staying in-unit).
   const { data: teamsData } = useTeams({ unitId: propUnitId || undefined, pageSize: 100 })
-  const teams = teamsForSelect(teamsData?.items) // Maîtrise first, then the rest
+  // Youth teams only: chefs aren't part of the passage, so the Maîtrise team is never a destination.
+  const teams = teamsForSelect(teamsData?.items).filter(t => !t.isMaitrise)
 
   // Join members with their active assignment (current unit/team/role) and any existing passage proposal.
   const memberRows: MemberRow[] = useMemo(() => {
-    const members = membersData?.items ?? []
+    // Chefs (an active maîtrise function) take no part in the passage — their roles are managed in Maîtrises.
+    const members = (membersData?.items ?? []).filter(m => !m.isLeader)
     const assignments = assignmentsData?.items ?? []
     const passageMap = new Map((passages ?? []).map(p => [p.memberId, p]))
     // Resolve unit short-codes (e.g. "C3") from the loaded units list — the assignment DTO only has the name.
