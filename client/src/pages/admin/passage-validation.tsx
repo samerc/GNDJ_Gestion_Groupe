@@ -82,7 +82,7 @@ export default function PassageValidationPage() {
 
   const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(scoutYear)
   const { data: summary, isLoading: summaryLoading } = usePassageSummary(scoutYear)
-  const { data: passages, isLoading: passagesLoading } = useAllPassages(
+  const { data: passages, isLoading: passagesLoading, isFetching: passagesFetching } = useAllPassages(
     scoutYear,
     statusFilter === '_all' ? undefined : statusFilter,
     unitFilter === '_all' ? undefined : unitFilter,
@@ -326,7 +326,8 @@ export default function PassageValidationPage() {
     setUnitFilter(unitId ?? '_all')
     setStatusFilter(status)
     setSelected(new Set())
-    requestAnimationFrame(() => document.getElementById('passage-lines')?.scrollIntoView({ behavior: 'smooth' }))
+    // After the filter re-renders, bring the lines table into view (the page scrolls inside <main>).
+    setTimeout(() => document.getElementById('passage-lines')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
   const { data: newcomerGroups } = usePassageNewcomerGroups(scoutYear, finalizedCount > 0)
 
@@ -460,7 +461,11 @@ export default function PassageValidationPage() {
       />
 
       <div id="passage-lines" className="scroll-mt-20 pt-2">
-        <h2 className="text-lg font-semibold">Lignes de passage</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          Lignes de passage
+          {unitFilter !== '_all' && <Badge variant="outline">{units.find(u => u.id === unitFilter)?.code ?? ''}</Badge>}
+          {passagesFetching && <span className="text-xs font-normal text-muted-foreground">Chargement…</span>}
+        </h2>
         <p className="text-sm text-muted-foreground">Une ligne par membre. « À valider » = un changement d'unité proposé par le chef, que le CG doit accepter ou changer.</p>
       </div>
 

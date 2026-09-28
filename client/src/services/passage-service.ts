@@ -1,7 +1,7 @@
 // Passage annuel resource: yearly member transitions (current → proposed → final unit/team/role),
 // CU propose / CG review-finalize workflow, open/close toggle. Queries key on ['passages', ...];
 // all mutations invalidate ['passages'].
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import { filenameFromDisposition } from '@/lib/download'
 
@@ -133,6 +133,8 @@ export function useAllPassages(scoutYear: string, status?: string, unitId?: stri
     queryKey: ['passages', 'all', scoutYear, status, unitId],
     queryFn: () => apiClient.get<PassageDto[]>('/passages', { params: { scoutYear, status, unitId } }).then(r => r.data),
     enabled: !!scoutYear,
+    // Keep showing the previous lines while a new filter loads (no page-wide spinner / lost scroll position).
+    placeholderData: keepPreviousData,
   })
 }
 
