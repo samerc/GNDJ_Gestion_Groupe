@@ -265,8 +265,11 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   )
 
   const fl = familles!
-  // min/max average note across non-empty familles → drives the per-famille bar fill + low(blue)/high(amber) tint.
-  const avgs = fl.filter(f => f.size > 0).map(f => f.avgNote)
+  // min/max TOTAL note across non-empty familles → drives the per-famille bar fill + low(blue)/high(amber) tint.
+  // The total (not the average) is what the draft balances and what a move changes intuitively: adding a
+  // member always raises it, while the average can drop when the member's note is below the famille's.
+  const tot = (f: { noteSum: number }) => Math.round(f.noteSum * 10) / 10
+  const avgs = fl.filter(f => f.size > 0).map(tot)
   const minA = avgs.length ? Math.min(...avgs) : 0
   const maxA = avgs.length ? Math.max(...avgs) : 1
   const famA = fl.find(f => f.id === slotA) ?? null
@@ -313,11 +316,11 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="lg:w-72 lg:shrink-0">
           <div className="max-h-[72vh] overflow-y-auto rounded-lg border">
             <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Moyenne</span>
+              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Total des notes</span>
             </div>
             {fl.map(f => {
-              const pct = maxA > minA ? Math.round(((f.avgNote - minA) / (maxA - minA)) * 100) : 50
-              const low = f.size > 0 && f.avgNote === minA, high = f.size > 0 && f.avgNote === maxA && minA !== maxA
+              const pct = maxA > minA ? Math.round(((tot(f) - minA) / (maxA - minA)) * 100) : 50
+              const low = f.size > 0 && tot(f) === minA, high = f.size > 0 && tot(f) === maxA && minA !== maxA
               const isA = slotA === f.id, isB = slotB === f.id
               return (
                 <button key={f.id} type="button" onClick={() => pickFamille(f.id)}
@@ -334,7 +337,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
                       <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
                     </span>
-                    <span className={cn('w-8 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{f.avgNote}</span>
+                    <Tip content={`Moyenne ${f.avgNote}`}><span className={cn('w-10 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{tot(f)}</span></Tip>
                   </span>
                 </button>
               )
@@ -381,7 +384,7 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }
               {!readOnly && <Tip content="Nom, description, superfamille"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEditInfo}><Pencil className="h-3.5 w-3.5" /></Button></Tip>}
             </h3>
             {f.superFamilleName && <p className="text-xs text-muted-foreground">{f.superFamilleName}</p>}
-            <p className="text-sm text-muted-foreground">{f.size} membres · moy. {f.avgNote} · {f.boys}♂ {f.girls}♀</p>
+            <p className="text-sm text-muted-foreground">{f.size} membres · total {Math.round(f.noteSum * 10) / 10} (moy. {f.avgNote}) · {f.boys}♂ {f.girls}♀</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
