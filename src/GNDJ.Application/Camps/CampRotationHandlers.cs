@@ -20,7 +20,8 @@ namespace GNDJ.Application.Camps;
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 public record CampRotationSlotDto(int Number, DateOnly Date, TimeOnly StartTime, TimeOnly EndTime);
-public record CampRotationGameDto(int Number, Guid? GameId, string? Name, string? MainLocation, string? BackupLocation, IReadOnlyList<string> Etapistes);
+public record CampRotationGameDto(int Number, Guid? GameId, string? Name, string? MainLocation, string? BackupLocation, IReadOnlyList<string> Etapistes,
+    string? BackupGameName = null);
 public record CampRotationDto(bool Generated, bool UseBackupLocations, int FamillesCount, int ExistingFamilles,
     int MatchCount, int ScoredCount, IReadOnlyList<CampRotationSlotDto> Slots, IReadOnlyList<CampRotationGameDto> Games,
     DateTime Now);
@@ -29,7 +30,8 @@ public record CampPersonMatchDto(Guid MemberId, string FirstName, string LastNam
     int? FamilleNumber, string? FamilleName);
 
 public record CampScheduleStepDto(int Slot, DateOnly Date, TimeOnly StartTime, TimeOnly EndTime, int GameNumber,
-    string? GameName, string? MainLocation, string? BackupLocation, int Opponent, string? OpponentName, IReadOnlyList<string> Etapistes);
+    string? GameName, string? MainLocation, string? BackupLocation, int Opponent, string? OpponentName, IReadOnlyList<string> Etapistes,
+    string? BackupGameName = null); // played instead of GameName when Plan B is on
 public record CampFamilleScheduleDto(int Number, string? Name, string? SuperFamille, string? PereName, string? PerePhone,
     string? MereName, string? MerePhone, int MemberCount, bool UseBackupLocations, DateTime Now, IReadOnlyList<CampScheduleStepDto> Steps);
 
@@ -93,7 +95,7 @@ public class GetCampRotationQueryHandler(IApplicationDbContext context, ICurrent
         var existing = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= CampRotationGrid.Familles, ct);
 
         var gameRows = Enumerable.Range(1, CampRotationGrid.Games).Select(n => games.TryGetValue(n, out var g)
-            ? new CampRotationGameDto(n, g.Id, g.Name, g.MainLocation, g.BackupLocation, g.Etapistes)
+            ? new CampRotationGameDto(n, g.Id, g.Name, g.MainLocation, g.BackupLocation, g.Etapistes, g.BackupGameName)
             : new CampRotationGameDto(n, null, null, null, null, [])).ToList();
 
         return Result<CampRotationDto>.Success(new CampRotationDto(slots.Count > 0, camp.UseBackupLocations, camp.FamillesCount, existing,
@@ -298,7 +300,7 @@ public class GetFamilleScheduleQueryHandler(IApplicationDbContext context, ICurr
             var opp = m.FamilleA == fam.Number ? m.FamilleB : m.FamilleA;
             games.TryGetValue(m.GameNumber, out var g);
             return new CampScheduleStepDto(m.SlotNumber, s.Date, s.StartTime, s.EndTime, m.GameNumber, g?.Name, g?.MainLocation, g?.BackupLocation,
-                opp, names.GetValueOrDefault(opp), g?.Etapistes ?? []);
+                opp, names.GetValueOrDefault(opp), g?.Etapistes ?? [], g?.BackupGameName);
         }).ToList();
 
         return Result<CampFamilleScheduleDto>.Success(new CampFamilleScheduleDto(fam.Number, fam.Name, fam.SuperFamille,
@@ -464,7 +466,7 @@ public class GetCampRankingQueryHandler(IApplicationDbContext context, ICurrentU
 }
 
 // ─── Shared data ─────────────────────────────────────────────────────────────
-public record CampGameInfo(Guid Id, string Name, string? MainLocation, string? BackupLocation, IReadOnlyList<string> Etapistes);
+public record CampGameInfo(Guid Id, string Name, string? MainLocation, string? BackupLocation, IReadOnlyList<string> Etapistes, string? BackupGameName = null);
 
 static class CampRotationData
 {
@@ -473,14 +475,14 @@ static class CampRotationData
         var games = await context.CampGames.Where(g => g.CampId == campId && !g.IsDeleted && g.Number != null)
             .Select(g => new
             {
-                Number = g.Number!.Value, g.Id, g.Name, g.MainLocation, g.BackupLocation,
+                Number = g.Number!.Value, g.Id, g.Name, g.MainLocation, g.BackupLocation, g.BackupGameName,
                 Etapistes = g.Etapistes.Where(e => !e.IsDeleted).Select(e => e.Member.FirstName + " " + e.Member.LastName).ToList(),
             })
             .ToListAsync(ct);
         return games.GroupBy(g => g.Number).ToDictionary(x => x.Key, x =>
         {
             var g = x.First();
-            return new CampGameInfo(g.Id, g.Name, g.MainLocation, g.BackupLocation, g.Etapistes);
+            return new CampGameInfo(g.Id, g.Name, g.MainLocation, g.BackupLocation, g.Etapistes, g.BackupGameName);
         });
     }
 
@@ -520,7 +522,7 @@ public class GenerateCampRotationPdfQueryHandler(IApplicationDbContext context, 
                 var rows = matches.Where(m => m.GameNumber == num && slots.ContainsKey(m.SlotNumber))
                     .Select(m => { var s = slots[m.SlotNumber]; return new CampScoreSheetRow(m.SlotNumber, s.Date, s.StartTime, s.EndTime, m.FamilleA, m.FamilleB); })
                     .ToList();
-                return new CampScoreSheetGame(num, g?.Name, g?.MainLocation, g?.BackupLocation, g?.Etapistes ?? [], rows);
+                return new CampScoreSheetGame(num, g?.Name, g?.MainLocation, g?.BackupLocation, g?.Etapistes ?? [], rows, g?.BackupGameName);
             }).ToList();
             var file = request.Number is int one ? $"Pointage - Jeu {one}.pdf" : "Pointage - tous les jeux.pdf";
             return Result<CampPdf>.Success(new CampPdf(reports.ScoreSheets(camp.Name, sheets), file));
@@ -549,7 +551,9 @@ public class GenerateCampRotationPdfQueryHandler(IApplicationDbContext context, 
                     var s = slots[x.SlotNumber];
                     games.TryGetValue(x.GameNumber, out var g);
                     var place = camp.UseBackupLocations ? g?.BackupLocation ?? g?.MainLocation : g?.MainLocation;
-                    return new CampPassportStep(x.SlotNumber, s.Date, s.StartTime, s.EndTime, x.GameNumber, g?.Name, place,
+                    // Plan B: an étape with a backup game plays it instead.
+                    var gameName = camp.UseBackupLocations && g?.BackupGameName is { } bg ? bg : g?.Name;
+                    return new CampPassportStep(x.SlotNumber, s.Date, s.StartTime, s.EndTime, x.GameNumber, gameName, place,
                         x.FamilleA == f.Number ? x.FamilleB : x.FamilleA);
                 }).ToList())).ToList();
         if (passports.Count == 0) return Result<CampPdf>.Failure("Aucune famille pour l'instant.");

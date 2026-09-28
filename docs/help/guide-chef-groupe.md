@@ -326,8 +326,13 @@ Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vo
   ajustez à la main (glisser-déposer) et choisissez le Père et la Mère de chaque famille. Le crayon à côté d'une
   famille lui donne un **nom** (son personnage) et une **description**, imprimés sur son passeport.
   **Superfamilles** (facultatif) : regroupez les familles, par exemple 5 univers de 10 familles.
-- **Jeux** : les 25 jeux, chacun avec son **numéro** (jeu 1 à 25), son lieu, son lieu de repli et ses étapistes.
-  Le numéro place le jeu dans la grille de rotation.
+- **Jeux** : les 25 jeux, chacun avec son **numéro** (jeu 1 à 25), l'**espace** dont il a besoin (petit, moyen,
+  grand), son **lieu A**, son **lieu B** (repli en cas de mauvais temps) et ses étapistes. Le numéro place le jeu
+  dans la grille de rotation. **Attribuer les lieux** donne à chaque jeu le plus petit lieu libre assez grand (lieu
+  A, lieu B ou les deux). Un jeu qui ne peut pas se jouer au lieu B reçoit un **jeu de repli** : en plan B, c'est
+  lui qui est joué à cette étape.
+- **Les lieux** se gèrent dans **Paramètres → Camp BP** (les mêmes chaque année) : pour chaque lieu, s'il sert de
+  lieu A et/ou de lieu B, sa taille et combien de jeux il peut accueillir en même temps.
 - **Rotation** : la grille est **fixe** (50 familles, 25 jeux, 25 étapes : 15 le premier jour, 10 le second ;
   chaque famille joue chaque jeu une fois et ne rencontre jamais deux fois la même famille). Choisissez les deux
   jours du camp, ajustez les horaires si besoin, et imprimez les **passeports des familles** et les **feuilles de

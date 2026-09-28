@@ -6260,3 +6260,19 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
 - UI: camp page tabs **Rotation / Pointage / Où est… ?** (+ superfamilles, famille name, game number, sub-commission
   chips + overview); CU `/camp` and étapistes' "Mes jeux" get the lookup card; étapistes score their game there.
   Tested: 37 API checks, 11 browser checks, grid + scoring unit tests, smoke suite 60/60.
+
+### Camp BP — places of the games + backup games (2026-09-28, DEV until deploy)
+- **Setting `camp.places`** (json, category camp = CG-editable, own editor `components/camp/camp-places-editor.tsx` in
+  Paramètres → Camp BP; replaces the flat `camp.game_locations`, now hidden): `[{name, a, b, size 1-3, capacity}]` =
+  usable as lieu A and/or lieu B, petit/moyen/grand, games hosted at the same time. Parsed by `CampPlaces.Parse`
+  (Application) / `parsePlaces` (client/src/lib/camp-places.ts). Dev filled from the archive's "Lieux jeux 25-26"
+  (43 places, sizes guessed) — **not yet on prod** (export as a data patch once the CG has reviewed it).
+- **CampGame** gained `SpaceNeed` (1–3, null = moyen), `BackupGameName` + `BackupGameDescription` (TipTap HTML) —
+  migration `AddCampGameSpaceAndBackupGame`. With Plan B on, an étape with a backup game plays it instead
+  (passports use its name; schedule steps / rotation rows / my-games carry `BackupGameName`; score sheet + game PDF
+  mention it). Clearing the backup name drops its description.
+- **Auto-assign** `AutoAssignCampPlacesCommand` (`POST /camps/{id}/games/auto-places {main, backup, replace}`, Jeux
+  edit): per side, biggest need first, each game takes the SMALLEST free place big enough (ties: most room left,
+  then list order); none big enough → biggest free place, reported "tooSmall"; none free → "noPlace". Without
+  `replace`, only games with no place on that side are filled and the kept ones count against capacity. Capacity is
+  per side (a place usable as both A and B has one capacity number for each side).

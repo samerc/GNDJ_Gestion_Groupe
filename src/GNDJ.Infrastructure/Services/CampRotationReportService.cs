@@ -114,7 +114,7 @@ public class CampRotationReportService : ICampRotationReportService
                 r.RelativeItem().Column(h =>
                 {
                     h.Item().Text($"Jeu {g.Number}{(string.IsNullOrWhiteSpace(g.Name) ? "" : " — " + g.Name)}").FontSize(16).Bold();
-                    h.Item().Text($"{campName} · Lieu : {g.Location ?? "—"}{(g.BackupLocation is null ? "" : $" (plan B : {g.BackupLocation})")}").FontSize(8.5f).Light();
+                    h.Item().Text($"{campName} · Lieu : {g.Location ?? "—"}{(g.BackupLocation is null ? "" : $" (plan B : {g.BackupLocation})")}{(g.BackupGameName is null ? "" : $" · jeu de repli : {g.BackupGameName}")}").FontSize(8.5f).Light();
                     if (g.Etapistes.Count > 0) h.Item().Text("Étapistes : " + string.Join(", ", g.Etapistes)).FontSize(8.5f);
                 });
                 r.ConstantItem(300).Border(0.5f).BorderColor(Colors.Grey.Medium).Padding(4).DefaultTextStyle(x => x.FontSize(7))

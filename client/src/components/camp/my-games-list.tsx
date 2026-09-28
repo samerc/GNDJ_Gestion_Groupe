@@ -15,6 +15,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { RichContent } from '@/components/public/rich-content'
 import { Tent, Printer, Users, MapPin, CloudRain, ClipboardList } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // Main place + bad-weather place of a game (either may be unset).
 export function GameLocations({ main, backup }: { main: string | null; backup: string | null }) {
@@ -63,6 +64,13 @@ export function MyGamesList({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean
                 {others.length > 0 ? <>Avec : {others.map((e) => `${e.firstName} ${e.lastName}`).join(', ')}</> : 'Vous êtes le seul étapiste de ce jeu.'}
               </p>
               <GameLocations main={g.mainLocation} backup={g.backupLocation} />
+              {g.backupGameName && (
+                <div className={cn('rounded-md border px-3 py-2 text-sm', g.useBackupLocations ? 'border-sky-300 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/40' : 'bg-muted/40')}>
+                  <p className="flex items-center gap-1.5 font-medium"><CloudRain className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
+                    Si mauvais temps (plan B), jouez : {g.backupGameName}{g.useBackupLocations && <span className="rounded-full bg-sky-600 px-2 py-0.5 text-[11px] text-white">Plan B actif</span>}</p>
+                  {g.backupGameDescription && g.backupGameDescription.replace(/<[^>]*>/g, '').trim() && <RichContent html={g.backupGameDescription} className="mt-1 text-sm" />}
+                </div>
+              )}
               {g.number != null && <GameScoring campId={g.campId} gameNumber={g.number} />}
               {g.description && g.description.replace(/<[^>]*>/g, '').trim()
                 ? <RichContent html={g.description} className="border-t pt-3 text-sm" />

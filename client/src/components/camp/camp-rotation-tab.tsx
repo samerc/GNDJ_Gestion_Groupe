@@ -129,7 +129,10 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
             {data.games.map(g => (
               <div key={g.number} className={cn('flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5 text-sm', !g.gameId && 'bg-amber-50/60 dark:bg-amber-950/20')}>
                 <span className="w-14 font-semibold">Jeu {g.number}</span>
-                <span className="min-w-0 flex-1">{g.name ?? <span className="text-amber-700 dark:text-amber-400">aucun jeu</span>}</span>
+                <span className="min-w-0 flex-1">
+                  {g.name ?? <span className="text-amber-700 dark:text-amber-400">aucun jeu</span>}
+                  {g.backupGameName && <span className={cn('ml-2 text-xs', data.useBackupLocations ? 'font-medium text-sky-700 dark:text-sky-400' : 'text-muted-foreground')}>· plan B : {g.backupGameName}</span>}
+                </span>
                 <span className={cn('flex items-center gap-1', data.useBackupLocations && 'text-muted-foreground line-through')}><MapPin className="h-3.5 w-3.5" />{g.mainLocation ?? '—'}</span>
                 <span className={cn('flex items-center gap-1', !data.useBackupLocations && 'text-muted-foreground')}><CloudRain className="h-3.5 w-3.5" />{g.backupLocation ?? '—'}</span>
               </div>

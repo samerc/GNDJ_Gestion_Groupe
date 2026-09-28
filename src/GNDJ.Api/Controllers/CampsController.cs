@@ -183,13 +183,20 @@ public class CampsController : BaseApiController
     /// <summary>Creates a game for the camp. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPost("{id:guid}/games")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> CreateGame(Guid id, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new CreateCampGameCommand(id, body.Name, body.Description, body.MainLocation, body.BackupLocation, body.Number)));
-    public record CreateGameBody(string Name, string? Description, string? MainLocation = null, string? BackupLocation = null, int? Number = null);
+    public async Task<IActionResult> CreateGame(Guid id, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new CreateCampGameCommand(id, body.Name, body.Description, body.MainLocation, body.BackupLocation, body.Number, body.SpaceNeed, body.BackupGameName, body.BackupGameDescription)));
+    /// <summary>Auto-assigns the places (lieu A, lieu B or both) of the camp's games from the camp.places list, by size and capacity. Jeux edit rights.</summary>
+    [HttpPost("{id:guid}/games/auto-places")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> AutoAssignPlaces(Guid id, [FromBody] AutoPlacesBody body) => Res(await Mediator.Send(new AutoAssignCampPlacesCommand(id, body.Main, body.Backup, body.Replace)));
+    public record AutoPlacesBody(bool Main, bool Backup, bool Replace);
+
+    public record CreateGameBody(string Name, string? Description, string? MainLocation = null, string? BackupLocation = null, int? Number = null,
+        int? SpaceNeed = null, string? BackupGameName = null, string? BackupGameDescription = null);
 
     /// <summary>Updates a game's name and description. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPut("games/{gameId:guid}")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> UpdateGame(Guid gameId, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new UpdateCampGameCommand(gameId, body.Name, body.Description, body.MainLocation, body.BackupLocation, body.Number)));
+    public async Task<IActionResult> UpdateGame(Guid gameId, [FromBody] CreateGameBody body) => Res(await Mediator.Send(new UpdateCampGameCommand(gameId, body.Name, body.Description, body.MainLocation, body.BackupLocation, body.Number, body.SpaceNeed, body.BackupGameName, body.BackupGameDescription)));
 
     /// <summary>Deletes a game. Rights checked per area in the handler (CampAccess).</summary>
     [HttpDelete("games/{gameId:guid}")]

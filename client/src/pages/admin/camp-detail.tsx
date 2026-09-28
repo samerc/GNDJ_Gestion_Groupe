@@ -16,7 +16,7 @@ import {
   useCampFamilles, useRunDraft, useMoveParticipant, useSetLeaders, useLeaderCandidates,
   useCampGames, useCreateGame, useUpdateGame, printGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
   printFamille, printAllFamilles, printUnitList,
-  type CampFamilleDto, type CampGameDto,
+  type CampFamilleDto, type CampGameDto, useAutoAssignPlaces, type CampPlacesAssignResult,
   useCamps,
 } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
@@ -30,12 +30,13 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive, Wand2, CloudRain, CheckCircle2 } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { RichContent } from '@/components/public/rich-content'
 import { GameLocations } from '@/components/camp/my-games-list'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useSettingArray } from '@/services/settings-service'
+import { useSetting } from '@/services/settings-service'
+import { parsePlaces, PLACES_SETTING, SIZE_LABELS, type CampPlace } from '@/lib/camp-places'
 import { optionsWithCurrent } from '@/lib/options'
 import { Tip } from '@/components/ui/tooltip'
 import { CampCommissionTab } from '@/components/camp/camp-commission-tab'
@@ -483,6 +484,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const [deletingGame, setDeletingGame] = useState<CampGameDto | null>(null)
   const [editingGame, setEditingGame] = useState<CampGameDto | null>(null)
   const [nameError, setNameError] = useState(false) // "Ajouter" clicked with an empty name
+  const [autoOpen, setAutoOpen] = useState(false)
 
   const add = async () => {
     if (!name.trim()) { setNameError(true); return }
@@ -504,6 +506,11 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
             <Tip content="Ajouter"><Button onClick={add} disabled={create.isPending}><Plus className="h-4 w-4" /></Button></Tip>
           </div>
           {nameError && <p className="text-xs text-destructive">Saisissez un nom pour le jeu.</p>}
+        </div>
+      )}
+      {!readOnly && (games ?? []).length > 0 && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setAutoOpen(true)}><Wand2 className="mr-1.5 h-4 w-4" />Attribuer les lieux</Button>
         </div>
       )}
       {(games ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun jeu.</p> :
@@ -528,6 +535,10 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
               </div>
             </div>
             <div className="mt-1"><GameLocations main={g.mainLocation} backup={g.backupLocation} /></div>
+            <div className="mt-1 flex flex-wrap gap-2 text-xs">
+              {g.spaceNeed != null && <span className="rounded bg-muted px-1.5 py-0.5">Espace : {SIZE_LABELS[g.spaceNeed]}</span>}
+              {g.backupGameName && <span className="flex items-center gap-1 rounded bg-sky-100 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300"><CloudRain className="h-3 w-3" />Plan B : {g.backupGameName}</span>}
+            </div>
             {hasText(g.description)
               ? <RichContent html={g.description!} className="mt-2 text-sm" />
               : !readOnly && <button type="button" className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline" onClick={() => setEditingGame(g)}>+ Ajouter une description</button>}
@@ -536,6 +547,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
         ))}</div>}
       {editingGame && <GameEditDialog campId={campId} game={editingGame} taken={(games ?? []).filter(x => x.id !== editingGame.id && x.number != null).map(x => x.number!)} onClose={() => setEditingGame(null)} />}
       {etapisteFor && <EtapisteDialog campId={campId} game={etapisteFor} onClose={() => setEtapisteFor(null)} />}
+      {autoOpen && <AutoPlacesDialog campId={campId} onClose={() => setAutoOpen(false)} />}
 
       <ConfirmDialog open={!!deletingGame} onOpenChange={() => setDeletingGame(null)} title="Supprimer le jeu" variant="destructive"
         description={`Supprimer « ${deletingGame?.name} » et ses étapistes ?`} confirmLabel="Supprimer" loading={del.isPending}
@@ -557,12 +569,25 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
   const [description, setDescription] = useState(game.description ?? '')
   const [mainLocation, setMainLocation] = useState(game.mainLocation ?? '')
   const [backupLocation, setBackupLocation] = useState(game.backupLocation ?? '')
-  // The places are managed in Paramètres → Camp BP (camp.game_locations); a value no longer in the list stays selectable.
-  const places = useSettingArray('camp.game_locations').map(v => ({ value: v, label: v }))
+  const [spaceNeed, setSpaceNeed] = useState<number | null>(game.spaceNeed)
+  const [hasBackupGame, setHasBackupGame] = useState(!!game.backupGameName)
+  const [backupGameName, setBackupGameName] = useState(game.backupGameName ?? '')
+  const [backupGameDescription, setBackupGameDescription] = useState(game.backupGameDescription ?? '')
+  // The places are managed in Paramètres → Camp BP (camp.places): lieu A list = places usable as A, lieu B list = as B.
+  // A value no longer in the list stays selectable (optionsWithCurrent).
+  const places = parsePlaces(useSetting(PLACES_SETTING).data?.value)
+  const opt = (p: CampPlace) => ({ value: p.name, label: `${p.name} · ${SIZE_LABELS[p.size].toLowerCase()}${p.capacity > 1 ? ` · ${p.capacity} jeux` : ''}` })
+  const placesA = places.filter(p => p.a).map(opt)
+  const placesB = places.filter(p => p.b).map(opt)
   const save = async () => {
     if (!name.trim()) { toast.error('Saisissez un nom pour le jeu.'); return }
+    if (hasBackupGame && !backupGameName.trim()) { toast.error('Saisissez le nom du jeu de repli.'); return }
     try {
-      await update.mutateAsync({ id: game.id, number, name: name.trim(), description: hasText(description) ? description : null, mainLocation: mainLocation || null, backupLocation: backupLocation || null })
+      await update.mutateAsync({
+        id: game.id, number, name: name.trim(), description: hasText(description) ? description : null, mainLocation: mainLocation || null, backupLocation: backupLocation || null,
+        spaceNeed, backupGameName: hasBackupGame ? backupGameName.trim() : null,
+        backupGameDescription: hasBackupGame && hasText(backupGameDescription) ? backupGameDescription : null,
+      })
       toast.success('Jeu enregistré'); onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -590,13 +615,42 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
             </div>
           </div>
           <p className="-mt-1 text-xs text-muted-foreground">Le numéro place le jeu dans la grille de rotation (jeu 1 à 25) : c'est ce qui donne son lieu à chaque famille.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <LocationSelect label="Lieu" value={mainLocation} onChange={setMainLocation} options={optionsWithCurrent(places, mainLocation)} />
-            <LocationSelect label="Lieu de repli (mauvais temps)" value={backupLocation} onChange={setBackupLocation} options={optionsWithCurrent(places, backupLocation)} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Espace nécessaire</p>
+              <Select value={spaceNeed == null ? NO_PLACE : String(spaceNeed)} onValueChange={v => setSpaceNeed(v === NO_PLACE ? null : Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PLACE}>Non précisé (moyen)</SelectItem>
+                  {[1, 2, 3].map(n => <SelectItem key={n} value={String(n)}>{SIZE_LABELS[n]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <LocationSelect label="Lieu A" value={mainLocation} onChange={setMainLocation} options={optionsWithCurrent(placesA, mainLocation)} />
+            <LocationSelect label="Lieu B (mauvais temps)" value={backupLocation} onChange={setBackupLocation} options={optionsWithCurrent(placesB, backupLocation)} />
           </div>
           {places.length === 0 && (
             <p className="text-xs text-muted-foreground">Aucun lieu défini : ajoutez les lieux des jeux dans Paramètres → Camp BP.</p>
           )}
+          <div className="rounded-lg border p-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" className="h-4 w-4" checked={hasBackupGame} onChange={e => setHasBackupGame(e.target.checked)} />
+              Ce jeu ne peut pas se jouer au lieu B : prévoir un jeu de repli
+            </label>
+            <p className="mt-0.5 text-xs text-muted-foreground">En plan B, cette étape joue le jeu de repli (au lieu B) à la place de ce jeu.</p>
+            {hasBackupGame && (
+              <div className="mt-3 space-y-2">
+                <div className="space-y-1">
+                  <RequiredLabel required>Nom du jeu de repli</RequiredLabel>
+                  <Input value={backupGameName} maxLength={150} onChange={e => setBackupGameName(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Description du jeu de repli</p>
+                  <RichTextEditor content={backupGameDescription} onChange={setBackupGameDescription} placeholder="Déroulement, règles, matériel…" className="min-h-[140px]" />
+                </div>
+              </div>
+            )}
+          </div>
           <div className="space-y-1">
             <p className="text-sm font-medium">Description</p>
             <RichTextEditor content={description} onChange={setDescription} placeholder="Déroulement, règles, matériel…" className="min-h-[220px]" />
@@ -605,6 +659,64 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
           <Button onClick={save} disabled={update.isPending}><Save className="mr-1.5 h-4 w-4" />Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Auto-assign the games' places from Paramètres → Camp BP: lieu A, lieu B or both. Each game gets the smallest
+// free place at least as big as its "espace nécessaire" (biggest games first), within each place's capacity.
+function AutoPlacesDialog({ campId, onClose }: { campId: string; onClose: () => void }) {
+  const run = useAutoAssignPlaces(campId)
+  const [side, setSide] = useState<'main' | 'backup' | 'both'>('both')
+  const [replace, setReplace] = useState(false)
+  const [result, setResult] = useState<CampPlacesAssignResult | null>(null)
+  const go = async () => {
+    try { setResult(await run.mutateAsync({ main: side !== 'backup', backup: side !== 'main', replace })) }
+    catch (e) { toast.error(parseApiError(e)) }
+  }
+  const SIDES = [{ v: 'main', l: 'Lieu A' }, { v: 'backup', l: 'Lieu B' }, { v: 'both', l: 'Les deux' }] as const
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Attribuer les lieux</DialogTitle></DialogHeader>
+        {!result ? (
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">Chaque jeu reçoit le plus petit lieu libre assez grand pour l'espace dont il a besoin (les jeux les plus grands d'abord), selon la liste de Paramètres → Camp BP.</p>
+            <div className="flex gap-2">
+              {SIDES.map(o => (
+                <Button key={o.v} type="button" size="sm" variant={side === o.v ? 'default' : 'outline'} onClick={() => setSide(o.v)}>{o.l}</Button>
+              ))}
+            </div>
+            <label className="flex items-start gap-2">
+              <input type="checkbox" className="mt-0.5 h-4 w-4" checked={replace} onChange={e => setReplace(e.target.checked)} />
+              <span>Remplacer les lieux déjà choisis<span className="block text-xs text-muted-foreground">Sinon, seuls les jeux sans lieu en reçoivent un.</span></span>
+            </label>
+          </div>
+        ) : (
+          <div className="space-y-2 text-sm">
+            <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />
+              {side !== 'backup' && `${result.assignedMain} lieu(x) A`}{side === 'both' && ' · '}{side !== 'main' && `${result.assignedBackup} lieu(x) B`} attribué(s).</p>
+            {result.tooSmall.length > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-2 dark:border-amber-900 dark:bg-amber-950/40">
+                <p className="font-medium text-amber-800 dark:text-amber-300">Lieu plus petit que nécessaire :</p>
+                <ul className="list-disc pl-5 text-xs text-amber-800 dark:text-amber-300">{result.tooSmall.map(t => <li key={t}>{t}</li>)}</ul>
+              </div>
+            )}
+            {result.noPlace.length > 0 && (
+              <div className="rounded-md border border-red-300 bg-red-50 p-2 dark:border-red-900 dark:bg-red-950/40">
+                <p className="font-medium text-red-800 dark:text-red-300">Plus aucun lieu libre pour :</p>
+                <ul className="list-disc pl-5 text-xs text-red-800 dark:text-red-300">{result.noPlace.map(t => <li key={t}>{t}</li>)}</ul>
+                <p className="mt-1 text-xs text-red-800 dark:text-red-300">Ajoutez des lieux ou augmentez le nombre de jeux qu'un lieu accueille (Paramètres → Camp BP).</p>
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          {!result
+            ? <><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={go} disabled={run.isPending}>{run.isPending ? 'Patientez…' : 'Attribuer'}</Button></>
+            : <Button onClick={onClose}>Fermer</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

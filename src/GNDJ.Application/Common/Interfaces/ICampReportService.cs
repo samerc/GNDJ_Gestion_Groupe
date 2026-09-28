@@ -26,7 +26,7 @@ public record CampPassportFamille(int Number, string? Name, string? Description,
 // A game's score sheet: the matches of that game (one per slot) with blank boxes, for scoring on paper.
 public record CampScoreSheetRow(int Slot, DateOnly Date, TimeOnly Start, TimeOnly End, int FamilleA, int FamilleB);
 public record CampScoreSheetGame(int Number, string? Name, string? Location, string? BackupLocation, IReadOnlyList<string> Etapistes,
-    IReadOnlyList<CampScoreSheetRow> Rows);
+    IReadOnlyList<CampScoreSheetRow> Rows, string? BackupGameName = null);
 
 public interface ICampRotationReportService
 {

@@ -102,11 +102,18 @@ public class CampGame : BaseEntity
     public int? Number { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    // Where the game is played: the main place, and a backup place for bad weather. Picked from the
-    // camp.game_locations setting (the same places every year); stored as text so renaming a place later
-    // doesn't break old games.
+    // Where the game is played: lieu A (main place) and lieu B (backup place for bad weather). Picked from the
+    // camp.places setting (the same places every year, with their size and how many games they hold at once);
+    // stored as text so renaming a place later doesn't break old games.
     public string? MainLocation { get; set; }
     public string? BackupLocation { get; set; }
+    // Space the game needs (1 petit, 2 moyen, 3 grand; null = moyen) — the auto-assign gives it a place at least
+    // that big (CampPlaces).
+    public int? SpaceNeed { get; set; }
+    // Some games can't be played in their lieu B: this étape then plays a different game when Plan B is on
+    // (Camp.UseBackupLocations) — name + formatted description (TipTap HTML). Null = the same game in lieu B.
+    public string? BackupGameName { get; set; }
+    public string? BackupGameDescription { get; set; }
 
     public Camp Camp { get; set; } = null!;
     public ICollection<CampGameEtapiste> Etapistes { get; set; } = [];

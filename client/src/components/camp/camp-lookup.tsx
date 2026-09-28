@@ -161,7 +161,8 @@ function StepCard({ title, step, planB, highlight }: { title: string; step: Camp
       {!step ? <p className="mt-2 text-sm text-muted-foreground">—</p> : (
         <div className="mt-1 space-y-1">
           <p className="text-sm text-muted-foreground">{hhmm(step.startTime)}–{hhmm(step.endTime)} · étape {step.slot}</p>
-          <p className="font-semibold">Jeu {step.gameNumber}{step.gameName && ` — ${step.gameName}`}</p>
+          <p className="font-semibold">Jeu {step.gameNumber}{(planB && step.backupGameName ? step.backupGameName : step.gameName) && ` — ${planB && step.backupGameName ? step.backupGameName : step.gameName}`}</p>
+          {planB && step.backupGameName && <p className="text-xs text-sky-700 dark:text-sky-400">Jeu de repli (au lieu de « {step.gameName ?? `Jeu ${step.gameNumber}`} »)</p>}
           <p className={cn('flex items-center gap-1.5', highlight && 'text-lg font-bold')}>
             {planB ? <CloudRain className="h-4 w-4 shrink-0 text-sky-600" /> : <MapPin className="h-4 w-4 shrink-0 text-primary" />}
             {place(step, planB) ?? 'Lieu non défini'}

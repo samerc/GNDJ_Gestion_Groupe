@@ -36,8 +36,12 @@ export interface CampFamilleDto {
 }
 export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
-// mainLocation / backupLocation (bad weather) are picked from the camp.game_locations setting.
-export interface CampGameDto { id: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
+// mainLocation (lieu A) / backupLocation (lieu B, bad weather) are picked from the camp.places setting.
+// spaceNeed: 1 petit, 2 moyen, 3 grand (null = moyen). backupGame*: the game played instead when Plan B is on.
+export interface CampGameDto {
+  id: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[]
+  spaceNeed: number | null; backupGameName: string | null; backupGameDescription: string | null
+}
 // isAine = routier / caravelle / JEM (offered only when the camp.etapistes_aines setting is on); branch = their branch name.
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null; isAine: boolean; branch: string | null }
 
@@ -182,7 +186,16 @@ export function useCreateGame(campId: string) {
 // PUT /camps/games/{gameId} → rename a game / edit its description (rich-text HTML); invalidates ['camp-games', campId].
 export function useUpdateGame(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; number: number | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; number: number | null; spaceNeed: number | null; backupGameName: string | null; backupGameDescription: string | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+}
+// POST /camps/{id}/games/auto-places → give the games a lieu A and/or B from camp.places (by size + capacity).
+export interface CampPlacesAssignResult { assignedMain: number; assignedBackup: number; tooSmall: string[]; noPlace: string[] }
+export function useAutoAssignPlaces(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { main: boolean; backup: boolean; replace: boolean }) => apiClient.post<CampPlacesAssignResult>(`/camps/${campId}/games/auto-places`, body).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-games', campId] }); qc.invalidateQueries({ queryKey: ['camp-rotation', campId] }) },
+  })
 }
 // DELETE /camps/games/{gameId} → delete a game; invalidates ['camp-games', campId].
 export function useDeleteGame(campId: string) {
@@ -205,7 +218,10 @@ async function downloadPdf(url: string, filename: string) {
   saveBlob(r.data, filename, 'application/pdf')
 }
 // ── Étapistes: my games ──
-export interface MyCampGameDto { id: string; campId: string; campName: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[] }
+export interface MyCampGameDto {
+  id: string; campId: string; campName: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[]
+  backupGameName: string | null; backupGameDescription: string | null; useBackupLocations: boolean
+}
 // GET /camps/my-games → games of live camps where I am an étapiste (any signed-in member).
 export const useMyCampGames = () =>
   useQuery({ queryKey: ['camp-my-games'], queryFn: () => apiClient.get<MyCampGameDto[]>('/camps/my-games').then(r => r.data) })
@@ -222,7 +238,7 @@ export const printUnitList = (campId: string) => downloadPdf(`/camps/${campId}/u
 // ── Grand jeu: rotation (fixed grid), lookup, scoring ──
 // Dates are 'yyyy-MM-dd', times 'HH:mm:ss' (camp time, Lebanon). `now` is the server's camp-local time.
 export interface CampRotationSlotDto { number: number; date: string; startTime: string; endTime: string }
-export interface CampRotationGameDto { number: number; gameId: string | null; name: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: string[] }
+export interface CampRotationGameDto { number: number; gameId: string | null; name: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: string[]; backupGameName: string | null }
 export interface CampRotationDto {
   generated: boolean; useBackupLocations: boolean; famillesCount: number; existingFamilles: number
   matchCount: number; scoredCount: number; slots: CampRotationSlotDto[]; games: CampRotationGameDto[]; now: string
@@ -231,6 +247,7 @@ export interface CampPersonMatchDto { memberId: string; firstName: string; lastN
 export interface CampScheduleStepDto {
   slot: number; date: string; startTime: string; endTime: string; gameNumber: number; gameName: string | null
   mainLocation: string | null; backupLocation: string | null; opponent: number; opponentName: string | null; etapistes: string[]
+  backupGameName: string | null // played instead of gameName when Plan B is on
 }
 export interface CampFamilleScheduleDto {
   number: number; name: string | null; superFamille: string | null; pereName: string | null; perePhone: string | null
