@@ -76,7 +76,8 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      // gap-3 when the buttons stack on a phone (they touched); gap-2 side by side on larger screens.
+      "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-2",
       className
     )}
     {...props}
