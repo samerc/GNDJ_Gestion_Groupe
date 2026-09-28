@@ -13,7 +13,7 @@ namespace GNDJ.Application.Camps;
 // who run/score it). Phase 2 (actually scoring the games) is not built yet.
 
 public record CampGameDto(Guid Id, int? Number, string Name, string? Description, string? MainLocation, string? BackupLocation, IReadOnlyList<EtapisteDto> Etapistes,
-    int? SpaceNeed = null, string? BackupGameName = null, string? BackupGameDescription = null);
+    string? BackupGameName = null, string? BackupGameDescription = null);
 public record EtapisteDto(Guid MemberId, string FirstName, string LastName, string? UnitName);
 // IsAine = an older youth (routier / caravelle / JEM, not maîtrise) — only offered when the setting
 // camp.etapistes_aines is on, and shown apart in the picker.
@@ -33,14 +33,14 @@ public class GetCampGamesQueryHandler(IApplicationDbContext context, ICurrentUse
                 g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
                     e.MemberId, e.Member.FirstName, e.Member.LastName,
                     e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList(),
-                g.SpaceNeed, g.BackupGameName, g.BackupGameDescription))
+                g.BackupGameName, g.BackupGameDescription))
             .ToListAsync(ct);
         return Result<IReadOnlyList<CampGameDto>>.Success(games);
     }
 }
 
 public record CreateCampGameCommand(Guid CampId, string Name, string? Description, string? MainLocation = null, string? BackupLocation = null, int? Number = null,
-    int? SpaceNeed = null, string? BackupGameName = null, string? BackupGameDescription = null) : IRequest<Result<Guid>>;
+    string? BackupGameName = null, string? BackupGameDescription = null) : IRequest<Result<Guid>>;
 public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCommand>
 {
     public CreateCampGameCommandValidator()
@@ -50,7 +50,6 @@ public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCo
         RuleFor(x => x.Description).MaximumLength(50000);
         RuleFor(x => x.MainLocation).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupLocation).MaximumLength(150).NoHtml();
-        RuleFor(x => x.SpaceNeed).InclusiveBetween(1, 3).When(x => x.SpaceNeed != null);
         RuleFor(x => x.BackupGameName).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupGameDescription).MaximumLength(50000); // rich text, sanitized when displayed
         RuleFor(x => x.Number).InclusiveBetween(1, CampRotationGrid.Games).When(x => x.Number != null)
@@ -81,7 +80,7 @@ public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurren
             CampId = request.CampId, Name = request.Name.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             MainLocation = Clean(request.MainLocation), BackupLocation = Clean(request.BackupLocation), Number = request.Number,
-            SpaceNeed = request.SpaceNeed, BackupGameName = Clean(request.BackupGameName),
+            BackupGameName = Clean(request.BackupGameName),
             BackupGameDescription = Clean(request.BackupGameName) is null ? null : Clean(request.BackupGameDescription),
         };
         context.CampGames.Add(g);
@@ -91,7 +90,7 @@ public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurren
 }
 
 public record UpdateCampGameCommand(Guid Id, string Name, string? Description, string? MainLocation = null, string? BackupLocation = null, int? Number = null,
-    int? SpaceNeed = null, string? BackupGameName = null, string? BackupGameDescription = null) : IRequest<Result<bool>>;
+    string? BackupGameName = null, string? BackupGameDescription = null) : IRequest<Result<bool>>;
 public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCommand>
 {
     public UpdateCampGameCommandValidator()
@@ -101,7 +100,6 @@ public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCo
         RuleFor(x => x.Description).MaximumLength(50000);
         RuleFor(x => x.MainLocation).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupLocation).MaximumLength(150).NoHtml();
-        RuleFor(x => x.SpaceNeed).InclusiveBetween(1, 3).When(x => x.SpaceNeed != null);
         RuleFor(x => x.BackupGameName).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupGameDescription).MaximumLength(50000); // rich text, sanitized when displayed
         RuleFor(x => x.Number).InclusiveBetween(1, CampRotationGrid.Games).When(x => x.Number != null)
@@ -122,7 +120,6 @@ public class UpdateCampGameCommandHandler(IApplicationDbContext context, ICurren
         g.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         g.MainLocation = CreateCampGameCommandHandler.Clean(request.MainLocation);
         g.BackupLocation = CreateCampGameCommandHandler.Clean(request.BackupLocation);
-        g.SpaceNeed = request.SpaceNeed;
         g.BackupGameName = CreateCampGameCommandHandler.Clean(request.BackupGameName);
         // No backup game → its description goes too.
         g.BackupGameDescription = g.BackupGameName is null ? null : CreateCampGameCommandHandler.Clean(request.BackupGameDescription);

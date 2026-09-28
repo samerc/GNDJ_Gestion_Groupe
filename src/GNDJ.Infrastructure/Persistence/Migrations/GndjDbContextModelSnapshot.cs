@@ -966,10 +966,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("number");
 
-                    b.Property<int?>("SpaceNeed")
-                        .HasColumnType("integer")
-                        .HasColumnName("space_need");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");

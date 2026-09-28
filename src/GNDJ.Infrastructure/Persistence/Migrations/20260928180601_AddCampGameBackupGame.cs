@@ -5,7 +5,7 @@
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCampGameSpaceAndBackupGame : Migration
+    public partial class AddCampGameBackupGame : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -22,12 +22,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                 type: "character varying(150)",
                 maxLength: 150,
                 nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "space_need",
-                table: "camp_games",
-                type: "integer",
-                nullable: true);
         }
 
         /// <inheritdoc />
@@ -39,10 +33,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
 
             migrationBuilder.DropColumn(
                 name: "backup_game_name",
-                table: "camp_games");
-
-            migrationBuilder.DropColumn(
-                name: "space_need",
                 table: "camp_games");
         }
     }

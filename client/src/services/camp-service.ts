@@ -37,10 +37,10 @@ export interface CampFamilleDto {
 export interface PereMereCandidateDto { memberId: string; firstName: string; lastName: string; branche: string | null; gender: string | null; flagged: boolean; participantId: string | null }
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
 // mainLocation (lieu A) / backupLocation (lieu B, bad weather) are picked from the camp.places setting.
-// spaceNeed: 1 petit, 2 moyen, 3 grand (null = moyen). backupGame*: the game played instead when Plan B is on.
+// backupGame*: the game played instead when Plan B is on.
 export interface CampGameDto {
   id: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[]
-  spaceNeed: number | null; backupGameName: string | null; backupGameDescription: string | null
+  backupGameName: string | null; backupGameDescription: string | null
 }
 // isAine = routier / caravelle / JEM (offered only when the camp.etapistes_aines setting is on); branch = their branch name.
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null; isAine: boolean; branch: string | null }
@@ -186,10 +186,10 @@ export function useCreateGame(campId: string) {
 // PUT /camps/games/{gameId} → rename a game / edit its description (rich-text HTML); invalidates ['camp-games', campId].
 export function useUpdateGame(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; number: number | null; spaceNeed: number | null; backupGameName: string | null; backupGameDescription: string | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
+  return useMutation({ mutationFn: ({ id, ...body }: { id: string; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; number: number | null; backupGameName: string | null; backupGameDescription: string | null }) => apiClient.put(`/camps/games/${id}`, body), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-games', campId] }) })
 }
-// POST /camps/{id}/games/auto-places → give the games a lieu A and/or B from camp.places (by size + capacity).
-export interface CampPlacesAssignResult { assignedMain: number; assignedBackup: number; tooSmall: string[]; noPlace: string[] }
+// POST /camps/{id}/games/auto-places → give the games a lieu A and/or B from camp.places (within capacity).
+export interface CampPlacesAssignResult { assignedMain: number; assignedBackup: number; noPlace: string[] }
 export function useAutoAssignPlaces(campId: string) {
   const qc = useQueryClient()
   return useMutation({

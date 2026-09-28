@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GNDJ.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GndjDbContext))]
-    [Migration("20260928174518_AddCampGameSpaceAndBackupGame")]
-    partial class AddCampGameSpaceAndBackupGame
+    [Migration("20260928180601_AddCampGameBackupGame")]
+    partial class AddCampGameBackupGame
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -968,10 +968,6 @@ namespace GNDJ.Infrastructure.Persistence.Migrations
                     b.Property<int?>("Number")
                         .HasColumnType("integer")
                         .HasColumnName("number");
-
-                    b.Property<int?>("SpaceNeed")
-                        .HasColumnType("integer")
-                        .HasColumnName("space_need");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

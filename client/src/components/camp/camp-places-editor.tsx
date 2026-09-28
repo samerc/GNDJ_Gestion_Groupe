@@ -1,11 +1,10 @@
 // Editor for the camp.places setting (Paramètres → Camp BP): one row per place — name, usable as lieu A and/or
-// lieu B, size, and how many games it hosts at the same time. Staged: the settings row's Enregistrer button saves.
+// lieu B, and how many games it hosts at the same time. Staged: the settings row's Enregistrer button saves.
 import { useMemo, useState } from 'react'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { parsePlaces, SIZE_LABELS, type CampPlace } from '@/lib/camp-places'
+import { parsePlaces, type CampPlace } from '@/lib/camp-places'
 
 export function CampPlacesEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
   const places = useMemo(() => parsePlaces(value), [value])
@@ -17,7 +16,7 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
   const add = () => {
     const n = newName.trim()
     if (!n || exists(n) || /[<>]/.test(n)) return
-    set([...places, { name: n, a: true, b: false, size: 2, capacity: 1 }]); setNewName('')
+    set([...places, { name: n, a: true, b: false, capacity: 1 }]); setNewName('')
   }
   const shown = places.map((p, i) => ({ p, i })).filter(({ p }) => p.name.toLowerCase().includes(filter.toLowerCase()))
   const countA = places.filter(p => p.a).length, countB = places.filter(p => p.b).length
@@ -32,13 +31,12 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
         <span className="text-xs text-muted-foreground">{places.length} lieux · {countA} lieux A · {countB} lieux B</span>
       </div>
       <div className="max-h-[60vh] overflow-auto rounded-lg border">
-        <table className="w-full min-w-[560px] text-sm">
+        <table className="w-full min-w-[480px] text-sm">
           <thead className="sticky top-0 bg-muted/60 text-xs text-muted-foreground">
             <tr>
               <th className="px-2 py-1.5 text-left font-medium">Lieu</th>
               <th className="px-2 py-1.5 font-medium" title="Lieu principal">Lieu A</th>
               <th className="px-2 py-1.5 font-medium" title="Lieu de repli (mauvais temps)">Lieu B</th>
-              <th className="px-2 py-1.5 font-medium">Taille</th>
               <th className="px-2 py-1.5 font-medium" title="Nombre de jeux qu'il accueille en même temps">Jeux en même temps</th>
               <th className="w-10" />
             </tr>
@@ -49,12 +47,6 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
                 <td className="px-2 py-1"><Input value={p.name} maxLength={150} className="h-8" onChange={e => patch(i, { name: e.target.value })} /></td>
                 <td className="px-2 py-1 text-center"><input type="checkbox" className="h-4 w-4" checked={p.a} onChange={e => patch(i, { a: e.target.checked })} aria-label={`${p.name} : lieu A`} /></td>
                 <td className="px-2 py-1 text-center"><input type="checkbox" className="h-4 w-4" checked={p.b} onChange={e => patch(i, { b: e.target.checked })} aria-label={`${p.name} : lieu B`} /></td>
-                <td className="px-2 py-1">
-                  <Select value={String(p.size)} onValueChange={v => patch(i, { size: Number(v) })}>
-                    <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
-                    <SelectContent>{[1, 2, 3].map(s => <SelectItem key={s} value={String(s)}>{SIZE_LABELS[s]}</SelectItem>)}</SelectContent>
-                  </Select>
-                </td>
                 <td className="px-2 py-1 text-center">
                   <Input type="number" min={1} max={25} value={p.capacity} className="mx-auto h-8 w-16"
                     onChange={e => patch(i, { capacity: Math.min(25, Math.max(1, Number(e.target.value) || 1)) })} />
@@ -66,7 +58,7 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
                 </td>
               </tr>
             ))}
-            {shown.length === 0 && <tr><td colSpan={6} className="px-3 py-4 text-center text-xs text-muted-foreground">Aucun lieu.</td></tr>}
+            {shown.length === 0 && <tr><td colSpan={5} className="px-3 py-4 text-center text-xs text-muted-foreground">Aucun lieu.</td></tr>}
           </tbody>
         </table>
       </div>
