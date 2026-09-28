@@ -264,13 +264,14 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   )
 
   const fl = familles!
-  // min/max TOTAL note across non-empty familles → drives the per-famille bar fill + low(blue)/high(amber) tint.
-  // The total (not the average) is what the draft balances and what a move changes intuitively: adding a
-  // member always raises it, while the average can drop when the member's note is below the famille's.
+  // Balance view on the famille TOTAL note (what the draft balances; a move always raises the receiving
+  // famille's total). Target = the ideal total = all notes ÷ number of familles. Each row's bar grows from
+  // the centre line: left (blue) when the famille is below the target, right (amber) when above; within
+  // ±2 % of the target it's "équilibrée" (green). The bar length is scaled on the largest gap on the board.
   const tot = (f: { noteSum: number }) => Math.round(f.noteSum * 10) / 10
-  const avgs = fl.filter(f => f.size > 0).map(tot)
-  const minA = avgs.length ? Math.min(...avgs) : 0
-  const maxA = avgs.length ? Math.max(...avgs) : 1
+  const target = fl.length ? Math.round((fl.reduce((s, f) => s + f.noteSum, 0) / fl.length) * 10) / 10 : 0
+  const tolerance = Math.max(1, target * 0.02)
+  const maxGap = Math.max(tolerance, ...fl.map(f => Math.abs(tot(f) - target)))
   const famA = fl.find(f => f.id === slotA) ?? null
   const famB = fl.find(f => f.id === slotB) ?? null
 
@@ -315,11 +316,12 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="lg:w-72 lg:shrink-0">
           <div className="max-h-[72vh] overflow-y-auto rounded-lg border">
             <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Total des notes</span>
+              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Total des notes <span className="font-normal">· cible {target}</span></span>
             </div>
             {fl.map(f => {
-              const pct = maxA > minA ? Math.round(((tot(f) - minA) / (maxA - minA)) * 100) : 50
-              const low = f.size > 0 && tot(f) === minA, high = f.size > 0 && tot(f) === maxA && minA !== maxA
+              const gap = Math.round((tot(f) - target) * 10) / 10
+              const low = gap < -tolerance, high = gap > tolerance
+              const half = Math.min(50, (Math.abs(gap) / maxGap) * 50) // % of the whole track, on one side
               const isA = slotA === f.id, isB = slotB === f.id
               return (
                 <button key={f.id} type="button" onClick={() => pickFamille(f.id)}
@@ -333,10 +335,14 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
                   </span>
                   <span className="w-8 shrink-0 text-right text-sm text-muted-foreground tabular-nums">{f.size}</span>
                   <span className="flex flex-1 items-center gap-2">
-                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
+                    <span className="relative h-2.5 flex-1 rounded-full bg-muted">
+                      <span className="absolute inset-y-[-3px] left-1/2 w-px bg-foreground/40" />
+                      <span className={cn('absolute inset-y-0 rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-emerald-500')}
+                        style={gap < 0 ? { right: '50%', width: `${Math.max(2, half)}%` } : { left: '50%', width: `${Math.max(2, half)}%` }} />
                     </span>
-                    <Tip content={`Moyenne ${f.avgNote}`}><span className={cn('w-10 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{tot(f)}</span></Tip>
+                    <Tip content={`${gap === 0 ? 'Pile sur la cible' : `${gap > 0 ? '+' : ''}${gap} par rapport à la cible (${target})`} · moyenne ${f.avgNote}`}>
+                      <span className={cn('w-10 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{tot(f)}</span>
+                    </Tip>
                   </span>
                 </button>
               )
