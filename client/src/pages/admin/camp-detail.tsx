@@ -260,7 +260,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
       <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{readOnly ? "Aucune famille pour l'instant." : 'Aucune famille. Lancez le tirage pour les créer et répartir les membres.'}</p>
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage" confirmLabel="Lancer"
         description="Répartit tous les membres notés dans les familles (équilibre note/effectif/branche/genre)."
-        onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } }} />
+        loading={draft.isPending} onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } finally { setConfirmDraft(false) } }} />
     </div>
   )
 
@@ -359,7 +359,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
 
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage"
         description="Cela répartit (ou re-répartit) tous les membres notés dans les familles, en équilibrant note, effectif, branche et genre. Les Pères/Mères restent en place. Les déplacements manuels seront écrasés. Continuer ?"
-        confirmLabel="Lancer" onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } }} />
+        confirmLabel="Lancer" loading={draft.isPending} onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } finally { setConfirmDraft(false) } }} />
 
       {leaderDialog && <LeaderDialog campId={campId} famille={leaderDialog} onClose={() => setLeaderDialog(null)} />}
       {infoDialog && <FamilleInfoDialog campId={campId} famille={infoDialog} onClose={() => setInfoDialog(null)} />}
