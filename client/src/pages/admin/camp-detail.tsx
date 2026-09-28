@@ -577,6 +577,10 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
   const opt = (p: CampPlace) => ({ value: p.name, label: `${p.name}${p.capacity > 1 ? ` · ${p.capacity} jeux` : ''}` })
   const placesA = places.filter(p => p.a).map(opt)
   const placesB = places.filter(p => p.b).map(opt)
+  // A place marked both lieu A and lieu B in Paramètres is used for both sides of the game when picked on either.
+  const both = (name: string) => places.some(p => p.a && p.b && p.name === name)
+  const pickMain = (v: string) => { setMainLocation(v); if (v && both(v)) setBackupLocation(v) }
+  const pickBackup = (v: string) => { setBackupLocation(v); if (v && both(v)) setMainLocation(v) }
   const save = async () => {
     if (!name.trim()) { toast.error('Saisissez un nom pour le jeu.'); return }
     if (hasBackupGame && !backupGameName.trim()) { toast.error('Saisissez le nom du jeu de repli.'); return }
@@ -614,8 +618,8 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
           </div>
           <p className="-mt-1 text-xs text-muted-foreground">Le numéro place le jeu dans la grille de rotation (jeu 1 à 25) : c'est ce qui donne son lieu à chaque famille.</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <LocationSelect label="Lieu A" value={mainLocation} onChange={setMainLocation} options={optionsWithCurrent(placesA, mainLocation)} />
-            <LocationSelect label="Lieu B (mauvais temps)" value={backupLocation} onChange={setBackupLocation} options={optionsWithCurrent(placesB, backupLocation)} />
+            <LocationSelect label="Lieu A" value={mainLocation} onChange={pickMain} options={optionsWithCurrent(placesA, mainLocation)} />
+            <LocationSelect label="Lieu B (mauvais temps)" value={backupLocation} onChange={pickBackup} options={optionsWithCurrent(placesB, backupLocation)} />
           </div>
           {places.length === 0 && (
             <p className="text-xs text-muted-foreground">Aucun lieu défini : ajoutez les lieux des jeux dans Paramètres → Camp BP.</p>
