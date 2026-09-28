@@ -24,7 +24,8 @@ import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2, Star, ChevronDown } from 'lucide-react'
+import { Save, X, Settings2, Search, Plus, Trash2, Star, ChevronRight, ArrowLeft, Users, Home, FileText, Coins, ArrowRightLeft, Tent, Inbox, LogIn, Mail, ShieldCheck, Wrench, SlidersHorizontal, Globe, List, Building2, TextCursorInput, CreditCard, Server, MailOpen, Palette, KeyRound, type LucideIcon } from 'lucide-react'
+import { useMobileDetail } from '@/hooks/use-mobile-detail'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { ManagedListEditor } from '@/components/shared/managed-list-editor'
@@ -135,6 +136,42 @@ const CATEGORY_LABELS: Record<string, string> = {
 // 'reports' is intentionally omitted: its only visible setting (reports.cards_enabled) is rendered inside the
 // Carte membre tab instead, so there is no standalone "Rapports" tab.
 const CATEGORY_ORDER = ['members', 'famille', 'documents', 'cotisations', 'passage', 'camp', 'demande', 'login', 'email', 'security', 'general', 'site', 'maintenance', 'advanced']
+
+// Icon per section, for the phone's settings menu (a list of sections with icons, like a phone's own settings).
+const SECTION_ICONS: Record<string, LucideIcon> = {
+  members: Users, famille: Home, documents: FileText, cotisations: Coins, passage: ArrowRightLeft, camp: Tent,
+  demande: Inbox, login: LogIn, email: Mail, security: ShieldCheck, general: SlidersHorizontal, site: Globe,
+  maintenance: Wrench, advanced: Settings2,
+  'cfg:lists': List, 'cfg:associations': Building2, 'cfg:custom-fields': TextCursorInput, 'cfg:card': CreditCard,
+  'cfg:smtp': Server, 'cfg:email-templates': MailOpen, 'cfg:appearance': Palette, 'cfg:site-texts': Globe,
+  'cfg:api-keys': KeyRound,
+}
+
+// Phone menu group: a titled rounded card of rows (icon · label · chevron), each opening a section full screen.
+function MobileSectionGroup({ title, items, onSelect }: {
+  title: string
+  items: { value: string; label: string }[]
+  onSelect: (value: string) => void
+}) {
+  return (
+    <div>
+      <p className="px-1 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
+        {items.map(i => {
+          const Icon = SECTION_ICONS[i.value] ?? Settings2
+          return (
+            <button key={i.value} type="button" onClick={() => onSelect(i.value)}
+              className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-muted/60">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4.5 w-4.5" /></span>
+              <span className="flex-1 font-medium">{i.label}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 // Keys pinned to the top of their category tab (rest keep their natural order). The two inscription
 // period switches (portal open + submission window) lead the "Inscriptions" tab so the CG sees them first.
@@ -691,6 +728,10 @@ export default function SettingsPage() {
 
   const categories = CATEGORY_ORDER.filter(c => grouped[c]?.length)
   const [tab, setTab] = useState<string>('')
+  // Phone: Paramètres opens on a menu of sections; tapping one shows it full screen (the back arrow and the
+  // phone's back button return to the menu). `deepLinked` = opened straight on a section by a `?tab=` link.
+  const { selectedId: mobileSection, open: openMobile, close: closeMobile } = useMobileDetail()
+  const [deepLinked, setDeepLinked] = useState(false)
   // Default to the first available section (a settings category, else the first config tab). A `?tab=` query
   // param (e.g. from the rentrée "goto-email" action or the communications "Modifier le modèle" link) deep-links
   // to a specific section, if it's a valid + accessible one. Render-phase init, guarded by !tab.
@@ -702,7 +743,9 @@ export default function SettingsPage() {
     const requested = searchParams.get('tab')
     const valid = requested && (categories.includes(requested) || configTabs.some(t => t.key === requested))
     setTab(valid ? requested : firstSection)
+    if (valid) setDeepLinked(true)
   }
+  const selectSection = (v: string) => { setTab(v); openMobile(v) }
 
   if (isLoading) return <LoadingSpinner variant="form" />
 
@@ -716,18 +759,33 @@ export default function SettingsPage() {
   const activeCategory = !q && categories.includes(tab) ? tab : null
   const activeConfig = q ? undefined : configTabs.find(t => t.key === tab)
   const ActiveConfigComponent = activeConfig?.Component
+  // Section shown full screen on a phone (null = the menu). Search results replace both.
+  const mobileView = q ? null : (mobileSection ?? (deepLinked ? tab : null))
+  const sectionLabel = CATEGORY_LABELS[tab] ?? configTabs.find(t => t.key === tab)?.label ?? ''
+  const backToMenu = () => { if (mobileSection) closeMobile(); else setDeepLinked(false) }
 
   return (
     <Page>
-      <PageHeader
-        title="Paramètres"
-        icon={Settings2}
-        actions={<SearchInput value={query} onChange={setQuery} placeholder="Rechercher un paramètre..." className="w-full max-w-xs" />}
-      />
+      {/* Phone, inside a section: a back bar + the section's name replace the page header. */}
+      {mobileView && (
+        <div className="space-y-1 border-b border-border/60 pb-3 md:hidden">
+          <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={backToMenu}>
+            <ArrowLeft className="mr-1 h-4 w-4" />Paramètres
+          </Button>
+          <h1 className="text-xl font-semibold tracking-tight">{sectionLabel}</h1>
+        </div>
+      )}
+      <div className={mobileView ? 'hidden md:block' : undefined}>
+        <PageHeader
+          title="Paramètres"
+          icon={Settings2}
+          actions={<SearchInput value={query} onChange={setQuery} placeholder="Rechercher un paramètre..." className="w-full sm:max-w-xs" />}
+        />
+      </div>
 
       {/* Launchpad to the config apps that remain their own pages (Email/SMTP, report templates, access). */}
       {configLinks.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+        <div className={cn('rounded-xl border border-border bg-card p-4 shadow-card', mobileView && 'hidden md:block')}>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Autres pages de configuration</p>
           <div className="flex flex-wrap gap-2">
             {configLinks.map(l => (
@@ -738,7 +796,9 @@ export default function SettingsPage() {
       )}
 
       {/* Contradictory / risky settings (dates out of order, scout years that differ, test email mode…). */}
-      <ConfigIssuesBanner issues={settingsCheck} onOpenTab={(t) => { setQuery(''); setTab(t) }} />
+      <div className={mobileView ? 'hidden md:block' : undefined}>
+        <ConfigIssuesBanner issues={settingsCheck} onOpenTab={(t) => { setQuery(''); selectSection(t) }} />
+      </div>
 
       {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
@@ -754,32 +814,19 @@ export default function SettingsPage() {
         </div>
       ) : (
         // Left grouped vertical nav (Réglages / Configuration) + content pane — scales past a wrapping tab row.
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-          {/* Mobile: a single dropdown to pick the section (the vertical nav is hidden below lg). Styled
-              prominently — a labelled, full-width picker with a strong border + chevron so it reads as the
-              page selector, not an easily-missed field. */}
-          <div className="lg:hidden">
-            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Settings2 className="h-3.5 w-3.5" />Section des paramètres
-            </label>
-            <div className="relative">
-              <select value={tab} onChange={(e) => setTab(e.target.value)}
-                className="w-full appearance-none rounded-lg border-2 border-primary/30 bg-card px-4 py-3 pr-11 text-base font-semibold shadow-sm outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring">
-                <optgroup label="Réglages">
-                  {categories.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c] ?? c}</option>)}
-                </optgroup>
-                {configTabs.length > 0 && (
-                  <optgroup label="Configuration">
-                    {configTabs.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                  </optgroup>
-                )}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
+          {/* Phone: the menu of sections (replaces the system dropdown picker). */}
+          {!mobileView && (
+            <div className="space-y-5 md:hidden">
+              <MobileSectionGroup title="Réglages" items={categories.map(c => ({ value: c, label: CATEGORY_LABELS[c] ?? c }))} onSelect={selectSection} />
+              {configTabs.length > 0 && (
+                <MobileSectionGroup title="Configuration" items={configTabs.map(t => ({ value: t.key, label: t.label }))} onSelect={selectSection} />
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Desktop: grouped vertical nav. */}
-          <nav className="hidden w-56 shrink-0 lg:block">
+          {/* Larger screens: grouped vertical nav. */}
+          <nav className="hidden w-56 shrink-0 md:block">
             <div className="sticky top-20 space-y-5">
               <SettingsNavGroup title="Réglages" items={categories.map(c => ({ value: c, label: CATEGORY_LABELS[c] ?? c }))} active={tab} onSelect={setTab} />
               {configTabs.length > 0 && (
@@ -788,8 +835,8 @@ export default function SettingsPage() {
             </div>
           </nav>
 
-          {/* Content of the active section. */}
-          <div className="min-w-0 flex-1">
+          {/* Content of the active section (on a phone, only once a section is opened from the menu). */}
+          <div className={cn('min-w-0 flex-1', !mobileView && 'hidden md:block')}>
             {activeCategory && (
               <>
                 {/* Passage section leads with the yearly "Nettoyage de nouvelle année" (CG) — the manual shortcut. */}
