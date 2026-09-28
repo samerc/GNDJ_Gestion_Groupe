@@ -21,6 +21,10 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera, Smartphone } from 'lucide-react'
 
+// Document row actions share one size: 40px on phones (easy to tap), 36px on larger screens.
+const ICON_BTN = 'h-10 w-10 sm:h-9 sm:w-9'
+const TEXT_BTN = 'h-10 px-3 sm:h-9'
+
 // Status badge for a doc. Expiry overrides the workflow status (an expired doc reads "Expiré"
 // regardless of approval). Workflow: upload → "En cours de vérification" → "Accepté" / "Refusé".
 function statusBadge(status: string, isExpired: boolean) {
@@ -420,41 +424,43 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       when the member still needs to (re)submit (canDownloadTemplate). */}
                   {canDownloadTemplate && (dt.hasHtmlTemplate ? (
                     <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60">
+                      className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60 sm:h-9">
                       <Download className="h-4 w-4" />{templatePdfLoadingId === dt.id ? 'Préparation…' : 'Télécharger le modèle pré-rempli'}
                     </button>
                   ) : dt.templateFileUrl && (
                     <a href={dt.templateFileUrl} download={dt.templateFileName ?? undefined} target="_blank" rel="noreferrer"
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20">
+                      className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60 sm:h-9">
                       <Download className="h-4 w-4" />Télécharger le modèle à remplir
                     </a>
                   ))}
                 </div>
 
-                {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm. */}
-                <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                {/* Actions — full-width below the content on mobile (stacked), inline on the right on ≥sm.
+                    One look for all of them: bordered buttons of the same height (40px on phones); icon-only
+                    actions are squares (Accepter / Refuser tinted green / red), upload actions carry a label. */}
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   {/* Row download opens page 1 — hide it when page 1's file is gone (it would 404); the pages
                       viewer still lists any downloadable extra pages. */}
                   {doc && !doc.pages.find(p => p.isPrimary)?.fileMissing && (
-                    <Tip content="Télécharger le document"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => handleDownload(doc)}>
-                      <Download className="h-4 w-4" />
+                    <Tip content="Télécharger le document"><Button variant="outline" size="icon" className={ICON_BTN} onClick={() => handleDownload(doc)}>
+                      <Download className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {doc && doc.status !== 'Approved' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Accepter"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => handleQuickReview(doc.id, 'Approved')}>
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    <Tip content="Accepter"><Button variant="outline" size="icon" className={`${ICON_BTN} border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300`} onClick={() => handleQuickReview(doc.id, 'Approved')}>
+                      <CheckCircle className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {/* Show for any status so an already-refused doc can be reopened to add/edit the reason;
                       pre-fill the existing note so editing keeps it. */}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Refuser"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
-                      <XCircle className="h-4 w-4 text-red-500" />
+                    <Tip content="Refuser"><Button variant="outline" size="icon" className={`${ICON_BTN} border-red-300 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300`} onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
+                      <XCircle className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => setDeleting(doc)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                    <Tip content="Supprimer"><Button variant="outline" size="icon" className={`${ICON_BTN} text-destructive hover:text-destructive`} onClick={() => setDeleting(doc)}>
+                      <Trash2 className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {/* Upload offered unless a valid (approved, non-expired) doc is already on file. So a member
@@ -466,6 +472,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       <Button
                         variant={doc ? 'outline' : 'default'}
                         size="sm"
+                        className={TEXT_BTN}
                         onClick={() => {
                           // Doc types that require an expiry first open a dialog to capture the date;
                           // the rest jump straight to the file picker (timeout lets state settle first).
@@ -488,20 +495,20 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                           types go via the date dialog first. */}
                       {!isFinePointer && (
                         <Tip content="Prendre une photo">
-                          <Button variant="outline" size="icon" className="h-9 w-9 border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 sm:h-8 sm:w-8"
+                          <Button variant="outline" size="icon" className={`${ICON_BTN} border-primary/40 bg-primary/10 text-primary hover:bg-primary/20`}
                             onClick={() => {
                               if (dt.requiresExpiry) { setUploadingDocTypeId(dt.id); setExpiryDate('') }
                               else { setUploadingDocTypeId(dt.id); setTimeout(() => cameraInputRef.current?.click(), 50) }
                             }}
                             disabled={uploadMutation.isPending}>
-                            <Camera className="h-4 w-4" />
+                            <Camera className="h-5 w-5" />
                           </Button>
                         </Tip>
                       )}
                       {/* DESKTOP ONLY: labelled "Scanner" button (a phone icon alone was unclear). Opens a QR that
                           pre-targets THIS document type; the phone photographs it. Gated by the setting audience. */}
                       {scanEnabled && isFinePointer && (
-                        <Button variant="default" size="sm"
+                        <Button variant="default" size="sm" className={TEXT_BTN}
                           onClick={() => openScan({ id: dt.id, name: dt.name })}>
                           <Smartphone className="mr-1.5 h-4 w-4" />Scanner
                         </Button>

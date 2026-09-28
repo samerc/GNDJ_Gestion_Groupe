@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-28", "text": "Documents (fiche membre et Ma fiche) : tous les boutons d'une ligne ont le même style et la même taille (40 px sur téléphone) — Télécharger, Accepter (vert), Refuser (rouge), Supprimer, Envoyer/Renvoyer, Photo ; « Télécharger le modèle pré-rempli » à la même hauteur."},
       {"date": "2026-09-28", "text": "Documents & cotisations : bouton « Vérifier les documents en attente » qui ouvre les documents à vérifier l'un après l'autre (Accepter / Refuser / Passer, sans revenir à la liste), filtres Tous / À vérifier / À compléter / Cotisation à régler et recherche par nom ; sur téléphone la légende est masquée (chaque case indique déjà son état) et le clavier ne s'ouvre plus à chaque document."},
       {"date": "2026-09-28", "text": "Passage : les chefs (toute personne ayant une fonction de maîtrise) ne font plus partie du passage — ils n'apparaissent plus dans les listes, ne comptent plus comme « sans passage » et ne bloquent plus la fin d'une unité ni la publication ; l'équipe Maîtrise n'est plus proposée. Leurs fonctions se gèrent dans Maîtrises."},
       {"date": "2026-09-28", "text": "Paramètres sur téléphone : un menu de sections avec icônes (comme les réglages d'un téléphone) remplace la liste déroulante ; chaque section s'ouvre en plein écran avec un retour vers le menu (bouton retour du téléphone compris)."},
