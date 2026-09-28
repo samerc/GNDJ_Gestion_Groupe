@@ -277,6 +277,11 @@
   }
 }
 
+/* Camp BP carte: printed alone (the landscape @page rule is added only while printing it, see camp-map.tsx). */
+@media print {
+  .camp-map-print img { width: 100%; height: auto; }
+}
+
 /* Document-template FORM BUILDER elements (rendered inside the rich-text editor). These display the custom
    TipTap nodes as real form controls; the PDF renderer draws matching underlines/boxes/checkboxes.
    .gndj-field = an auto-filled member field pill; .gndj-fill = a write-on underline; .gndj-checkbox = a

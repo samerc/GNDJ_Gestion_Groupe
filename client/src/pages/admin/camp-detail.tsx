@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { CampMap } from '@/components/camp/camp-map'
 import { DndContext, DragOverlay, useDraggable, useDroppable, pointerWithin, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
@@ -65,6 +66,8 @@ export default function CampDetailPage() {
     access.jeux !== 'none' && 'rotation',
     access.jeux !== 'none' && 'pointage',
     (access.isAdmin || access.isCommissionMember) && 'recherche',
+    // The carte is for anyone who can open some part of the camp.
+    (access.isAdmin || access.isCommissionMember || access.familles !== 'none' || access.jeux !== 'none' || access.parametres !== 'none') && 'carte',
     access.parametres !== 'none' && 'parametres',
     (access.isAdmin || access.isCommissionMember) && 'commission',
   ].filter(Boolean) as string[]
@@ -112,6 +115,7 @@ export default function CampDetailPage() {
             {tabs.includes('rotation') && <TabsTrigger value="rotation">Rotation</TabsTrigger>}
             {tabs.includes('pointage') && <TabsTrigger value="pointage">Pointage</TabsTrigger>}
             {tabs.includes('recherche') && <TabsTrigger value="recherche">Où est… ?</TabsTrigger>}
+            {tabs.includes('carte') && <TabsTrigger value="carte">Carte</TabsTrigger>}
             {tabs.includes('parametres') && <TabsTrigger value="parametres">Paramètres</TabsTrigger>}
             {tabs.includes('commission') && <TabsTrigger value="commission">Commission</TabsTrigger>}
           </TabsList>
@@ -120,6 +124,7 @@ export default function CampDetailPage() {
           {tabs.includes('rotation') && <TabsContent value="rotation" className="mt-4"><CampRotationTab campId={id} readOnly={access.jeux !== 'edit' || camp.isArchived} /></TabsContent>}
           {tabs.includes('pointage') && <TabsContent value="pointage" className="mt-4"><CampScoringTab campId={id} /></TabsContent>}
           {tabs.includes('recherche') && <TabsContent value="recherche" className="mt-4"><CampLookup campId={id} /></TabsContent>}
+          {tabs.includes('carte') && <TabsContent value="carte" className="mt-4"><CampMap /></TabsContent>}
           {tabs.includes('parametres') && <TabsContent value="parametres" className="mt-4"><SettingsTab campId={id} readOnly={access.parametres !== 'edit'} /></TabsContent>}
           {tabs.includes('commission') && <TabsContent value="commission" className="mt-4"><CampCommissionTab campId={id} access={access} /></TabsContent>}
         </Tabs>
