@@ -111,10 +111,20 @@ function svg() {
   s += path(curve([[1265, 150], [1300, 230], [1330, 300]]), 'none', C.hwyEdge, 14) + path(curve([[1265, 150], [1300, 230], [1330, 300]]), 'none', C.hwy, 10)
 
   // Paved yards / esplanade around the main school.
-  // Open court west of the church (a slanted flat terrain, NOT a building): light ground + dashed inner line.
-  s += path(poly([[372, 710], [467, 762], [456, 829], [346, 785]]), '#ece6d6', '#bdb49c', 1.6)
-  s += path(poly([[378, 722], [458, 766], [449, 818], [357, 781]]), 'none', '#c9bfa5', 1.2, 'stroke-dasharray="6 5"')
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
+  // Open court west of the church (a slanted flat terrain, NOT a building): light ground + dashed inner line.
+  s += path(poly([[360, 702], [470, 750], [450, 782], [340, 752]]), '#ece6d6', '#bdb49c', 1.6)
+  s += path(poly([[364, 711], [459, 752], [446, 773], [352, 747]]), 'none', '#c9bfa5', 1.2, 'stroke-dasharray="6 5"')
+  // Préau south-east of the court: a building whose flat roof is a parking (roof drawn as parking with bays).
+  {
+    const A = [430, 765], B = [525, 828], C2 = [505, 858], D = [410, 795]
+    s += bld(poly([A, B, C2, D]), C.parking)
+    for (let i = 1; i < 9; i++) {
+      const t = i / 9
+      const top = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t], bot = [D[0] + (C2[0] - D[0]) * t, D[1] + (C2[1] - D[1]) * t]
+      s += `<line x1="${top[0].toFixed(1)}" y1="${top[1].toFixed(1)}" x2="${bot[0].toFixed(1)}" y2="${bot[1].toFixed(1)}" stroke="#fff" stroke-width="1.4"/>`
+    }
+  }
   s += path(poly([[390, 555], [470, 540], [520, 600], [520, 690], [420, 690]]), C.paved, C.pavedEdge, 1.5)
 
   // Petit collège CNDJ (north, in the forest clearing). Traced from a closer satellite view (its own pixel space,
