@@ -199,12 +199,19 @@ part **automatiquement** ou par **envoi manuel**, et à quel moment.
    notification, et ne peut plus modifier cette ligne. Pour donner **la même décision à plusieurs membres**, cochez-les
    puis **Changer la sélection** : une seule notification par unité liste les membres concernés.
 4. Accepter ne change encore rien pour les membres : vous pouvez commencer avant que toutes les unités aient fini.
-5. **Avancement par unité** : chaque CU clique sur **Terminer le passage de l'unité** quand tous ses membres ont une
-   ligne ; l'unité est alors verrouillée pour lui. Vous pouvez la **rouvrir** (🔓) ou la terminer à sa place (🏁).
-   **Relancer les unités non terminées** envoie une notification et un email aux chefs de ces unités. Ce rappel part
-   aussi **automatiquement 7 jours et 2 jours avant la date du passage** (tant que le passage est ouvert).
-6. **Projection de l'année prochaine** : l'effectif de chaque unité après le passage, en simulation (comme si tout
-   était accepté) ou en réel.
+5. **En haut de la page, les 3 étapes** disent où vous en êtes : ① les chefs d'unité proposent (unités terminées,
+   membres sans proposition), ② vous validez les changements (combien restent **à valider**), ③ publier (prêt ou
+   ce qui bloque encore).
+6. **Le tableau des unités** répond, pour chaque unité, à trois questions :
+   - **Chef d'unité** : *Pas commencé*, *En cours · N sans proposition*, *Tout proposé, pas terminé* (il reste à
+     cliquer **Terminer le passage de l'unité**) ou *Terminé* (verrouillé pour lui). Vous pouvez la **rouvrir** (🔓)
+     ou la terminer à sa place (🏁). **Relancer les unités non terminées** envoie une notification et un email aux
+     chefs ; ce rappel part aussi **automatiquement 7 jours et 2 jours avant la date du passage**.
+   - **À valider (CG)** : le nombre de changements qui attendent votre décision (✓ = rien).
+   - **Cette année → l'an prochain** : l'effectif actuel, l'effectif prévu, les arrivées (+) et départs (−), et
+     **Arrivent de** (par ex. « M2 7 · M3 6 »). **Prévu** compte toutes les propositions, **Validé seulement** les
+     changements déjà validés. Cliquez sur une unité pour voir qui reste, qui arrive (et d'où) et qui part (et vers
+     où), puis **Voir les lignes de passage** pour agir sur ses membres.
 7. **Publier le passage** (le jour du passage, réglable dans **Paramètres → Passage**), pour tout le groupe en une
    fois : les lignes encore en attente sont acceptées automatiquement, les anciennes affectations se ferment, les
    nouvelles sont créées, l'entrée dans la nouvelle unité est ajoutée à la progression. Chaque CU qui reçoit des
@@ -212,7 +219,7 @@ part **automatiquement** ou par **envoi manuel**, et à quel moment.
 8. Après la publication, téléchargez la liste des **nouveaux membres par unité** en Word, **un document par
    association** (« Passe à la … : » puis un nom par ligne).
 
-![Projection de l'année prochaine](img/cg-passage-projection.png)
+![Tableau des unités](img/cg-passage-projection.png)
 
 > ⚠️ **Publier** n'est possible que lorsque **chaque membre actif** a une ligne de passage et que **toutes les
 > unités** ont terminé leur passage.
@@ -387,7 +394,7 @@ de l'année est aussi archivé et envoyé par email à l'administrateur et au ch
 | Question | Réponse |
 |---|---|
 | Je ne peux pas envoyer les réponses | Il reste des demandes soumises sans décision : filtre **Statut → À étudier** |
-| Je ne peux pas publier le passage | Certains membres n'ont pas de ligne (carte **Sans passage**) ou une unité n'a pas terminé (**Avancement par unité**) |
+| Je ne peux pas publier le passage | Regardez l'étape ③ en haut de la page : certains membres n'ont pas de proposition ou une unité n'a pas terminé (tableau des unités) |
 | Une famille dit ne pas avoir reçu l'email | Vérifiez son adresse dans **Comptes d'inscription** (ou le courriel principal sur la fiche) ; l'email peut aussi apparaître dans **Qualité des données** s'il a été refusé par le fournisseur |
 | Une famille veut s'inscrire après la date limite | **Comptes d'inscription → Invitations de dernière minute** |
 | Un CU ne voit pas un membre | Le membre n'a pas d'affectation active dans son unité |

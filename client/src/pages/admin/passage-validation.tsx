@@ -24,7 +24,7 @@ import {
   type PassageDto,
 } from '@/services/passage-service'
 import { saveBlob } from '@/lib/download'
-import { PassageProjection } from '@/components/passage/passage-projection'
+import { PassageUnitsOverview } from '@/components/passage/passage-units-overview'
 import { BulkChangeDialog } from '@/components/passage/bulk-change-dialog'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
@@ -49,16 +49,8 @@ import {
   ArrowRight,
   Check,
   Pencil,
-  Users,
-  Clock,
-  CheckCircle2,
   ToggleLeft,
   ToggleRight,
-  UserX,
-  Flag,
-  Lock,
-  Unlock,
-  Bell,
   FileText,
   Send,
 } from 'lucide-react'
@@ -328,6 +320,14 @@ export default function PassageValidationPage() {
   const unitsNotSubmitted = summary?.unitsNotSubmitted ?? 0
   const unitRows = (summary?.unitSummaries ?? []).filter(u => u.expectedMembers > 0)
   const canFinalize = (approvedCount + pendingCount) > 0 && missingTotal === 0 && unitsNotSubmitted === 0 && rejectedCount === 0
+  const step1Done = unitRows.length > 0 && unitsNotSubmitted === 0 && missingTotal === 0
+  // Jump to the member lines, filtered to a unit and/or a status.
+  const showLines = (unitId: string | undefined, status: string) => {
+    setUnitFilter(unitId ?? '_all')
+    setStatusFilter(status)
+    setSelected(new Set())
+    requestAnimationFrame(() => document.getElementById('passage-lines')?.scrollIntoView({ behavior: 'smooth' }))
+  }
   const { data: newcomerGroups } = usePassageNewcomerGroups(scoutYear, finalizedCount > 0)
 
   const downloadNewcomers = async (associationId: string | null) => {
@@ -343,8 +343,8 @@ export default function PassageValidationPage() {
     if (p.status === 'Finalized') return <Badge variant="info">Publié</Badge>
     if (p.status === 'Rejected') return <Badge variant="destructive">Rejeté (à modifier)</Badge>
     if (p.cgModified) return <Badge variant="warning">Modifié</Badge>
-    if (p.status === 'Approved') return <Badge variant="success">Accepté</Badge>
-    return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300">En attente</Badge>
+    if (p.status === 'Approved') return <Badge variant="success">Validé</Badge>
+    return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300">À valider</Badge>
   }
 
   // Mobile card colours, matching the status badge.
@@ -390,112 +390,57 @@ export default function PassageValidationPage() {
         </>}
       />
 
-      {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{summary?.totalMembers ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{summary?.pending ?? 0}</p>
-              <p className="text-xs text-muted-foreground">En attente</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950/50 text-green-600 dark:text-green-400">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{summary?.approved ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Acceptés</p>
-            </div>
-          </CardContent>
-        </Card>
-        {/* Units finished by their CU — posting is blocked until all are. */}
-        <Card className={unitsNotSubmitted > 0 ? 'border-amber-300 dark:border-amber-800' : undefined}>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400">
-              <Flag className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{unitRows.length - unitsNotSubmitted}/{unitRows.length}</p>
-              <p className="text-xs text-muted-foreground">Unités terminées</p>
-            </div>
-          </CardContent>
-        </Card>
-        {/* Members still without a passage line — posting is blocked until this is 0. */}
-        <Card className={missingTotal > 0 ? 'border-amber-300 dark:border-amber-800' : undefined}>
-          <CardContent className="flex items-center gap-3 pt-6">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${missingTotal > 0 ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-muted text-muted-foreground'}`}>
-              <UserX className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{missingTotal}</p>
-              <p className="text-xs text-muted-foreground">Sans passage</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Where are we? The three steps of the passage, each with its status in plain words. */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <StepCard
+          n={1}
+          title="Les chefs d'unité proposent"
+          state={step1Done ? 'done' : 'todo'}
+          lines={[
+            `${unitRows.length - unitsNotSubmitted}/${unitRows.length} unités terminées`,
+            missingTotal > 0 ? `${missingTotal} membre(s) sans proposition` : 'Tous les membres ont une proposition',
+          ]}
+        />
+        <StepCard
+          n={2}
+          title="Le CG valide les changements"
+          state={pendingCount === 0 ? 'done' : 'todo'}
+          lines={[
+            pendingCount > 0 ? `${pendingCount} changement(s) à valider` : 'Rien à valider pour le moment',
+            `${approvedCount} validé(s)`,
+          ]}
+          action={pendingCount > 0 ? { label: 'Voir les changements à valider', onClick: () => showLines(undefined, 'Pending') } : undefined}
+        />
+        <StepCard
+          n={3}
+          title="Publier le passage"
+          state={finalizedCount > 0 ? 'done' : canFinalize ? 'ready' : 'blocked'}
+          lines={finalizedCount > 0
+            ? [`Publié : ${finalizedCount} ligne(s)`]
+            : canFinalize
+              ? ['Tout est prêt : vous pouvez publier', pendingCount > 0 ? `${pendingCount} ligne(s) à valider le seront automatiquement` : '']
+              : ["En attente de l'étape 1", unitsNotSubmitted > 0 ? `${unitsNotSubmitted} unité(s) pas terminée(s)` : '']}
+          action={finalizedCount === 0 && canFinalize ? { label: 'Publier…', onClick: () => setFinalizeDialog(true) } : undefined}
+        />
       </div>
 
-      {/* Next-year projection (CG simulation — assumes all lines approved, toggle to réel) */}
-      <PassageProjection scoutYear={scoutYear} />
+      {/* One row per unit: chef finished? changes to validate? headcount now → next year + arrivals by origin. */}
+      <PassageUnitsOverview
+        scoutYear={scoutYear}
+        summary={summary}
+        isOpen={!!passageStatus?.isOpen}
+        canRemind={unitsNotSubmitted > 0}
+        onRemind={handleRemind}
+        reminding={remindMutation.isPending}
+        busyUnitId={unitBusy}
+        onToggleFinished={toggleUnitFinished}
+        onShowMembers={unitId => showLines(unitId, '_all')}
+      />
 
-      {/* Per-unit progress: lines missing + finished by the CU (locked for them). The CG can finish a unit
-          on the CU's behalf or reopen it so the CU can change it again. */}
-      {unitRows.length > 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <p className="text-sm font-medium">Avancement par unité</p>
-              {unitsNotSubmitted > 0 && passageStatus?.isOpen && (
-                <Tip content="Notification et email aux chefs des unités qui n'ont pas terminé (envoyé aussi automatiquement 7 et 2 jours avant la date du passage)">
-                  <Button size="sm" variant="outline" className="ml-auto" onClick={handleRemind} disabled={remindMutation.isPending}>
-                    <Bell className="mr-1 h-4 w-4" />Relancer les unités non terminées ({unitsNotSubmitted})
-                  </Button>
-                </Tip>
-              )}
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {unitRows.map(u => (
-                <div key={u.unitId} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                  {u.submitted
-                    ? <Lock className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" />
-                    : <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{u.unitCode} — {u.unitName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {u.submitted ? 'Terminée' : u.missingLines > 0 ? `${u.missingLines} sans passage` : 'Prête, pas encore terminée'}
-                      {u.pending > 0 ? ` · ${u.pending} en attente` : ''}
-                    </div>
-                  </div>
-                  {u.finalized === 0 && (u.submitted || u.missingLines === 0) && (
-                    <Tip content={u.submitted ? 'Rouvrir pour le chef d\'unité' : 'Marquer comme terminée'}>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" disabled={unitBusy === u.unitId}
-                        onClick={() => toggleUnitFinished(u.unitId, u.submitted)}>
-                        {u.submitted ? <Unlock className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
-                      </Button>
-                    </Tip>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <div id="passage-lines" className="scroll-mt-20 pt-2">
+        <h2 className="text-lg font-semibold">Lignes de passage</h2>
+        <p className="text-sm text-muted-foreground">Une ligne par membre. « À valider » = un changement d'unité proposé par le chef, que le CG doit accepter ou changer.</p>
+      </div>
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -510,8 +455,8 @@ export default function PassageValidationPage() {
           <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Tous les statuts</SelectItem>
-            <SelectItem value="Pending">En attente</SelectItem>
-            <SelectItem value="Approved">Accepté</SelectItem>
+            <SelectItem value="Pending">À valider</SelectItem>
+            <SelectItem value="Approved">Validés</SelectItem>
             <SelectItem value="Finalized">Publié</SelectItem>
           </SelectContent>
         </Select>
@@ -730,12 +675,12 @@ export default function PassageValidationPage() {
         {missingTotal > 0 && (
           <Callout tone="warning" className="w-full">
             Publication bloquée : {missingTotal} membre(s) actif(s) n'ont pas encore de ligne de passage
-            (proposition ou « Pas de changement »). Voir la carte « Sans passage » en haut.
+            (proposition ou « Pas de changement »). Voir l'étape 1 et le tableau des unités en haut.
           </Callout>
         )}
         {unitsNotSubmitted > 0 && (
           <Callout tone="warning" className="w-full">
-            Publication bloquée : {unitsNotSubmitted} unité(s) n'ont pas encore terminé leur passage (voir « Avancement par unité »).
+            Publication bloquée : {unitsNotSubmitted} unité(s) n'ont pas encore terminé leur passage (voir le tableau des unités).
           </Callout>
         )}
         {rejectedCount > 0 && (
@@ -745,11 +690,12 @@ export default function PassageValidationPage() {
         )}
         {canFinalize && pendingCount > 0 && (
           <Callout tone="info" className="w-full">
-            {pendingCount} ligne(s) en attente seront acceptées automatiquement lors de la publication.
+            {pendingCount} ligne(s) encore à valider seront acceptées automatiquement lors de la publication.
           </Callout>
         )}
         {(approvedCount + pendingCount) > 0 && (
           <Button
+            id="passage-publish"
             size="lg"
             onClick={() => setFinalizeDialog(true)}
             disabled={!canFinalize || finalizeMutation.isPending}
@@ -935,5 +881,38 @@ export default function PassageValidationPage() {
         onConfirm={handleFinalize}
       />
     </Page>
+  )
+}
+
+// One step of the passage (1 chefs propose · 2 CG validates · 3 publish) with its status in plain words.
+function StepCard({ n, title, state, lines, action }: {
+  n: number
+  title: string
+  state: 'done' | 'todo' | 'ready' | 'blocked'
+  lines: string[]
+  action?: { label: string; onClick: () => void }
+}) {
+  const tone = {
+    done: { ring: 'border-green-300 dark:border-green-800', dot: 'bg-green-600 text-white', label: 'Terminé' },
+    ready: { ring: 'border-blue-300 dark:border-blue-800', dot: 'bg-blue-600 text-white', label: 'Prêt' },
+    todo: { ring: 'border-amber-300 dark:border-amber-800', dot: 'bg-amber-500 text-white', label: 'En cours' },
+    blocked: { ring: '', dot: 'bg-muted text-muted-foreground', label: 'Pas encore' },
+  }[state]
+  return (
+    <Card className={tone.ring}>
+      <CardContent className="space-y-2 pt-4">
+        <div className="flex items-center gap-2">
+          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${tone.dot}`}>
+            {state === 'done' ? <Check className="h-4 w-4" /> : n}
+          </span>
+          <p className="flex-1 font-medium leading-tight">{title}</p>
+          <span className="text-xs text-muted-foreground">{tone.label}</span>
+        </div>
+        <ul className="space-y-0.5 text-sm">
+          {lines.filter(Boolean).map((l, i) => <li key={i} className={i === 0 ? 'font-medium' : 'text-muted-foreground'}>{l}</li>)}
+        </ul>
+        {action && <Button size="sm" variant="outline" className="w-full" onClick={action.onClick}>{action.label}</Button>}
+      </CardContent>
+    </Card>
   )
 }
