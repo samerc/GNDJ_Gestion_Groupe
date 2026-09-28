@@ -342,7 +342,13 @@ export default function PassageValidationPage() {
   const statusBadge = (p: PassageDto) => {
     if (p.status === 'Finalized') return <Badge variant="info">Publié</Badge>
     if (p.status === 'Rejected') return <Badge variant="destructive">Rejeté (à modifier)</Badge>
-    if (p.cgModified) return <Badge variant="warning">Modifié</Badge>
+    // A line the CG changed is validated too (with the CG's decision) — say both, so it doesn't read as "not done".
+    if (p.cgModified) return (
+      <div className="flex flex-col items-start gap-0.5">
+        <Badge variant="success">Validé</Badge>
+        <span className="text-[11px] text-amber-700 dark:text-amber-400">modifié par le CG</span>
+      </div>
+    )
     if (p.status === 'Approved') return <Badge variant="success">Validé</Badge>
     return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300">À valider</Badge>
   }
@@ -351,7 +357,6 @@ export default function PassageValidationPage() {
   const mobileTone = (p: PassageDto) => {
     if (p.status === 'Finalized') return { border: 'border-l-sky-500', header: 'bg-sky-50 dark:bg-sky-950/30' }
     if (p.status === 'Rejected') return { border: 'border-l-red-500', header: 'bg-red-50 dark:bg-red-950/30' }
-    if (p.cgModified) return { border: 'border-l-amber-500', header: 'bg-amber-50 dark:bg-amber-950/30' }
     if (p.status === 'Approved') return { border: 'border-l-green-500', header: 'bg-green-50 dark:bg-green-950/30' }
     return { border: 'border-l-yellow-400', header: 'bg-yellow-50 dark:bg-yellow-950/30' }
   }
@@ -389,6 +394,23 @@ export default function PassageValidationPage() {
           </Button>
         </>}
       />
+
+      {/* Why publishing is blocked — shown first so it's the first thing the CG reads. */}
+      {finalizedCount === 0 && (missingTotal > 0 || unitsNotSubmitted > 0) && (
+        <div className="space-y-2">
+          {missingTotal > 0 && (
+            <Callout tone="warning" className="w-full">
+              Publication bloquée : {missingTotal} membre(s) actif(s) n'ont pas encore de ligne de passage
+              (proposition ou « Pas de changement »). Voir l'étape 1 et le tableau des unités ci-dessous.
+            </Callout>
+          )}
+          {unitsNotSubmitted > 0 && (
+            <Callout tone="warning" className="w-full">
+              Publication bloquée : {unitsNotSubmitted} unité(s) n'ont pas encore terminé leur passage (voir le tableau des unités ci-dessous).
+            </Callout>
+          )}
+        </div>
+      )}
 
       {/* Where are we? The three steps of the passage, each with its status in plain words. */}
       <div className="grid gap-3 md:grid-cols-3">
@@ -547,7 +569,8 @@ export default function PassageValidationPage() {
                       <div className="flex items-center gap-1">
                         <span className="text-muted-foreground">{p.currentUnitCode}</span>
                         <ArrowRight className="h-3 w-3" />
-                        <span className="font-medium">{p.proposedUnitCode}</span>
+                        {/* Struck through when the CG chose something else (see "Décision CG"). */}
+                        <span className={p.cgModified ? 'text-muted-foreground line-through' : 'font-medium'}>{p.proposedUnitCode}</span>
                       </div>
                     )}
                   </td>
@@ -556,11 +579,12 @@ export default function PassageValidationPage() {
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-[120px] truncate" title={p.cuNotes ?? ''}>{p.cuNotes ?? ''}</td>
                   <td className="px-3 py-2 text-xs">
                     {p.cgModified ? (
-                      <div>
+                      <div className="inline-flex flex-wrap items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 dark:bg-amber-950/30">
+                        <ArrowRight className="h-3 w-3 text-amber-700 dark:text-amber-400" />
                         {(p.finalIsLeaving ?? p.isLeaving)
-                          ? <span className="font-medium">Quitte le groupe</span>
+                          ? <span className="font-semibold">Quitte le groupe</span>
                           : <>
-                              <span className="font-medium">{p.finalUnitCode}</span>
+                              <span className="font-semibold">{p.finalUnitCode}</span>
                               {p.finalTeamName && <span className="text-muted-foreground"> / {p.finalTeamName}</span>}
                               {p.finalRoleName && <span className="text-muted-foreground"> · {p.finalRoleName}</span>}
                             </>}
@@ -672,17 +696,6 @@ export default function PassageValidationPage() {
 
       {/* Post section — group-wide. Accepting a line changes nothing for the member; posting does. */}
       <div className="flex flex-col items-end gap-2 pt-4">
-        {missingTotal > 0 && (
-          <Callout tone="warning" className="w-full">
-            Publication bloquée : {missingTotal} membre(s) actif(s) n'ont pas encore de ligne de passage
-            (proposition ou « Pas de changement »). Voir l'étape 1 et le tableau des unités en haut.
-          </Callout>
-        )}
-        {unitsNotSubmitted > 0 && (
-          <Callout tone="warning" className="w-full">
-            Publication bloquée : {unitsNotSubmitted} unité(s) n'ont pas encore terminé leur passage (voir le tableau des unités).
-          </Callout>
-        )}
         {rejectedCount > 0 && (
           <Callout tone="danger" className="w-full">
             {rejectedCount} ligne(s) encore « rejetée(s) » : ouvrez-les avec « Changer » et choisissez la destination voulue.
