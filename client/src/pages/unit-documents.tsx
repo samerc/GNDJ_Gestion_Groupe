@@ -30,7 +30,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { ScrollToTop } from '@/components/shared/scroll-to-top'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown, FolderCheck, Users } from 'lucide-react'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown, FolderCheck, Users, ClipboardCheck, Search, SkipForward, X } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // ─── Cell rendering helpers ────────────────────────────────
@@ -63,6 +63,19 @@ function docStatusLabel(cell: MemberDocCellDto): string {
     default: return 'En cours de vérification'
   }
 }
+
+// Cell / member states used by the filters and the review queue.
+const isPendingCell = (c: MemberDocCellDto) => !!c.documentId && !c.isExpired && c.status === 'Pending'
+// "À compléter" = the member still has something to send: missing, refused or expired.
+const isTodoCell = (c: MemberDocCellDto) => !c.documentId || c.isExpired || c.status === 'Rejected'
+const isCotisationDue = (m: MemberDocRowDto) => {
+  const c = m.cotisation
+  const exempt = c.status === 'Exempt' || (c.maitriseExempt && c.payments.length === 0)
+  return c.status !== 'Paid' && !exempt
+}
+const normalizeName = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+type MemberFilter = 'all' | 'pending' | 'todo' | 'cotisation'
 
 // Cotisation cell look (shared by the desktop grid and the phone cards): green = payée, amber = partielle,
 // slate = ne paiera pas / maîtrise exemptée, red = non payée.
@@ -152,6 +165,47 @@ export default function UnitDocumentsPage() {
     return { total: members.length, paid, partial, exempt, pending: members.length - paid - partial - exempt, totals }
   }, [matrix])
 
+  // ─── Filters: a long unit is hard to work through on a phone, so the CU can narrow the list to the members
+  // who need something (a document to check, a document to send, a cotisation to collect) and search a name.
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>('all')
+  const [memberSearch, setMemberSearch] = useState('')
+  const filterCounts = useMemo(() => {
+    const members = matrix?.members ?? []
+    return {
+      all: members.length,
+      pending: members.filter(m => m.documents.some(isPendingCell)).length,
+      todo: members.filter(m => m.documents.some(isTodoCell)).length,
+      cotisation: members.filter(isCotisationDue).length,
+    }
+  }, [matrix])
+  const visibleMembers = useMemo(() => {
+    const q = normalizeName(memberSearch.trim())
+    return (matrix?.members ?? []).filter(m => {
+      if (memberFilter === 'pending' && !m.documents.some(isPendingCell)) return false
+      if (memberFilter === 'todo' && !m.documents.some(isTodoCell)) return false
+      if (memberFilter === 'cotisation' && !isCotisationDue(m)) return false
+      return !q || normalizeName(`${m.firstName} ${m.lastName}`).includes(q)
+    })
+  }, [matrix, memberFilter, memberSearch])
+
+  // ─── Review queue: "Vérifier les documents en attente" opens the pending documents one after another —
+  // accepting / refusing (or skipping) a document opens the next one, no going back to the list each time.
+  const pendingQueue = useMemo(() => {
+    if (!matrix) return []
+    const out: { member: MemberDocRowDto; cell: MemberDocCellDto; docType: DocTypeColumnDto }[] = []
+    for (const member of matrix.members)
+      for (const cell of member.documents) {
+        const docType = matrix.docTypes.find(dt => dt.id === cell.docTypeId)
+        if (docType && isPendingCell(cell)) out.push({ member, cell, docType })
+      }
+    return out
+  }, [matrix])
+  const [queueMode, setQueueMode] = useState(false)
+  // Documents already handled (or skipped) in this round: the matrix refreshes a moment after each review, so
+  // they're remembered here to never reopen the same one.
+  const [queueDone, setQueueDone] = useState<string[]>([])
+  const queueRemaining = pendingQueue.filter(q => !queueDone.includes(q.cell.documentId!)).length
+
   // Preview state
   const [previewCell, setPreviewCell] = useState<{ cell: MemberDocCellDto; member: MemberDocRowDto; docType: DocTypeColumnDto } | null>(null)
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
@@ -202,6 +256,9 @@ export default function UnitDocumentsPage() {
   const [prevUnitId, setPrevUnitId] = useState(unitId)
   if (unitId !== prevUnitId) {
     setPrevUnitId(unitId)
+    setMemberFilter('all')
+    setMemberSearch('')
+    setQueueMode(false)
     setPreviewCell(null)
     setPreviewBlobUrl(null)
     setPreviewError(false)
@@ -266,6 +323,31 @@ export default function UnitDocumentsPage() {
     setPreviewCell(null)
     setPreviewPages([])
     setPreviewIndex(0)
+    setQueueMode(false)
+  }
+
+  // Open the next pending document not handled yet in this round (done = the ids handled so far); when none
+  // is left, close with a confirmation.
+  const openNextInQueue = (done: string[]) => {
+    const next = pendingQueue.find(q => !done.includes(q.cell.documentId!))
+    if (!next) {
+      closePreview()
+      toast.success('Tous les documents en attente ont été vérifiés')
+      return
+    }
+    if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl)
+    void openPreview(next.member, next.cell, next.docType)
+  }
+  const startQueue = () => {
+    setQueueDone([])
+    setQueueMode(true)
+    openNextInQueue([])
+  }
+  const skipInQueue = () => {
+    if (!previewCell?.cell.documentId) return
+    const done = [...queueDone, previewCell.cell.documentId]
+    setQueueDone(done)
+    openNextInQueue(done)
   }
 
   // ─── Inline upload logic ───────────────────────────
@@ -329,7 +411,13 @@ export default function UnitDocumentsPage() {
       // The note is a refusal reason (shown to the member): only sent when refusing.
       await reviewMutation.mutateAsync({ id: previewCell.cell.documentId, status, reviewNotes: status === 'Rejected' ? reviewNotes || undefined : undefined })
       toast.success(status === 'Approved' ? 'Document accepté' : 'Document refusé')
-      closePreview()
+      if (queueMode) {
+        const done = [...queueDone, previewCell.cell.documentId]
+        setQueueDone(done)
+        openNextInQueue(done)
+      } else {
+        closePreview()
+      }
     } catch (err) {
       // toast (not setError): the preview dialog stays open on failure, so a page banner would hide behind it.
       toast.error(parseApiError(err))
@@ -498,8 +586,8 @@ export default function UnitDocumentsPage() {
         <EmptyState icon={Users} title="Aucun membre" description="Aucun membre actif dans cette unité." />
       ) : (
         <>
-          {/* Legend */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-muted-foreground px-1">
+          {/* Legend — desktop only: on a phone every tile already says its status in words. */}
+          <div className="hidden flex-wrap gap-x-5 gap-y-1.5 px-1 text-sm text-muted-foreground md:flex">
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400"><CheckCircle className="h-4 w-4" /></span> Accepté</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400"><Clock className="h-4 w-4" /></span> En cours de vérification</span>
             <span className="flex items-center gap-1.5"><span className="flex h-6 w-6 items-center justify-center rounded bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400"><XCircle className="h-4 w-4" /></span> Refusé</span>
@@ -530,11 +618,48 @@ export default function UnitDocumentsPage() {
             )}
           </div>
 
+          {/* Work tools: review queue + filters + name search (phone and desktop). */}
+          <div className="space-y-2">
+            {pendingQueue.length > 0 && (
+              <Button className="w-full bg-amber-500 text-white hover:bg-amber-600 sm:w-auto" onClick={startQueue}>
+                <ClipboardCheck className="mr-2 h-4 w-4" />Vérifier les documents en attente ({pendingQueue.length})
+              </Button>
+            )}
+            <div className="relative sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Rechercher un membre…" className="pl-9 pr-9" />
+              {memberSearch && (
+                <button type="button" aria-label="Effacer la recherche" onClick={() => setMemberSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                ['all', 'Tous', 'border-border'],
+                ['pending', 'À vérifier', 'border-amber-300 dark:border-amber-800'],
+                ['todo', 'À compléter', 'border-red-300 dark:border-red-800'],
+                ['cotisation', 'Cotisation à régler', 'border-red-300 dark:border-red-800'],
+              ] as [MemberFilter, string, string][]).map(([key, label, border]) => (
+                <button key={key} type="button" onClick={() => setMemberFilter(key)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${memberFilter === key
+                    ? 'border-primary bg-primary text-primary-foreground' : `${border} bg-card hover:bg-muted`}`}>
+                  {label} <span className="tabular-nums opacity-80">{filterCounts[key]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {visibleMembers.length === 0 && (
+            <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">Aucun membre ne correspond.</p>
+          )}
+
           {/* Phone: one card per member (grouped by équipe) with a labelled tile per document + the cotisation,
               instead of a wide grid scrolled sideways. Same taps as the grid: open / upload / cotisation. */}
           <div className="space-y-2 md:hidden">
-            {matrix.members.map((member, idx) => {
-              const prevMember = idx > 0 ? matrix.members[idx - 1] : null
+            {visibleMembers.map((member, idx) => {
+              const prevMember = idx > 0 ? visibleMembers[idx - 1] : null
               const showTeamHeader = member.teamName && member.teamName !== prevMember?.teamName
               const cot = cotisationView(member.cotisation)
               return (
@@ -572,7 +697,7 @@ export default function UnitDocumentsPage() {
             })}
           </div>
 
-          <div className="hidden rounded-lg border shadow-sm overflow-auto md:block">
+          <div className={`hidden rounded-lg border shadow-sm overflow-auto ${visibleMembers.length ? 'md:block' : ''}`}>
             <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b bg-muted/40">
@@ -591,9 +716,9 @@ export default function UnitDocumentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {matrix.members.map((member, idx) => {
+                {visibleMembers.map((member, idx) => {
                   // Members arrive pre-grouped by team; emit a team-name separator row at each boundary.
-                  const prevMember = idx > 0 ? matrix.members[idx - 1] : null
+                  const prevMember = idx > 0 ? visibleMembers[idx - 1] : null
                   const showTeamHeader = member.teamName && member.teamName !== prevMember?.teamName
 
                   return (
@@ -688,8 +813,14 @@ export default function UnitDocumentsPage() {
 
       {/* ─── Document Preview Dialog ─── */}
       <Dialog open={!!previewCell} onOpenChange={closePreview}>
-        <DialogContent className="max-w-2xl">
+        {/* No autofocus: focusing the reason box would pop the phone keyboard up on every document. */}
+        <DialogContent className="max-w-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
+            {queueMode && (
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                Vérification · {queueRemaining} document{queueRemaining > 1 ? 's' : ''} restant{queueRemaining > 1 ? 's' : ''}
+              </p>
+            )}
             <DialogTitle>
               {previewCell?.member.firstName} {previewCell?.member.lastName} — {previewCell?.docType.name}
             </DialogTitle>
@@ -762,6 +893,11 @@ export default function UnitDocumentsPage() {
                 <Button variant="outline" size="sm" onClick={handleDownloadDoc}>
                   <Download className="mr-1 h-4 w-4" />Télécharger
                 </Button>
+                {queueMode && (
+                  <Button variant="outline" size="sm" onClick={skipInQueue} disabled={reviewMutation.isPending}>
+                    <SkipForward className="mr-1 h-4 w-4" />Passer
+                  </Button>
+                )}
                 {/* Also on a refused document: re-refusing saves the edited reason. */}
                 <Button variant="destructive" size="sm" onClick={() => handleReview('Rejected')} disabled={reviewMutation.isPending}>
                   <XCircle className="mr-1 h-4 w-4" />Refuser
