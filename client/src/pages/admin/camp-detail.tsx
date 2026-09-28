@@ -2,8 +2,8 @@
 // come from camp.myAccess (server-computed): an area at "view" is read-only, at "none" it is hidden; the
 // Commission tab shows to everyone on the commission. Tabs:
 //  - FamillesTab: the familles board. CG runs the balanced randomized draft (useRunDraft), then fine-tunes by
-//    picking two familles (slots A/B) and drag-dropping members between the two columns (onto a column = move,
-//    onto a member = swap); assigns Père/Mère per famille (gender-restricted).
+//    picking two familles (slots A/B) and drag-dropping members between the two columns (a drop = one-way move);
+//    assigns Père/Mère per famille (gender-restricted).
 //  - GamesTab: define jeux/étapes (with their number 1–25 in the rotation grid) and pick their étapiste sets.
 //  - Rotation / Pointage / Recherche (components/camp): the grand jeu — fixed rotation grid (dates, hours, rain
 //    plan, printouts), score entry + ranking, and "where is this famille now".
@@ -13,7 +13,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router'
 import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
-  useCampFamilles, useRunDraft, useMoveParticipant, useSwapParticipants, useSetLeaders, useLeaderCandidates,
+  useCampFamilles, useRunDraft, useMoveParticipant, useSetLeaders, useLeaderCandidates,
   useCampGames, useCreateGame, useUpdateGame, printGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
   printFamille, printAllFamilles, printUnitList,
   type CampFamilleDto, type CampGameDto,
@@ -232,7 +232,6 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   const { data: familles, isLoading } = useCampFamilles(campId)
   const draft = useRunDraft(campId)
   const move = useMoveParticipant(campId)
-  const swap = useSwapParticipants(campId)
   const [confirmDraft, setConfirmDraft] = useState(false)
   const [slotA, setSlotA] = useState<string | null>(null)
   const [slotB, setSlotB] = useState<string | null>(null)
@@ -265,11 +264,8 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   )
 
   const fl = familles!
-  // min/max TOTAL note across non-empty familles → drives the per-famille bar fill + low(blue)/high(amber) tint.
-  // The total (not the average) is what the draft balances and what a move changes intuitively: adding a
-  // member always raises it, while the average can drop when the member's note is below the famille's.
-  const tot = (f: { noteSum: number }) => Math.round(f.noteSum * 10) / 10
-  const avgs = fl.filter(f => f.size > 0).map(tot)
+  // min/max average note across non-empty familles → drives the per-famille bar fill + low(blue)/high(amber) tint.
+  const avgs = fl.filter(f => f.size > 0).map(f => f.avgNote)
   const minA = avgs.length ? Math.min(...avgs) : 0
   const maxA = avgs.length ? Math.max(...avgs) : 1
   const famA = fl.find(f => f.id === slotA) ?? null
@@ -284,16 +280,16 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
     else { setSlotA(id); setSlotB(null) }
   }
 
-  // Drop resolution: onto another member = swap the two; onto a column = move into that famille.
-  // No-op when dropped back on the same famille.
+  // Drop resolution: anywhere on the other famille's column = MOVE the member there (one way — nobody comes
+  // back). No-op when dropped back on the same famille. (Swapping on a member card was removed: the columns
+  // are full of cards, so nearly every drop turned into an unintended swap.)
   const onDragEnd = async (e: DragEndEvent) => {
     setDrag(null)
     const a = e.active.data.current as DragData | undefined
     const o = e.over?.data.current as ({ type: string; familleId: string; participantId?: string }) | undefined
     if (!a || !o || o.familleId === a.familleId) return
     try {
-      if (o.type === 'member' && o.participantId) { await swap.mutateAsync({ participantAId: a.participantId, participantBId: o.participantId }); toast.success('Échangés') }
-      else { await move.mutateAsync({ participantId: a.participantId, familleId: o.familleId }); toast.success('Déplacé') }
+      await move.mutateAsync({ participantId: a.participantId, familleId: o.familleId }); toast.success('Déplacé')
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -302,7 +298,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">{readOnly
           ? <>Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau pour les comparer. Lecture seule.</>
-          : <>Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre (ou sur un membre pour échanger).</>}</p>
+          : <>Choisissez deux familles (<b>A</b> et <b>B</b>) dans le tableau, puis glissez-déposez un membre d'une famille à l'autre pour l'y déplacer.</>}</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
           <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
@@ -316,11 +312,11 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="lg:w-72 lg:shrink-0">
           <div className="max-h-[72vh] overflow-y-auto rounded-lg border">
             <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Total des notes</span>
+              <span className="w-14">Famille</span><span className="w-8 text-right">Eff.</span><span className="flex-1">Moyenne</span>
             </div>
             {fl.map(f => {
-              const pct = maxA > minA ? Math.round(((tot(f) - minA) / (maxA - minA)) * 100) : 50
-              const low = f.size > 0 && tot(f) === minA, high = f.size > 0 && tot(f) === maxA && minA !== maxA
+              const pct = maxA > minA ? Math.round(((f.avgNote - minA) / (maxA - minA)) * 100) : 50
+              const low = f.size > 0 && f.avgNote === minA, high = f.size > 0 && f.avgNote === maxA && minA !== maxA
               const isA = slotA === f.id, isB = slotB === f.id
               return (
                 <button key={f.id} type="button" onClick={() => pickFamille(f.id)}
@@ -337,7 +333,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
                       <span className={cn('block h-full rounded-full', low ? 'bg-blue-500' : high ? 'bg-amber-500' : 'bg-primary/60')} style={{ width: `${Math.max(6, pct)}%` }} />
                     </span>
-                    <Tip content={`Moyenne ${f.avgNote}`}><span className={cn('w-10 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{tot(f)}</span></Tip>
+                    <span className={cn('w-8 shrink-0 text-right text-sm font-medium tabular-nums', low && 'text-blue-600 dark:text-blue-400', high && 'text-amber-600 dark:text-amber-400')}>{f.avgNote}</span>
                   </span>
                 </button>
               )
@@ -384,7 +380,7 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }
               {!readOnly && <Tip content="Nom, description, superfamille"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEditInfo}><Pencil className="h-3.5 w-3.5" /></Button></Tip>}
             </h3>
             {f.superFamilleName && <p className="text-xs text-muted-foreground">{f.superFamilleName}</p>}
-            <p className="text-sm text-muted-foreground">{f.size} membres · total {Math.round(f.noteSum * 10) / 10} (moy. {f.avgNote}) · {f.boys}♂ {f.girls}♀</p>
+            <p className="text-sm text-muted-foreground">{f.size} membres · moy. {f.avgNote} · {f.boys}♂ {f.girls}♀</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
@@ -406,13 +402,12 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }
 
 function MemberCard({ m, familleId, readOnly }: { m: CampFamilleDto['members'][number]; familleId: string; readOnly: boolean }) {
   const name = `${m.firstName} ${m.lastName}`
-  // Each card is both draggable and a drop target (drop = swap) — the two refs are merged on one element below.
-  const { attributes, listeners, setNodeRef: dragRef, isDragging } = useDraggable({ id: `drag-${m.participantId}`, data: { participantId: m.participantId, familleId, name }, disabled: readOnly })
-  const { setNodeRef: dropRef, isOver } = useDroppable({ id: `drop-${m.participantId}`, data: { type: 'member', familleId, participantId: m.participantId }, disabled: readOnly })
+  // Draggable only — the drop target is the whole famille column (drop = move).
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `drag-${m.participantId}`, data: { participantId: m.participantId, familleId, name }, disabled: readOnly })
   return (
-    <div ref={el => { dragRef(el); dropRef(el) }} {...listeners} {...attributes}
+    <div ref={setNodeRef} {...listeners} {...attributes}
       className={cn('flex items-center gap-2 rounded border px-2 py-1.5 text-sm', !readOnly && 'touch-none cursor-grab active:cursor-grabbing',
-        isDragging && 'opacity-40', isOver && 'ring-2 ring-primary',
+        isDragging && 'opacity-40',
         m.gender === 'Féminin' ? 'border-l-2 border-l-pink-300 dark:border-l-pink-800' : 'border-l-2 border-l-blue-300 dark:border-l-blue-800')}>
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{name} <span className="text-muted-foreground">{m.gender === 'Féminin' ? '♀' : '♂'}</span></div>
