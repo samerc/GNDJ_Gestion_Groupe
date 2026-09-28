@@ -102,23 +102,28 @@ function svg() {
   const pc = pts => pts.map(([x, y]) => [+(300 + (x - 60) * 0.34).toFixed(1), +(152 + (y - 265) * 0.345).toFixed(1)])
   const pcPoly = pts => poly(pc(pts))
   s += path(curve(pc([[40, 250], [300, 230], [520, 150], [900, 160], [1200, 250], [1420, 300], [1420, 560], [1330, 640], [1000, 650], [600, 630], [300, 470], [60, 420]]), true), C.paved, C.pavedEdge, 1.2)
-  s += bld(pcPoly([[95, 260], [252, 300], [228, 405], [60, 370]]))                                     // white hall
-  s += `<path d="${pcPoly([[90, 300], [240, 335]]).replace('Z', '')}" stroke="${C.roofShade}" stroke-width="3"/>`
-  s += bld(pcPoly([[320, 265], [415, 280], [405, 410], [310, 400]]))                                   // small block
-  s += bld(pcPoly([[430, 300], [520, 305], [530, 340], [570, 345], [575, 470], [415, 465]]))           // stepped block
-  s += bld(pcPoly([[510, 265], [615, 270], [612, 325], [505, 320]]))
-  s += bld(pcPoly([[640, 185], [930, 240], [915, 345], [630, 320]]))                                   // north wing (solar roof)
-  for (let i = 0; i < 4; i++) s += `<path d="${pcPoly([[680, 215 + i * 28], [900, 255 + i * 28]]).replace('Z', '')}" stroke="#aeb7c6" stroke-width="3"/>`
-  // Covered sports courts in the courtyard (green courts under a purple roof band).
-  s += path(pcPoly([[620, 318], [910, 350], [900, 500], [615, 470]]), C.court, C.pavedEdge, 1.2)
-  s += path(pcPoly([[710, 330], [790, 338], [775, 485], [700, 478]]), '#b9a6d8', '#9a86bf', 1)
-  s += bld(pcPoly([[590, 470], [865, 510], [860, 610], [585, 590]]))                                   // south block
-  s += bld(pcPoly([[855, 500], [990, 510], [980, 630], [855, 615]]))                                   // link
-  s += bld(pcPoly([[935, 245], [1180, 275], [1175, 355], [930, 340]]))                                 // north-east block
-  s += bld(pcPoly([[1035, 320], [1180, 335], [1178, 385], [1030, 375]]))
-  s += bld(pcPoly([[960, 380], [1300, 420], [1295, 545], [930, 520]]))                                 // east wing (solar roof)
-  for (let i = 0; i < 3; i++) s += `<path d="${pcPoly([[1125, 420 + i * 35], [1285, 440 + i * 35]]).replace('Z', '')}" stroke="#aeb7c6" stroke-width="3"/>`
-  s += bld(pcPoly([[1215, 630], [1375, 640], [1370, 705], [1210, 698]]))                               // small building below
+  // The buildings share one grid, turned ~6° clockwise like on the photo: drawn as straight rectangles in that
+  // grid (x0, y0, x1, y1 in close-up pixels) and rotated as a group, so their edges line up.
+  const PC_ROT = 6, [pcx, pcy] = pc([[700, 420]])[0]
+  const pr = (x0, y0, x1, y1) => { const [[a, b], [c, d]] = pc([[x0, y0], [x1, y1]]); return rect(a, b, c - a, d - b, 2) }
+  let g = ''
+  g += bld(pr(75, 339, 240, 439))                                   // white hall
+  g += `<path d="${pr(85, 372, 230, 376)}" fill="${C.roofShade}"/>`
+  g += bld(pr(315, 312, 410, 440))                                  // small block
+  g += bld(pr(420, 322, 570, 486))                                  // block by the courts
+  g += bld(pr(510, 272, 612, 318))
+  g += bld(pr(630, 203, 925, 318))                                  // north wing (solar roof)
+  for (let i = 0; i < 4; i++) g += `<path d="${pr(670, 222 + i * 24, 890, 225 + i * 24)}" fill="#aeb7c6"/>`
+  g += path(pr(620, 322, 905, 478), C.court, C.pavedEdge, 1.2)     // covered courts in the courtyard
+  g += path(pr(710, 322, 785, 478), '#b9a6d8', '#9a86bf', 1)
+  g += bld(pr(590, 487, 860, 597))                                  // south block
+  g += bld(pr(860, 487, 985, 597))                                  // link
+  g += bld(pr(935, 223, 1175, 305))                                 // north-east block
+  g += bld(pr(1035, 305, 1178, 340))
+  g += bld(pr(935, 356, 1300, 488))                                 // east wing (solar roof)
+  for (let i = 0; i < 3; i++) g += `<path d="${pr(1125, 380 + i * 32, 1285, 383 + i * 32)}" fill="#aeb7c6"/>`
+  g += bld(pr(1215, 573, 1372, 640))                                // small building below
+  s += `<g transform="rotate(${PC_ROT} ${pcx} ${pcy})">${g}</g>`
 
   // Collège Notre-Dame de Jamhour: the long L of buildings around the church courtyard.
   s += path(poly([[545, 560], [700, 555], [705, 760], [560, 760]]), C.garden, C.pavedEdge, 1)
