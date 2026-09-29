@@ -82,7 +82,15 @@ public class CreateAssignmentCommandHandler : IRequestHandler<CreateAssignmentCo
         };
 
         _context.MemberAssignments.Add(entity);
+        // A new active chef d'unité replaces the current one.
+        var replaced = entity.EndDate is null
+            ? await GNDJ.Application.Common.HeadReplacement.EndOtherHeadsAsync(_context, entity.UnitId, entity.FunctionalRoleId,
+                entity.MemberId, entity.StartDate, cancellationToken)
+            : [];
         await _context.SaveChangesAsync(cancellationToken);
+        if (replaced.Count > 0)
+            await _auditService.LogAsync("EndAssignment", "MemberAssignment", entity.Id,
+                newValues: new { Reason = "Remplacé(e) comme chef d'unité", Replaced = replaced }, cancellationToken: cancellationToken);
         // Log readable names (member/unit/team/role/dates), not raw GUIDs.
         var snapshot = await AssignmentAudit.DescribeAsync(_context, entity.MemberId, entity.UnitId, entity.TeamId,
             entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);

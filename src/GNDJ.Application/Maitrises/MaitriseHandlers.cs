@@ -118,6 +118,9 @@ public class TransferMaitriseCommandHandler(IApplicationDbContext context, IAudi
             StartDate = today,
             EndDate = null,
         });
+        // Naming a new chef d'unité ends the current one's function today.
+        var replaced = await HeadReplacement.EndOtherHeadsAsync(context, request.NewUnitId, request.NewFunctionalRoleId,
+            assignment.MemberId, today, ct);
 
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("Transfer", "MemberAssignment", assignment.Id,
@@ -127,6 +130,7 @@ public class TransferMaitriseCommandHandler(IApplicationDbContext context, IAudi
                 NewUnit = await AuditNames.UnitAsync(context, request.NewUnitId, ct),
                 NewRole = await AuditNames.RoleAsync(context, request.NewFunctionalRoleId, ct),
                 KeepOld = request.KeepOld,
+                Replaced = replaced,
             }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }

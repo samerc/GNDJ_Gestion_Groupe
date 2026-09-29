@@ -21,7 +21,7 @@ namespace GNDJ.Application.Maitrises;
 public static class MaitrisePlan
 {
     // Profiles whose functions head a unit (chef d'unité / chef de groupe) — used to warn about a unit with no head.
-    public static readonly string[] HeadProfiles = ["chef-unite", "chef-de-groupe"];
+    public static readonly string[] HeadProfiles = HeadReplacement.HeadProfiles;
 
     public const string AlreadyPublished = "Le passage de cette année est déjà publié : la maîtrise ne peut plus être planifiée pour cette année.";
     public const string YouthLocked = "Ce membre rejoint la maîtrise l'an prochain (page Maîtrises) : annulez ce changement là-bas pour modifier sa ligne de passage.";
@@ -387,6 +387,7 @@ public class AddMaitriseNowCommandHandler(IApplicationDbContext context, IAuditS
             TeamId = teamId, StartDate = today,
         };
         context.MemberAssignments.Add(assignment);
+        var replaced = await HeadReplacement.EndOtherHeadsAsync(context, request.UnitId, request.FunctionalRoleId, request.MemberId, today, ct);
         await context.SaveChangesAsync(ct);
 
         await audit.LogAsync("Create", "MemberAssignment", assignment.Id, newValues: new
@@ -394,7 +395,7 @@ public class AddMaitriseNowCommandHandler(IApplicationDbContext context, IAuditS
             Member = await AuditNames.MemberAsync(context, request.MemberId, ct),
             Unit = await AuditNames.UnitAsync(context, request.UnitId, ct),
             Role = await AuditNames.RoleAsync(context, request.FunctionalRoleId, ct),
-            Reason = "Ajout à la maîtrise", EndedYouthFunctions = endedYouth,
+            Reason = "Ajout à la maîtrise", EndedYouthFunctions = endedYouth, Replaced = replaced,
         }, cancellationToken: ct);
         return Result<Guid>.Success(assignment.Id);
     }

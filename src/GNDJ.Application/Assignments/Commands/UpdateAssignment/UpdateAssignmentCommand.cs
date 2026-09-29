@@ -74,6 +74,10 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
         var oldSnapshot = await AssignmentAudit.DescribeAsync(_context, entity.MemberId, entity.UnitId, entity.TeamId,
             entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
 
+        // Becoming chef d'unité (new function or new unit on an active post) replaces the current one.
+        var becomesHead = request.EndDate is null
+            && (request.FunctionalRoleId != entity.FunctionalRoleId || request.UnitId != entity.UnitId);
+
         entity.UnitId = request.UnitId;
         entity.TeamId = request.TeamId;
         entity.FunctionalRoleId = request.FunctionalRoleId;
@@ -81,7 +85,14 @@ public class UpdateAssignmentCommandHandler : IRequestHandler<UpdateAssignmentCo
         entity.EndDate = request.EndDate;
         entity.Notes = request.Notes;
 
+        var replaced = becomesHead
+            ? await GNDJ.Application.Common.HeadReplacement.EndOtherHeadsAsync(_context, entity.UnitId, entity.FunctionalRoleId,
+                entity.MemberId, entity.StartDate, cancellationToken)
+            : [];
         await _context.SaveChangesAsync(cancellationToken);
+        if (replaced.Count > 0)
+            await _auditService.LogAsync("EndAssignment", "MemberAssignment", entity.Id,
+                newValues: new { Reason = "Remplacé(e) comme chef d'unité", Replaced = replaced }, cancellationToken: cancellationToken);
         var newSnapshot = await AssignmentAudit.DescribeAsync(_context, entity.MemberId, entity.UnitId, entity.TeamId,
             entity.FunctionalRoleId, entity.StartDate, entity.EndDate, cancellationToken);
         await _auditService.LogAsync("Update", "MemberAssignment", entity.Id, oldValues: oldSnapshot,

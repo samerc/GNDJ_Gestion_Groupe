@@ -6309,3 +6309,6 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   change's own End (old function) is linked to its Start too. Cancelling the Start — or the member's own End — cancels
   the whole group (old head reinstated, old function kept); cancelling only the replaced head's End keeps the promotion.
   UI: a same-unit promotion shows once under Arrivent (« était … »), the replaced head under Partent (« remplacé(e) par … »).
+- **One head per unit, everywhere** (`Common/HeadReplacement.EndOtherHeadsAsync`): giving an ACTIVE head function right
+  away — CreateAssignment, UpdateAssignment (role/unit changed), Maîtrises transfer + add-now — ends the other members'
+  head functions in that unit the day the new head starts (audited « Remplacé(e) comme chef d'unité »).

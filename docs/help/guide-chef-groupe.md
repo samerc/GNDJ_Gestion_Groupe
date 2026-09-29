@@ -323,6 +323,8 @@ cette année → l'an prochain (+ arrivées, − départs). Ouvrez une unité po
   « quitte l'unité » (même si le CU en avait déjà mis une) ; elle est verrouillée tant que le changement est prévu.
 - Chaque changement se fait **au passage** (par défaut) ou **maintenant** (correction en cours d'année).
 - Nommer quelqu'un **chef d'unité** place automatiquement le chef d'unité actuel dans **Partent** (« remplacé par … »).
+  C'est la même règle partout : un chef d'unité donné « maintenant » (ici ou dans les postes d'un membre) arrête
+  aussitôt la fonction de l'ancien.
 - ↺ annule un changement prévu en entier : annuler une nomination de chef d'unité remet l'ancien chef d'unité à sa
   place et rend à la personne sa fonction d'avant ; la ligne de passage d'un jeune revient comme avant.
 

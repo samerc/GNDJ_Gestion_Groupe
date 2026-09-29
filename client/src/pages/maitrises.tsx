@@ -305,6 +305,7 @@ function useLeaderRoles(unitTypeId?: string) {
 function RolePicker({ unitTypeId, value, onChange }: { unitTypeId?: string; value: string; onChange: (v: string) => void }) {
   const roles = useLeaderRoles(unitTypeId)
   return (
+    <>
     <Select value={value} onValueChange={onChange} disabled={!unitTypeId}>
       <SelectTrigger><SelectValue placeholder="Choisir une fonction…" /></SelectTrigger>
       <SelectContent>
@@ -312,6 +313,8 @@ function RolePicker({ unitTypeId, value, onChange }: { unitTypeId?: string; valu
           : <div className="px-2 py-1.5 text-sm text-muted-foreground">Aucune fonction de maîtrise pour ce type d'unité.</div>}
       </SelectContent>
     </Select>
+    <p className="text-xs text-muted-foreground">Nommer un chef d'unité remplace le chef d'unité actuel (il arrête).</p>
+    </>
   )
 }
 
