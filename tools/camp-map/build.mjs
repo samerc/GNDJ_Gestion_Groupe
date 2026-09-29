@@ -33,8 +33,15 @@ function curve(pts, closed = false) {
 }
 const poly = pts => 'M' + pts.map(p => p.join(',')).join(' L') + 'Z'
 // A road: white fill over a slightly wider grey edge.
-const road = (pts, w = 16) => path(curve(pts), 'none', C.roadEdge, w + 4) + path(curve(pts), 'none', C.road, w)
-const roadTop = (pts, w = 16) => path(curve(pts), 'none', C.road, w)
+// Roads are collected and drawn edges-first, tops-second (flushRoads), so where two roads meet the grey edge of
+// one never shows across the white of the other.
+let roadList = []
+const road = (pts, w = 16) => { roadList.push([pts, w]); return '' }
+const flushRoads = () => {
+  const out = roadList.map(([p, w]) => path(curve(p), 'none', C.roadEdge, w + 4)).join('') + roadList.map(([p, w]) => path(curve(p), 'none', C.road, w)).join('')
+  roadList = []
+  return out
+}
 // A building with a soft drop shadow.
 const bld = (d, fill = C.building) => path(d, 'rgba(40,50,60,.18)', 'none', 0, 'transform="translate(4,5)"') + path(d, fill, C.buildingEdge, 1.6)
 const rect = (x, y, w, h, r = 3) => `M${x + r},${y} h${w - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${h - 2 * r} a${r},${r} 0 0 1 -${r},${r} h-${w - 2 * r} a${r},${r} 0 0 1 -${r},-${r} v-${h - 2 * r} a${r},${r} 0 0 1 ${r},-${r}Z`
@@ -71,18 +78,18 @@ function svg() {
   s += path(curve(forestS, true), C.forest, C.forestEdge, 2)
   s += treeDots([200, 1330], [80, 480], 420, 7, (x, y) => y > 60 + (x < 700 ? 0 : (x - 700) * 0.28) && y < 470 && !(x > 280 && x < 780 && y > 110 && y < 290))
   s += treeDots([60, 320], [440, 840], 120, 11)
+  // Small cleared area above the vaulted building (no trees, no building).
+  s += path(curve([[950, 472], [985, 440], [1030, 426], [1080, 436], [1110, 458], [1050, 470]], true), C.land)
 
   // Roads.
   // Outer ring: west road down to the south-west, north road, inner ring east + south.
   s += road([[0, 330], [30, 390], [60, 520], [80, 650], [140, 790], [240, 870], [340, 950], [450, 1025]], 18)
   s += road([[380, 0], [560, 30], [720, 70], [880, 150], [1000, 185], [1150, 225], [1260, 262], [1330, 300]], 16)
-  s += road([[845, 212], [1000, 212], [1150, 245], [1270, 295], [1335, 350], [1335, 400], [1260, 440], [1190, 470], [1163, 530], [1160, 700], [1175, 855]], 16)
-  s += road([[1000, 910], [1100, 875], [1200, 860], [1320, 865], [1450, 860], [1542, 850]], 16)
+  s += road([[762, 210], [845, 212], [1000, 212], [1150, 245], [1270, 295], [1335, 350], [1335, 400], [1260, 440], [1190, 470], [1163, 530], [1160, 700], [1175, 855]], 16)
   s += road([[30, 390], [160, 420], [250, 480], [330, 560], [420, 620], [500, 660]], 14)
-  s += road([[160, 420], [280, 460], [500, 495]], 12)
+  s += road([[160, 420], [280, 460], [443, 487]], 12)
   s += road([[250, 480], [230, 520], [260, 560]], 8)
   s += road([[760, 190], [880, 150]], 10)
-  s += road([[1340, 380], [1420, 410], [1542, 360]], 14)
 
   // Campus roads added from the commission's corrections:
   // west road around the open court, then along the south of the college;
@@ -90,9 +97,10 @@ function svg() {
   // road along the north-east side of the court (bus parking) towards the Cour de la Vierge;
   s += road([[283, 626], [296, 645], [320, 665], [355, 684], [394, 704], [433, 723], [472, 739], [511, 755], [550, 772], [589, 778], [640, 778]], 10)
   // road between the forest and the college, then down past the sports hall to the courts;
-  s += road([[443, 487], [540, 489], [645, 517], [700, 522], [750, 540], [785, 560], [805, 592], [814, 640], [818, 700], [822, 750], [835, 784]], 12)
+  s += road([[443, 487], [540, 489], [645, 517], [700, 522], [750, 540], [785, 560], [805, 592], [814, 640], [818, 700], [826, 738], [848, 760], [880, 770], [918, 771]], 12)
   // road above the tennis courts to the east road.
   s += road([[835, 787], [880, 778], [930, 773], [1000, 766], [1080, 766], [1165, 768]], 10)
+  s += flushRoads()
   // Stairway between the Petit collège and the Grand collège (steps across a narrow flight).
   {
     const top = [686, 298], bottom = [668, 494], n = 22
@@ -112,17 +120,18 @@ function svg() {
 
   // Paved yards / esplanade around the main school.
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
-  // Open court west of the church (a slanted flat terrain, NOT a building): light ground + dashed inner line.
-  s += path(poly([[360, 702], [470, 750], [450, 782], [340, 752]]), '#ece6d6', '#bdb49c', 1.6)
-  s += path(poly([[364, 711], [459, 752], [446, 773], [352, 747]]), 'none', '#c9bfa5', 1.2, 'stroke-dasharray="6 5"')
-  // Préau south-east of the court: a building whose flat roof is a parking (roof drawn as parking with bays).
+  // Préau west of the college: a big flat building whose roof is a parking (roof drawn as parking with bays).
   {
-    const A = [430, 765], B = [525, 828], C2 = [505, 858], D = [410, 795]
+    const A = [345, 712], B = [468, 752], C2 = [452, 822], D = [328, 785]
     s += bld(poly([A, B, C2, D]), C.parking)
-    for (let i = 1; i < 9; i++) {
-      const t = i / 9
+    for (let i = 1; i < 12; i++) {
+      const t = i / 12
       const top = [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t], bot = [D[0] + (C2[0] - D[0]) * t, D[1] + (C2[1] - D[1]) * t]
-      s += `<line x1="${top[0].toFixed(1)}" y1="${top[1].toFixed(1)}" x2="${bot[0].toFixed(1)}" y2="${bot[1].toFixed(1)}" stroke="#fff" stroke-width="1.4"/>`
+      const m = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]
+      for (const [k0, k1] of [[0.06, 0.4], [0.6, 0.94]]) {
+        const p0 = m(top, bot, k0), p1 = m(top, bot, k1)
+        s += `<line x1="${p0[0].toFixed(1)}" y1="${p0[1].toFixed(1)}" x2="${p1[0].toFixed(1)}" y2="${p1[1].toFixed(1)}" stroke="#fff" stroke-width="1.4"/>`
+      }
     }
   }
   s += path(poly([[390, 555], [470, 540], [520, 600], [520, 690], [420, 690]]), C.paved, C.pavedEdge, 1.5)
@@ -195,7 +204,6 @@ function svg() {
     s += `<line x1="${ccx}" y1="${ccy}" x2="${(ccx + (cr - 2) * Math.cos(a)).toFixed(1)}" y2="${(ccy + (cr - 2) * Math.sin(a)).toFixed(1)}" stroke="${C.churchEdge}" stroke-width=".8" opacity=".55"/>`
   }
   s += `<circle cx="${ccx}" cy="${ccy}" r="7" fill="${C.churchEdge}"/>`
-  s += bld(rect(398, 548, 38, 50))
 
   // East side (sports hall → stadium), traced from a close-up satellite view mapped onto the main map with ce(),
   // anchored on the stadium track and the sports hall.
@@ -219,11 +227,12 @@ function svg() {
   s += path(ceRect(458, 420, 742, 600, 3), C.parking, C.pavedEdge, 1.2)
   for (const row of [[430, 470], [500, 545], [555, 595]]) for (let x = 470; x < 735; x += 16)
     s += ceLine([[x, row[0]], [x, row[1]]], '#fff', 1.4)
-  // Tennis courts, the sand court next to them, and the buildings south of the parking.
-  s += path(ceRect(145, 680, 320, 842, 2), C.court, C.pavedEdge, 1.2)
-  s += ceLine([[232, 684], [232, 838]], C.courtLine, 2.5)
-  for (const x0 of [160, 248]) s += path(ceRect(x0, 705, x0 + 58, 815, 1), 'none', C.courtLine, 1.4)
-  s += path(ceRect(322, 678, 462, 812, 2), '#e7dfcc', C.pavedEdge, 1)
+  // The two courts and the buildings south of the parking.
+  for (const [x0, x1] of [[145, 320], [325, 462]]) {
+    s += path(ceRect(x0, 680, x1, 842, 2), C.court, C.pavedEdge, 1.2)
+    s += path(ceRect(x0 + 16, 700, x1 - 16, 822, 1), 'none', C.courtLine, 1.4)
+    s += ceLine([[x0 + 16, 761], [x1 - 16, 761]], C.courtLine, 2)
+  }
   s += bld(ceRect(500, 690, 700, 822))
   s += path(ceRect(555, 715, 665, 800, 1), '#ffffff', C.buildingEdge, .8)
   s += bld(ceRect(700, 668, 800, 738))
