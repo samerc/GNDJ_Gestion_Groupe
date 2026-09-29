@@ -78,6 +78,13 @@ function svg() {
   s += path(curve(forestS, true), C.forest, C.forestEdge, 2)
   s += treeDots([200, 1330], [80, 480], 420, 7, (x, y) => y > 60 + (x < 700 ? 0 : (x - 700) * 0.28) && y < 470 && !(x > 280 && x < 780 && y > 110 && y < 290))
   s += treeDots([60, 320], [440, 840], 120, 11)
+  // Tree areas: between the upper road and the road down to the cour; between the sports hall and the red court.
+  for (const pts of [[[262, 474], [330, 470], [400, 484], [396, 530], [372, 566], [330, 556], [290, 522]],
+    [[832, 648], [900, 642], [958, 650], [958, 740], [900, 752], [836, 746]]]) {
+    s += path(curve(pts, true), C.forest, C.forestEdge, 1.5)
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1])
+    s += treeDots([Math.min(...xs) + 12, Math.max(...xs) - 12], [Math.min(...ys) + 12, Math.max(...ys) - 12], 22, xs[0] + ys[0])
+  }
   // Small cleared area above the vaulted building (no trees, no building).
   s += path(curve([[950, 472], [985, 440], [1030, 426], [1080, 436], [1110, 458], [1050, 470]], true), C.land)
 
@@ -86,20 +93,21 @@ function svg() {
   s += road([[0, 330], [30, 390], [60, 520], [80, 650], [140, 790], [240, 870], [340, 950], [450, 1025]], 18)
   s += road([[380, 0], [560, 30], [720, 70], [880, 150], [1000, 185], [1150, 225], [1260, 262], [1330, 300]], 16)
   s += road([[762, 210], [845, 212], [1000, 212], [1150, 245], [1270, 295], [1335, 350], [1335, 400], [1260, 440], [1190, 470], [1163, 530], [1160, 700], [1175, 855]], 16)
-  s += road([[30, 390], [160, 420], [250, 480], [330, 560], [420, 620], [500, 660]], 14)
-  s += road([[160, 420], [280, 460], [443, 487]], 12)
+  s += road([[30, 390], [160, 420], [280, 460], [443, 487]], 12)
+  // road from the upper road down to the Cour de la Vierge (cars drive into the cour)
+  s += road([[252, 452], [250, 484], [272, 518], [305, 552], [338, 578], [372, 600], [420, 626], [456, 650], [466, 680], [488, 712], [525, 736], [562, 750], [600, 760]], 12)
   s += road([[250, 480], [230, 520], [260, 560]], 8)
   s += road([[760, 190], [880, 150]], 10)
 
   // Campus roads added from the commission's corrections:
   // west road around the open court, then along the south of the college;
   s += road([[259, 563], [273, 599], [285, 638], [292, 677], [308, 731], [331, 778], [366, 813], [413, 835], [452, 846], [511, 862], [569, 874], [647, 879], [698, 878]], 12)
-  // road along the north-east side of the court (bus parking) towards the Cour de la Vierge;
-  s += road([[283, 626], [296, 645], [320, 665], [355, 684], [394, 704], [433, 723], [472, 739], [511, 755], [550, 772], [589, 778], [640, 778]], 10)
   // road between the forest and the college, then down past the sports hall to the courts;
   s += road([[443, 487], [540, 489], [645, 517], [700, 522], [750, 540], [785, 560], [805, 592], [814, 640], [818, 700], [826, 738], [848, 760], [880, 770], [918, 771]], 12)
   // road above the tennis courts to the east road.
   s += road([[835, 787], [880, 778], [930, 773], [1000, 766], [1080, 766], [1165, 768]], 10)
+  // road at the forest edge above the vaulted building, down to the east road.
+  s += road([[940, 480], [942, 446], [972, 436], [1030, 442], [1075, 455], [1120, 470], [1150, 484], [1178, 497]], 9)
   s += flushRoads()
   // Stairway between the Petit collège and the Grand collège (steps across a narrow flight).
   {
@@ -120,6 +128,13 @@ function svg() {
 
   // Paved yards / esplanade around the main school.
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
+  // Bus parking at the west road intersection (a few buses parked side by side).
+  {
+    const a = [288, 626], b = [372, 668], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
+    let g = `<rect x="0" y="-14" width="${L.toFixed(1)}" height="28" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
+    for (let i = 0; i < 5; i++) g += `<rect x="${10 + i * 15}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${11.5 + i * 15}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
+    s += `<g transform="translate(${a}) rotate(${ang.toFixed(1)})">${g}</g>`
+  }
   // Préau west of the college: a big flat building whose roof is a parking (roof drawn as parking with bays).
   {
     const A = [345, 712], B = [468, 752], C2 = [452, 822], D = [328, 785]
@@ -175,8 +190,8 @@ function svg() {
   s += treeDots(cm([[660, 0]])[0].concat(cm([[1050, 0]])[0]).filter((_, i) => i % 2 === 0), [cm([[0, 270]])[0][1], cm([[0, 400]])[0][1]], 40, 5,
     (x, y) => Math.hypot(x - 620, y - 700) > 52)
   s += path(cmRect(1015, 390, 1088, 535), C.paved, C.pavedEdge, 1)
-  // Cour de la Vierge: the paved court between the church and the south wing, with the statue in the middle.
-  s += path(curve(cm([[868, 592], [905, 560], [990, 552], [1082, 562], [1086, 628], [985, 634], [892, 624]]), true), '#ebdfc6', '#b8a37c', 1.6)
+  // Cour de la Vierge (road-coloured: cars drive in): the court between the church and the south wing, with the statue in the middle.
+  s += path(curve(cm([[868, 592], [905, 560], [990, 552], [1082, 562], [1086, 628], [985, 634], [892, 624]]), true), C.road, C.roadEdge, 2)
   const [vx, vy] = cm([[985, 594]])[0]
   s += `<circle cx="${vx}" cy="${vy}" r="6" fill="#dbe7f3" stroke="#6d86a6" stroke-width="1.5"/><circle cx="${vx}" cy="${vy}" r="2" fill="#6d86a6"/>`
   // Jesuit fathers' wing (north), slanting down to the east, with the small house at its west end.
