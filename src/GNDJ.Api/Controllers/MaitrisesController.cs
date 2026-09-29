@@ -58,6 +58,12 @@ public class MaitrisesController : BaseApiController
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> CancelPlan(Guid id) => FromResult(await Mediator.Send(new CancelMaitrisePlanLineCommand(id)));
 
+    /// <summary>Member search for « Ajouter un chef »: chefs anywhere + members of the older branches (not the youth of
+    /// Meute/Ronde/Troupe/Compagnie), with their current posts. Requires maitrise.manage.</summary>
+    [HttpGet("candidates")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Candidates([FromQuery] string? search) => Ok(await Mediator.Send(new GetMaitriseCandidatesQuery(search)));
+
     /// <summary>Gives a member a leadership function today (a youth leaves their youth function today). Requires maitrise.manage.</summary>
     [HttpPost("add-now")]
     [HasPermission(Permissions.MaitriseManage)]

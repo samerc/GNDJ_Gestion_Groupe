@@ -2,11 +2,10 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import {
   useMaitrisePlan, usePlanMaitriseStart, usePlanMaitriseEnd, usePlanMaitriseChange, useCancelMaitrisePlan,
-  useAddMaitriseNow, useRemoveFromMaitrise, useTransferMaitrise,
+  useAddMaitriseNow, useRemoveFromMaitrise, useTransferMaitrise, useMaitriseCandidates,
   type MaitrisePlan, type MaitrisePlanLine, type MaitrisePlanMember, type MaitrisePlanUnit,
 } from '@/services/maitrise-service'
 import { useFunctionalRoles } from '@/services/role-service'
-import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -399,7 +398,7 @@ function ChangeDialog({ plan, target, onClose }: { plan: MaitrisePlan; target: {
 function AddDialog({ plan, unit, onClose }: { plan: MaitrisePlan; unit: MaitrisePlanUnit; onClose: () => void }) {
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search)
-  const { data: results } = useMembers({ search: debounced || undefined, pageSize: 8 })
+  const { data: results } = useMaitriseCandidates(debounced)
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
   const [roleId, setRoleId] = useState('')
   const [when, setWhen] = useState<'plan' | 'now'>(plan.published ? 'now' : 'plan')
@@ -436,15 +435,19 @@ function AddDialog({ plan, unit, onClose }: { plan: MaitrisePlan; unit: Maitrise
               <>
                 <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un membre…" />
                 {debounced && results && (
-                  <div className="max-h-48 overflow-y-auto rounded-md border text-sm">
-                    {results.items.length === 0
+                  <div className="max-h-56 overflow-y-auto rounded-md border text-sm">
+                    {results.length === 0
                       ? <p className="px-3 py-3 text-center text-muted-foreground">Aucun membre trouvé.</p>
-                      : results.items.map(m => (
-                        <button key={m.id} type="button" className="block w-full px-3 py-2 text-left hover:bg-muted"
-                          onClick={() => setPicked({ id: m.id, name: `${m.firstName} ${m.lastName}` })}>{m.lastName} {m.firstName}</button>
+                      : results.map(m => (
+                        <button key={m.memberId} type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-muted"
+                          onClick={() => setPicked({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}>
+                          <span className="font-medium">{m.lastName} {m.firstName}</span>
+                          <span className="truncate text-xs text-muted-foreground">{m.posts}</span>
+                        </button>
                       ))}
                   </div>
                 )}
+                <p className="text-xs text-muted-foreground">Les jeunes des Meutes, Rondes, Troupes et Compagnies ne sont pas proposés.</p>
               </>
             )}
           </div>

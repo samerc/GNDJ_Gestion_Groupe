@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-29", "text": "Maîtrises — « Ajouter un chef » : la recherche ne propose plus les jeunes des Meutes, Rondes, Troupes et Compagnies (seulement les chefs et les membres des branches aînées : Clan, Noyau, JEM…), affiche l'unité et la fonction de chaque membre, et montre jusqu'à 25 résultats (avant, un nom très courant pouvait cacher la bonne personne)."},
       {"date": "2026-09-29", "text": "Demandes : bouton « Modifier » pour passer le tableau en mode tableur — nom, prénom, naissance, genre, classe, école et réponse (unité, refus ou à étudier) se modifient directement dans les cellules, puis « Enregistrer » sauve tout d'un coup. La recherche est compacte : seul le champ de recherche s'affiche, les autres filtres se déplient avec « Filtres »."},
       {"date": "2026-09-29", "text": "Demandes : le fichier Excel des réponses est réorganisé — toutes les demandes (garçons puis filles) avec une colonne « Réponse » en liste déroulante ; chaque enfant apparaît aussitôt dans la feuille de son unité (ou « Refusés ») ; une feuille « Statistiques » (par genre, unité avec quota et places restantes, classe, école, unité × classe). Le fichier se réimporte tel quel."},
       {"date": "2026-09-29", "text": "Validation des passages : l'effectif de l'an prochain de chaque unité compte aussi les demandes d'inscription acceptées (même avant « Envoyer les réponses »), affichées comme arrivées « Demandes »."},

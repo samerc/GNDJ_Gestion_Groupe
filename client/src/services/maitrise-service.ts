@@ -133,3 +133,14 @@ export const usePlanMaitriseChange = () => usePlanMutation((d: { assignmentId: s
 export const useCancelMaitrisePlan = () => usePlanMutation((id: string) => apiClient.delete(`/maitrises/plan/${id}`))
 export const useAddMaitriseNow = () => usePlanMutation((d: { memberId: string; unitId: string; functionalRoleId: string }) =>
   apiClient.post('/maitrises/add-now', d))
+
+// GET /maitrises/candidates — « Ajouter un chef » search: chefs anywhere + members of the older branches (the youth
+// of Meute / Ronde / Troupe / Compagnie are left out), each with their current posts.
+export interface MaitriseCandidate { memberId: string; firstName: string; lastName: string; posts: string }
+export function useMaitriseCandidates(search: string) {
+  return useQuery({
+    queryKey: ['maitrises', 'candidates', search],
+    queryFn: () => apiClient.get<MaitriseCandidate[]>('/maitrises/candidates', { params: { search } }).then(r => r.data),
+    enabled: search.trim().length > 0,
+  })
+}

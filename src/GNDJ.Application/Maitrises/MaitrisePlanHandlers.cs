@@ -571,3 +571,45 @@ static class YouthLine
         passage.ReviewedAt = s.ReviewedAt;
     }
 }
+
+// ── Member search for « Ajouter un chef » ──────────────────────────────────────────────────────
+// Who can be picked: members with an active post that is either a leadership function (a chef anywhere) or in a
+// branch that isn't a youth branch (Clan, Noyau, JEM, Feu, Groupe…). Pure youth of Meute / Ronde / Troupe /
+// Compagnie are left out — they're too young to join a maîtrise. Each result carries its current posts
+// ("JEM · Jeune En Marche") so homonyms can be told apart. Name / matricule search, accent-insensitive, every word
+// must match; up to 25 results.
+public record MaitriseCandidateDto(Guid MemberId, string FirstName, string LastName, string Posts);
+public record GetMaitriseCandidatesQuery(string? Search) : IRequest<List<MaitriseCandidateDto>>;
+
+public class GetMaitriseCandidatesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetMaitriseCandidatesQuery, List<MaitriseCandidateDto>>
+{
+    private static readonly string[] YouthBranchCodes = ["MEU", "RON", "TRO", "COM"];
+
+    public async ValueTask<List<MaitriseCandidateDto>> Handle(GetMaitriseCandidatesQuery request, CancellationToken ct)
+    {
+        var terms = (request.Search ?? "").ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (terms.Length == 0) return [];
+
+        var members = context.Members.Where(m => context.MemberAssignments.Any(a => a.MemberId == m.Id && a.EndDate == null
+            && (a.FunctionalRole.IsMaitrise || !YouthBranchCodes.Contains(a.Unit.UnitType.Code))));
+        foreach (var raw in terms)
+        {
+            var term = raw;
+            members = members.Where(m =>
+                DbFns.Unaccent(m.FirstName.ToLower()).Contains(DbFns.Unaccent(term)) ||
+                DbFns.Unaccent(m.LastName.ToLower()).Contains(DbFns.Unaccent(term)) ||
+                (m.CardNumber != null && m.CardNumber.ToLower().Contains(term)));
+        }
+        var found = await members.OrderBy(m => m.LastName).ThenBy(m => m.FirstName).Take(25)
+            .Select(m => new { m.Id, m.FirstName, m.LastName }).ToListAsync(ct);
+        var ids = found.Select(m => m.Id).ToList();
+        var posts = await context.MemberAssignments
+            .Where(a => ids.Contains(a.MemberId) && a.EndDate == null)
+            .OrderByDescending(a => a.FunctionalRole.IsMaitrise).ThenByDescending(a => a.FunctionalRole.Rank)
+            .Select(a => new { a.MemberId, a.Unit.Code, Role = a.FunctionalRole.Name })
+            .ToListAsync(ct);
+        return found.Select(m => new MaitriseCandidateDto(m.Id, m.FirstName, m.LastName,
+                string.Join(" · ", posts.Where(p => p.MemberId == m.Id).Select(p => $"{p.Code} {p.Role}"))))
+            .ToList();
+    }
+}
