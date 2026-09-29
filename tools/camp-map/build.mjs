@@ -113,10 +113,11 @@ function svg() {
   s += road([[0, 330], [30, 390], [60, 520], [80, 650], [140, 790], [240, 870], [340, 950], [450, 1025]], 18)
   s += road([[380, 0], [560, 30], [720, 70], [880, 150], [1000, 185], [1150, 225], [1260, 262], [1330, 300]], 16)
   s += road([[762, 210], [845, 212], [1000, 212], [1150, 245], [1270, 295], [1335, 350], [1335, 400], [1260, 440], [1190, 470], [1163, 530], [1160, 700], [1175, 855]], 16)
-  s += road([[30, 390], [160, 420], [252, 452], [330, 472], [420, 487]], 12)
-  // road from the upper road down to the Cour de la Vierge (cars drive into the cour)
-  s += road([[252, 452], [250, 484], [272, 518], [305, 552], [338, 578], [372, 600], [420, 626], [456, 650], [466, 680], [488, 712], [525, 736], [562, 750], [600, 760]], 12)
-  s += road([[250, 480], [232, 520], [252, 552], [260, 566]], 16)
+  // road under the forest: leaves the main road by a short climb, a bit higher than before (more room at the junction)
+  s += road([[236, 498], [244, 472], [258, 450], [290, 446], [330, 457], [380, 474], [420, 487]], 12)
+  // main road from the west entrance diagonally down to the Cour de la Vierge (cars drive into the cour)
+  s += road([[30, 390], [84, 402], [126, 424], [174, 458], [215, 486], [250, 510], [280, 532], [305, 552], [338, 578], [372, 600], [420, 626], [456, 650], [466, 680], [488, 712], [525, 736], [562, 750], [600, 760]], 12)
+  s += road([[238, 504], [236, 528], [252, 552], [260, 566]], 16)
   s += road([[760, 190], [880, 150]], 10)
 
   // Campus roads added from the commission's corrections:
@@ -152,11 +153,11 @@ function svg() {
   // Road from the esplanade up to the road above the courts (drawn over the esplanade), then re-whiten the junction.
   s += road([[826, 810], [842, 792], [858, 781], [872, 776]], 9) + flushRoads()
   s += path(curve([[835, 787], [880, 778], [930, 773]]), 'none', C.road, 10)
-  // Bus parking just below the west entrance, on the west side of the wide fork (a few buses parked side by side).
+  // Bus parking just inside the west entrance, beside the main road (three buses parked side by side).
   {
-    const a = [188, 542], b = [230, 462], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
+    const a = [156, 414], b = [210, 452], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
     let g = `<rect x="0" y="-14" width="${L.toFixed(1)}" height="28" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
-    for (let i = 0; i < 5; i++) g += `<rect x="${14 + i * 16}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${15.5 + i * 16}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
+    for (let i = 0; i < 3; i++) g += `<rect x="${8 + i * 16}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${9.5 + i * 16}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
     s += `<g transform="translate(${a}) rotate(${ang.toFixed(1)})">${g}</g>`
   }
   // Préau west of the college: a big flat building whose roof is a parking (roof drawn as parking with bays).
