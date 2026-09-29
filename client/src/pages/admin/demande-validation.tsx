@@ -519,7 +519,7 @@ export default function DemandeValidationPage() {
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2">
         {/* Excel export/import is computer work: hidden on a phone, where only the reminder button stays. */}
         <span className="hidden px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:inline">Outils</span>
-        <Tip content="Le fichier contient toutes les informations de chaque demande. Remplissez la seule colonne « Décision » : le code de l'unité (C2, M2…) pour accepter, ou un code de motif (« -- » = par défaut) pour refuser. La feuille « Codes » liste tout. Seules les colonnes Réf. et Décision sont relues à l'import — le reste peut être trié/annoté librement.">
+        <Tip content="Toutes les demandes (garçons puis filles) dans la feuille « Demandes ». Choisissez la « Réponse » dans la liste : une unité (M2, R1…) pour accepter, un motif (« -- » = par défaut) pour refuser. Chaque enfant apparaît aussitôt dans la feuille de son unité (ou « Refusés ») et la feuille « Statistiques » se met à jour. Réimportez le fichier pour enregistrer les réponses ; seule la colonne Réponse est relue.">
           <Button variant="outline" size="sm" className="hidden sm:inline-flex" disabled={exportMutation.isPending} onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />Exporter (Excel)
           </Button>

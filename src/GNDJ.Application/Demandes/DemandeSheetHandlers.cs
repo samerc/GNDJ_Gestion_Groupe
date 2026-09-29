@@ -10,8 +10,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Demandes;
 
-// Excel round-trip of CG decisions (the Maîtrise works in Excel). Export = one row per submitted demande with a
-// SINGLE "Décision" column (type a unit CODE to accept, a rejection-reason code / "--" to decline); Import =
+// Excel round-trip of CG decisions (the Maîtrise works in Excel). Export = one row per submitted demande (boys then
+// girls) with a SINGLE "Réponse" dropdown (a unit CODE to accept, a rejection-reason code / "--" to decline), live
+// per-unit sheets, a "Refusés" sheet and "Statistiques" (see DemandeSheetService); Import =
 // read it back and STAGE the decisions (same effect as the web review — nothing is sent/converted until
 // "Envoyer les réponses"). Re-import is allowed. A "Codes" reference sheet lists every valid code.
 
@@ -34,11 +35,27 @@ public class ExportDemandeDecisionsQueryHandler(IApplicationDbContext context, I
         // projection the CG review table uses, so the Excel carries everything the on-screen file shows.
         var dtos = await DemandeReviewProjection.BuildAsync(context, demandes, request.ScoutYear, LebanonClock.Today, ct);
 
-        // Unit CODE per unit (for prefilling a staged approval) + all active units (code,name) for the reference
-        // sheet / dropdown.
-        var allUnits = await context.Units.Select(u => new { u.Id, u.Code, u.Name, u.IsActive }).ToListAsync(ct);
+        // Unit CODE per unit (for prefilling a staged approval) + the active units for the dropdown, in parcours
+        // order (youngest branch first). Every unit except the Groupe gets its own live sheet in the workbook, with
+        // its current youth headcount and this year's intake quota for the statistics.
+        var allUnits = await context.Units
+            .Select(u => new { u.Id, u.Code, u.Name, u.IsActive, TypeCode = u.UnitType.Code, u.UnitType.AgeMin })
+            .ToListAsync(ct);
         var unitCodeById = allUnits.ToDictionary(u => u.Id, u => u.Code);
-        var activeUnitList = allUnits.Where(u => u.IsActive).OrderBy(u => u.Name).Select(u => (u.Code, u.Name)).ToList();
+        var headcount = (await Passages.PassageScope.ActiveYouth(context)
+                .Select(a => new { a.UnitId, a.MemberId }).Distinct().ToListAsync(ct))
+            .GroupBy(a => a.UnitId).ToDictionary(g => g.Key, g => g.Count());
+        var quotas = await context.UnitIntakeQuotas.Where(q => q.ScoutYear == request.ScoutYear)
+            .ToDictionaryAsync(q => q.UnitId, q => (int?)q.Quota, ct);
+        var activeUnitList = allUnits.Where(u => u.IsActive)
+            .OrderBy(u => u.AgeMin ?? int.MaxValue).ThenBy(u => u.TypeCode).ThenBy(u => u.Code.Length).ThenBy(u => u.Code)
+            .Select(u => new DemandeExportUnit(u.Code, u.Name, quotas.GetValueOrDefault(u.Id),
+                headcount.GetValueOrDefault(u.Id), !string.Equals(u.TypeCode, "GRP", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        var classesJson = await context.Settings.Where(s => s.Key == "member.classes").Select(s => s.Value).FirstOrDefaultAsync(ct);
+        List<string> classOrder;
+        try { classOrder = System.Text.Json.JsonSerializer.Deserialize<List<string>>(classesJson ?? "[]") ?? []; }
+        catch (System.Text.Json.JsonException) { classOrder = []; }
 
         // Rejection reasons (managed list) — (code,label) for the reference sheet + normalized(text)→code so a
         // staged decline prefills the reason code it was decided with (falls back to "--").
@@ -82,7 +99,7 @@ public class ExportDemandeDecisionsQueryHandler(IApplicationDbContext context, I
             d.ParentNotes, d.SubmittedAt?.ToString("dd/MM/yyyy")))
             .ToList();
 
-        var bytes = sheet.Export($"Demandes {request.ScoutYear}", rows, activeUnitList, reasonList, defaultReasonLabel);
+        var bytes = sheet.Export($"Demandes {request.ScoutYear}", rows, activeUnitList, reasonList, defaultReasonLabel, classOrder);
         var fileName = $"Demandes_{request.ScoutYear.Replace(" ", "")}.xlsx";
         return Result<ExportResult>.Success(new ExportResult(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName));
     }

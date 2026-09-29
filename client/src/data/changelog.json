@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-09-29", "text": "Demandes : le fichier Excel des réponses est réorganisé — toutes les demandes (garçons puis filles) avec une colonne « Réponse » en liste déroulante ; chaque enfant apparaît aussitôt dans la feuille de son unité (ou « Refusés ») ; une feuille « Statistiques » (par genre, unité avec quota et places restantes, classe, école, unité × classe). Le fichier se réimporte tel quel."},
       {"date": "2026-09-29", "text": "Validation des passages : l'effectif de l'an prochain de chaque unité compte aussi les demandes d'inscription acceptées (même avant « Envoyer les réponses »), affichées comme arrivées « Demandes »."},
       {"date": "2026-09-29", "text": "Passage : la publication ferme tous les postes de jeune actifs d'un membre (un poste resté ouvert par erreur restait actif à côté du nouveau). Qualité des données liste les membres qui ont plusieurs postes actifs (chefs compris) : « C'est voulu » les retire de la liste tant que leurs postes ne changent pas (ex. un chef de groupe aussi chef d'unité ailleurs), sinon la croix clôture le poste en trop."},
       {"date": "2026-09-29", "text": "Une unité n'a qu'un chef d'unité : en nommer un nouveau (page Maîtrises « maintenant », ou dans les postes d'un membre) arrête aussitôt la fonction de l'ancien."},

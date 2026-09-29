@@ -1,14 +1,15 @@
 namespace GNDJ.Application.Common.Interfaces;
 
 // Excel round-trip of CG decisions: export the submitted demandes to an .xlsx the Maîtrise fills in with a
-// SINGLE "Décision" column, then import the file to stage those decisions. In that column the CG types a CODE:
-// a unit code (C2, M2, …) to ACCEPT into that unit, a rejection-reason code (or "--" for the default reason) to
-// DECLINE. Names only — no contact details. The Réf. (demande id) column is the matching key. A "Codes"
-// reference sheet lists every valid code + its meaning and drives an in-cell dropdown. Implemented via ClosedXML.
+// SINGLE "Réponse" column, then import the file to stage those decisions. In that column the CG picks a CODE from
+// the dropdown: a unit code (C2, M2, …) to ACCEPT into that unit, a rejection-reason code (or "--" for the default
+// reason) to DECLINE. The Réf. (demande id) column is the matching key. Around the main sheet the workbook has live
+// sheets (plain formulas, no macros): one per unit listing the children given that unit, "Refusés", "Statistiques",
+// and a "Codes" reference sheet. Implemented via ClosedXML.
 
 // One export row = one submitted demande — the FULL file so the Maîtrise can review everything in Excel (child
 // identity + school + medical + contacts + household + detailed parents/proches/fratrie) PLUS the current staged
-// status and the PREFILL for the single Décision cell (the unit CODE when already staged-approved, the reason
+// status and the PREFILL for the single Réponse cell (the unit CODE when already staged-approved, the reason
 // code / "--" when staged-declined, else ""). Parents/ScoutRelations/Siblings are pre-formatted multi-line strings.
 public record DemandeExportRow(
     Guid Id, string SerialNumber, string PrefillDecision, string CurrentStatus,
@@ -19,24 +20,28 @@ public record DemandeExportRow(
     string Parents, string ScoutRelations, string Siblings,
     string? PreviousDemande, string? ParentNotes, string? SubmittedAt);
 
+// A unit offered in the Réponse dropdown. Quota = this year's intake quota (if set); CurrentActive = members in it
+// now (shown in the statistics). HasSheet = gets its own live sheet (every unit children can be accepted into).
+public record DemandeExportUnit(string Code, string Name, int? Quota, int CurrentActive, bool HasSheet);
+
 // One parsed decision row from an uploaded file (RowNumber for error messages; Id from the Réf. column; the
-// single Décision cell = a unit code, a reason code, or "--").
+// single Réponse cell = a unit code, a reason code, or "--").
 public record DemandeDecisionRow(int RowNumber, Guid? Id, string? Decision);
 
-// Thrown by Parse when the uploaded file is missing a REQUIRED column (Réf. or Décision) — e.g. the CG renamed
+// Thrown by Parse when the uploaded file is missing a REQUIRED column (Réf. or Réponse) — e.g. the CG renamed
 // or deleted its header. Carries a user-facing French message the import handler surfaces as-is, so the failure
 // is loud and specific instead of silently importing nothing.
 public class DemandeSheetFormatException(string message) : Exception(message);
 
 public interface IDemandeSheetService
 {
-    // Builds the .xlsx: header + one row per demande + a "Codes" reference sheet (unit codes + reason codes)
-    // that drives the Décision dropdown. units = (code, name); reasons = (code, label); the default reason (if
-    // any) is offered as the special code "--".
+    // Builds the .xlsx (see the top comment). units = in dropdown order; reasons = (code, label); the default reason
+    // (if any) is offered as the special code "--"; classOrder = the managed classe list (statistics row order).
     byte[] Export(string title, IReadOnlyList<DemandeExportRow> rows,
-        IReadOnlyList<(string Code, string Name)> units,
+        IReadOnlyList<DemandeExportUnit> units,
         IReadOnlyList<(string Code, string Label)> reasons,
-        string? defaultReasonLabel);
+        string? defaultReasonLabel,
+        IReadOnlyList<string> classOrder);
 
     // Reads back a filled file into decision rows (by header name, so inserted columns don't break it).
     IReadOnlyList<DemandeDecisionRow> Parse(byte[] file);

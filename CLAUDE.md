@@ -6320,3 +6320,15 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   PUT /assignments/{id}/end) and « C'est voulu » (`DataQualityAck`, table `data_quality_acks`, migration
   `AddDataQualityAcks`; signature = sorted active assignment ids, so a confirmed case reappears when its posts change;
   POST/DELETE /data-quality/acks, maitrise.manage; « Confirmés comme voulus » sub-list with Annuler) (dev: 3). Full suite green: 150 unit tests, 60 API + 20 browser checks, bundle budget.
+
+### Demandes — Excel "Réponses" workbook (2026-09-29, DEV until deploy)
+- `GET /demandes/export-decisions` rebuilt (`DemandeSheetService`): main sheet « Demandes » = every submitted demande,
+  boys then girls under title rows, key columns first, hidden Réf. column, « Réponse (unité ou motif) » dropdown
+  (unit codes then refusal codes). Live sheets with plain formulas (INDEX/MATCH on a hidden « Clé » column
+  "M2#3"; no macros / dynamic arrays): one per unit (all active units except the Groupe, parcours order) + « Refusés »
+  + « Statistiques » (gender, unit with headcount/quota/places left, classe, école, unit × classe) + « Codes ».
+  `DemandeExportUnit` carries quota + youth headcount. Import unchanged except it also accepts the old
+  « Décision (code unité ou motif) » header; gender title rows are skipped (no Réf.). Verified: LibreOffice-computed
+  values correct, import round trip OK.
+- `tools/demande-decisions/apply_decisions.py`: one-off stager for the CG's hand-made files (no Réf.), used for the
+  2026 boys/girls runs on prod (157 accepted / 84 declined staged).
