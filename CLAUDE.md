@@ -6314,3 +6314,6 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
 - **One head per unit, everywhere** (`Common/HeadReplacement.EndOtherHeadsAsync`): giving an ACTIVE head function right
   away — CreateAssignment, UpdateAssignment (role/unit changed), Maîtrises transfer + add-now — ends the other members'
   head functions in that unit the day the new head starts (audited « Remplacé(e) comme chef d'unité »).
+- **Pre-publish quick wins (2026-09-29):** FinalizePassages closes ALL of a passage member's active youth posts (was the
+  first only — a duplicate open post stayed active next to the new one); Qualité des données gained a « Plusieurs
+  postes de jeune actifs » section (dev: 2). Full suite green: 150 unit tests, 60 API + 20 browser checks, bundle budget.

@@ -1080,11 +1080,13 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         // This runs inside the advisory-lock transaction, so collapsing N round-trips to 1 directly shortens
         // how long the lock is held. Tracked (no AsNoTracking) so the EndDate mutation below persists.
         var memberIds = passages.Select(p => p.MemberId).ToList();
+        // ALL of a member's active youth posts are closed (a member occasionally has two by mistake — closing only one
+        // left it active next to the new post). Leadership posts are never touched here: the maîtrise plan handles them.
         var activeByMember = (await context.MemberAssignments
-                .Where(a => a.EndDate == null && memberIds.Contains(a.MemberId))
+                .Where(a => a.EndDate == null && memberIds.Contains(a.MemberId) && !a.FunctionalRole.IsMaitrise)
                 .ToListAsync(ct))
             .GroupBy(a => a.MemberId)
-            .ToDictionary(g => g.Key, g => g.First());
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         // Pre-load (once, outside the loop) what the entrée auto-create needs, so it costs no extra query per
         // member inside the advisory lock. Destination units = where a non-leaving member joins a DIFFERENT unit.
@@ -1108,10 +1110,9 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         foreach (var passage in passages)
         {
             // End the member's current active assignment
-            if (activeByMember.TryGetValue(passage.MemberId, out var activeAssignment))
-            {
-                activeAssignment.EndDate = passageDate;
-            }
+            if (activeByMember.TryGetValue(passage.MemberId, out var activeAssignments))
+                foreach (var activeAssignment in activeAssignments)
+                    activeAssignment.EndDate = passageDate;
 
             // "Quitte le groupe": close the assignment and create NO new one — member becomes alumni.
             if (!(passage.FinalIsLeaving ?? passage.IsLeaving))

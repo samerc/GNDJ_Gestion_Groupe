@@ -14,6 +14,7 @@ namespace GNDJ.Application.DataQuality;
 //  - bounced-email: an address the providers reported as undeliverable / spam (webhooks), with its owners
 //  - no-email:      no reachable email at all (own → primary contact → a parent's)
 //  - no-dob / no-gender: missing basic identity fields
+//  - multi-post:    youth with more than one active youth post
 //  - duplicates:    count of likely duplicate records (fixed on Fratries → Doublons)
 public record DataQualityItemDto(Guid? MemberId, string Name, string? Unit, string Detail, Guid? BounceId = null);
 public record DataQualitySectionDto(string Key, string Title, string Hint, int Total, List<DataQualityItemDto> Items);
@@ -102,7 +103,19 @@ public class GetDataQualityReportQueryHandler(IApplicationDbContext context, ICu
         sections.Add(new("no-gender", "Genre manquant", "Utile pour le passage (branches garçons / filles) et les rapports.",
             noGender.Count, noGender.Take(MaxItems).Select(id => Item(id, "Genre vide")).ToList()));
 
-        // 6. Likely duplicates (same name + date of birth) — fixed with the Doublons tool.
+        // 6. Youth with several active youth posts (usually a post left open by mistake): the passage moves the member
+        // once, so the extra post would linger. Leadership functions are excluded (a chef may hold several).
+        var multi = (await context.MemberAssignments
+                .Where(a => a.EndDate == null && !a.FunctionalRole.IsMaitrise)
+                .Select(a => new { a.MemberId, a.Unit.Code, Role = a.FunctionalRole.Name })
+                .ToListAsync(ct))
+            .GroupBy(a => a.MemberId).Where(g => g.Count() > 1 && members.ContainsKey(g.Key))
+            .OrderBy(g => Unit(g.Key)).ThenBy(g => Name(g.Key)).ToList();
+        sections.Add(new("multi-post", "Plusieurs postes de jeune actifs",
+            "Un jeune ne devrait avoir qu'un poste actif. Clôturez le poste en trop dans l'onglet Postes de sa fiche avant le passage.",
+            multi.Count, multi.Take(MaxItems).Select(g => Item(g.Key, string.Join(" + ", g.Select(a => $"{a.Code} {a.Role}")))).ToList()));
+
+        // 7. Likely duplicates (same name + date of birth) — fixed with the Doublons tool.
         var dup = await mediator.Send(new GetDuplicateMemberSuggestionsQuery(), ct);
         var groups = dup.IsSuccess ? dup.Value! : [];
         sections.Add(new("duplicates", "Doublons probables",
