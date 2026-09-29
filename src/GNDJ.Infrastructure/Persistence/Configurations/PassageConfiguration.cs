@@ -68,3 +68,17 @@ public class MaitrisePlanLineConfiguration : IEntityTypeConfiguration<MaitrisePl
         builder.HasQueryFilter(e => !e.Member.IsDeleted && !e.Unit.IsDeleted && !e.FunctionalRole.IsDeleted);
     }
 }
+
+// "C'est voulu" confirmations on the Qualité des données page (one per check + member).
+public class DataQualityAckConfiguration : IEntityTypeConfiguration<DataQualityAck>
+{
+    public void Configure(EntityTypeBuilder<DataQualityAck> builder)
+    {
+        builder.ToTable("data_quality_acks");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.CheckKey).HasMaxLength(50);
+        builder.Property(e => e.Signature).HasMaxLength(2000);
+        builder.Property(e => e.AckByName).HasMaxLength(200);
+        builder.HasIndex(e => new { e.CheckKey, e.MemberId }).IsUnique();
+    }
+}

@@ -8,6 +8,9 @@ export interface DataQualityItem {
   unit: string | null
   detail: string
   bounceId: string | null
+  posts?: { assignmentId: string; label: string; isMaitrise: boolean }[] | null // several-posts check
+  ackBy?: string | null   // "C'est voulu" confirmed by …
+  ackAt?: string | null
 }
 
 export interface DataQualitySection {
@@ -16,6 +19,7 @@ export interface DataQualitySection {
   hint: string
   total: number
   items: DataQualityItem[]
+  confirmed?: DataQualityItem[] | null // cases confirmed as intended ("C'est voulu")
 }
 
 export interface DataQualityReport {
@@ -36,6 +40,24 @@ export function useClearBounce() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiClient.delete(`/data-quality/bounces/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['data-quality'] }),
+  })
+}
+
+// POST /data-quality/acks → "C'est voulu": hide a flagged case while it stays the same (e.g. several posts on purpose).
+export function useAcknowledgeDataQuality() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (d: { checkKey: string; memberId: string }) => apiClient.post('/data-quality/acks', d),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['data-quality'] }),
+  })
+}
+
+// DELETE /data-quality/acks/{key}/{memberId} → undo a "C'est voulu" (the case is listed again).
+export function useRemoveDataQualityAck() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (d: { checkKey: string; memberId: string }) => apiClient.delete(`/data-quality/acks/${d.checkKey}/${d.memberId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['data-quality'] }),
   })
 }

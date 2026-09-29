@@ -4,8 +4,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
-import { ShieldCheck, ChevronDown, ChevronRight, CheckCircle2, RotateCcw, ExternalLink } from 'lucide-react'
-import { useDataQuality, useClearBounce, type DataQualitySection } from '@/services/data-quality-service'
+import { ShieldCheck, ChevronDown, ChevronRight, CheckCircle2, RotateCcw, ExternalLink, Check, X, Crown, Undo2 } from 'lucide-react'
+import {
+  useDataQuality, useClearBounce, useAcknowledgeDataQuality, useRemoveDataQualityAck,
+  type DataQualitySection, type DataQualityItem,
+} from '@/services/data-quality-service'
+import { useEndAssignment } from '@/services/assignment-service'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -34,7 +39,7 @@ function Section({ s }: { s: DataQualitySection }) {
       <CardContent className="p-0">
         <button
           type="button"
-          disabled={ok || isDuplicates}
+          disabled={(ok && !s.confirmed?.length) || isDuplicates}
           onClick={() => setOpen((o) => !o)}
           className="flex w-full items-center gap-3 p-4 text-left disabled:cursor-default"
         >
@@ -57,7 +62,9 @@ function Section({ s }: { s: DataQualitySection }) {
           )}
         </button>
 
-        {open && s.items.length > 0 && (
+        {open && s.key === 'multi-post' && <MultiPostList s={s} />}
+
+        {open && s.key !== 'multi-post' && s.items.length > 0 && (
           <div className="overflow-x-auto border-t">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
@@ -98,6 +105,82 @@ function Section({ s }: { s: DataQualitySection }) {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+// Several active posts: each post can be closed here (today), or the whole case confirmed "C'est voulu" (e.g. a chef
+// de groupe who is also chef d'unité elsewhere) — it then moves to "Confirmés" until those posts change.
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+
+function MultiPostList({ s }: { s: DataQualitySection }) {
+  const ack = useAcknowledgeDataQuality()
+  const unack = useRemoveDataQualityAck()
+  const endPost = useEndAssignment()
+  const [closing, setClosing] = useState<{ item: DataQualityItem; assignmentId: string; label: string } | null>(null)
+  const [showConfirmed, setShowConfirmed] = useState(false)
+  const confirmed = s.confirmed ?? []
+
+  const confirm = async (it: DataQualityItem) => {
+    try { await ack.mutateAsync({ checkKey: s.key, memberId: it.memberId! }); toast.success('Confirmé : ce cas ne sera plus signalé tant que ses postes ne changent pas.') }
+    catch (e) { toast.error(parseApiError(e)) }
+  }
+  const undo = async (it: DataQualityItem) => {
+    try { await unack.mutateAsync({ checkKey: s.key, memberId: it.memberId! }); toast.success('Confirmation annulée.') }
+    catch (e) { toast.error(parseApiError(e)) }
+  }
+  const close = async () => {
+    if (!closing) return
+    try { await endPost.mutateAsync({ id: closing.assignmentId, endDate: todayIso() }); toast.success('Poste clôturé.'); setClosing(null) }
+    catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  const row = (it: DataQualityItem, isConfirmed: boolean) => (
+    <div key={it.memberId} className="flex flex-col gap-2 border-b px-4 py-2.5 last:border-0 sm:flex-row sm:items-center">
+      <div className="min-w-0 sm:w-56">
+        <Link to={`/members/${it.memberId}`} className="font-medium text-primary hover:underline">{it.name}</Link>
+        {isConfirmed && <p className="text-xs text-muted-foreground">Voulu{it.ackBy ? ` — ${it.ackBy}` : ''}</p>}
+      </div>
+      <div className="flex flex-1 flex-wrap gap-1.5">
+        {(it.posts ?? []).map(p => (
+          <span key={p.assignmentId} className="inline-flex items-center gap-1 rounded-md border bg-card py-0.5 pl-2 pr-0.5 text-xs">
+            {p.isMaitrise && <Crown className="h-3 w-3 text-amber-500" />}{p.label}
+            {!isConfirmed && (
+              <button type="button" title="Clôturer ce poste aujourd'hui" className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setClosing({ item: it, assignmentId: p.assignmentId, label: p.label })}><X className="h-3.5 w-3.5" /></button>
+            )}
+          </span>
+        ))}
+      </div>
+      {isConfirmed
+        ? <Button size="sm" variant="ghost" disabled={unack.isPending} onClick={() => undo(it)}><Undo2 className="mr-1 h-3.5 w-3.5" />Annuler</Button>
+        : <Button size="sm" variant="outline" disabled={ack.isPending} onClick={() => confirm(it)}><Check className="mr-1 h-3.5 w-3.5" />C'est voulu</Button>}
+    </div>
+  )
+
+  return (
+    <div className="border-t">
+      {s.items.map(it => row(it, false))}
+      {s.items.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">Rien à corriger.</p>}
+      {confirmed.length > 0 && (
+        <div className="border-t bg-muted/20">
+          <button type="button" onClick={() => setShowConfirmed(v => !v)} className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-muted-foreground">
+            {showConfirmed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            Confirmés comme voulus ({confirmed.length})
+          </button>
+          {showConfirmed && confirmed.map(it => row(it, true))}
+        </div>
+      )}
+      <ConfirmDialog
+        open={!!closing}
+        onOpenChange={o => { if (!o) setClosing(null) }}
+        title="Clôturer ce poste"
+        description={closing ? `Le poste « ${closing.label} » de ${closing.item.name} sera clôturé aujourd'hui. Ses autres postes restent actifs.` : ''}
+        confirmLabel="Clôturer"
+        variant="destructive"
+        loading={endPost.isPending}
+        onConfirm={close}
+      />
+    </div>
   )
 }
 

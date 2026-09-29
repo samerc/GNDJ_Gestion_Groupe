@@ -43,6 +43,7 @@ public interface IApplicationDbContext
     DbSet<Passage> Passages { get; }
     DbSet<PassageUnitSubmission> PassageUnitSubmissions { get; }
     DbSet<MaitrisePlanLine> MaitrisePlanLines { get; }
+    DbSet<DataQualityAck> DataQualityAcks { get; }
     DbSet<ApiKey> ApiKeys { get; }
     DbSet<CustomField> CustomFields { get; }
     DbSet<MemberCustomFieldValue> MemberCustomFieldValues { get; }

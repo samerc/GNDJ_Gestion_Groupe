@@ -46,6 +46,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<Passage> Passages => Set<Passage>();
     public DbSet<PassageUnitSubmission> PassageUnitSubmissions => Set<PassageUnitSubmission>();
     public DbSet<MaitrisePlanLine> MaitrisePlanLines => Set<MaitrisePlanLine>();
+    public DbSet<DataQualityAck> DataQualityAcks => Set<DataQualityAck>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<CustomField> CustomFields => Set<CustomField>();
     public DbSet<MemberCustomFieldValue> MemberCustomFieldValues => Set<MemberCustomFieldValue>();

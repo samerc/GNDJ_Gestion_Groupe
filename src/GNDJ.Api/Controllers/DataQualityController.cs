@@ -21,6 +21,26 @@ public class DataQualityController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>"C'est voulu": confirm a flagged case (e.g. several active posts on purpose). Requires maitrise.manage.</summary>
+    [HttpPost("acks")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> Acknowledge([FromBody] AcknowledgeDataQualityCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Undo a "C'est voulu" confirmation. Requires maitrise.manage.</summary>
+    [HttpDelete("acks/{checkKey}/{memberId:guid}")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> RemoveAck(string checkKey, Guid memberId)
+    {
+        var result = await Mediator.Send(new RemoveDataQualityAckCommand(checkKey, memberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Forget an email bounce (the address was fixed): mail is sent to it again.</summary>
     [HttpDelete("bounces/{id:guid}")]
     [HasPermission(Permissions.MaitriseManage)]
