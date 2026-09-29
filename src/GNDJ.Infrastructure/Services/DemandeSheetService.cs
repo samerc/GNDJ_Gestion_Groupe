@@ -20,7 +20,6 @@ public class DemandeSheetService : IDemandeSheetService
     private const string MainSheet = "Demandes";
     private const string H_Ref = "Réf. (ne pas modifier)";
     private const string H_Decision = "Réponse (unité ou motif)";
-    private const string H_DecisionLegacy = "Décision (code unité ou motif)"; // files exported before 2026-09-29
 
     // Main-sheet columns (1-based) — key columns first so the unit sheets can copy them.
     private const int C_Ref = 1, C_Serial = 2, C_Decision = 3, C_Status = 4, C_First = 5, C_Last = 6, C_Gender = 7,
@@ -431,7 +430,6 @@ public class DemandeSheetService : IDemandeSheetService
         }
         int ColOf(string header) => cols.TryGetValue(header, out var c) ? c : 0;
         int refC = ColOf(H_Ref), decC = ColOf(H_Decision);
-        if (decC == 0) decC = ColOf(H_DecisionLegacy);
 
         // The import matches rows by the Réf. (id) column and reads the Réponse column — nothing else. Inserting,
         // reordering, editing or deleting ANY other column is harmless (they're ignored). But if one of these two

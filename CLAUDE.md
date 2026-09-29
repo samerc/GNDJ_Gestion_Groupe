@@ -6327,8 +6327,6 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   (unit codes then refusal codes). Live sheets with plain formulas (INDEX/MATCH on a hidden « Clé » column
   "M2#3"; no macros / dynamic arrays): one per unit (all active units except the Groupe, parcours order) + « Refusés »
   + « Statistiques » (gender, unit with headcount/quota/places left, classe, école, unit × classe) + « Codes ».
-  `DemandeExportUnit` carries quota + youth headcount. Import unchanged except it also accepts the old
-  « Décision (code unité ou motif) » header; gender title rows are skipped (no Réf.). Verified: LibreOffice-computed
-  values correct, import round trip OK.
-- `tools/demande-decisions/apply_decisions.py`: one-off stager for the CG's hand-made files (no Réf.), used for the
-  2026 boys/girls runs on prod (157 accepted / 84 declined staged).
+  `DemandeExportUnit` carries quota + youth headcount. Import reads only this layout (Réf. + Réponse headers);
+  gender title rows are skipped (no Réf.). Verified: LibreOffice-computed values correct, import round trip OK.
+  (2026's decisions were staged on prod from the CG's hand-made files with a one-off script, since removed.)
