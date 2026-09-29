@@ -223,6 +223,33 @@ export function useLinkRelationMember() {
   })
 }
 
+// GET /demandes/relations/{id}/link-preview?memberId= → what the CG compares before confirming « Lier »: the proche
+// as declared + the family's parents, next to the member (birth date, posts, parents). inCommon = same parent name
+// on both sides.
+export interface LinkPreviewParent { relationship: string; name: string; inCommon: boolean }
+export interface LinkPreview {
+  declaredName: string; declaredRelationship: string | null; declaredUnit: string | null
+  memberName: string; memberDateOfBirth: string | null; memberAge: number | null; memberPosts: string; memberCardNumber: string | null
+  familyParents: LinkPreviewParent[]; memberParents: LinkPreviewParent[]; isSibling: boolean
+}
+export function useLinkPreview(relationId: string | null, memberId: string | null) {
+  return useQuery({
+    queryKey: ['demandes', 'link-preview', relationId, memberId],
+    queryFn: () => apiClient.get<LinkPreview>(`/demandes/relations/${relationId}/link-preview`, { params: { memberId } }).then((r) => r.data),
+    enabled: !!relationId && !!memberId,
+  })
+}
+
+// POST /demandes/relations/{id}/dismiss-suggestion → « Ce n'est pas lui »: drop the app's suggested match (the
+// « À lier » flag goes away). Invalidates ['demandes'].
+export function useDismissRelationSuggestion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (relationId: string) => apiClient.post(`/demandes/relations/${relationId}/dismiss-suggestion`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
 // PUT /demandes/{id}/unit → save the pre-selected unit WITHOUT deciding (staged); status stays as-is.
 // Lets the CG lock in / change "unité d'affectation (si accepté)" and come back later. Invalidates ['demandes'].
 export function useSetDemandeUnit() {

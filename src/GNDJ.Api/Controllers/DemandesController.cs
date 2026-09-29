@@ -125,6 +125,27 @@ public class DemandesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>What the CG compares before confirming a link: the declared proche + family parents next to the member
+    /// (birth date, posts, parents), with the parents in common flagged. Requires demande.manage.</summary>
+    [HttpGet("relations/{relationId:guid}/link-preview")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> LinkPreview(Guid relationId, [FromQuery] Guid memberId)
+    {
+        var result = await Mediator.Send(new GetScoutRelationLinkPreviewQuery(relationId, memberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>"Ce n'est pas lui": drops the app's suggested match for a proche. Requires demande.manage.</summary>
+    [HttpPost("relations/{relationId:guid}/dismiss-suggestion")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> DismissSuggestion(Guid relationId)
+    {
+        var result = await Mediator.Send(new DismissScoutRelationSuggestionCommand(relationId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Confirms a brother/sister proche as an existing member (the suggested match or one picked by the CG),
     /// so the conversion shares the parents and declares the fratrie. Requires demande.manage.</summary>
     [HttpPost("relations/{relationId:guid}/link-member")]

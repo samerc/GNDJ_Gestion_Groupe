@@ -11,7 +11,7 @@ import { useSearchParams } from 'react-router'
 import { useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
-  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember, useLinkRelationMember,
+  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
 } from '@/services/demande-admin-service'
@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { DemandeGrid } from '@/components/admin/demande-grid'
+import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -1130,12 +1131,9 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   const suggested = useMemo(() => suggestUnit(d, occupancy), [d, occupancy])
   const setUnitMutation = useSetDemandeUnit()
   const unlinkMatch = useUnlinkRelationMember() // "Retirer le lien" on a confirmed sibling link
-  const linkMatch = useLinkRelationMember()     // "Lier" — the CG confirms a brother/sister as an existing member
   const [pickFor, setPickFor] = useState<string | null>(null) // relation id awaiting a manually-picked member
-  const link = async (relationId: string, memberId: string) => {
-    try { await linkMatch.mutateAsync({ relationId, memberId }); toast.success('Frère / sœur lié(e) au membre') }
-    catch (e) { toast.error(parseApiError(e)) }
-  }
+  // « Lier » never links straight away: it opens a side-by-side comparison where the CG says yes or no.
+  const [linkTarget, setLinkTarget] = useState<LinkTarget | null>(null)
   // Local decision draft: pre-fill unit with the already-decided unit, else the suggestion.
   const [unit, setUnit] = useState(d.decidedUnitId ?? suggested?.unitId ?? '')
   const [note, setNote] = useState(d.status === 'Approved' ? (d.decisionNotes ?? '') : '')
@@ -1322,8 +1320,8 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                       {!locked && r.id && isSiblingRelation(r.relationship) && (
                         <>
                           {r.suggestedMemberId && (
-                            <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={linkMatch.isPending}
-                              onClick={() => link(r.id!, r.suggestedMemberId!)}>
+                            <Button type="button" size="sm" variant="outline" className="h-7 text-xs"
+                              onClick={() => setLinkTarget({ relationId: r.id!, memberId: r.suggestedMemberId!, fromSuggestion: true })}>
                               <Link2 className="mr-1 h-3.5 w-3.5" />Lier
                             </Button>
                           )}
@@ -1344,7 +1342,8 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
           )}
           <MemberPickerDialog open={!!pickFor} onOpenChange={(v) => { if (!v) setPickFor(null) }}
             title="Lier à un membre" description="Choisissez le frère ou la sœur déjà membre du groupe."
-            onPick={async (m) => { const id = pickFor; setPickFor(null); if (id) await link(id, m.id) }} />
+            onPick={(m) => { const id = pickFor; setPickFor(null); if (id) setLinkTarget({ relationId: id, memberId: m.id, fromSuggestion: false }) }} />
+          <LinkRelationDialog target={linkTarget} onClose={() => setLinkTarget(null)} />
         </Section>
 
         {(d.allergies || d.medicalNotes) && (

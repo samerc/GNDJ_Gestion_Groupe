@@ -1546,6 +1546,83 @@ public class LinkScoutRelationMemberCommandHandler(IApplicationDbContext context
     }
 }
 
+// ============================================================
+// Link preview — what the CG compares before confirming "Lier": the proche as the parent declared it (and the
+// family's parents), next to the member it would point to (date of birth, current posts, parents). Parents present
+// on both sides (same first + last name, accents/case ignored) are flagged — the strongest sign it's the right child.
+// ============================================================
+public record LinkPreviewParentDto(string Relationship, string Name, bool InCommon);
+public record ScoutRelationLinkPreviewDto(
+    string DeclaredName, string? DeclaredRelationship, string? DeclaredUnit,
+    string MemberName, string? MemberDateOfBirth, int? MemberAge, string MemberPosts, string? MemberCardNumber,
+    IReadOnlyList<LinkPreviewParentDto> FamilyParents, IReadOnlyList<LinkPreviewParentDto> MemberParents,
+    bool IsSibling);
+public record GetScoutRelationLinkPreviewQuery(Guid RelationId, Guid MemberId) : IRequest<Result<ScoutRelationLinkPreviewDto>>;
+
+public class GetScoutRelationLinkPreviewQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetScoutRelationLinkPreviewQuery, Result<ScoutRelationLinkPreviewDto>>
+{
+    public async ValueTask<Result<ScoutRelationLinkPreviewDto>> Handle(GetScoutRelationLinkPreviewQuery request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser)) return Result<ScoutRelationLinkPreviewDto>.Failure("Accès réservé au chef de groupe.");
+        var relation = await context.ApplicantScoutRelations.FirstOrDefaultAsync(r => r.Id == request.RelationId, ct);
+        if (relation is null) return Result<ScoutRelationLinkPreviewDto>.Failure("Relation introuvable.");
+        var member = await context.Members.Where(m => m.Id == request.MemberId)
+            .Select(m => new { m.FirstName, m.LastName, m.DateOfBirth, m.CardNumber }).FirstOrDefaultAsync(ct);
+        if (member is null) return Result<ScoutRelationLinkPreviewDto>.Failure("Membre introuvable.");
+
+        var posts = await context.MemberAssignments
+            .Where(a => a.MemberId == request.MemberId && a.EndDate == null)
+            .OrderByDescending(a => a.FunctionalRole.Rank)
+            .Select(a => a.Unit.Code + " " + a.FunctionalRole.Name).ToListAsync(ct);
+        var familyParents = await context.ApplicantGuardians
+            .Where(g => g.ApplicantAccountId == relation.ApplicantAccountId)
+            .Select(g => new { g.Relationship, g.FirstName, g.LastName }).ToListAsync(ct);
+        var memberParents = await context.GuardianLinks
+            .Where(l => l.MemberId == request.MemberId)
+            .Select(l => new { Relationship = l.RelationshipType, l.Guardian.FirstName, l.Guardian.LastName }).ToListAsync(ct);
+
+        static string Key(string? f, string? l) => TextNormalization.NormalizeKey($"{f} {l}");
+        var familyKeys = familyParents.Select(g => Key(g.FirstName, g.LastName)).ToHashSet();
+        var memberKeys = memberParents.Select(g => Key(g.FirstName, g.LastName)).ToHashSet();
+
+        var today = LebanonClock.Today;
+        int? age = member.DateOfBirth is { } dob
+            ? today.Year - dob.Year - (today.Month < dob.Month || (today.Month == dob.Month && today.Day < dob.Day) ? 1 : 0)
+            : null;
+
+        return Result<ScoutRelationLinkPreviewDto>.Success(new ScoutRelationLinkPreviewDto(
+            $"{relation.FirstName} {relation.LastName}".Trim(), relation.Relationship, relation.LastUnit,
+            $"{member.FirstName} {member.LastName}".Trim(), member.DateOfBirth?.ToString("dd/MM/yyyy"), age,
+            posts.Count > 0 ? string.Join(" · ", posts) : "Aucun poste actif", member.CardNumber,
+            familyParents.Select(g => new LinkPreviewParentDto(g.Relationship, $"{g.FirstName} {g.LastName}".Trim(), memberKeys.Contains(Key(g.FirstName, g.LastName)))).ToList(),
+            memberParents.Select(g => new LinkPreviewParentDto(g.Relationship, $"{g.FirstName} {g.LastName}".Trim(), familyKeys.Contains(Key(g.FirstName, g.LastName)))).ToList(),
+            ScoutRelationKind.IsSibling(relation.Relationship)));
+    }
+}
+
+// "Non, ce n'est pas lui" — the CG rejects the app's suggestion: it's dropped (the « À lier » flag goes away). The
+// proche stays as the parent declared it; the CG can still link another member by hand.
+public record DismissScoutRelationSuggestionCommand(Guid RelationId) : IRequest<Result<bool>>;
+
+public class DismissScoutRelationSuggestionCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<DismissScoutRelationSuggestionCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(DismissScoutRelationSuggestionCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser)) return Result<bool>.Failure("Accès réservé au chef de groupe.");
+        var relation = await context.ApplicantScoutRelations.FirstOrDefaultAsync(r => r.Id == request.RelationId, ct);
+        if (relation is null) return Result<bool>.Failure("Relation introuvable.");
+        if (relation.SuggestedMemberId is null) return Result<bool>.Success(true); // idempotent
+        var rejected = await AuditNames.MemberAsync(context, relation.SuggestedMemberId, ct);
+        relation.SuggestedMemberId = null;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("DismissScoutRelationSuggestion", "ApplicantScoutRelation", relation.Id,
+            oldValues: new { Member = rejected }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
 // A proche-scout relationship that means brother/sister (so the two children share parents → siblings).
 // Cousins/other relatives are excluded (they don't share the household's guardians).
 public static class ScoutRelationKind
