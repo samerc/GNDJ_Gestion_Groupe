@@ -15,7 +15,7 @@ Usage (dry run first, then --apply):
   python apply_decisions.py "Demandes_2026-2027.xlsx" --gender Masculin --email you@… [--apply]
   (then again with --gender Féminin once the girls' unit sheets are ready)
 """
-import argparse, getpass, json, re, sys, unicodedata, urllib.request, urllib.error
+import argparse, getpass, os, json, re, sys, unicodedata, urllib.request, urllib.error
 from datetime import date, datetime
 
 import openpyxl
@@ -82,7 +82,7 @@ def main():
     a = ap.parse_args()
 
     api = Api(a.base_url)
-    login = api.call("POST", "/auth/login", {"email": a.email, "password": a.password or getpass.getpass("Mot de passe : "), "rememberMe": False})
+    login = api.call("POST", "/auth/login", {"email": a.email, "password": a.password or os.environ.get("GNDJ_PASSWORD") or getpass.getpass("Mot de passe : "), "rememberMe": False})
     api.token = login["accessToken"]
 
     units = {u["unitCode"].upper(): u for u in api.call("GET", f"/demandes/occupancy?scoutYear={a.year}")}
