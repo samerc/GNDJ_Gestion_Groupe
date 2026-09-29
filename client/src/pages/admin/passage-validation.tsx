@@ -25,6 +25,9 @@ import {
 } from '@/services/passage-service'
 import { saveBlob } from '@/lib/download'
 import { PassageUnitsOverview } from '@/components/passage/passage-units-overview'
+import { useMaitrisePlan } from '@/services/maitrise-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { BulkChangeDialog } from '@/components/passage/bulk-change-dialog'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
@@ -71,6 +74,7 @@ interface PassageDestination {
 
 export default function PassageValidationPage() {
   const emailToast = useEmailQueuedToast()
+  const { data: maitrisePlan } = useMaitrisePlan(useAuthStore(st => st.hasPermission(PERMISSIONS.MAITRISE_MANAGE)))
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
   const [scoutYear, setScoutYear] = useState('2026-2027')
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
@@ -319,6 +323,9 @@ export default function PassageValidationPage() {
   const missingTotal = summary?.missingLines ?? 0
   const unitsNotSubmitted = summary?.unitsNotSubmitted ?? 0
   const unitRows = (summary?.unitSummaries ?? []).filter(u => u.expectedMembers > 0)
+  // Maîtrise changes planned on the Maîtrises page go out with this publication (same date).
+  const maitriseChanges = (maitrisePlan && maitrisePlan.scoutYear === scoutYear)
+    ? maitrisePlan.lines.filter(l => !l.applied).length : 0
   const canFinalize = (approvedCount + pendingCount) > 0 && missingTotal === 0 && unitsNotSubmitted === 0 && rejectedCount === 0
   const step1Done = unitRows.length > 0 && unitsNotSubmitted === 0 && missingTotal === 0
   // Jump to the member lines, filtered to a unit and/or a status.
@@ -438,11 +445,12 @@ export default function PassageValidationPage() {
           n={3}
           title="Publier le passage"
           state={finalizedCount > 0 ? 'done' : canFinalize ? 'ready' : 'blocked'}
-          lines={finalizedCount > 0
+          lines={(finalizedCount > 0
             ? [`Publié : ${finalizedCount} ligne(s)`]
             : canFinalize
               ? ['Tout est prêt : vous pouvez publier', pendingCount > 0 ? `${pendingCount} ligne(s) à valider le seront automatiquement` : '']
-              : ["En attente de l'étape 1", unitsNotSubmitted > 0 ? `${unitsNotSubmitted} unité(s) pas terminée(s)` : '']}
+              : ["En attente de l'étape 1", unitsNotSubmitted > 0 ? `${unitsNotSubmitted} unité(s) pas terminée(s)` : '']
+            ).concat(maitriseChanges > 0 && finalizedCount === 0 ? [`+ ${maitriseChanges} changement(s) de maîtrise prévu(s) (page Maîtrises)`] : [])}
           action={finalizedCount === 0 && canFinalize ? { label: 'Publier…', onClick: () => setFinalizeDialog(true) } : undefined}
         />
       </div>

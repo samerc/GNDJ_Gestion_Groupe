@@ -1,216 +1,454 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import {
-  useMaitrises, useRemoveFromMaitrise, useTransferMaitrise, type MaitriseMemberDto,
+  useMaitrisePlan, usePlanMaitriseStart, usePlanMaitriseEnd, usePlanMaitriseChange, useCancelMaitrisePlan,
+  useAddMaitriseNow, useRemoveFromMaitrise, useTransferMaitrise,
+  type MaitrisePlan, type MaitrisePlanLine, type MaitrisePlanMember, type MaitrisePlanUnit,
 } from '@/services/maitrise-service'
-import { useUnits } from '@/services/unit-service'
 import { useFunctionalRoles } from '@/services/role-service'
+import { useMembers } from '@/services/member-service'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { parseApiError } from '@/lib/error-utils'
-import { UserMinus, ArrowRightLeft, Crown, ChevronRight } from 'lucide-react'
-import { Tip } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
+import {
+  Crown, ChevronRight, UserPlus, ArrowRightLeft, UserMinus, Undo2, AlertTriangle, CalendarClock, CheckCircle2, ArrowRight,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
-// Group a unit's maîtrise rows (backend returns one per function/assignment) BY MEMBER, so someone
-// holding two functions in the same unit shows ONCE with both functions listed — each function keeps
-// its own Transférer/Retirer action (they act on that specific assignment). Members ordered by their
-// most senior function's rank, then name; functions within a member ordered rank-desc.
-type GroupedMaitrise = { memberId: string; firstName: string; lastName: string; functions: MaitriseMemberDto[]; maxRank: number }
-function groupByMember(members: MaitriseMemberDto[]): GroupedMaitrise[] {
-  const byMember = new Map<string, MaitriseMemberDto[]>()
-  for (const m of members) {
-    const arr = byMember.get(m.memberId)
-    if (arr) arr.push(m); else byMember.set(m.memberId, [m])
-  }
-  return [...byMember.values()]
-    .map(fns => {
-      const sorted = [...fns].sort((a, b) => b.rank - a.rank)
-      return { memberId: sorted[0].memberId, firstName: sorted[0].firstName, lastName: sorted[0].lastName, functions: sorted, maxRank: sorted[0].rank }
-    })
-    .sort((a, b) => b.maxRank - a.maxRank || a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName))
+// Maîtrises (CG, maitrise.manage). Like the passage page: one row per unit showing this year's maîtrise and next
+// year's, with who stays / arrives / leaves. Changes are PLANNED for next year by default and applied when the CG
+// publishes the passage (same passage date); a "maintenant" option still exists for mid-year changes.
+
+const fmtDate = (iso: string | null) => iso
+  ? new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  : null
+
+// Everything the page shows for one unit, derived from the plan.
+interface UnitView {
+  unit: MaitrisePlanUnit
+  staying: MaitrisePlanMember[]
+  leaving: { member: MaitrisePlanMember; line: MaitrisePlanLine; toCode: string | null }[]
+  arriving: { line: MaitrisePlanLine; origin: string }[]
+  nowCount: number
+  nextCount: number
+  headNow: string | null
+  headNext: string | null
+  changes: number
 }
 
-// CG-only page (perm maitrise.manage): the leaders (maîtrise) of every unit, grouped into
-// collapsible per-unit cards ordered by rank. CG can remove a leader (ends the function) or
-// transfer them to another unit/function.
-export default function MaitrisesPage() {
-  const { data: units, isLoading } = useMaitrises()
-  const removeMutation = useRemoveFromMaitrise()
-  // The member targeted by the remove-confirm dialog / the transfer dialog (null = closed).
-  const [removeTarget, setRemoveTarget] = useState<MaitriseMemberDto | null>(null)
-  const [transferTarget, setTransferTarget] = useState<MaitriseMemberDto | null>(null)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set()) // set of expanded unit ids; collapsed by default
-  const toggle = (unitId: string) => setExpanded(prev => {
-    const next = new Set(prev)
-    if (next.has(unitId)) next.delete(unitId); else next.add(unitId)
-    return next
+function buildViews(plan: MaitrisePlan): UnitView[] {
+  const pending = plan.lines.filter(l => !l.applied)
+  const codeOf = new Map(plan.units.map(u => [u.unitId, u.unitCode]))
+  const currentUnitsOf = new Map<string, string[]>()
+  for (const u of plan.units) for (const m of u.current) currentUnitsOf.set(m.memberId, [...(currentUnitsOf.get(m.memberId) ?? []), u.unitId])
+  const name = (m: { firstName: string; lastName: string }) => `${m.firstName} ${m.lastName}`
+  const distinct = (ids: string[]) => new Set(ids).size
+
+  return plan.units.map(unit => {
+    const ends = pending.filter(l => l.kind === 'End' && l.unitId === unit.unitId)
+    const endIds = new Set(ends.map(l => l.assignmentId))
+    const staying = unit.current.filter(m => !endIds.has(m.assignmentId))
+    const leaving = ends.map(line => {
+      const member = unit.current.find(m => m.assignmentId === line.assignmentId)!
+      const start = pending.find(l => l.kind === 'Start' && l.memberId === line.memberId && l.unitId !== unit.unitId)
+      return { member, line, toCode: start ? codeOf.get(start.unitId) ?? null : null }
+    }).filter(x => x.member)
+    const arriving = pending.filter(l => l.kind === 'Start' && l.unitId === unit.unitId).map(line => {
+      const fromEnd = pending.find(l => l.kind === 'End' && l.memberId === line.memberId && l.unitId !== unit.unitId)
+      const origin = fromEnd ? `vient de ${codeOf.get(fromEnd.unitId)}`
+        : line.joinsFromYouth ? `jeune${line.youthUnitCode ? ` de ${line.youthUnitCode}` : ''}`
+        : (currentUnitsOf.get(line.memberId) ?? []).includes(unit.unitId) ? 'nouvelle fonction'
+        : (currentUnitsOf.get(line.memberId) ?? []).length ? 'en plus de ses fonctions actuelles'
+        : 'nouveau'
+      return { line, origin }
+    })
+    const headNowM = unit.current.find(m => m.isHead)
+    const headNextM = staying.find(m => m.isHead) ?? arriving.find(a => a.line.isHead)?.line
+    return {
+      unit, staying, leaving, arriving,
+      nowCount: distinct(unit.current.map(m => m.memberId)),
+      nextCount: distinct([...staying.map(m => m.memberId), ...arriving.map(a => a.line.memberId)]),
+      headNow: headNowM ? name(headNowM) : null,
+      headNext: headNextM ? name(headNextM) : null,
+      changes: ends.length + arriving.length,
+    }
   })
+}
 
-  const handleRemove = async () => {
-    if (!removeTarget) return
-    try {
-      await removeMutation.mutateAsync(removeTarget.assignmentId)
-      toast.success('Membre retiré de la maîtrise')
-      setRemoveTarget(null)
-    } catch (e) { toast.error(parseApiError(e)) }
+export default function MaitrisesPage() {
+  const { data: plan, isLoading } = useMaitrisePlan()
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const [onlyChanges, setOnlyChanges] = useState(false)
+  const [changeTarget, setChangeTarget] = useState<{ member: MaitrisePlanMember; unit: MaitrisePlanUnit } | null>(null)
+  const [addUnit, setAddUnit] = useState<MaitrisePlanUnit | null>(null)
+  const cancel = useCancelMaitrisePlan()
+
+  const views = useMemo(() => (plan ? buildViews(plan) : []), [plan])
+  if (isLoading || !plan) return <LoadingSpinner variant="table" />
+
+  const pendingCount = plan.lines.filter(l => !l.applied).length
+  const noHead = views.filter(v => !v.unit.isGroupUnit && v.nextCount > 0 && !v.headNext)
+  const empty = views.filter(v => !v.unit.isGroupUnit && v.nextCount === 0 && v.nowCount > 0)
+  const shown = onlyChanges ? views.filter(v => v.changes > 0 || noHead.includes(v) || empty.includes(v)) : views
+  const date = fmtDate(plan.passageDate)
+  const toggle = (id: string) => setOpen(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+
+  const undo = async (id: string) => {
+    try { await cancel.mutateAsync(id); toast.success('Changement annulé') } catch (e) { toast.error(parseApiError(e)) }
   }
-
-  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <Page>
-      <PageHeader
-        title="Maîtrises"
-        icon={Crown}
-        description="Les responsables de chaque unité, classés par fonction (chef d'unité en premier)."
-      />
+      <PageHeader title={`Maîtrises — ${plan.scoutYear}`} icon={Crown}
+        description="Préparez la maîtrise de l'an prochain. Rien ne change avant la publication du passage." />
 
-      {(!units || units.length === 0) && (
-        <EmptyState icon={Crown} title="Aucune maîtrise à afficher." />
+      {/* How it works + where the year stands */}
+      {plan.published ? (
+        <div className="flex items-start gap-2 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>Le passage {plan.scoutYear} est publié : la maîtrise prévue a été appliquée. Les changements se font maintenant au jour le jour (« maintenant »).</p>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center">
+            <CalendarClock className="hidden h-8 w-8 shrink-0 text-primary sm:block" />
+            <div className="flex-1 space-y-1 text-sm">
+              <p className="font-medium">Les changements prévus s'appliquent avec le passage{date ? `, le ${date}` : ''}.</p>
+              <p className="text-muted-foreground">Ouvrez une unité pour changer un chef d'unité ou de fonction, arrêter une fonction ou ajouter un chef.
+                Un jeune qui rejoint la maîtrise quitte automatiquement son unité (sa ligne de passage est remplacée).</p>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
+              <Badge variant={pendingCount ? 'default' : 'secondary'}>{pendingCount} changement{pendingCount > 1 ? 's' : ''} prévu{pendingCount > 1 ? 's' : ''}</Badge>
+              <Button asChild size="sm" variant="outline"><Link to="/admin/passage-validation">Aller au passage <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link></Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="space-y-4">
-        {units?.map(u => {
-          const isOpen = expanded.has(u.unitId)
-          const grouped = groupByMember(u.members) // one entry per member (functions merged)
-          return (
-          <Card key={u.unitId}>
-            <button
-              type="button"
-              onClick={() => toggle(u.unitId)}
-              aria-expanded={isOpen}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-            >
-              <ChevronRight className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-              {u.isGroupUnit
-                ? <Badge className="gap-1" style={u.unitTypeColor ? { backgroundColor: u.unitTypeColor } : undefined}><Crown className="h-3 w-3" />Maîtrise de Groupe</Badge>
-                : <Badge variant="outline" style={u.unitTypeColor ? { borderColor: u.unitTypeColor, color: u.unitTypeColor, backgroundColor: `${u.unitTypeColor}14` } : undefined}>{u.unitCode}</Badge>}
-              <span className="ml-auto text-xs text-muted-foreground">{grouped.length} membre{grouped.length > 1 ? 's' : ''}</span>
-            </button>
-            {isOpen && (
-              <CardContent className="border-t p-0">
-                <div className="divide-y">
-                  {grouped.map(m => (
-                    <div key={m.memberId} className="px-4 py-2.5">
-                      <div className="font-medium text-sm truncate">{m.lastName} {m.firstName}</div>
-                      {/* One line per function — each keeps its own Transférer / Retirer (per assignment). */}
-                      <div className="mt-0.5 space-y-1">
-                        {m.functions.map(f => (
-                          <div key={f.assignmentId} className="flex items-center gap-2">
-                            <div className="flex-1 min-w-0 truncate text-xs text-muted-foreground">{f.functionName}</div>
-                            <Tip content="Transférer cette fonction vers une autre unité"><Button variant="ghost" size="sm" onClick={() => setTransferTarget(f)}>
-                              <ArrowRightLeft className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Transférer</span>
-                            </Button></Tip>
-                            <Tip content="Retirer cette fonction"><Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setRemoveTarget(f)}>
-                              <UserMinus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Retirer</span>
-                            </Button></Tip>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-          )
-        })}
+      {(noHead.length > 0 || empty.length > 0) && !plan.published && (
+        <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" />À vérifier pour l'an prochain</p>
+          {noHead.length > 0 && <p>Sans chef d'unité : {noHead.map(v => v.unit.unitCode).join(', ')}</p>}
+          {empty.length > 0 && <p>Plus aucun chef : {empty.map(v => v.unit.unitCode).join(', ')}</p>}
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-2 text-sm">
+        <label className="flex cursor-pointer items-center gap-2">
+          <input type="checkbox" checked={onlyChanges} onChange={e => setOnlyChanges(e.target.checked)} />
+          Seulement les unités avec des changements ou des alertes
+        </label>
       </div>
 
-      <ConfirmDialog
-        open={!!removeTarget}
-        onOpenChange={(o) => { if (!o) setRemoveTarget(null) }}
-        title="Retirer cette fonction"
-        description={removeTarget
-          ? `La fonction « ${removeTarget.functionName} » de ${removeTarget.firstName} ${removeTarget.lastName} sera clôturée aujourd'hui. S'il s'agit de sa seule fonction, la personne n'apparaîtra plus dans l'unité.`
-          : ''}
-        confirmLabel="Retirer"
-        variant="destructive"
-        loading={removeMutation.isPending}
-        onConfirm={handleRemove}
-      />
+      <Card>
+        <CardContent className="p-0">
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem] gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-medium uppercase text-muted-foreground md:grid">
+            <span>Unité</span><span>Chef d'unité l'an prochain</span><span>Chefs : cette année → l'an prochain</span><span />
+          </div>
+          <div className="divide-y">
+            {shown.map(v => {
+              const isOpen = open.has(v.unit.unitId)
+              const warn = !v.unit.isGroupUnit && v.nextCount > 0 && !v.headNext
+              return (
+                <div key={v.unit.unitId}>
+                  <button type="button" onClick={() => toggle(v.unit.unitId)} aria-expanded={isOpen}
+                    className="grid w-full grid-cols-[1fr_auto] items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1fr)_9rem] md:gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+                      <UnitBadge unit={v.unit} />
+                      <span className="truncate text-sm text-muted-foreground">{v.unit.isGroupUnit ? '' : v.unit.unitName}</span>
+                    </span>
+                    <span className="col-start-1 row-start-2 min-w-0 pl-6 text-sm md:col-start-auto md:row-start-auto md:pl-0">
+                      {v.unit.isGroupUnit ? <span className="text-muted-foreground">—</span>
+                        : warn ? <span className="inline-flex items-center gap-1 font-medium text-red-600 dark:text-red-400"><AlertTriangle className="h-3.5 w-3.5" />Aucun</span>
+                        : v.headNext ? <span className={cn('truncate', v.headNext !== v.headNow && 'font-medium text-primary')}>{v.headNext}{v.headNext !== v.headNow && v.headNow ? ' (nouveau)' : ''}</span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </span>
+                    <span className="col-start-1 row-start-3 pl-6 text-sm tabular-nums md:col-start-auto md:row-start-auto md:pl-0">
+                      {v.nowCount} → <b>{v.nextCount}</b>
+                      {v.arriving.length > 0 && <span className="ml-2 text-green-700 dark:text-green-400">+{v.arriving.length}</span>}
+                      {v.leaving.length > 0 && <span className="ml-1 text-red-600 dark:text-red-400">−{v.leaving.length}</span>}
+                    </span>
+                    <span className="row-span-3 self-center justify-self-end md:row-span-1">
+                      {v.changes > 0 && <Badge variant="outline">{v.changes} changement{v.changes > 1 ? 's' : ''}</Badge>}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <UnitDetail view={v} published={plan.published}
+                      onChange={m => setChangeTarget({ member: m, unit: v.unit })}
+                      onAdd={() => setAddUnit(v.unit)} onUndo={undo} undoing={cancel.isPending} />
+                  )}
+                </div>
+              )
+            })}
+            {shown.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune unité à afficher.</p>}
+          </div>
+        </CardContent>
+      </Card>
 
-      {transferTarget && <TransferDialog member={transferTarget} onClose={() => setTransferTarget(null)} />}
+      {changeTarget && <ChangeDialog plan={plan} target={changeTarget} onClose={() => setChangeTarget(null)} />}
+      {addUnit && <AddDialog plan={plan} unit={addUnit} onClose={() => setAddUnit(null)} />}
     </Page>
   )
 }
 
-// Move a leader to another unit. `keepOld` chooses cumul (add the new function, keep the old)
-// vs. mutation (close the old, open the new). Function list is scoped to the chosen unit's type.
-function TransferDialog({ member, onClose }: { member: MaitriseMemberDto; onClose: () => void }) {
-  const { data: units } = useUnits({ isActive: true, pageSize: 300 })
-  const transferMutation = useTransferMaitrise()
-  const [newUnitId, setNewUnitId] = useState('')
-  const [newRoleId, setNewRoleId] = useState('')
+function UnitBadge({ unit }: { unit: MaitrisePlanUnit }) {
+  const c = unit.unitTypeColor
+  return unit.isGroupUnit
+    ? <Badge className="shrink-0 gap-1" style={c ? { backgroundColor: c } : undefined}><Crown className="h-3 w-3" />Maîtrise de Groupe</Badge>
+    : <Badge variant="outline" className="shrink-0" style={c ? { borderColor: c, color: c, backgroundColor: `${c}14` } : undefined}>{unit.unitCode}</Badge>
+}
+
+// Expanded unit: who stays (with Changer), who arrives and who leaves (each with Annuler), and "Ajouter un chef".
+function UnitDetail({ view, published, onChange, onAdd, onUndo, undoing }: {
+  view: UnitView; published: boolean
+  onChange: (m: MaitrisePlanMember) => void; onAdd: () => void; onUndo: (lineId: string) => void; undoing: boolean
+}) {
+  return (
+    <div className="grid gap-3 border-t bg-muted/20 px-4 py-3 md:grid-cols-3">
+      <Column title="Restent" count={view.staying.length} tone="neutral">
+        {view.staying.map(m => (
+          <PersonRow key={m.assignmentId} name={`${m.lastName} ${m.firstName}`} detail={m.functionName} head={m.isHead}
+            action={<Button size="sm" variant="ghost" onClick={() => onChange(m)}><ArrowRightLeft className="mr-1 h-3.5 w-3.5" />Changer</Button>} />
+        ))}
+      </Column>
+      <Column title="Arrivent" count={view.arriving.length} tone="green">
+        {view.arriving.map(({ line, origin }) => (
+          <PersonRow key={line.id} name={`${line.lastName} ${line.firstName}`} detail={`${line.functionName} · ${origin}`} head={line.isHead}
+            action={!published && <UndoButton onClick={() => onUndo(line.id)} disabled={undoing} />} />
+        ))}
+        <Button size="sm" variant="outline" className="mt-1 w-full" onClick={onAdd}><UserPlus className="mr-1 h-3.5 w-3.5" />Ajouter un chef</Button>
+      </Column>
+      <Column title="Partent" count={view.leaving.length} tone="red">
+        {view.leaving.map(({ member, line, toCode }) => (
+          <PersonRow key={line.id} name={`${member.lastName} ${member.firstName}`}
+            detail={`${member.functionName} · ${toCode ? `va à ${toCode}` : 'arrête'}`} head={member.isHead}
+            action={!published && <UndoButton onClick={() => onUndo(line.id)} disabled={undoing} />} />
+        ))}
+      </Column>
+    </div>
+  )
+}
+
+function Column({ title, count, tone, children }: { title: string; count: number; tone: 'neutral' | 'green' | 'red'; children: React.ReactNode }) {
+  const color = { neutral: 'text-muted-foreground', green: 'text-green-700 dark:text-green-400', red: 'text-red-600 dark:text-red-400' }[tone]
+  return (
+    <div className="space-y-1.5">
+      <p className={cn('text-xs font-semibold uppercase', color)}>{title} ({count})</p>
+      {count === 0 && tone !== 'green' && <p className="text-xs text-muted-foreground">—</p>}
+      {children}
+    </div>
+  )
+}
+
+function PersonRow({ name, detail, head, action }: { name: string; detail: string; head: boolean; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border bg-card px-2.5 py-1.5">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1 truncate text-sm font-medium">{head && <Crown className="h-3 w-3 shrink-0 text-amber-500" />}{name}</p>
+        <p className="truncate text-xs text-muted-foreground">{detail}</p>
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function UndoButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  return <Button size="sm" variant="ghost" onClick={onClick} disabled={disabled} title="Annuler ce changement"><Undo2 className="h-3.5 w-3.5" /></Button>
+}
+
+function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return <textarea className="flex min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={value}
+    onChange={e => onChange(e.target.value)} placeholder="Note (facultatif)" maxLength={1000} />
+}
+
+// "Au passage" (planned) vs "Maintenant" (effective today). After publication only "maintenant" is possible.
+function WhenChoice({ value, onChange, published, date }: { value: 'plan' | 'now'; onChange: (v: 'plan' | 'now') => void; published: boolean; date: string | null }) {
+  return (
+    <div className="space-y-2 rounded-md border p-3 text-sm">
+      <p className="font-medium">Quand ?</p>
+      {!published && (
+        <label className="flex cursor-pointer items-start gap-2">
+          <input type="radio" className="mt-1" checked={value === 'plan'} onChange={() => onChange('plan')} />
+          <span><b>Au passage</b>{date ? ` (${date})` : ''} — appliqué quand le passage est publié</span>
+        </label>
+      )}
+      <label className="flex cursor-pointer items-start gap-2">
+        <input type="radio" className="mt-1" checked={value === 'now'} onChange={() => onChange('now')} />
+        <span><b>Maintenant</b> — prend effet aujourd'hui (correction en cours d'année)</span>
+      </label>
+    </div>
+  )
+}
+
+// Maîtrise functions of a unit's type (non-archived).
+function useLeaderRoles(unitTypeId?: string) {
+  const { data } = useFunctionalRoles(unitTypeId)
+  return unitTypeId ? (data ?? []).filter(r => r.isMaitrise && !r.isArchived).sort((a, b) => b.rank - a.rank) : []
+}
+
+function RolePicker({ unitTypeId, value, onChange }: { unitTypeId?: string; value: string; onChange: (v: string) => void }) {
+  const roles = useLeaderRoles(unitTypeId)
+  return (
+    <Select value={value} onValueChange={onChange} disabled={!unitTypeId}>
+      <SelectTrigger><SelectValue placeholder="Choisir une fonction…" /></SelectTrigger>
+      <SelectContent>
+        {roles.length ? roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)
+          : <div className="px-2 py-1.5 text-sm text-muted-foreground">Aucune fonction de maîtrise pour ce type d'unité.</div>}
+      </SelectContent>
+    </Select>
+  )
+}
+
+// A current leader's function: change unit/function (optionally keeping it too) or stop it — planned or now.
+function ChangeDialog({ plan, target, onClose }: { plan: MaitrisePlan; target: { member: MaitrisePlanMember; unit: MaitrisePlanUnit }; onClose: () => void }) {
+  const { member, unit } = target
+  const [mode, setMode] = useState<'change' | 'stop'>('change')
+  const [when, setWhen] = useState<'plan' | 'now'>(plan.published ? 'now' : 'plan')
+  const [unitId, setUnitId] = useState(unit.unitId)
+  const [roleId, setRoleId] = useState('')
   const [keepOld, setKeepOld] = useState(false)
+  const [notes, setNotes] = useState('')
+  const planChange = usePlanMaitriseChange(), planEnd = usePlanMaitriseEnd()
+  const transfer = useTransferMaitrise(), remove = useRemoveFromMaitrise()
+  const busy = planChange.isPending || planEnd.isPending || transfer.isPending || remove.isPending
+  const dest = plan.units.find(u => u.unitId === unitId)
+  const date = fmtDate(plan.passageDate)
 
-  // Roles depend on the picked unit's type; only non-archived maîtrise (leadership) functions are offered.
-  const selectedUnit = units?.items.find(u => u.id === newUnitId)
-  const { data: roles } = useFunctionalRoles(selectedUnit?.unitTypeId)
-  const leaderRoles = roles?.filter(r => r.isMaitrise && !r.isArchived)
-
-  const handleTransfer = async () => {
-    if (!newUnitId || !newRoleId) return
+  const submit = async () => {
     try {
-      await transferMutation.mutateAsync({ assignmentId: member.assignmentId, newUnitId, newFunctionalRoleId: newRoleId, keepOld })
-      toast.success(keepOld ? 'Nouvelle fonction ajoutée' : 'Membre transféré')
+      if (mode === 'stop') {
+        if (when === 'plan') await planEnd.mutateAsync({ assignmentId: member.assignmentId, notes: notes || undefined })
+        else await remove.mutateAsync(member.assignmentId)
+      } else {
+        if (!roleId) return
+        if (when === 'plan') await planChange.mutateAsync({ assignmentId: member.assignmentId, newUnitId: unitId, newFunctionalRoleId: roleId, keepOld, notes: notes || undefined })
+        else await transfer.mutateAsync({ assignmentId: member.assignmentId, newUnitId: unitId, newFunctionalRoleId: roleId, keepOld })
+      }
+      toast.success(when === 'plan' ? 'Changement prévu pour le passage' : 'Changement appliqué')
       onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Transférer {member.firstName} {member.lastName}</DialogTitle></DialogHeader>
+    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{member.firstName} {member.lastName}</DialogTitle>
+          <DialogDescription>{member.functionName} · {unit.isGroupUnit ? 'Maîtrise de Groupe' : unit.unitCode}</DialogDescription>
+        </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nouvelle unité</label>
-            <Select value={newUnitId} onValueChange={(v) => { setNewUnitId(v); setNewRoleId('') }}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
-              <SelectContent>
-                {units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant={mode === 'change' ? 'default' : 'outline'} onClick={() => setMode('change')}><ArrowRightLeft className="mr-1 h-4 w-4" />Changer</Button>
+            <Button variant={mode === 'stop' ? 'destructive' : 'outline'} onClick={() => setMode('stop')}><UserMinus className="mr-1 h-4 w-4" />Arrête</Button>
           </div>
-
-          {selectedUnit && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nouvelle fonction</label>
-              <Select value={newRoleId} onValueChange={setNewRoleId}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une fonction..." /></SelectTrigger>
-                <SelectContent>
-                  {leaderRoles?.length
-                    ? leaderRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)
-                    : <div className="px-2 py-1.5 text-sm text-muted-foreground">Aucune fonction de maîtrise pour ce type d'unité.</div>}
-                </SelectContent>
-              </Select>
-            </div>
+          {mode === 'change' && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Unité</label>
+                <Select value={unitId} onValueChange={v => { setUnitId(v); setRoleId('') }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {plan.units.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.isGroupUnit ? 'Maîtrise de Groupe' : `${u.unitCode} — ${u.unitName}`}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Fonction</label>
+                <RolePicker unitTypeId={dest?.unitTypeId} value={roleId} onChange={setRoleId} />
+              </div>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={keepOld} onChange={e => setKeepOld(e.target.checked)} />
+                <span>Garder aussi « {member.functionName} » (cumul des deux fonctions)</span>
+              </label>
+            </>
           )}
-
-          <div className="space-y-2 rounded-md border p-3">
-            <label className="flex items-start gap-2 text-sm cursor-pointer">
-              <input type="radio" checked={!keepOld} onChange={() => setKeepOld(false)} className="mt-1" />
-              <span><b>Clôturer l'ancienne fonction</b> et ouvrir la nouvelle (mutation d'unité)</span>
-            </label>
-            <label className="flex items-start gap-2 text-sm cursor-pointer">
-              <input type="radio" checked={keepOld} onChange={() => setKeepOld(true)} className="mt-1" />
-              <span><b>Garder l'ancienne fonction</b> et ajouter la nouvelle (cumul des deux)</span>
-            </label>
-          </div>
+          <WhenChoice value={when} onChange={setWhen} published={plan.published} date={date} />
+          {when === 'plan' && <NoteField value={notes} onChange={setNotes} />}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleTransfer} disabled={!newUnitId || !newRoleId || transferMutation.isPending}>
-            {transferMutation.isPending ? 'Transfert...' : 'Transférer'}
+          <Button variant="outline" onClick={onClose}>Retour</Button>
+          <Button onClick={submit} disabled={busy || (mode === 'change' && !roleId)} variant={mode === 'stop' ? 'destructive' : 'default'}>
+            {when === 'plan' ? 'Prévoir' : 'Appliquer maintenant'}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Add a chef to a unit: any member (a youth joining the maîtrise leaves their unit), planned or now.
+function AddDialog({ plan, unit, onClose }: { plan: MaitrisePlan; unit: MaitrisePlanUnit; onClose: () => void }) {
+  const [search, setSearch] = useState('')
+  const debounced = useDebounce(search)
+  const { data: results } = useMembers({ search: debounced || undefined, pageSize: 8 })
+  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
+  const [roleId, setRoleId] = useState('')
+  const [when, setWhen] = useState<'plan' | 'now'>(plan.published ? 'now' : 'plan')
+  const [notes, setNotes] = useState('')
+  const planStart = usePlanMaitriseStart(), addNow = useAddMaitriseNow()
+  const busy = planStart.isPending || addNow.isPending
+
+  const submit = async () => {
+    if (!picked || !roleId) return
+    try {
+      if (when === 'plan') await planStart.mutateAsync({ memberId: picked.id, unitId: unit.unitId, functionalRoleId: roleId, notes: notes || undefined })
+      else await addNow.mutateAsync({ memberId: picked.id, unitId: unit.unitId, functionalRoleId: roleId })
+      toast.success(when === 'plan' ? 'Arrivée prévue pour le passage' : 'Chef ajouté')
+      onClose()
+    } catch (e) { toast.error(parseApiError(e)) }
+  }
+
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Ajouter un chef — {unit.isGroupUnit ? 'Maîtrise de Groupe' : unit.unitCode}</DialogTitle>
+          <DialogDescription>Si c'est un jeune, il quittera son unité (sa ligne de passage est remplacée).</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Membre</label>
+            {picked ? (
+              <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                <span className="font-medium">{picked.name}</span>
+                <Button size="sm" variant="ghost" onClick={() => setPicked(null)}>Changer</Button>
+              </div>
+            ) : (
+              <>
+                <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un membre…" />
+                {debounced && results && (
+                  <div className="max-h-48 overflow-y-auto rounded-md border text-sm">
+                    {results.items.length === 0
+                      ? <p className="px-3 py-3 text-center text-muted-foreground">Aucun membre trouvé.</p>
+                      : results.items.map(m => (
+                        <button key={m.id} type="button" className="block w-full px-3 py-2 text-left hover:bg-muted"
+                          onClick={() => setPicked({ id: m.id, name: `${m.firstName} ${m.lastName}` })}>{m.lastName} {m.firstName}</button>
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Fonction</label>
+            <RolePicker unitTypeId={unit.unitTypeId} value={roleId} onChange={setRoleId} />
+          </div>
+          <WhenChoice value={when} onChange={setWhen} published={plan.published} date={fmtDate(plan.passageDate)} />
+          {when === 'plan' && <NoteField value={notes} onChange={setNotes} />}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Retour</Button>
+          <Button onClick={submit} disabled={busy || !picked || !roleId}>{when === 'plan' ? 'Prévoir' : 'Ajouter maintenant'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

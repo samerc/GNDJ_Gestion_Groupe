@@ -48,3 +48,23 @@ public class PassageUnitSubmissionConfiguration : IEntityTypeConfiguration<Passa
         builder.HasQueryFilter(e => !e.Unit.IsDeleted);
     }
 }
+
+// Planned maîtrise changes for a scout year (applied with the passage). Plain table, cancel = delete.
+public class MaitrisePlanLineConfiguration : IEntityTypeConfiguration<MaitrisePlanLine>
+{
+    public void Configure(EntityTypeBuilder<MaitrisePlanLine> builder)
+    {
+        builder.ToTable("maitrise_plan_lines");
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.ScoutYear).HasMaxLength(20);
+        builder.Property(e => e.Kind).HasMaxLength(10);
+        builder.Property(e => e.Notes).HasMaxLength(1000);
+        builder.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(e => e.Unit).WithMany().HasForeignKey(e => e.UnitId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(e => e.FunctionalRole).WithMany().HasForeignKey(e => e.FunctionalRoleId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(e => new { e.ScoutYear, e.MemberId });
+        builder.HasIndex(e => e.AssignmentId);
+        // Match the parents' soft-delete filters (required relationships) so EF doesn't warn at startup.
+        builder.HasQueryFilter(e => !e.Member.IsDeleted && !e.Unit.IsDeleted && !e.FunctionalRole.IsDeleted);
+    }
+}

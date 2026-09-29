@@ -305,13 +305,28 @@ dans chaque devise (payer ce montant dans une devise = cotisation complète), le
 
 ## Maîtrises, groupes et accès
 
-- **Maîtrises** : les chefs de chaque unité, avec **Retirer** (fin de fonction) et **Transférer** (vers une autre
-  unité).
+- **Maîtrises** : la maîtrise de chaque unité **cette année et l'an prochain**, comme le passage (voir ci-dessous).
 - **Groupes** : des listes de membres définies par des règles (toute la maîtrise, les chefs d'unité, les chefs
   d'équipe de toutes les troupes…). Un groupe sert pour les réunions, comme filtre dans « Mon unité », comme liste
   de diffusion (emails, export).
 
 ![Les groupes](img/cg-groupes.png)
+
+### Préparer la maîtrise de l'an prochain
+
+**Unités & maîtrise → Maîtrises** affiche une ligne par unité : le chef d'unité de l'an prochain, et le nombre de chefs
+cette année → l'an prochain (+ arrivées, − départs). Ouvrez une unité pour voir qui **reste**, qui **arrive** et qui
+**part**.
+
+- **Changer** (sur un chef) : autre unité et/ou autre fonction — cochez « garder aussi » pour un cumul — ou **Arrête**.
+- **Ajouter un chef** : n'importe quel membre. Si c'est un **jeune**, sa ligne de passage devient automatiquement
+  « quitte l'unité » (même si le CU en avait déjà mis une) ; elle est verrouillée tant que le changement est prévu.
+- Chaque changement se fait **au passage** (par défaut) ou **maintenant** (correction en cours d'année).
+- ↺ annule un changement prévu (la ligne de passage du jeune revient comme avant).
+
+Les changements prévus **ne changent rien tout de suite** : ils sont appliqués en même temps que le passage des jeunes,
+quand vous cliquez **Publier le passage**, à la date du passage. Un encadré signale les unités qui n'auraient **pas de
+chef d'unité** l'an prochain.
 
 ### Accès et délégations
 

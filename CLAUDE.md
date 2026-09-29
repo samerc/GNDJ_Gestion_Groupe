@@ -6284,3 +6284,23 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
 - "Carte" tab on the camp page (`components/camp/camp-map.tsx`, anyone with some camp access): Imprimer = the map alone on
   ONE landscape page (the `@page { size: landscape }` rule is injected only for that print, then removed on afterprint, so
   other prints keep portrait), Télécharger = the SVG.
+
+### Maîtrise plan for next year — applied with the passage (2026-09-29, DEV until deploy)
+- **`MaitrisePlanLine`** (table `maitrise_plan_lines`, migration `AddMaitrisePlan`, plain table, cancel = delete): per
+  scout year (= `passage.scout_year`) planned leadership changes — `End` (AssignmentId to close) or `Start` (member +
+  unit + IsMaitrise role); a change of unit/function = End + Start. CG-only (maitrise.manage), no CU proposing.
+- **Applied by `FinalizePassagesCommand`** ("Publier le passage") in the same transaction via `MaitrisePlan.ApplyAsync`:
+  ends on `passage.date`, starts on `passage.date` in the unit's IsMaitrise team, notes "Maîtrise {year}", AppliedAt set.
+  Planning is refused once the year's passage is published.
+- **Youth joining the maîtrise** (`YouthLine.HoldAsync`): their youth passage line is set to leaving (created if the CU
+  had none; otherwise the CU's line is snapshotted in `YouthPassageSnapshot`), CgModified + CgNotes "Rejoint la
+  maîtrise…". Cancelling restores it (or deletes a plan-created line). While held, Review / BulkChange / Delete of that
+  passage line are refused (`MaitrisePlan.YouthLocked`).
+- `Application/Maitrises/MaitrisePlanHandlers.cs`: GetMaitrisePlan, PlanMaitriseStart/End/Change,
+  CancelMaitrisePlanLine, AddMaitriseNow (immediate; a youth's youth functions end today). Endpoints `GET
+  /maitrises/plan`, `POST /maitrises/plan/start|end|change`, `DELETE /maitrises/plan/{id}`, `POST /maitrises/add-now`
+  (existing remove/transfer = the "maintenant" path).
+- Page `/maitrises` rebuilt like the passage overview: one row per active unit (CU next year, chefs now → next year
+  +/−, alert when a unit has no head [role profile chef-unite/chef-de-groupe]); expanded = Restent / Arrivent / Partent
+  with Changer, Ajouter un chef, ↺ cancel; dialogs choose "Au passage" or "Maintenant". Passage page step 3 mentions
+  the planned maîtrise changes. Verified end-to-end on a DB copy (publish applied ends/starts/youth correctly).

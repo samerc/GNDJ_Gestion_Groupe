@@ -729,6 +729,8 @@ public class ReviewPassageCommandHandler(IApplicationDbContext context, ICurrent
 
         if (passage.Status == PassageStatus.Finalized)
             return Result<bool>.Failure("Ce passage a déjà été finalisé.");
+        if (await GNDJ.Application.Maitrises.MaitrisePlan.HoldsYouthLineAsync(context, passage.ScoutYear, passage.MemberId, ct))
+            return Result<bool>.Failure(GNDJ.Application.Maitrises.MaitrisePlan.YouthLocked);
 
         var oldStatus = passage.Status;
         var leaving = request.FinalIsLeaving ?? passage.IsLeaving;
@@ -925,6 +927,9 @@ public class BulkChangePassagesCommandHandler(IApplicationDbContext context, ICu
             .ToListAsync(ct);
         if (passages.Count == 0)
             return Result<int>.Failure("Aucune ligne à modifier (déjà publiées ?).");
+        foreach (var held in passages)
+            if (await GNDJ.Application.Maitrises.MaitrisePlan.HoldsYouthLineAsync(context, held.ScoutYear, held.MemberId, ct))
+                return Result<int>.Failure(GNDJ.Application.Maitrises.MaitrisePlan.YouthLocked + $" ({await AuditNames.MemberAsync(context, held.MemberId, ct)})");
 
         var notes = string.IsNullOrWhiteSpace(request.CgNotes) ? null : request.CgNotes.Trim();
         foreach (var passage in passages)
@@ -1157,6 +1162,9 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             count++;
         }
 
+        // The maîtrise plan (Maîtrises page) is applied with the passage: same transaction, same date.
+        var maitriseChanges = await GNDJ.Application.Maitrises.MaitrisePlan.ApplyAsync(context, request.ScoutYear, passageDate, ct);
+
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
@@ -1177,6 +1185,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                 Count = count,
                 AutoAccepted = autoAccepted,
                 Newcomers = moves.Count,
+                MaitriseChanges = maitriseChanges,
                 request.ScoutYear,
                 UnitsWithoutCu = unitsWithoutCu,
             },
@@ -1366,6 +1375,8 @@ public class DeletePassageCommandHandler(IApplicationDbContext context, ICurrent
 
         if (passage.Status == PassageStatus.Finalized)
             return Result<bool>.Failure("Ce passage a déjà été publié.");
+        if (await GNDJ.Application.Maitrises.MaitrisePlan.HoldsYouthLineAsync(context, passage.ScoutYear, passage.MemberId, ct))
+            return Result<bool>.Failure(GNDJ.Application.Maitrises.MaitrisePlan.YouthLocked);
 
         // Check access: must be super admin or have access to the unit
         if (!await PassageAccessHelper.CanAccessUnit(context, currentUser, passage.CurrentUnitId, ct))

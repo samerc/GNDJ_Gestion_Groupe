@@ -33,6 +33,39 @@ public class MaitrisesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>Next year's maîtrise plan: current leaders by unit + planned changes. Requires maitrise.manage.</summary>
+    [HttpGet("plan")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> GetPlan() => Ok(await Mediator.Send(new GetMaitrisePlanQuery()));
+
+    /// <summary>Plans a new leadership function for next year (applied with the passage). Requires maitrise.manage.</summary>
+    [HttpPost("plan/start")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> PlanStart([FromBody] PlanMaitriseStartCommand command) => FromResult(await Mediator.Send(command));
+
+    /// <summary>Plans the end of a leadership function next year (applied with the passage). Requires maitrise.manage.</summary>
+    [HttpPost("plan/end")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> PlanEnd([FromBody] PlanMaitriseEndCommand command) => FromResult(await Mediator.Send(command));
+
+    /// <summary>Plans a change of unit/function next year (applied with the passage). Requires maitrise.manage.</summary>
+    [HttpPost("plan/change")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> PlanChange([FromBody] PlanMaitriseChangeCommand command) => FromResult(await Mediator.Send(command));
+
+    /// <summary>Cancels a planned change. Requires maitrise.manage.</summary>
+    [HttpDelete("plan/{id:guid}")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> CancelPlan(Guid id) => FromResult(await Mediator.Send(new CancelMaitrisePlanLineCommand(id)));
+
+    /// <summary>Gives a member a leadership function today (a youth leaves their youth function today). Requires maitrise.manage.</summary>
+    [HttpPost("add-now")]
+    [HasPermission(Permissions.MaitriseManage)]
+    public async Task<IActionResult> AddNow([FromBody] AddMaitriseNowCommand command) => FromResult(await Mediator.Send(command));
+
+    private IActionResult FromResult<T>(GNDJ.Application.Common.Models.Result<T> result)
+        => result.IsSuccess ? Ok(new { id = result.Value }) : BadRequest(new { error = result.Error });
+
     /// <summary>Transfers a leader to another unit, assigning a new function there (keep-both or close-old). Requires maitrise.manage.</summary>
     [HttpPost("transfer")]
     [HasPermission(Permissions.MaitriseManage)]

@@ -50,3 +50,85 @@ export function useTransferMaitrise() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['maitrises'] }),
   })
 }
+
+// ── Next year's maîtrise plan (applied with "Publier le passage", on the passage date) ──
+export interface MaitrisePlanMember {
+  assignmentId: string
+  memberId: string
+  firstName: string
+  lastName: string
+  functionalRoleId: string
+  functionName: string
+  rank: number
+  isHead: boolean
+}
+
+export interface MaitrisePlanUnit {
+  unitId: string
+  unitCode: string
+  unitName: string
+  unitTypeId: string
+  unitTypeName: string | null
+  unitTypeColor: string | null
+  isGroupUnit: boolean
+  current: MaitrisePlanMember[]
+}
+
+export interface MaitrisePlanLine {
+  id: string
+  kind: 'Start' | 'End'
+  memberId: string
+  firstName: string
+  lastName: string
+  unitId: string
+  functionalRoleId: string
+  functionName: string
+  rank: number
+  isHead: boolean
+  assignmentId: string | null
+  notes: string | null
+  joinsFromYouth: boolean
+  youthUnitCode: string | null
+  applied: boolean
+}
+
+export interface MaitrisePlan {
+  scoutYear: string
+  passageDate: string | null
+  published: boolean
+  units: MaitrisePlanUnit[]
+  lines: MaitrisePlanLine[]
+}
+
+// GET /maitrises/plan → current leaders of every active unit + the year's planned changes.
+export function useMaitrisePlan(enabled = true) {
+  return useQuery({
+    queryKey: ['maitrises', 'plan'],
+    queryFn: () => apiClient.get<MaitrisePlan>('/maitrises/plan').then(r => r.data),
+    enabled,
+  })
+}
+
+// Every maîtrise mutation refreshes the plan, the plain list and the passage lines (a youth joining the
+// maîtrise changes their passage line).
+function usePlanMutation<T>(fn: (data: T) => Promise<unknown>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['maitrises'] })
+      qc.invalidateQueries({ queryKey: ['passages'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
+export const usePlanMaitriseStart = () => usePlanMutation((d: { memberId: string; unitId: string; functionalRoleId: string; notes?: string }) =>
+  apiClient.post('/maitrises/plan/start', d))
+export const usePlanMaitriseEnd = () => usePlanMutation((d: { assignmentId: string; notes?: string }) =>
+  apiClient.post('/maitrises/plan/end', d))
+export const usePlanMaitriseChange = () => usePlanMutation((d: { assignmentId: string; newUnitId: string; newFunctionalRoleId: string; keepOld: boolean; notes?: string }) =>
+  apiClient.post('/maitrises/plan/change', d))
+export const useCancelMaitrisePlan = () => usePlanMutation((id: string) => apiClient.delete(`/maitrises/plan/${id}`))
+export const useAddMaitriseNow = () => usePlanMutation((d: { memberId: string; unitId: string; functionalRoleId: string }) =>
+  apiClient.post('/maitrises/add-now', d))
