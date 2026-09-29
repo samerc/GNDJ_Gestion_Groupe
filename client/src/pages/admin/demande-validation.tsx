@@ -8,7 +8,7 @@
 // which is gated until every demande in scope is decided (no undecided 'Submitted' left).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { useSettingValue, useSchoolCode } from '@/services/settings-service'
+import { useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
   useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember, useLinkRelationMember,
@@ -27,6 +27,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
+import { DemandeGrid } from '@/components/admin/demande-grid'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -167,7 +168,10 @@ export default function DemandeValidationPage() {
   const [fSibling, setFSibling] = useState(false)    // brother/sister among proches OR ≥2 demandes on the account
   const [fPrevious, setFPrevious] = useState(false)  // a previous demande was declared
   const [showOccupancy, setShowOccupancy] = useState(false)
-  const [showFilters, setShowFilters] = useState(false) // mobile: collapse the filter body (keep search visible)
+  const [showFilters, setShowFilters] = useState(false) // filters folded away by default (only the search shows)
+  const [gridMode, setGridMode] = useState(false)       // spreadsheet mode of the table (edit cells in place)
+  const gridClasses = useSettingArray('member.classes')
+  const gridSchools = useSettingArray('member.schools')
   const [sortKey, setSortKey] = useState<SortKey>('lastName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
@@ -278,6 +282,8 @@ export default function DemandeValidationPage() {
   const activeExtraFilters =
     [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation].filter((v) => v !== 'all').length +
     [fIncomplete, fHasRelations, fSibling, fPrevious].filter(Boolean).length
+  // Every active filter (main + extra) — shown on the folded « Filtres » button.
+  const filterCount = activeExtraFilters + [status !== 'all', gender !== 'all', !!classe, !!ageMin, !!ageMax].filter(Boolean).length
   const resetExtraFilters = () => {
     setFSchool('all'); setFUnit('all'); setFNationality('all'); setFCity('all'); setFSituation('all')
     setFSent('all'); setFRelation('all'); setFIncomplete(false); setFHasRelations(false); setFSibling(false); setFPrevious(false)
@@ -573,31 +579,30 @@ export default function DemandeValidationPage() {
       </Card>
 
       {/* Filters */}
-      <Card><CardContent className="space-y-3 py-4">
-        {/* Search stays visible on every screen; a "Filtres" toggle reveals the rest on mobile (they take a lot
-            of vertical space on a phone). On ≥sm everything is shown inline as before. */}
-        <div className="flex items-end gap-2">
-          <div className="min-w-0 basis-full space-y-1 sm:basis-auto sm:flex-none">
-            <label className="text-xs font-medium">Recherche</label>
+      <Card><CardContent className="space-y-3 py-3">
+        {/* Only the search bar shows; « Filtres » unfolds the rest (on every screen size). */}
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1 sm:flex-none">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="w-full pl-8 pr-7 sm:w-56" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, email, téléphone, parent…" />
+              <Input className="w-full pl-8 pr-7 sm:w-80" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, email, téléphone, parent…" />
               {search && <Tip content="Effacer"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')}><X className="h-3.5 w-3.5" /></button></Tip>}
             </div>
           </div>
           <button
             type="button"
             onClick={() => setShowFilters((v) => !v)}
-            className="inline-flex h-10 shrink-0 items-center gap-1 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted sm:hidden"
+            className="inline-flex h-10 shrink-0 items-center gap-1 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted"
           >
             <SlidersHorizontal className="h-4 w-4" />Filtres
-            {(status !== 'all' || gender !== 'all' || classe || ageMin || ageMax || activeExtraFilters > 0) && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+            {filterCount > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">{filterCount}</span>}
             <ChevronDown className={cn('h-4 w-4 transition-transform', showFilters && 'rotate-180')} />
           </button>
+          <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">{rows.length} résultat(s)</span>
         </div>
 
-        {/* The rest of the filters — collapsed on mobile unless toggled, always shown on ≥sm. */}
-        <div className={cn('space-y-3', !showFilters && 'max-sm:hidden')}>
+        {/* The rest of the filters — folded until « Filtres » is clicked. */}
+        <div className={cn('space-y-3 border-t pt-3', !showFilters && 'hidden')}>
         <div className="flex flex-wrap items-end gap-3">
         <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Statut</label>
           <Select value={status} onValueChange={setStatus}><SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
@@ -717,9 +722,22 @@ export default function DemandeValidationPage() {
             <LegendItem color="bg-green-500" label="Acceptée" />
             <LegendItem color="bg-red-500" label="Refusée" />
             <span className="ml-auto">Appuyez sur une ligne pour le dossier complet</span>
+            {!gridMode && (
+              <Tip content="Modifier les demandes directement dans le tableau, comme dans Excel (nom, prénom, naissance, genre, classe, école, réponse)">
+                <Button size="sm" variant="outline" className="hidden md:inline-flex" onClick={() => setGridMode(true)}>
+                  <Pencil className="mr-1 h-4 w-4" />Modifier
+                </Button>
+              </Tip>
+            )}
           </div>
+          {gridMode && (
+            <div className="hidden md:block">
+              <DemandeGrid rows={rows} units={occList} reasons={rejectionReasons} classes={gridClasses} schools={gridSchools}
+                onClose={() => setGridMode(false)} />
+            </div>
+          )}
           {/* Desktop: dense sortable table. Phones get a card list below (md:hidden). */}
-          <div className="hidden md:block">
+          <div className={cn('hidden', !gridMode && 'md:block')}>
           <Table>
             <TableHeader>
               <TableRow>

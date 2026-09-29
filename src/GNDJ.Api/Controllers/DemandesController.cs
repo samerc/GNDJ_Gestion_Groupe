@@ -79,6 +79,18 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>Spreadsheet-mode quick edit of the child's own fields (nom, prénom, naissance, genre, classe, école) —
+    /// never touches the household. Blocked once a member was created. Requires demande.manage.</summary>
+    [HttpPut("{id:guid}/quick-edit")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> QuickEdit(Guid id, [FromBody] QuickEditBody body)
+    {
+        var result = await Mediator.Send(new QuickEditDemandeCommand(id, body.FirstName, body.LastName, body.DateOfBirth,
+            body.Gender, body.Classe, body.School));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>CG edit of a full demande file (child fields + household: address, situation, parents/tuteurs,
     /// proches scouts), bypassing the submission deadline. Household edits affect every sibling demande on the
     /// same account. Blocked once a member was created. Requires demande.manage.</summary>
@@ -396,6 +408,7 @@ public class DemandesController : BaseApiController
     public record AdminEditDemandeBody(
         GNDJ.Application.Applicants.DemandeInput Child,
         GNDJ.Application.Applicants.SaveApplicantHouseholdCommand Household);
+    public record QuickEditBody(string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender, string? Classe, string? School);
     public record UpdateRejectionReasonsBody(IReadOnlyList<DemandeRejectionReasonDto>? Reasons);
 }
 

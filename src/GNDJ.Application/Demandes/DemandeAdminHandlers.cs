@@ -864,6 +864,58 @@ public class AdminEditDemandeCommandHandler(IApplicationDbContext context, ICurr
 }
 
 // ============================================================
+// Quick edit of the child's own fields from the review table's spreadsheet mode (nom, prénom, naissance, genre,
+// classe, école). Unlike AdminEditDemande it never touches the household (parents, proches, address), so a quick
+// fix can't disturb shared family data. Same gate + field rules; blocked once a member was created.
+// ============================================================
+public record QuickEditDemandeCommand(Guid Id, string FirstName, string LastName, DateOnly? DateOfBirth,
+    string? Gender, string? Classe, string? School) : IRequest<Result<bool>>;
+
+public class QuickEditDemandeCommandValidator : AbstractValidator<QuickEditDemandeCommand>
+{
+    public QuickEditDemandeCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.FirstName).NotEmpty().WithMessage("Le prénom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.LastName).NotEmpty().WithMessage("Le nom est requis.").MaximumLength(100).NoHtml();
+        RuleFor(x => x.School).MaximumLength(200).NoHtml();
+        RuleFor(x => x.Classe).MaximumLength(50).NoHtml();
+        RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value <= LebanonClock.Today)
+            .WithMessage("La date de naissance ne peut pas être dans le futur.");
+        RuleFor(x => x.DateOfBirth).Must(d => d == null || d.Value >= LebanonClock.Today.AddYears(-30))
+            .WithMessage("Date de naissance invalide.");
+        RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin")
+            .WithMessage("Genre invalide.");
+    }
+}
+
+public class QuickEditDemandeCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<QuickEditDemandeCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(QuickEditDemandeCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser)) return Result<bool>.Failure("Accès refusé.");
+        var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id, ct);
+        if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        if (demande.CreatedMemberId is not null)
+            return Result<bool>.Failure("Un membre a déjà été créé pour cette demande — modifiez plutôt sa fiche.");
+
+        var before = new { demande.FirstName, demande.LastName, demande.DateOfBirth, demande.Gender, demande.Classe, demande.School };
+        demande.FirstName = request.FirstName.Trim();
+        demande.LastName = request.LastName.Trim();
+        demande.DateOfBirth = request.DateOfBirth;
+        demande.Gender = string.IsNullOrWhiteSpace(request.Gender) ? null : request.Gender;
+        demande.Classe = string.IsNullOrWhiteSpace(request.Classe) ? null : request.Classe.Trim();
+        demande.School = string.IsNullOrWhiteSpace(request.School) ? null : request.School.Trim();
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("EditDemande", "Demande", demande.Id, oldValues: before,
+            newValues: new { demande.FirstName, demande.LastName, demande.DateOfBirth, demande.Gender, demande.Classe, demande.School },
+            cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ============================================================
 // Set the pre-selected unit WITHOUT deciding — lets the CG lock in / change the "unité d'affectation
 // (si accepté)" and come back later, instead of being forced to click Accepter to persist a unit choice.
 // Only touches DecidedUnitId; the status stays as-is (a Submitted demande is still pending). Blocked once
