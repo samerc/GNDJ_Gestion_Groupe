@@ -79,11 +79,18 @@ function svg() {
   s += treeDots([200, 1330], [80, 480], 420, 7, (x, y) => y > 60 + (x < 700 ? 0 : (x - 700) * 0.28) && y < 470 && !(x > 280 && x < 780 && y > 110 && y < 290))
   s += treeDots([60, 320], [440, 840], 120, 11)
   // Tree areas: between the upper road and the road down to the cour; between the sports hall and the red court.
-  for (const pts of [[[262, 474], [330, 470], [400, 484], [396, 530], [372, 566], [330, 556], [290, 522]],
+  for (const pts of [[[268, 484], [330, 490], [400, 502], [396, 532], [372, 566], [330, 556], [290, 522]],
     [[832, 648], [900, 642], [958, 650], [958, 740], [900, 752], [836, 746]]]) {
     s += path(curve(pts, true), C.forest, C.forestEdge, 1.5)
     const xs = pts.map(p => p[0]), ys = pts.map(p => p[1])
     s += treeDots([Math.min(...xs) + 12, Math.max(...xs) - 12], [Math.min(...ys) + 12, Math.max(...ys) - 12], 22, xs[0] + ys[0])
+  }
+  // More greenery (commission): west of the Petit collège, and between the forest and the road below it.
+  for (const pts of [[[190, 100], [150, 170], [110, 260], [88, 340], [92, 392], [160, 408], [214, 405], [215, 300], [196, 200]],
+    [[520, 486], [640, 500], [740, 518], [800, 545], [790, 575], [740, 552], [650, 532], [520, 505]]]) {
+    s += path(curve(pts, true), C.forest)
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1])
+    s += treeDots([Math.min(...xs) + 10, Math.max(...xs) - 10], [Math.min(...ys) + 8, Math.max(...ys) - 8], 30, xs[1] + ys[1])
   }
   // Small cleared area above the vaulted building (no trees, no building).
   s += path(curve([[950, 472], [985, 440], [1030, 426], [1080, 436], [1110, 458], [1050, 470]], true), C.land)
@@ -93,7 +100,7 @@ function svg() {
   s += road([[0, 330], [30, 390], [60, 520], [80, 650], [140, 790], [240, 870], [340, 950], [450, 1025]], 18)
   s += road([[380, 0], [560, 30], [720, 70], [880, 150], [1000, 185], [1150, 225], [1260, 262], [1330, 300]], 16)
   s += road([[762, 210], [845, 212], [1000, 212], [1150, 245], [1270, 295], [1335, 350], [1335, 400], [1260, 440], [1190, 470], [1163, 530], [1160, 700], [1175, 855]], 16)
-  s += road([[30, 390], [160, 420], [280, 460], [443, 487]], 12)
+  s += road([[30, 390], [160, 420], [252, 452], [330, 472], [420, 487]], 12)
   // road from the upper road down to the Cour de la Vierge (cars drive into the cour)
   s += road([[252, 452], [250, 484], [272, 518], [305, 552], [338, 578], [372, 600], [420, 626], [456, 650], [466, 680], [488, 712], [525, 736], [562, 750], [600, 760]], 12)
   s += road([[250, 480], [230, 520], [260, 560]], 8)
@@ -103,7 +110,7 @@ function svg() {
   // west road around the open court, then along the south of the college;
   s += road([[259, 563], [273, 599], [285, 638], [292, 677], [308, 731], [331, 778], [366, 813], [413, 835], [452, 846], [511, 862], [569, 874], [647, 879], [698, 878]], 12)
   // road between the forest and the college, then down past the sports hall to the courts;
-  s += road([[443, 487], [540, 489], [645, 517], [700, 522], [750, 540], [785, 560], [805, 592], [814, 640], [818, 700], [826, 738], [848, 760], [880, 770], [918, 771]], 12)
+  s += road([[420, 487], [500, 499], [560, 516], [650, 538], [715, 548], [765, 568], [797, 596], [814, 640], [818, 700], [826, 738], [848, 760], [880, 770], [918, 771]], 12)
   // road above the tennis courts to the east road.
   s += road([[835, 787], [880, 778], [930, 773], [1000, 766], [1080, 766], [1165, 768]], 10)
   // road at the forest edge above the vaulted building, down to the east road.
@@ -111,7 +118,7 @@ function svg() {
   s += flushRoads()
   // Stairway between the Petit collège and the Grand collège (steps across a narrow flight).
   {
-    const top = [686, 298], bottom = [668, 494], n = 22
+    const top = [686, 298], bottom = [664, 530], n = 26
     s += `<path d="M${top} L${bottom}" stroke="#d8d2c4" stroke-width="12" stroke-linecap="round"/>`
     for (let i = 0; i <= n; i++) {
       const t = i / n, x = top[0] + (bottom[0] - top[0]) * t, y = top[1] + (bottom[1] - top[1]) * t
@@ -128,16 +135,16 @@ function svg() {
 
   // Paved yards / esplanade around the main school.
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
-  // Bus parking at the west road intersection (a few buses parked side by side).
+  // Bus parking just north of the préau (a few buses parked side by side).
   {
-    const a = [288, 626], b = [372, 668], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
+    const a = [352, 680], b = [462, 716], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
     let g = `<rect x="0" y="-14" width="${L.toFixed(1)}" height="28" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
-    for (let i = 0; i < 5; i++) g += `<rect x="${10 + i * 15}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${11.5 + i * 15}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
+    for (let i = 0; i < 6; i++) g += `<rect x="${12 + i * 16}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${13.5 + i * 16}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
     s += `<g transform="translate(${a}) rotate(${ang.toFixed(1)})">${g}</g>`
   }
   // Préau west of the college: a big flat building whose roof is a parking (roof drawn as parking with bays).
   {
-    const A = [345, 712], B = [468, 752], C2 = [452, 822], D = [328, 785]
+    const A = [345, 700], B = [468, 740], C2 = [452, 810], D = [328, 773]
     s += bld(poly([A, B, C2, D]), C.parking)
     for (let i = 1; i < 12; i++) {
       const t = i / 12
@@ -198,7 +205,7 @@ function svg() {
   s += bld(cmPoly([[755, 158], [1105, 212], [1110, 272], [1060, 272], [755, 222]]))
   for (let i = 0; i < 2; i++) s += `<path d="M${cm([[820, 178 + i * 22]])[0]} L${cm([[1060, 215 + i * 22]])[0]}" stroke="#aeb7c6" stroke-width="2.5"/>`
   s += bld(cmRect(690, 158, 752, 198), '#f3d9c8')
-  s += bld(cmPoly([[1120, 140], [1265, 160], [1260, 205], [1115, 190]]))
+  s += bld(cmPoly([[1120, 76], [1265, 96], [1260, 141], [1115, 126]]))
   // East wing: the long solar-roofed building running south, then the entrance block.
   s += bld(cmRect(1088, 225, 1180, 552))
   for (let i = 0; i < 9; i++) s += `<path d="M${cm([[1100, 250 + i * 32]])[0]} L${cm([[1168, 250 + i * 32]])[0]}" stroke="#aeb7c6" stroke-width="2"/>`
@@ -265,6 +272,13 @@ function svg() {
   s += `<line x1="1225" y1="663" x2="1369" y2="663" stroke="${C.fieldLine}" stroke-width="2.5"/>`
   s += `<circle cx="1297" cy="663" r="22" fill="none" stroke="${C.fieldLine}" stroke-width="2.5"/>`
   s += `<rect x="1267" y="545" width="60" height="26" fill="none" stroke="${C.fieldLine}" stroke-width="2.5"/><rect x="1267" y="755" width="60" height="26" fill="none" stroke="${C.fieldLine}" stroke-width="2.5"/>`
+
+  // School gates: a bar across the road with two posts.
+  for (const [x, y, ang] of [[858, 146, 27], [52, 394, 13]]) {
+    s += `<g transform="translate(${x},${y}) rotate(${ang + 90})"><rect x="-13" y="-2" width="26" height="4" rx="1.5" fill="#5b6472"/><rect x="-16" y="-4" width="5" height="8" rx="1" fill="#3b4252"/><rect x="11" y="-4" width="5" height="8" rx="1" fill="#3b4252"/></g>`
+  }
+  // Cemetery: a small square with a cross.
+  s += `<rect x="636" y="932" width="26" height="26" rx="2" fill="#ece8df" stroke="#8a8f99" stroke-width="1.4"/><path d="M649,937 V953 M643,942 H655" stroke="#3b4252" stroke-width="2.2" stroke-linecap="round"/>`
 
   // North arrow + scale-free title band.
   s += `<g transform="translate(70,90)"><circle r="34" fill="#fff" stroke="${C.text}" stroke-width="2" opacity=".92"/><path d="M0,-24 L9,8 L0,2 L-9,8Z" fill="${C.text}"/><text y="26" text-anchor="middle" font-size="16" font-weight="700" fill="${C.text}">N</text></g>`
