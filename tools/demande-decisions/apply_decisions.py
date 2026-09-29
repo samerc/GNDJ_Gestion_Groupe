@@ -1,27 +1,36 @@
-"""Stage demande decisions from the CG's working Excel (no Réf. column).
+"""Stage demande decisions from the CG's working Excel.
 
 Layout expected (the CG's file):
-  * one sheet per ACCEPTED unit, named with the unit code (M2, M3, M10, T3, T10…) — the kids accepted into it;
-  * the main sheet "Demandes" — every demande; any kid NOT found in a unit sheet is DECLINED with the default
-    rejection reason (Paramètres → Inscriptions → Motifs de refus, "faute de place").
-Other sheets (Codes, stats…) are ignored: a sheet counts as a unit only if its name is an active unit code.
+  * one sheet per ACCEPTED unit, named with the unit code or name (M2, R1, C3, NOYAU…) — the kids accepted into it;
+  * the main sheet "Demandes" — any kid of it NOT found in a unit sheet is DECLINED with the default rejection
+    reason (Paramètres → Inscriptions → Motifs de refus, "faute de place").
+Other sheets (Codes, stats…) are ignored: a sheet counts as a unit only if its name is an active unit code/name.
+Columns are found from the header row (Réf., Prénom, Nom, Naissance, Genre, Décision); a sheet without a header
+uses the export order (with or without the Réf. column in A).
 
-Rows are matched to demandes by first + last name (accents/case/spaces ignored, swapped first/last accepted),
-narrowed by date of birth when several demandes share a name. Nothing is guessed: unmatched / ambiguous rows are
-listed and skipped. Decisions are only STAGED (same as the review page) — nothing reaches families until the CG
-clicks "Envoyer les réponses".
+Rows are matched by Réf. (demande id) when present, else by first + last name (accents/case/spaces ignored, swapped
+first/last accepted), narrowed by date of birth when several demandes share a name. Nothing is guessed: unmatched /
+ambiguous rows are listed and skipped, side notes written next to a row (e.g. "r2 r3 ???") are shown, and demandes
+of that gender absent from the file are listed (left untouched). Decisions are only STAGED (same as the review
+page) — nothing reaches families until the CG clicks "Envoyer les réponses".
 
 Usage (dry run first, then --apply):
   python apply_decisions.py "Demandes_2026-2027.xlsx" --gender Masculin --email you@… [--apply]
-  (then again with --gender Féminin once the girls' unit sheets are ready)
+  (boys and girls are separate runs: a run never touches the other gender)
+The password is asked, or read from GNDJ_PASSWORD.
 """
-import argparse, getpass, os, json, re, sys, unicodedata, urllib.request, urllib.error
+import argparse, difflib, getpass, os, json, re, sys, unicodedata, urllib.request, urllib.error
 from datetime import date, datetime
 
 import openpyxl
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) GNDJ-demande-decisions"  # Cloudflare blocks the default urllib UA
 MAIN_SHEET = "Demandes"
+GUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+# Header text (normalised) → field. Matched with startswith, so "Réf. (ne pas modifier)" and
+# "Décision (code unité ou motif)" are found too.
+HEADERS = {"ref": ("ref",), "first": ("prenom",), "last": ("nom",), "dob": ("naissance", "datedenaissance"),
+           "gender": ("genre",), "decision": ("decision",)}
 
 
 def key(s):
@@ -54,18 +63,46 @@ class Api:
             raise RuntimeError(f"{method} {path} → {e.code} {e.read().decode(errors='replace')[:300]}")
 
 
-def read_rows(ws, skip_gender=None):
-    """(first, last, dob) for every non-empty row; skips a header row whose first cell is 'Prénom', and rows whose
-    Genre column (D) is skip_gender."""
+def read_rows(ws):
+    """One dict per child row: id (Réf. if any), first, last, dob, gender, decision cell, notes (anything written
+    after the Décision column). Columns come from the header row when there is one."""
+    rows = [r for r in ws.iter_rows(values_only=True) if r and any(c not in (None, "") for c in r)]
+    cols, start = None, 0
+    for n, r in enumerate(rows[:5]):
+        ks = [key(c) for c in r]
+        if "prenom" in ks and "nom" in ks:
+            cols = {}
+            for name, starts in HEADERS.items():
+                idx = next((x for x, k in enumerate(ks) if k and any(k.startswith(h) for h in starts)), None)
+                if idx is not None:
+                    cols[name] = idx
+            start = n + 1
+            break
     out = []
-    for r in ws.iter_rows(values_only=True):
-        if not r or not (r[0] or (len(r) > 1 and r[1])):
+    for r in rows[start:]:
+        c = cols
+        if c is None:  # no header: export order, shifted by one when column A holds the Réf.
+            o = 1 if GUID.match(str(r[0] or "").strip()) else 0
+            c = {"first": o, "last": o + 1, "dob": o + 2, "gender": o + 3, "decision": o + 10}
+            if o:
+                c["ref"] = 0
+
+        def get(name):
+            return r[c[name]] if name in c and c[name] < len(r) else None
+
+        first, last = str(get("first") or "").strip(), str(get("last") or "").strip()
+        has_ref = GUID.match(str(get("ref") or "").strip())
+        if not first and not last and not has_ref:  # a row with only a Réf. is still a demande (name erased)
             continue
-        if key(r[0]) == "prenom":
+        if not last and not get("dob") and not get("gender") and not has_ref:
+            out.append({"heading": first})  # a section title the CG typed ("7ème", "Caravelles en plus")
             continue
-        if skip_gender and len(r) > 3 and key(r[3]) == skip_gender:
-            continue
-        out.append((str(r[0] or "").strip(), str(r[1] or "").strip(), parse_dob(r[2] if len(r) > 2 else None)))
+        ref = str(get("ref") or "").strip()
+        dec = c.get("decision")
+        notes = [str(v).strip() for v in (r[dec + 1:] if dec is not None else []) if v not in (None, "")]
+        out.append({"id": ref.lower() if GUID.match(ref) else None, "first": first, "last": last,
+                    "dob": parse_dob(get("dob")), "gender": key(get("gender")),
+                    "decision": str(get("decision") or "").strip(), "notes": notes})
     return out
 
 
@@ -85,7 +122,12 @@ def main():
     login = api.call("POST", "/auth/login", {"email": a.email, "password": a.password or os.environ.get("GNDJ_PASSWORD") or getpass.getpass("Mot de passe : "), "rememberMe": False})
     api.token = login["accessToken"]
 
-    units = {u["unitCode"].upper(): u for u in api.call("GET", f"/demandes/occupancy?scoutYear={a.year}")}
+    occupancy = api.call("GET", f"/demandes/occupancy?scoutYear={a.year}")
+    units = {u["unitCode"].upper(): u for u in occupancy}
+    # A sheet may be named with the unit code (R1) or its name (NOYAU → the "Noyau" unit).
+    unit_by_sheet = {key(u["unitCode"]): u["unitCode"].upper() for u in occupancy}
+    for u in occupancy:
+        unit_by_sheet.setdefault(key(u["unitName"]), u["unitCode"].upper())
     reasons = api.call("GET", "/demandes/rejection-reasons")
     default = next((r for r in reasons if r.get("isDefault")), None)
     if not default:
@@ -93,52 +135,101 @@ def main():
     decline_text = default["text"]
 
     # Only this gender: the other one is decided in a separate run (its kids may still sit in the main sheet).
-    demandes = [d for d in api.call("GET", f"/demandes?scoutYear={a.year}")
-                if d["status"] != "Draft" and key(d.get("gender")) == key(a.gender)]
+    everyone = [d for d in api.call("GET", f"/demandes?scoutYear={a.year}") if d["status"] != "Draft"]
+    demandes = [d for d in everyone if key(d.get("gender")) == key(a.gender)]
+    mine = {d["id"]: d for d in demandes}
+    other_ids = {d["id"] for d in everyone} - set(mine)
+    other = key("Féminin" if a.gender == "Masculin" else "Masculin")
     by_name = {}
     for d in demandes:
         by_name.setdefault((key(d["firstName"]), key(d["lastName"])), []).append(d)
 
-    def find(first, last, dob):
-        c = by_name.get((key(first), key(last))) or by_name.get((key(last), key(first))) or []
-        if len(c) > 1 and dob:
-            c = [d for d in c if d.get("dateOfBirth") == dob] or c
+    def find(row):
+        """[demande] (1 = match, 0 = none, 2+ = ambiguous), or None when the row is the other gender's."""
+        if row["id"]:
+            if row["id"] in mine:
+                return [mine[row["id"]]]
+            if row["id"] in other_ids:
+                return None
+        c = (by_name.get((key(row["first"]), key(row["last"])))
+             or by_name.get((key(row["last"]), key(row["first"]))) or [])
+        if len(c) > 1 and row["dob"]:
+            c = [d for d in c if d.get("dateOfBirth") == row["dob"]] or c
+        if not c and row["gender"] == other:
+            return None
         return c
+
+    def label_of(row, where):
+        return f"{row['first']} {row['last']} ({row['dob'] or 'sans date'}) [{where}]"
 
     wb = openpyxl.load_workbook(a.file, data_only=True)
     decisions = {}   # demande id -> (status, unitCode|None)
-    problems = []
+    problems, notes, headings = [], [], []
+    main_codes = []  # (row, label, code written in the main sheet) — checked once placements are known
+
+    def suggest(row):
+        """Closest demande (not yet placed by the file) to an unmatched row, to spot a spelling difference."""
+        names = {f"{d['firstName']} {d['lastName']}": d for d in demandes}
+        hit = difflib.get_close_matches(f"{row['first']} {row['last']}", list(names), n=1, cutoff=0.75)
+        if not hit:
+            return ""
+        d = names[hit[0]]
+        return f" — sur le site : {hit[0]} ({d.get('dateOfBirth') or 'sans date'}) ?"
 
     # 1. Accepted: every sheet named after an active unit.
     for ws in wb.worksheets:
-        code = ws.title.strip().upper()
-        if code not in units:
+        code = unit_by_sheet.get(key(ws.title))
+        if not code or ws.title == MAIN_SHEET:
             continue
-        for first, last, dob in read_rows(ws):
-            c = find(first, last, dob)
-            label = f"{first} {last} ({dob or 'sans date'}) [{code}]"
+        for row in read_rows(ws):
+            if "heading" in row:
+                headings.append(f"« {row['heading']} » [{ws.title.strip()}]"); continue
+            c = find(row)
+            if c is None:
+                continue
+            label = label_of(row, ws.title.strip())
+            # Anything written beside the child that isn't just this unit's code is shown for a human look.
+            extra = [n for n in row["notes"] + ([row["decision"]] if row["decision"] else []) if key(n) != key(code)]
+            if extra:
+                notes.append(f"{label} : « {' | '.join(extra)} »")
             if len(c) != 1:
-                problems.append(("INTROUVABLE" if not c else "AMBIGU", label)); continue
+                problems.append(("INTROUVABLE" if not c else "AMBIGU", label + (suggest(row) if not c else ""))); continue
             prev = decisions.get(c[0]["id"])
             if prev and prev[1] != code:
                 problems.append(("DEUX UNITÉS", f"{label} — déjà dans {prev[1]}")); continue
             decisions[c[0]["id"]] = ("Approved", code)
 
     # 2. Declined: every kid of the main sheet not accepted above.
-    other = key("Féminin" if a.gender == "Masculin" else "Masculin")
-    for first, last, dob in read_rows(wb[MAIN_SHEET], skip_gender=other):
-        c = find(first, last, dob)
-        label = f"{first} {last} ({dob or 'sans date'}) [refus]"
+    for row in read_rows(wb[MAIN_SHEET]):
+        if "heading" in row:
+            headings.append(f"« {row['heading']} » [{MAIN_SHEET}]"); continue
+        if row["gender"] == other:
+            continue
+        c = find(row)
+        if c is None:
+            continue
+        label = label_of(row, "refus")
         if len(c) != 1:
-            problems.append(("INTROUVABLE" if not c else "AMBIGU", label)); continue
+            problems.append(("INTROUVABLE" if not c else "AMBIGU", label + (suggest(row) if not c else ""))); continue
         decisions.setdefault(c[0]["id"], ("Declined", None))
+        extra = row["notes"] + ([row["decision"]] if row["decision"] else [])
+        if extra:
+            main_codes.append((c[0]["id"], row, extra))
 
-    by_id = {d["id"]: d for d in demandes}
+    # A note in the main sheet is only worth a look when it disagrees with the placement (the CG often repeats
+    # the unit code there for the kids he copied into that unit's sheet).
+    for did, row, extra in main_codes:
+        placed = decisions[did][1]
+        odd = [n for n in extra if not placed or key(n) != key(placed)]
+        if odd:
+            where = f"accepté(e) en {placed}" if placed else "refusé(e)"
+            notes.append(f"{row['first']} {row['last']} [feuille {MAIN_SHEET}, {where}] : « {' | '.join(odd)} »")
+
     untouched = [d for d in demandes if d["id"] not in decisions]
 
     todo, same, locked = [], 0, []
     for did, (status, code) in decisions.items():
-        d = by_id[did]
+        d = mine[did]
         name = f"{d['firstName']} {d['lastName']}"
         if d.get("createdMemberId") or d.get("responseSentAt"):
             locked.append(f"{name} (réponse déjà envoyée)"); continue
@@ -156,8 +247,12 @@ def main():
         print(f"  ! {kind} : {label}")
     for x in locked:
         print(f"  ! VERROUILLÉE : {x}")
+    for n in notes:
+        print(f"  ✎ NOTE À VÉRIFIER : {n}")
+    for h in headings:
+        print(f"  · ligne de titre ignorée : {h}")
     for d in untouched:
-        print(f"  ? PAS DANS LE FICHIER (non touchée) : {d['firstName']} {d['lastName']} — {d['status']}")
+        print(f"  ? PAS DANS LE FICHIER (non touchée) : {d['firstName']} {d['lastName']} ({d.get('dateOfBirth') or 'sans date'}) — {d['status']}")
 
     if not a.apply:
         print("\nSimulation uniquement. Relancez avec --apply pour enregistrer ces décisions.")
