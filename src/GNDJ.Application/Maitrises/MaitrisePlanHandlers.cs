@@ -68,6 +68,8 @@ public static class MaitrisePlan
         foreach (var l in starts)
         {
             if (!existing.Add((l.MemberId, l.UnitId, l.FunctionalRoleId))) continue;
+            // One chef d'unité per unit: a new head ends any head still in place (normally already planned to stop).
+            await HeadReplacement.EndOtherHeadsAsync(context, l.UnitId, l.FunctionalRoleId, l.MemberId, passageDate, ct);
             context.MemberAssignments.Add(new MemberAssignment
             {
                 MemberId = l.MemberId,
@@ -318,14 +320,11 @@ public class CancelMaitrisePlanLineCommandHandler(IApplicationDbContext context,
         if (line.AppliedAt != null) return Result<bool>.Failure("Ce changement a déjà été appliqué (passage publié).");
 
         // A change = the new function (Start) + the lines it caused: the stop of the member's old function and, when
-        // it gives the chef d'unité function, the stop of the current chef. Cancelling the change (from its Start, or
-        // from the member's own stop) cancels all of them — so the replaced chef d'unité is reinstated.
+        // it gives the chef d'unité function, the stop of the current chef. Cancelling any of them cancels the whole
+        // change — the replaced chef d'unité is reinstated (a unit never ends up with two chefs d'unité).
         var root = line;
         if (line.Kind == MaitrisePlanKinds.End && line.CausedByLineId is Guid causeId)
-        {
-            var cause = await context.MaitrisePlanLines.FirstOrDefaultAsync(l => l.Id == causeId && l.AppliedAt == null, ct);
-            if (cause is not null && cause.MemberId == line.MemberId) root = cause;
-        }
+            root = await context.MaitrisePlanLines.FirstOrDefaultAsync(l => l.Id == causeId && l.AppliedAt == null, ct) ?? line;
         var group = new List<MaitrisePlanLine> { root };
         if (root.Kind == MaitrisePlanKinds.Start)
             group.AddRange(await context.MaitrisePlanLines.Where(l => l.CausedByLineId == root.Id && l.AppliedAt == null).ToListAsync(ct));

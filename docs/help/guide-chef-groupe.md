@@ -325,8 +325,9 @@ cette année → l'an prochain (+ arrivées, − départs). Ouvrez une unité po
 - Nommer quelqu'un **chef d'unité** place automatiquement le chef d'unité actuel dans **Partent** (« remplacé par … »).
   C'est la même règle partout : un chef d'unité donné « maintenant » (ici ou dans les postes d'un membre) arrête
   aussitôt la fonction de l'ancien.
-- ↺ annule un changement prévu en entier : annuler une nomination de chef d'unité remet l'ancien chef d'unité à sa
-  place et rend à la personne sa fonction d'avant ; la ligne de passage d'un jeune revient comme avant.
+- ↺ annule un changement prévu en entier : annuler une nomination de chef d'unité (sur le nouveau chef ou sur le départ
+  de l'ancien) remet l'ancien chef d'unité à sa place et rend à la personne sa fonction d'avant ; la ligne de passage
+  d'un jeune revient comme avant.
 
 Les changements prévus **ne changent rien tout de suite** : ils sont appliqués en même temps que le passage des jeunes,
 quand vous cliquez **Publier le passage**, à la date du passage. Un encadré signale les unités qui n'auraient **pas de

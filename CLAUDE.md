@@ -6307,7 +6307,9 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
 - **Head swap + grouped undo** (`CausedByLineId`, migration `AddMaitrisePlanCausedBy`): a Start giving a head function
   (profile chef-unite/chef-de-groupe) auto-plans the End of the unit's current head(s) (`HeadSwap`), linked to it; a
   change's own End (old function) is linked to its Start too. Cancelling the Start — or the member's own End — cancels
-  the whole group (old head reinstated, old function kept); cancelling only the replaced head's End keeps the promotion.
+  the whole group (old head reinstated, old function kept) — so does cancelling the replaced head's End (never two heads).
+  `ApplyAsync` also calls `HeadReplacement` per started head (safety net). Re-verified on a DB copy: publish applied
+  2 head swaps + a youth joining another unit + a stop, one head per unit afterwards, plan/undo refused once published.
   UI: a same-unit promotion shows once under Arrivent (« était … »), the replaced head under Partent (« remplacé(e) par … »).
 - **One head per unit, everywhere** (`Common/HeadReplacement.EndOtherHeadsAsync`): giving an ACTIVE head function right
   away — CreateAssignment, UpdateAssignment (role/unit changed), Maîtrises transfer + add-now — ends the other members'
