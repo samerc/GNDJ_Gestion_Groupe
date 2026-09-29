@@ -116,6 +116,8 @@ export interface PassageProjectionDto {
   missingLines: number
   units: PassageProjectionUnit[]
   members: PassageProjectionMember[]
+  // Accepted demandes not yet converted into members (arrive in unitId next year).
+  newcomers: { demandeId: string; name: string; unitId: string }[]
 }
 
 // GET /passages/unit/{unitId} — passage lines for one unit (CU page); requires scoutYear. Unit-scoped.

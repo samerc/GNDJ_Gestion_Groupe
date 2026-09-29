@@ -297,10 +297,14 @@ public record PassageProjectionUnitDto(
 public record PassageProjectionMemberDto(
     Guid MemberId, string MemberName, Guid CurrentUnitId,
     string LineStatus, bool IsLeaving, Guid? DestUnitId);
+// An accepted demande not yet turned into a member (decision staged or responses sent, conversion pending):
+// the child arrives in UnitId next year, so the projection counts them as an arrival.
+public record PassageProjectionNewcomerDto(Guid DemandeId, string Name, Guid UnitId);
 public record PassageProjectionDto(
     string ScoutYear, int MissingLines,
     IReadOnlyList<PassageProjectionUnitDto> Units,
-    IReadOnlyList<PassageProjectionMemberDto> Members);
+    IReadOnlyList<PassageProjectionMemberDto> Members,
+    IReadOnlyList<PassageProjectionNewcomerDto> Newcomers);
 
 public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetPassageProjectionQuery, Result<PassageProjectionDto>>
 {
@@ -341,11 +345,22 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
 
         var missingLines = members.Count(m => m.LineStatus == "None");
 
+        // Accepted demandes of the current enrolment campaign that aren't members yet (once converted, the child is
+        // an active member and already counted above). Counted even before "Envoyer les réponses".
+        var demandeYear = await context.Settings.Where(x => x.Key == "demande.scout_year").Select(x => x.Value).FirstOrDefaultAsync(ct);
+        if (string.IsNullOrWhiteSpace(demandeYear)) demandeYear = request.ScoutYear;
+        var newcomers = await context.Demandes
+            .Where(d => d.ScoutYear == demandeYear && d.Status == DemandeStatus.Approved
+                && d.CreatedMemberId == null && d.DecidedUnitId != null)
+            .Select(d => new PassageProjectionNewcomerDto(d.Id, d.FirstName + " " + d.LastName, d.DecidedUnitId!.Value))
+            .ToListAsync(ct);
+
         // Unit metadata: every active unit + any unit referenced as a current/destination unit.
         var quotas = await context.UnitIntakeQuotas.Where(q => q.ScoutYear == request.ScoutYear)
             .ToDictionaryAsync(q => q.UnitId, q => q.Quota, ct);
         var referenced = members.Select(m => m.CurrentUnitId)
             .Concat(members.Where(m => m.DestUnitId is not null).Select(m => m.DestUnitId!.Value))
+            .Concat(newcomers.Select(n => n.UnitId))
             .Distinct().ToHashSet();
         var unitRows = await context.Units
             .Where(u => u.IsActive || referenced.Contains(u.Id))
@@ -358,7 +373,7 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
             .ToList();
 
         return Result<PassageProjectionDto>.Success(new PassageProjectionDto(
-            request.ScoutYear, missingLines, units, members));
+            request.ScoutYear, missingLines, units, members, newcomers));
     }
 }
 

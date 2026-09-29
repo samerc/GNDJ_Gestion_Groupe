@@ -22,6 +22,7 @@ import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ChevronRight, Circle, Fl
 
 type Mode = 'prevu' | 'valide'
 const LEAVE = '__leave__' // sentinel: the member quits the group next year
+const DEMANDES = '__demandes__' // pseudo-origin: accepted enrolment demandes (new members)
 
 // Where a member ends up next year. "prevu" counts every proposal (to validate + validated); "valide" only the
 // validated ones (a line still to validate → the member stays for now). No line / rejected → stays.
@@ -90,14 +91,19 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
         const stays = current.filter(m => eff.get(m.memberId) === u.unitId)
         const departures = current.filter(m => eff.get(m.memberId) !== u.unitId)
         const arrivals = data.members.filter(m => m.currentUnitId !== u.unitId && eff.get(m.memberId) === u.unitId)
-        // Arrivals grouped by origin unit, departures grouped by destination (or "quittent").
+        // Accepted demandes (decided, even if the responses aren't sent yet) — new members arriving in this unit.
+        // Counted in both modes: the acceptance is already the CG's decision.
+        const newcomers = (data.newcomers ?? []).filter(n => n.unitId === u.unitId)
+        // Arrivals grouped by origin unit (+ "demandes"), departures grouped by destination (or "quittent").
         const byOrigin = countBy(arrivals, m => m.currentUnitId)
+        if (newcomers.length > 0) byOrigin.push([DEMANDES, newcomers.length])
         const byDest = countBy(departures, m => eff.get(m.memberId) ?? '')
-        const projected = stays.length + arrivals.length
+        const arrivalCount = arrivals.length + newcomers.length
+        const projected = stays.length + arrivalCount
         const noLine = current.filter(m => m.lineStatus === 'None')
         return {
           u, s: summaryById.get(u.unitId), currentCount: current.length, projected,
-          stays, noLine, arrivals, departures, byOrigin, byDest, eff,
+          stays, noLine, arrivals, newcomers, arrivalCount, departures, byOrigin, byDest, eff,
           overQuota: !!u.quota && projected > u.quota,
         }
       })
@@ -110,6 +116,8 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
     () => (data?.members ?? []).filter(m => effectiveDest(m, mode) === LEAVE).length, [data, mode])
 
   const destLabel = (id: string) => (id === LEAVE ? 'quittent le groupe' : `vers ${codeById.get(id) ?? '?'}`)
+  const originLabel = (id: string) => (id === DEMANDES ? 'Demandes' : codeById.get(id) ?? '?')
+  const newcomersTotal = data?.newcomers?.length ?? 0
 
   return (
     <Card>
@@ -181,7 +189,7 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                             <span className="text-muted-foreground">{r.currentCount}</span>
                             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className={cn('font-semibold', r.overQuota && 'text-red-600 dark:text-red-400')}>{r.projected}</span>
-                            {r.arrivals.length > 0 && <span className="text-xs text-green-700 dark:text-green-400">+{r.arrivals.length}</span>}
+                            {r.arrivalCount > 0 && <span className="text-xs text-green-700 dark:text-green-400">+{r.arrivalCount}</span>}
                             {r.departures.length > 0 && <span className="text-xs text-orange-600 dark:text-orange-400">−{r.departures.length}</span>}
                             {!!r.u.quota && (
                               <Badge variant={r.overQuota ? 'destructive' : 'outline'} className="text-[10px]">quota {r.u.quota}</Badge>
@@ -190,7 +198,7 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                         </td>
                         <td className="px-3 py-2 text-xs">
                           {r.byOrigin.length === 0 ? <span className="text-muted-foreground">—</span>
-                            : r.byOrigin.map(([id, n]) => `${codeById.get(id) ?? '?'} ${n}`).join(' · ')}
+                            : r.byOrigin.map(([id, n]) => `${originLabel(id)} ${n}`).join(' · ')}
                         </td>
                         <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
                           {r.s && r.s.finalized === 0 && (r.s.submitted || r.s.missingLines === 0) && (
@@ -218,8 +226,9 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                               </div>
                               <MemberList title="Arrivent" tone="green"
                                 groups={r.byOrigin.map(([id]) => ({
-                                  label: `de ${codeById.get(id) ?? '?'}`,
-                                  names: r.arrivals.filter(m => m.currentUnitId === id).map(m => m.memberName),
+                                  label: id === DEMANDES ? "demandes d'inscription acceptées" : `de ${codeById.get(id) ?? '?'}`,
+                                  names: id === DEMANDES ? r.newcomers.map(n => n.name)
+                                    : r.arrivals.filter(m => m.currentUnitId === id).map(m => m.memberName),
                                 }))} />
                               <MemberList title="Partent" tone="orange"
                                 groups={r.byDest.map(([id]) => ({
@@ -240,6 +249,12 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                 })}
               </table>
             </div>
+            {newcomersTotal > 0 && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-green-700 dark:text-green-400">{newcomersTotal}</span> nouveau(x) membre(s)
+                par les demandes d'inscription acceptées (comptés même si les réponses ne sont pas encore envoyées).
+              </p>
+            )}
             {leavingTotal > 0 && (
               <p className="text-xs text-muted-foreground">
                 <span className="font-medium text-orange-600 dark:text-orange-400">{leavingTotal}</span> membre(s) quittent le groupe.
