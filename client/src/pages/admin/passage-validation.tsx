@@ -59,6 +59,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
+import { PassageUnitPanel } from '@/pages/passage'
 
 // One allowed move target for a member from the parcours scout: kind 'same' = stay in the branch
 // (équipe/fonction change), kind 'up' = a progression target unit (unité supérieure). Mirrors the CU page.
@@ -83,6 +84,9 @@ export default function PassageValidationPage() {
   const [prevPassageYear, setPrevPassageYear] = useState(passageScoutYear)
   if (passageScoutYear !== prevPassageYear) { setPrevPassageYear(passageScoutYear); setScoutYear(passageScoutYear) }
   const [unitFilter, setUnitFilter] = useState<string>('_all')
+  // With a unit selected: 'members' = every member of the unit with the CU's choices (Pas de changement / Proposer /
+  // Quitte le groupe), even those without a line yet; 'lines' = the passage lines to review, as before.
+  const [unitView, setUnitView] = useState<'members' | 'lines'>('members')
 
   const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(scoutYear)
   const { data: summary, isLoading: summaryLoading } = usePassageSummary(scoutYear)
@@ -329,8 +333,10 @@ export default function PassageValidationPage() {
   const canFinalize = (approvedCount + pendingCount) > 0 && missingTotal === 0 && unitsNotSubmitted === 0 && rejectedCount === 0
   const step1Done = unitRows.length > 0 && unitsNotSubmitted === 0 && missingTotal === 0
   // Jump to the member lines, filtered to a unit and/or a status.
+  const showUnitMembers = unitFilter !== '_all' && unitView === 'members'
   const showLines = (unitId: string | undefined, status: string) => {
     setUnitFilter(unitId ?? '_all')
+    setUnitView('lines')
     setStatusFilter(status)
     setSelected(new Set())
     // After the filter re-renders, bring the lines table into view (the page scrolls inside <main>).
@@ -470,22 +476,31 @@ export default function PassageValidationPage() {
 
       <div id="passage-lines" className="scroll-mt-20 pt-2">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
-          Lignes de passage
+          {showUnitMembers ? "Membres de l'unité" : 'Lignes de passage'}
           {unitFilter !== '_all' && <Badge variant="outline">{units.find(u => u.id === unitFilter)?.code ?? ''}</Badge>}
           {passagesFetching && <span className="text-xs font-normal text-muted-foreground">Chargement…</span>}
         </h2>
-        <p className="text-sm text-muted-foreground">Une ligne par membre. « À valider » = un changement d'unité proposé par le chef, que le CG doit accepter ou changer.</p>
+        <p className="text-sm text-muted-foreground">{showUnitMembers
+          ? "Tous les membres de l'unité, avec ou sans ligne de passage. Vous avez les mêmes choix que le chef d'unité, même si l'unité est terminée."
+          : "Une ligne par membre. « À valider » = un changement d'unité proposé par le chef, que le CG doit accepter ou changer."}</p>
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Select value={unitFilter} onValueChange={setUnitFilter}>
+        <Select value={unitFilter} onValueChange={v => { setUnitFilter(v); setUnitView('members'); setSelected(new Set()) }}>
           <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Toutes les unités" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Toutes les unités</SelectItem>
             {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} — {u.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        {unitFilter !== '_all' && (
+          <div className="inline-flex rounded-md border">
+            <Button size="sm" variant={unitView === 'members' ? 'default' : 'ghost'} className="rounded-r-none" onClick={() => setUnitView('members')}>Tous les membres</Button>
+            <Button size="sm" variant={unitView === 'lines' ? 'default' : 'ghost'} className="rounded-l-none border-l" onClick={() => setUnitView('lines')}>Lignes de passage</Button>
+          </div>
+        )}
+        {!showUnitMembers && (<>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -502,7 +517,10 @@ export default function PassageValidationPage() {
           Afficher les membres sans changement
           {noChangeCount > 0 && <Badge variant="secondary" className="ml-1">{noChangeCount}</Badge>}
         </label>
+        </>)}
       </div>
+
+      {showUnitMembers ? <PassageUnitPanel unitId={unitFilter} embedded /> : (<>
 
       {/* Bulk actions */}
       {/* On a phone the bar is pinned to the bottom of the screen so it stays visible while ticking cards. */}
@@ -706,6 +724,7 @@ export default function PassageValidationPage() {
         </div>
         </>
       )}
+      </>)}
 
       {/* Post section — group-wide. Accepting a line changes nothing for the member; posting does. */}
       <div className="flex flex-col items-end gap-2 pt-4">

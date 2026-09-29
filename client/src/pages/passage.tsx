@@ -85,6 +85,14 @@ function rowState(row: MemberRow): string {
 // "Terminer le passage de l'unité": the whole unit is then locked for them (only the CG changes it). Only
 // visible while the CG has OPENED the passage process. Card list on mobile, table on desktop.
 export default function PassagePage() {
+  return <PassageUnitPanel />
+}
+
+// The CU passage view for one unit: every active youth member with their line and the three choices (Pas de
+// changement / Proposer / Quitte le groupe). Used as the CU page (unit = the one they lead), and embedded in the
+// CG « Validation des passages » page for the unit the CG selected (embedded = no page header / unit picker /
+// « Terminer », and a finished unit isn't locked: the CG can still propose for it).
+export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { unitId?: string; embedded?: boolean } = {}) {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
@@ -92,15 +100,17 @@ export default function PassagePage() {
   // to unitAccess[0] so a multi-unit CU could only ever act on their first unit.
   const leaderUnits = useLeaderUnits()
   const [selectedUnit, setSelectedUnit] = useState('')
-  const unitId = selectedUnit || leaderUnits[0]?.unitId || user?.unitAccess[0]?.unitId || ''
-  const unitName = leaderUnits.find(u => u.unitId === unitId)?.unitName
-    ?? user?.unitAccess.find(u => u.unitId === unitId)?.unitName ?? ''
+  const unitId = forcedUnitId || selectedUnit || leaderUnits[0]?.unitId || user?.unitAccess[0]?.unitId || ''
 
   const { data: passageStatus, isLoading: statusLoading } = usePassageStatus(passageScoutYear)
   const { data: passages, isLoading: passagesLoading } = usePassagesByUnit(unitId, passageScoutYear)
   const { data: membersData, isLoading: membersLoading } = useMembers({ unitId, pageSize: 500 })
   const { data: assignmentsData } = useAssignments({ unitId, isActive: true, pageSize: 500 })
   const { data: unitsData } = useUnits({ isActive: true, pageSize: 100 })
+  // The CG (embedded) isn't a leader of the unit, so the name can also come from the units list.
+  const unitName = leaderUnits.find(u => u.unitId === unitId)?.unitName
+    ?? user?.unitAccess.find(u => u.unitId === unitId)?.unitName
+    ?? unitsData?.items.find(u => u.id === unitId)?.name ?? ''
   const { data: rolesData } = useFunctionalRoles()
 
   const proposeMutation = useProposePassage()
@@ -108,8 +118,9 @@ export default function PassagePage() {
   const deleteMutation = useDeletePassage()
   const submitUnitMutation = useSubmitPassageUnit()
   const { data: unitStatus } = usePassageUnitStatus(unitId, passageScoutYear)
-  // Finished by the CU: the unit is locked for them (the CG plans per unit); only the CG changes it now.
-  const unitLocked = !!unitStatus?.submitted
+  // Finished by the CU: the unit is locked for them (the CG plans per unit); only the CG changes it now — so
+  // embedded in the CG page nothing is locked.
+  const unitLocked = !embedded && !!unitStatus?.submitted
   const [confirmSubmit, setConfirmSubmit] = useState(false)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -208,6 +219,7 @@ export default function PassagePage() {
 
   // Gate: the CU can only act while the CG has opened the passage process for this year.
   if (!passageStatus?.isOpen) {
+    if (embedded) return <p className="text-sm text-muted-foreground">Le passage est fermé : ouvrez-le pour proposer des changements.</p>
     return (
       <Page>
         <PageHeader title="Passage annuel" icon={ArrowRightLeft} />
@@ -489,7 +501,7 @@ export default function PassagePage() {
   // A line stays editable by the CU until the unit is finished ("Terminer") — unless the CG changed it (then
   // only the CG can). The pencil (re-opens the three choices) shows only when editable AND not already editing.
   const canChangeRow = (row: MemberRow) =>
-    !!row.passage && !unitLocked && !row.passage.cgModified && row.passage.status !== 'Finalized'
+    !!row.passage && !unitLocked && (embedded || !row.passage.cgModified) && row.passage.status !== 'Finalized'
   const canEditRow = (row: MemberRow) => canChangeRow(row) && !editingRows.has(row.memberId)
 
   // Proposition cell/section — shared by the desktop table and the mobile cards.
@@ -632,8 +644,10 @@ export default function PassagePage() {
     ) : null
   )
 
+  const Wrapper = embedded ? EmbeddedWrapper : Page
   return (
-    <Page>
+    <Wrapper>
+      {!embedded && (<>
       <PageHeader
         title={`Passage annuel — ${passageScoutYear}`}
         icon={ArrowRightLeft}
@@ -662,6 +676,7 @@ export default function PassagePage() {
           </SelectContent>
         </Select>
       )}
+      </>)}
 
       {unitLocked ? (
         <Callout tone="info" icon={Lock}>
@@ -976,6 +991,11 @@ export default function PassagePage() {
         loading={bulkBusy}
         onConfirm={handleBulkDelete}
       />
-    </Page>
+    </Wrapper>
   )
+}
+
+// Embedded in the CG page: just a stack (the CG page already has its own header and card).
+function EmbeddedWrapper({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-4">{children}</div>
 }
