@@ -117,7 +117,6 @@ function svg() {
   // road from the upper road down to the Cour de la Vierge (cars drive into the cour)
   s += road([[252, 452], [250, 484], [272, 518], [305, 552], [338, 578], [372, 600], [420, 626], [456, 650], [466, 680], [488, 712], [525, 736], [562, 750], [600, 760]], 12)
   s += road([[250, 480], [232, 520], [252, 552], [260, 566]], 16)
-  s += road([[150, 421], [188, 438], [218, 462], [236, 492], [238, 520]], 10)
   s += road([[760, 190], [880, 150]], 10)
 
   // Campus roads added from the commission's corrections:
@@ -153,9 +152,9 @@ function svg() {
   // Road from the esplanade up to the road above the courts (drawn over the esplanade), then re-whiten the junction.
   s += road([[826, 810], [842, 792], [858, 781], [872, 776]], 9) + flushRoads()
   s += path(curve([[835, 787], [880, 778], [930, 773]]), 'none', C.road, 10)
-  // Bus parking on the west side of the wide road down to the west road (a few buses parked side by side).
+  // Bus parking just below the west entrance, on the west side of the wide fork (a few buses parked side by side).
   {
-    const a = [214, 540], b = [236, 632], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
+    const a = [188, 542], b = [230, 462], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
     let g = `<rect x="0" y="-14" width="${L.toFixed(1)}" height="28" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
     for (let i = 0; i < 5; i++) g += `<rect x="${14 + i * 16}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${15.5 + i * 16}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
     s += `<g transform="translate(${a}) rotate(${ang.toFixed(1)})">${g}</g>`
