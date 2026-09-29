@@ -58,6 +58,9 @@ function treeDots(xs, ys, n, seed, inside) {
   return out
 }
 
+// Point inside a polygon (ray casting), to keep tree dots inside a wooded area.
+const inPoly = pts => (x, y) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c } return c }
+
 function svg() {
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Inter, Segoe UI, sans-serif">`
   s += `<rect width="${W}" height="${H}" fill="${C.outside}"/>`
@@ -76,6 +79,13 @@ function svg() {
   s += path(curve(forestW, true), C.forest, C.forestEdge, 2)
   const forestS = [[470, 880], [700, 895], [900, 880], [1000, 905], [980, 960], [700, 990], [500, 960]]
   s += path(curve(forestS, true), C.forest, C.forestEdge, 2)
+  const woodsSW = [[300, 832], [370, 842], [440, 860], [500, 874], [540, 905], [590, 955], [500, 962], [420, 948], [350, 915], [280, 868]]
+  const woodsSE = [[955, 884], [1060, 880], [1150, 878], [1212, 882], [1215, 925], [1150, 960], [1010, 972], [965, 950]]
+  for (const w of [woodsSW, woodsSE]) s += path(curve(w, true), C.forest, C.forestEdge, 1.5)
+  // trees in the south woods (not on the cemetery square)
+  s += treeDots([470, 1000], [880, 990], 70, 23, (x, y) => inPoly(forestS)(x, y) && !(x > 622 && x < 676 && y > 918 && y < 972))
+  s += treeDots([280, 590], [832, 962], 35, 29, inPoly(woodsSW))
+  s += treeDots([955, 1215], [878, 972], 35, 31, inPoly(woodsSE))
   s += treeDots([200, 1330], [80, 480], 420, 7, (x, y) => y > 60 + (x < 700 ? 0 : (x - 700) * 0.28) && y < 470 && !(x > 280 && x < 780 && y > 110 && y < 290))
   s += treeDots([60, 320], [440, 840], 120, 11)
   // Tree areas: between the upper road and the road down to the cour; between the sports hall and the red court.
@@ -96,7 +106,7 @@ function svg() {
     s += treeDots([Math.min(...xs) + 10, Math.max(...xs) - 10], [Math.min(...ys) + 8, Math.max(...ys) - 8], 30, xs[1] + ys[1], keep)
   }
   // Small cleared area above the vaulted building (no trees, no building).
-  s += path(curve([[950, 478], [985, 440], [1030, 426], [1085, 434], [1122, 460], [1118, 490], [1040, 492], [975, 490]], true), C.land)
+  s += path(curve([[950, 480], [975, 454], [1030, 450], [1080, 462], [1122, 476], [1118, 492], [1040, 494], [975, 492]], true), C.land)
 
   // Roads.
   // Outer ring: west road down to the south-west, north road, inner ring east + south.
@@ -106,7 +116,8 @@ function svg() {
   s += road([[30, 390], [160, 420], [252, 452], [330, 472], [420, 487]], 12)
   // road from the upper road down to the Cour de la Vierge (cars drive into the cour)
   s += road([[252, 452], [250, 484], [272, 518], [305, 552], [338, 578], [372, 600], [420, 626], [456, 650], [466, 680], [488, 712], [525, 736], [562, 750], [600, 760]], 12)
-  s += road([[250, 480], [230, 520], [260, 560]], 8)
+  s += road([[250, 480], [232, 520], [252, 552], [260, 566]], 16)
+  s += road([[150, 421], [188, 438], [218, 462], [236, 492], [238, 520]], 10)
   s += road([[760, 190], [880, 150]], 10)
 
   // Campus roads added from the commission's corrections:
@@ -118,6 +129,7 @@ function svg() {
   s += road([[835, 787], [880, 778], [930, 773], [1000, 766], [1080, 766], [1165, 768]], 10)
   // road at the forest edge above the vaulted building, down to the east road.
   s += road([[940, 480], [942, 446], [972, 436], [1030, 442], [1075, 455], [1120, 470], [1150, 484], [1178, 497]], 9)
+  s += road([[432, 630], [460, 620], [480, 602], [494, 580]], 9)
   s += flushRoads()
   // Stairway between the Petit collège and the Grand collège (steps across a narrow flight).
   {
@@ -138,9 +150,12 @@ function svg() {
 
   // Paved yards / esplanade around the main school.
   s += path(poly([[470, 780], [860, 775], [860, 880], [620, 890], [500, 870]]), C.paved, C.pavedEdge, 1.5)
-  // Bus parking between the west road and the road to the cour (a few buses parked side by side).
+  // Road from the esplanade up to the road above the courts (drawn over the esplanade), then re-whiten the junction.
+  s += road([[826, 810], [842, 792], [858, 781], [872, 776]], 9) + flushRoads()
+  s += path(curve([[835, 787], [880, 778], [930, 773]]), 'none', C.road, 10)
+  // Bus parking on the west side of the wide road down to the west road (a few buses parked side by side).
   {
-    const a = [268, 540], b = [318, 628], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
+    const a = [214, 540], b = [236, 632], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
     let g = `<rect x="0" y="-14" width="${L.toFixed(1)}" height="28" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
     for (let i = 0; i < 5; i++) g += `<rect x="${14 + i * 16}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${15.5 + i * 16}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
     s += `<g transform="translate(${a}) rotate(${ang.toFixed(1)})">${g}</g>`
@@ -257,7 +272,7 @@ function svg() {
   // The courts and the buildings south of the parking.
   // Four courts side by side (north-south): two green ones on the west, two clay-coloured ones on the east.
   for (let i = 0; i < 4; i++) {
-    const x0 = 145 + i * 79.25, x1 = x0 + 77, fill = i < 2 ? C.court : '#dcc9a6'
+    const x0 = 175 + i * 79.25, x1 = x0 + 77, fill = i < 2 ? C.court : '#dcc9a6'
     s += path(ceRect(x0, 680, x1, 842, 2), fill, C.pavedEdge, 1.2)
     s += path(ceRect(x0 + 10, 698, x1 - 10, 824, 1), 'none', C.courtLine, 1.4)
     s += ceLine([[x0 + 10, 761], [x1 - 10, 761]], C.courtLine, 2)
