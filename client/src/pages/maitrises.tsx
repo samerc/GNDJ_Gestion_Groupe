@@ -36,7 +36,7 @@ const fmtDate = (iso: string | null) => iso
 interface UnitView {
   unit: MaitrisePlanUnit
   staying: MaitrisePlanMember[]
-  leaving: { member: MaitrisePlanMember; line: MaitrisePlanLine; toCode: string | null }[]
+  leaving: { member: MaitrisePlanMember; line: MaitrisePlanLine; where: string }[]
   arriving: { line: MaitrisePlanLine; origin: string }[]
   nowCount: number
   nextCount: number
@@ -55,16 +55,22 @@ function buildViews(plan: MaitrisePlan): UnitView[] {
 
   return plan.units.map(unit => {
     const ends = pending.filter(l => l.kind === 'End' && l.unitId === unit.unitId)
+    const starts = pending.filter(l => l.kind === 'Start' && l.unitId === unit.unitId)
     const endIds = new Set(ends.map(l => l.assignmentId))
     const staying = unit.current.filter(m => !endIds.has(m.assignmentId))
-    const leaving = ends.map(line => {
+    // A member who changes function inside the unit (e.g. assistant → chef) is shown once, under Arrivent.
+    const leaving = ends.filter(line => !starts.some(s => s.memberId === line.memberId)).map(line => {
       const member = unit.current.find(m => m.assignmentId === line.assignmentId)!
       const start = pending.find(l => l.kind === 'Start' && l.memberId === line.memberId && l.unitId !== unit.unitId)
-      return { member, line, toCode: start ? codeOf.get(start.unitId) ?? null : null }
+      const by = line.causedByLineId ? pending.find(l => l.id === line.causedByLineId && l.memberId !== line.memberId) : undefined
+      const where = start ? `va à ${codeOf.get(start.unitId)}` : by ? `remplacé(e) par ${by.firstName} ${by.lastName}` : 'arrête'
+      return { member, line, where }
     }).filter(x => x.member)
-    const arriving = pending.filter(l => l.kind === 'Start' && l.unitId === unit.unitId).map(line => {
+    const arriving = starts.map(line => {
       const fromEnd = pending.find(l => l.kind === 'End' && l.memberId === line.memberId && l.unitId !== unit.unitId)
-      const origin = fromEnd ? `vient de ${codeOf.get(fromEnd.unitId)}`
+      const sameUnitEnd = ends.find(l => l.memberId === line.memberId)
+      const origin = sameUnitEnd ? `était ${sameUnitEnd.functionName}`
+        : fromEnd ? `vient de ${codeOf.get(fromEnd.unitId)}`
         : line.joinsFromYouth ? `jeune${line.youthUnitCode ? ` de ${line.youthUnitCode}` : ''}`
         : (currentUnitsOf.get(line.memberId) ?? []).includes(unit.unitId) ? 'nouvelle fonction'
         : (currentUnitsOf.get(line.memberId) ?? []).length ? 'en plus de ses fonctions actuelles'
@@ -79,7 +85,7 @@ function buildViews(plan: MaitrisePlan): UnitView[] {
       nextCount: distinct([...staying.map(m => m.memberId), ...arriving.map(a => a.line.memberId)]),
       headNow: headNowM ? name(headNowM) : null,
       headNext: headNextM ? name(headNextM) : null,
-      changes: ends.length + arriving.length,
+      changes: leaving.length + arriving.length,
     }
   })
 }
@@ -229,9 +235,9 @@ function UnitDetail({ view, published, onChange, onAdd, onUndo, undoing }: {
         <Button size="sm" variant="outline" className="mt-1 w-full" onClick={onAdd}><UserPlus className="mr-1 h-3.5 w-3.5" />Ajouter un chef</Button>
       </Column>
       <Column title="Partent" count={view.leaving.length} tone="red">
-        {view.leaving.map(({ member, line, toCode }) => (
+        {view.leaving.map(({ member, line, where }) => (
           <PersonRow key={line.id} name={`${member.lastName} ${member.firstName}`}
-            detail={`${member.functionName} · ${toCode ? `va à ${toCode}` : 'arrête'}`} head={member.isHead}
+            detail={`${member.functionName} · ${where}`} head={member.isHead}
             action={!published && <UndoButton onClick={() => onUndo(line.id)} disabled={undoing} />} />
         ))}
       </Column>

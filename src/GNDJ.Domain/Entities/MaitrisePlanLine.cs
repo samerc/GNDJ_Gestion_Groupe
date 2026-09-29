@@ -18,6 +18,9 @@ public class MaitrisePlanLine
     public Guid FunctionalRoleId { get; set; }
     public Guid? AssignmentId { get; set; } // End: the leadership assignment to close
     public string? Notes { get; set; }
+    // End planned automatically because another member is planned to take this unit's head function (chef d'unité):
+    // points at that Start line, and is cancelled with it (cancelling the promotion reinstates the current head).
+    public Guid? CausedByLineId { get; set; }
 
     public Guid? YouthPassageId { get; set; }
     public bool YouthPassageCreated { get; set; }

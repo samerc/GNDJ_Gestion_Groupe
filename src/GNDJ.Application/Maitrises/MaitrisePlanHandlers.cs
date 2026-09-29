@@ -94,7 +94,7 @@ public record MaitrisePlanUnitDto(Guid UnitId, string UnitCode, string UnitName,
 
 public record MaitrisePlanLineDto(Guid Id, string Kind, Guid MemberId, string FirstName, string LastName,
     Guid UnitId, Guid FunctionalRoleId, string FunctionName, int Rank, bool IsHead, Guid? AssignmentId,
-    string? Notes, bool JoinsFromYouth, string? YouthUnitCode, bool Applied);
+    string? Notes, bool JoinsFromYouth, string? YouthUnitCode, bool Applied, Guid? CausedByLineId);
 
 public record MaitrisePlanDto(string ScoutYear, string? PassageDate, bool Published,
     IReadOnlyList<MaitrisePlanUnitDto> Units, IReadOnlyList<MaitrisePlanLineDto> Lines);
@@ -130,7 +130,7 @@ public class GetMaitrisePlanQueryHandler(IApplicationDbContext context) : IReque
                 l.Id, l.Kind, l.MemberId, l.Member.FirstName, l.Member.LastName, l.UnitId, l.FunctionalRoleId,
                 FunctionName = l.FunctionalRole.Name, l.FunctionalRole.Rank,
                 IsHead = heads.Contains(l.FunctionalRole.SecurityProfile.Code),
-                l.AssignmentId, l.Notes, l.YouthPassageId, l.AppliedAt,
+                l.AssignmentId, l.Notes, l.YouthPassageId, l.AppliedAt, l.CausedByLineId,
             })
             .ToListAsync(ct);
         // Youth joiners: show the unit they come from.
@@ -139,7 +139,7 @@ public class GetMaitrisePlanQueryHandler(IApplicationDbContext context) : IReque
             .Select(p => new { p.Id, p.CurrentUnit.Code }).ToDictionaryAsync(p => p.Id, p => p.Code, ct);
         var lines = lineRows.Select(l => new MaitrisePlanLineDto(l.Id, l.Kind, l.MemberId, l.FirstName, l.LastName,
             l.UnitId, l.FunctionalRoleId, l.FunctionName, l.Rank, l.IsHead, l.AssignmentId, l.Notes,
-            l.YouthPassageId != null, l.YouthPassageId is Guid y ? youthUnit.GetValueOrDefault(y) : null, l.AppliedAt != null)).ToList();
+            l.YouthPassageId != null, l.YouthPassageId is Guid y ? youthUnit.GetValueOrDefault(y) : null, l.AppliedAt != null, l.CausedByLineId)).ToList();
 
         // Every active unit (a unit with no leader today still shows, so a first chef can be planned) + any unit a
         // current leader or planned line points to.
@@ -191,6 +191,7 @@ public class PlanMaitriseStartCommandHandler(IApplicationDbContext context, ICur
         };
         await YouthLine.HoldAsync(context, currentUser, year, line, ct);
         context.MaitrisePlanLines.Add(line);
+        var replaced = await HeadSwap.PlanEndsAsync(context, currentUser, line, ct);
         await context.SaveChangesAsync(ct);
 
         await audit.LogAsync("PlanMaitrise", "MaitrisePlanLine", line.Id, newValues: new
@@ -198,7 +199,7 @@ public class PlanMaitriseStartCommandHandler(IApplicationDbContext context, ICur
             Member = await AuditNames.MemberAsync(context, line.MemberId, ct),
             Unit = await AuditNames.UnitAsync(context, line.UnitId, ct),
             Role = await AuditNames.RoleAsync(context, line.FunctionalRoleId, ct),
-            Change = "Nouvelle fonction", ScoutYear = year, line.Notes,
+            Change = "Nouvelle fonction", ScoutYear = year, line.Notes, Replaces = replaced,
         }, cancellationToken: ct);
         return Result<Guid>.Success(line.Id);
     }
@@ -281,14 +282,16 @@ public class PlanMaitriseChangeCommandHandler(IApplicationDbContext context, ICu
             end?.AssignmentId, ct);
         if (check is not null) return Result<bool>.Failure(check);
 
-        if (end is not null) context.MaitrisePlanLines.Add(end);
         var start = new MaitrisePlanLine
         {
             ScoutYear = year, Kind = MaitrisePlanKinds.Start, MemberId = memberId.Value, UnitId = request.NewUnitId,
             FunctionalRoleId = request.NewFunctionalRoleId, Notes = PlanMaitriseStartCommandHandler.Clean(request.Notes),
             CreatedByUserId = currentUser.UserId,
         };
+        // The old function's stop belongs to this change: cancelling either side cancels both.
+        if (end is not null) { end.CausedByLineId = start.Id; context.MaitrisePlanLines.Add(end); }
         context.MaitrisePlanLines.Add(start);
+        var replaced = await HeadSwap.PlanEndsAsync(context, currentUser, start, ct);
         await context.SaveChangesAsync(ct);
 
         await audit.LogAsync("PlanMaitrise", "MaitrisePlanLine", start.Id, newValues: new
@@ -296,7 +299,7 @@ public class PlanMaitriseChangeCommandHandler(IApplicationDbContext context, ICu
             Member = await AuditNames.MemberAsync(context, memberId.Value, ct),
             Unit = await AuditNames.UnitAsync(context, request.NewUnitId, ct),
             Role = await AuditNames.RoleAsync(context, request.NewFunctionalRoleId, ct),
-            Change = request.KeepOld ? "Fonction ajoutée" : "Changement d'unité / de fonction", ScoutYear = year, start.Notes,
+            Change = request.KeepOld ? "Fonction ajoutée" : "Changement d'unité / de fonction", ScoutYear = year, start.Notes, Replaces = replaced,
         }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
@@ -314,8 +317,22 @@ public class CancelMaitrisePlanLineCommandHandler(IApplicationDbContext context,
         if (line is null) return Result<bool>.Failure("Changement introuvable.");
         if (line.AppliedAt != null) return Result<bool>.Failure("Ce changement a déjà été appliqué (passage publié).");
 
-        await YouthLine.ReleaseAsync(context, line, ct);
-        context.MaitrisePlanLines.Remove(line);
+        // A change = the new function (Start) + the lines it caused: the stop of the member's old function and, when
+        // it gives the chef d'unité function, the stop of the current chef. Cancelling the change (from its Start, or
+        // from the member's own stop) cancels all of them — so the replaced chef d'unité is reinstated.
+        var root = line;
+        if (line.Kind == MaitrisePlanKinds.End && line.CausedByLineId is Guid causeId)
+        {
+            var cause = await context.MaitrisePlanLines.FirstOrDefaultAsync(l => l.Id == causeId && l.AppliedAt == null, ct);
+            if (cause is not null && cause.MemberId == line.MemberId) root = cause;
+        }
+        var group = new List<MaitrisePlanLine> { root };
+        if (root.Kind == MaitrisePlanKinds.Start)
+            group.AddRange(await context.MaitrisePlanLines.Where(l => l.CausedByLineId == root.Id && l.AppliedAt == null).ToListAsync(ct));
+        if (!group.Contains(line)) group.Add(line);
+        foreach (var l in group.Where(l => l.Kind == MaitrisePlanKinds.Start))
+            await YouthLine.ReleaseAsync(context, l, ct);
+        context.MaitrisePlanLines.RemoveRange(group);
         await context.SaveChangesAsync(ct);
 
         await audit.LogAsync("CancelPlanMaitrise", "MaitrisePlanLine", line.Id, oldValues: new
@@ -434,6 +451,36 @@ static class PlanChecks
             FunctionalRoleId = a.FunctionalRoleId, AssignmentId = assignmentId,
             Notes = PlanMaitriseStartCommandHandler.Clean(notes), CreatedByUserId = currentUser.UserId,
         }, null);
+    }
+}
+
+// ── A new chef d'unité replaces the current one ─────────────────────────────────────────────────
+static class HeadSwap
+{
+    // When `start` gives a head function (chef d'unité / chef de groupe) in a unit, the current holders of a head
+    // function there (other members, not already planned to stop) are planned to stop too, linked to `start`.
+    // Returns the names of the replaced heads (for the audit).
+    public static async Task<List<string>> PlanEndsAsync(IApplicationDbContext context, ICurrentUserService currentUser,
+        MaitrisePlanLine start, CancellationToken ct)
+    {
+        var heads = MaitrisePlan.HeadProfiles;
+        var isHead = await context.FunctionalRoles.AnyAsync(r => r.Id == start.FunctionalRoleId && heads.Contains(r.SecurityProfile.Code), ct);
+        if (!isHead) return [];
+        var plannedEnds = await context.MaitrisePlanLines
+            .Where(l => l.ScoutYear == start.ScoutYear && l.Kind == MaitrisePlanKinds.End && l.AppliedAt == null)
+            .Select(l => l.AssignmentId).ToListAsync(ct);
+        var current = await context.MemberAssignments
+            .Where(a => a.UnitId == start.UnitId && a.EndDate == null && a.MemberId != start.MemberId
+                && heads.Contains(a.FunctionalRole.SecurityProfile.Code) && !plannedEnds.Contains(a.Id))
+            .Select(a => new { a.Id, a.MemberId, a.FunctionalRoleId, a.Member.FirstName, a.Member.LastName }).ToListAsync(ct);
+        foreach (var a in current)
+            context.MaitrisePlanLines.Add(new MaitrisePlanLine
+            {
+                ScoutYear = start.ScoutYear, Kind = MaitrisePlanKinds.End, MemberId = a.MemberId, UnitId = start.UnitId,
+                FunctionalRoleId = a.FunctionalRoleId, AssignmentId = a.Id, CausedByLineId = start.Id,
+                CreatedByUserId = currentUser.UserId,
+            });
+        return current.Select(a => $"{a.FirstName} {a.LastName}").ToList();
     }
 }
 

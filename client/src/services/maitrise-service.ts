@@ -90,6 +90,7 @@ export interface MaitrisePlanLine {
   joinsFromYouth: boolean
   youthUnitCode: string | null
   applied: boolean
+  causedByLineId: string | null // stop planned because someone else becomes chef d'unité (cancelled with that line)
 }
 
 export interface MaitrisePlan {

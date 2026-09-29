@@ -6304,3 +6304,8 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   +/−, alert when a unit has no head [role profile chef-unite/chef-de-groupe]); expanded = Restent / Arrivent / Partent
   with Changer, Ajouter un chef, ↺ cancel; dialogs choose "Au passage" or "Maintenant". Passage page step 3 mentions
   the planned maîtrise changes. Verified end-to-end on a DB copy (publish applied ends/starts/youth correctly).
+- **Head swap + grouped undo** (`CausedByLineId`, migration `AddMaitrisePlanCausedBy`): a Start giving a head function
+  (profile chef-unite/chef-de-groupe) auto-plans the End of the unit's current head(s) (`HeadSwap`), linked to it; a
+  change's own End (old function) is linked to its Start too. Cancelling the Start — or the member's own End — cancels
+  the whole group (old head reinstated, old function kept); cancelling only the replaced head's End keeps the promotion.
+  UI: a same-unit promotion shows once under Arrivent (« était … »), the replaced head under Partent (« remplacé(e) par … »).
