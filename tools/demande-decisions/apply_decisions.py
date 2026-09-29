@@ -12,7 +12,8 @@ listed and skipped. Decisions are only STAGED (same as the review page) — noth
 clicks "Envoyer les réponses".
 
 Usage (dry run first, then --apply):
-  python apply_decisions.py "Demandes_2026-2027.xlsx" --base-url https://gndj.org --email you@… [--apply]
+  python apply_decisions.py "Demandes_2026-2027.xlsx" --gender Masculin --email you@… [--apply]
+  (then again with --gender Féminin once the girls' unit sheets are ready)
 """
 import argparse, getpass, json, re, sys, unicodedata, urllib.request, urllib.error
 from datetime import date, datetime
@@ -53,13 +54,16 @@ class Api:
             raise RuntimeError(f"{method} {path} → {e.code} {e.read().decode(errors='replace')[:300]}")
 
 
-def read_rows(ws):
-    """(first, last, dob) for every non-empty row; skips a header row whose first cell is 'Prénom'."""
+def read_rows(ws, skip_gender=None):
+    """(first, last, dob) for every non-empty row; skips a header row whose first cell is 'Prénom', and rows whose
+    Genre column (D) is skip_gender."""
     out = []
     for r in ws.iter_rows(values_only=True):
         if not r or not (r[0] or (len(r) > 1 and r[1])):
             continue
         if key(r[0]) == "prenom":
+            continue
+        if skip_gender and len(r) > 3 and key(r[3]) == skip_gender:
             continue
         out.append((str(r[0] or "").strip(), str(r[1] or "").strip(), parse_dob(r[2] if len(r) > 2 else None)))
     return out
@@ -72,6 +76,8 @@ def main():
     ap.add_argument("--email", required=True)
     ap.add_argument("--password")
     ap.add_argument("--year", default="2026-2027")
+    ap.add_argument("--gender", required=True, choices=["Masculin", "Féminin"],
+                    help="only decide demandes of this gender (the CG does boys and girls separately)")
     ap.add_argument("--apply", action="store_true", help="actually stage the decisions (default: dry run)")
     a = ap.parse_args()
 
@@ -86,7 +92,9 @@ def main():
         sys.exit("Aucun motif de refus par défaut (Paramètres → Inscriptions → Motifs de refus).")
     decline_text = default["text"]
 
-    demandes = [d for d in api.call("GET", f"/demandes?scoutYear={a.year}") if d["status"] != "Draft"]
+    # Only this gender: the other one is decided in a separate run (its kids may still sit in the main sheet).
+    demandes = [d for d in api.call("GET", f"/demandes?scoutYear={a.year}")
+                if d["status"] != "Draft" and key(d.get("gender")) == key(a.gender)]
     by_name = {}
     for d in demandes:
         by_name.setdefault((key(d["firstName"]), key(d["lastName"])), []).append(d)
@@ -117,7 +125,8 @@ def main():
             decisions[c[0]["id"]] = ("Approved", code)
 
     # 2. Declined: every kid of the main sheet not accepted above.
-    for first, last, dob in read_rows(wb[MAIN_SHEET]):
+    other = key("Féminin" if a.gender == "Masculin" else "Masculin")
+    for first, last, dob in read_rows(wb[MAIN_SHEET], skip_gender=other):
         c = find(first, last, dob)
         label = f"{first} {last} ({dob or 'sans date'}) [refus]"
         if len(c) != 1:
@@ -139,7 +148,7 @@ def main():
         todo.append((did, status, unit_id, code, name, d["status"]))
 
     acc = sum(1 for t in todo if t[1] == "Approved"); dec = len(todo) - acc
-    print(f"Demandes {a.year} (hors brouillons) : {len(demandes)}")
+    print(f"Demandes {a.year} — {a.gender} (hors brouillons) : {len(demandes)}")
     print(f"À accepter : {acc}   À refuser : {dec}   Déjà ainsi : {same}")
     for code in sorted({t[3] for t in todo if t[3]}):
         print(f"  {code} : {sum(1 for t in todo if t[3] == code)}")
