@@ -227,11 +227,13 @@ function svg() {
   s += path(ceRect(458, 420, 742, 600, 3), C.parking, C.pavedEdge, 1.2)
   for (const row of [[430, 470], [500, 545], [555, 595]]) for (let x = 470; x < 735; x += 16)
     s += ceLine([[x, row[0]], [x, row[1]]], '#fff', 1.4)
-  // The two courts and the buildings south of the parking.
-  for (const [x0, x1] of [[145, 320], [325, 462]]) {
-    s += path(ceRect(x0, 680, x1, 842, 2), C.court, C.pavedEdge, 1.2)
-    s += path(ceRect(x0 + 16, 700, x1 - 16, 822, 1), 'none', C.courtLine, 1.4)
-    s += ceLine([[x0 + 16, 761], [x1 - 16, 761]], C.courtLine, 2)
+  // The courts and the buildings south of the parking.
+  // Four courts side by side (north-south): two green ones on the west, two clay-coloured ones on the east.
+  for (let i = 0; i < 4; i++) {
+    const x0 = 145 + i * 79.25, x1 = x0 + 77, fill = i < 2 ? C.court : '#dcc9a6'
+    s += path(ceRect(x0, 680, x1, 842, 2), fill, C.pavedEdge, 1.2)
+    s += path(ceRect(x0 + 10, 698, x1 - 10, 824, 1), 'none', C.courtLine, 1.4)
+    s += ceLine([[x0 + 10, 761], [x1 - 10, 761]], C.courtLine, 2)
   }
   s += bld(ceRect(500, 690, 700, 822))
   s += path(ceRect(555, 715, 665, 800, 1), '#ffffff', C.buildingEdge, .8)
