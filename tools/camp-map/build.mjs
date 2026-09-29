@@ -153,11 +153,11 @@ function svg() {
   // Road from the esplanade up to the road above the courts (drawn over the esplanade), then re-whiten the junction.
   s += road([[826, 810], [842, 792], [858, 781], [872, 776]], 9) + flushRoads()
   s += path(curve([[835, 787], [880, 778], [930, 773]]), 'none', C.road, 10)
-  // Bus parking just inside the west entrance, beside the main road (three buses parked side by side).
+  // Bus parking along the west edge of the short climb from the main road (three buses side by side).
   {
-    const a = [156, 414], b = [210, 452], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
-    let g = `<rect x="0" y="-14" width="${L.toFixed(1)}" height="28" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
-    for (let i = 0; i < 3; i++) g += `<rect x="${8 + i * 16}" y="-11" width="10" height="22" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${9.5 + i * 16}" y="-9" width="7" height="4" rx="1" fill="#7e93a8"/>`
+    const a = [218, 482], b = [240, 432], L = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI
+    let g = `<rect x="0" y="-12" width="${L.toFixed(1)}" height="24" rx="4" fill="${C.parking}" stroke="${C.pavedEdge}" stroke-width="1.2"/>`
+    for (let i = 0; i < 3; i++) g += `<rect x="${5 + i * 16}" y="-10" width="10" height="20" rx="2" fill="#f4c542" stroke="#b58d1c" stroke-width=".9"/><rect x="${6.5 + i * 16}" y="-8" width="7" height="4" rx="1" fill="#7e93a8"/>`
     s += `<g transform="translate(${a}) rotate(${ang.toFixed(1)})">${g}</g>`
   }
   // Préau west of the college: a big flat building whose roof is a parking (roof drawn as parking with bays).
