@@ -174,8 +174,7 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5">
                             <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', isOpenRow && 'rotate-90')} />
-                            <span className="font-semibold">{r.u.unitCode}</span>
-                            <span className="truncate text-xs text-muted-foreground">{r.u.unitName}</span>
+                            <span className="font-semibold" title={r.u.unitName}>{r.u.unitCode}</span>
                           </div>
                         </td>
                         <td className="px-3 py-2">{r.s ? <StageBadge u={r.s} /> : <span className="text-muted-foreground">—</span>}</td>

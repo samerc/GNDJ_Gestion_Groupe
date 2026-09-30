@@ -518,7 +518,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
           {!(p.finalIsLeaving ?? p.isLeaving) && (
             <div className="flex items-center gap-1">
               <ArrowRight className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs">{row.passage!.proposedUnitName}</span>
+              <span className="text-xs" title={row.passage!.proposedUnitName}>{row.passage!.proposedUnitCode}</span>
               {row.passage!.proposedTeamName && (
                 <span className="text-xs text-muted-foreground">/ {row.passage!.proposedTeamName}</span>
               )}
