@@ -30,13 +30,11 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { rotationProblem } from '@/lib/camp-rotation'
-import { GameMaterials } from '@/components/camp/game-materials'
+import { GameCard } from '@/components/camp/game-card'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive, Wand2, CloudRain, CheckCircle2, FileSpreadsheet } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Printer, Pencil, Archive, Wand2, CheckCircle2, FileSpreadsheet } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
-import { RichContent } from '@/components/public/rich-content'
-import { GameLocations } from '@/components/camp/my-games-list'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSetting } from '@/services/settings-service'
 import { parsePlaces, PLACES_SETTING, type CampPlace } from '@/lib/camp-places'
@@ -528,7 +526,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
 
   if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
   return (
-    <div className="max-w-2xl space-y-3">
+    <div className="max-w-4xl space-y-3">
       {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les jeux.</p>}
       {!readOnly && (
         <div className="space-y-1">
@@ -548,36 +546,10 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
         </div>
       )}
       {(games ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun jeu.</p> :
-        <div className="space-y-2">{games!.map(g => (
-          <div key={g.id} className="rounded-lg border p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium">
-                {g.number != null
-                  ? <span className="mr-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">Jeu {g.number}</span>
-                  : <span className="mr-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">sans numéro</span>}
-                {g.name}
-              </p>
-              <div className="flex gap-1">
-                <Tip content="Imprimer la fiche du jeu (PDF)"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printGame(g.id, g.name).catch(e => toast.error(parseApiError(e)))}><Printer className="h-4 w-4" /></Button></Tip>
-                {readOnly
-                  ? <span className="text-xs text-muted-foreground">{g.etapistes.length} étapiste(s)</span>
-                  : <>
-                      <Tip content="Modifier le nom et la description"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingGame(g)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Button variant="outline" size="sm" onClick={() => setEtapisteFor(g)}><Users className="mr-1 h-3.5 w-3.5" />Étapistes ({g.etapistes.length})</Button>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeletingGame(g)}><Trash2 className="h-4 w-4" /></Button></Tip>
-                    </>}
-              </div>
-            </div>
-            <div className="mt-1"><GameLocations main={g.mainLocation} backup={g.backupLocation} /></div>
-            <div className="mt-2"><GameMaterials gameId={g.id} campId={campId} items={g.materials ?? []} canEdit={!readOnly} /></div>
-            <div className="mt-1 flex flex-wrap gap-2 text-xs">
-              {g.backupGameName && <span className="flex items-center gap-1 rounded bg-sky-100 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300"><CloudRain className="h-3 w-3" />Plan B : {g.backupGameName}</span>}
-            </div>
-            {hasText(g.description)
-              ? <RichContent html={g.description!} className="mt-2 text-sm" />
-              : !readOnly && <button type="button" className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline" onClick={() => setEditingGame(g)}>+ Ajouter une description</button>}
-            {g.etapistes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{g.etapistes.map(e => `${e.firstName} ${e.lastName}`).join(', ')}</p>}
-          </div>
+        <div className="space-y-3">{games!.map(g => (
+          <GameCard key={g.id} campId={campId} game={g} readOnly={readOnly}
+            onEdit={() => setEditingGame(g)} onEtapistes={() => setEtapisteFor(g)} onDelete={() => setDeletingGame(g)}
+            onPrint={() => printGame(g.id, g.name).catch(e => toast.error(parseApiError(e)))} />
         ))}</div>}
       {editingGame && <GameEditDialog campId={campId} game={editingGame} taken={(games ?? []).filter(x => x.id !== editingGame.id && x.number != null).map(x => x.number!)} onClose={() => setEditingGame(null)} />}
       {etapisteFor && <EtapisteDialog campId={campId} game={etapisteFor} onClose={() => setEtapisteFor(null)} />}

@@ -73,7 +73,7 @@ export function MyGamesList({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean
                 </div>
               )}
               {/* The étapiste can complete the material list of their own game. */}
-              <GameMaterials gameId={g.id} campId={g.campId} items={g.materials ?? []} canEdit />
+              <GameMaterials gameId={g.id} campId={g.campId} items={g.materials ?? []} canEdit framed />
               {g.number != null && <GameScoring campId={g.campId} gameNumber={g.number} />}
               {g.description && g.description.replace(/<[^>]*>/g, '').trim()
                 ? <RichContent html={g.description} className="border-t pt-3 text-sm" />

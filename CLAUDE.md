@@ -6381,4 +6381,8 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   étapiste of the game; refused once archived). `Materials` on CampGameDto + MyCampGameDto; shared
   `components/camp/game-materials.tsx` on the game card (Jeux tab) and « Mes jeux » (étapiste can edit); game PDF
   lists it under « Matériel ».
+- **Camp BP game card redesign** (2026-09-30): `components/camp/game-card.tsx` (`GameCard`) — header = number badge
+  (amber « ? » when not in the rotation), name, lieu A / lieu B, icon actions; body = étapistes chips + « Gérer », plan B
+  line, description clamped with « Voir plus », and a « Matériel » panel (GameMaterials, `framed` only in « Mes jeux »).
+  Jeux tab widened to max-w-4xl (two columns from md).
 
