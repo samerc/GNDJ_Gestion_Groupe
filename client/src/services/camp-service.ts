@@ -8,13 +8,13 @@ import { saveBlob } from '@/lib/download'
 // name + scoutYear are automatic and fixed ("Camp BP 2027" for 2026-2027); theme is free text.
 export interface CampListDto {
   id: string; name: string; scoutYear: string; theme: string | null; famillesCount: number; status: string; isArchived: boolean
-  participantCount: number; gradedCount: number; assignedCount: number
+  participantCount: number; gradedCount: number; assignedCount: number; pereCount: number; mereCount: number; leadersCompleteCount: number
 }
 export interface BranchMultiplierDto { unitTypeId: string; unitTypeName: string; multiplier: number; defaultYears: number }
 export interface CampDto {
   id: string; name: string; scoutYear: string; theme: string | null; famillesCount: number; status: string; isArchived: boolean
   noteForceCoef: number; noteOffset: number; branchMultipliers: BranchMultiplierDto[]
-  participantCount: number; gradedCount: number; assignedCount: number; familleCreatedCount: number
+  participantCount: number; gradedCount: number; assignedCount: number; familleCreatedCount: number; pereCount: number; mereCount: number; leadersCompleteCount: number
   myAccess: CampMyAccessDto
 }
 export interface CampAttendeeDto {

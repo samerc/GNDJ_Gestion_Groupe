@@ -68,7 +68,10 @@ public class GenerateCampReportQueryHandler(IApplicationDbContext context, ICurr
             return new CampReportFamille(f.Number, Name(f.PereMemberId), Name(f.MereMemberId), rows);
         }).ToList();
 
-        var unitsData = parts.GroupBy(m => m.UnitName ?? "—").OrderBy(g => g.Key)
+        // Père / Mère are campers of their unit too: list them in their unit with the famille they lead.
+        var leaderRows = fams.SelectMany(f => new[] { LeaderRow(f.PereMemberId, "Père", f.Number), LeaderRow(f.MereMemberId, "Mère", f.Number) })
+            .Where(r => r != null).Select(r => r!);
+        var unitsData = parts.Concat(leaderRows).GroupBy(m => m.UnitName ?? "—").OrderBy(g => g.Key)
             .Select(g => new CampReportUnit(g.Key, g.OrderBy(m => m.Name).ToList())).ToList();
 
         var data = new CampReportData(camp.Name, camp.ScoutYear, famillesData, unitsData);

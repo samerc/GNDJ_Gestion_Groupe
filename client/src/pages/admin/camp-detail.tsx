@@ -85,7 +85,7 @@ export default function CampDetailPage() {
               {camp.isArchived && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Archivé</span>}
             </h1>
             {camp.theme && <p className="mt-0.5 text-sm italic">Thème : « {camp.theme} »</p>}
-            <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} affectés</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} dans une famille · <span title={`${camp.pereCount} Père(s) et ${camp.mereCount} Mère(s) choisis`}>Père/Mère : {camp.leadersCompleteCount}/{camp.famillesCount}</span></p>
           </div>
           {/* Switch to another camp (the active one first, then the old ones) — like the dashboard year picker. */}
           {(camps ?? []).length > 1 && (

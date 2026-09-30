@@ -120,7 +120,12 @@ public class CampReportService : ICampReportService
                     var bg = alt ? Colors.Grey.Lighten4 : Colors.White; alt = !alt;
                     col.Item().Background(bg).PaddingVertical(1.5f).PaddingHorizontal(4).Row(r =>
                     {
-                        r.RelativeItem().Text(m.Name);
+                        // Père / Mère: role after the name.
+                        r.RelativeItem().Text(t =>
+                        {
+                            t.Span(m.Name);
+                            if (m.Role != null) t.Span($"  ({m.Role})").FontSize(8).Italic().FontColor(Colors.Blue.Darken2);
+                        });
                         r.ConstantItem(30).AlignRight().Text(m.FamilleNumber?.ToString() ?? "—").SemiBold();
                     });
                 }

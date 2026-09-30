@@ -6366,4 +6366,8 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
 - **Camp BP « Liste par unité » PDF** (2026-09-30): one unit per page in TWO columns balanced by height (a team cut
   in the middle continues as « … (suite) »), compact rows, `ScaleToFit` so a unit never spills onto a 2nd page.
   NOTE: until BP work is done, BP changes get NO changelog.json lines and NO docs/help edits (one pass at the end).
+- **Camp BP counts include Père/Mère** (2026-09-30): Père/Mère are campers — CampDto/CampListDto counts cover every
+  attending participant; « dans une famille » = FamilleId set OR Role Père/Mère (a leader has FamilleId null but belongs
+  to the famille they lead). New PereCount / MereCount / LeadersCompleteCount → header « Père/Mère : x/50 ». The
+  « Liste par unité » PDF lists Père/Mère in their own unit with « (Père) / (Mère) » and their famille number.
 

@@ -14,12 +14,15 @@ namespace GNDJ.Application.Camps;
 // A camp's lifecycle status is Setup → Assigned (after the draft) → Closed.
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
+// Counts cover EVERY camper coming, Père / Mère included (they are campers too). AssignedCount = campers in a famille
+// (a Père / Mère is in the famille they lead). PereCount / MereCount = familles whose Père / Mère is chosen;
+// LeadersCompleteCount = familles with both.
 public record CampListDto(Guid Id, string Name, string ScoutYear, string? Theme, int FamillesCount, string Status, bool IsArchived,
-    int ParticipantCount, int GradedCount, int AssignedCount);
+    int ParticipantCount, int GradedCount, int AssignedCount, int PereCount, int MereCount, int LeadersCompleteCount);
 
 public record CampDto(Guid Id, string Name, string ScoutYear, string? Theme, int FamillesCount, string Status, bool IsArchived,
     double NoteForceCoef, double NoteOffset, IReadOnlyList<BranchMultiplierDto> BranchMultipliers,
-    int ParticipantCount, int GradedCount, int AssignedCount, int FamilleCreatedCount,
+    int ParticipantCount, int GradedCount, int AssignedCount, int FamilleCreatedCount, int PereCount, int MereCount, int LeadersCompleteCount,
     // What the CALLER may do in this camp (drives which tabs / buttons the camp screen shows).
     CampMyAccessDto MyAccess);
 
@@ -79,9 +82,12 @@ public class GetCampsQueryHandler(IApplicationDbContext context) : IRequestHandl
     {
         var camps = await context.Camps.OrderByDescending(c => c.IsArchived ? 0 : 1).ThenByDescending(c => c.CreatedAt)
             .Select(c => new CampListDto(c.Id, c.Name, c.ScoutYear, c.Theme, c.FamillesCount, c.Status, c.IsArchived,
-                c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre),
-                c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre && p.Note != null),
-                c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre && p.FamilleId != null)))
+                c.Participants.Count(p => !p.IsDeleted && p.IsAttending),
+                c.Participants.Count(p => !p.IsDeleted && p.IsAttending && p.Note != null),
+                c.Participants.Count(p => !p.IsDeleted && p.IsAttending && (p.FamilleId != null || p.Role != CampRole.Membre)),
+                c.Familles.Count(f => !f.IsDeleted && f.Number <= c.FamillesCount && f.PereMemberId != null),
+                c.Familles.Count(f => !f.IsDeleted && f.Number <= c.FamillesCount && f.MereMemberId != null),
+                c.Familles.Count(f => !f.IsDeleted && f.Number <= c.FamillesCount && f.PereMemberId != null && f.MereMemberId != null)))
             .ToListAsync(ct);
         return Result<IReadOnlyList<CampListDto>>.Success(camps);
     }
@@ -107,13 +113,17 @@ public class GetCampQueryHandler(IApplicationDbContext context, ICurrentUserServ
             .Select(t => new BranchMultiplierDto(t.Id, t.Name, t.NumberOfYears ?? 5, t.NumberOfYears ?? 5))
             .ToList();
 
-        var pc = await context.CampParticipants.Where(p => p.CampId == camp.Id && !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre)
-            .Select(p => new { p.Note, p.FamilleId }).ToListAsync(ct);
+        // Every camper coming, Père / Mère included; a Père / Mère counts as in their famille.
+        var pc = await context.CampParticipants.Where(p => p.CampId == camp.Id && !p.IsDeleted && p.IsAttending)
+            .Select(p => new { p.Note, InFamille = p.FamilleId != null || p.Role != CampRole.Membre }).ToListAsync(ct);
         var familleCount = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted, ct);
+        var leaders = await context.Familles.Where(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= camp.FamillesCount)
+            .GroupBy(_ => 1).Select(g => new { Pere = g.Count(f => f.PereMemberId != null), Mere = g.Count(f => f.MereMemberId != null), Both = g.Count(f => f.PereMemberId != null && f.MereMemberId != null) })
+            .FirstOrDefaultAsync(ct);
 
         return Result<CampDto>.Success(new CampDto(camp.Id, camp.Name, camp.ScoutYear, camp.Theme, camp.FamillesCount, camp.Status, camp.IsArchived,
             camp.NoteForceCoef, camp.NoteOffset, branchDtos,
-            pc.Count, pc.Count(x => x.Note != null), pc.Count(x => x.FamilleId != null), familleCount,
+            pc.Count, pc.Count(x => x.Note != null), pc.Count(x => x.InFamille), familleCount, leaders?.Pere ?? 0, leaders?.Mere ?? 0, leaders?.Both ?? 0,
             await CampAccess.ForAsync(context, currentUser, camp.Id, ct)));
     }
 }

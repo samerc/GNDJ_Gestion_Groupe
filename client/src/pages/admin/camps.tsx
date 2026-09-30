@@ -115,7 +115,7 @@ function CampCard({ camp }: { camp: CampListDto }) {
       </div>
       <div className="hidden text-right text-sm text-muted-foreground sm:block">
         <p>{camp.participantCount} membres · {camp.gradedCount} notés</p>
-        <p>{camp.assignedCount} affectés</p>
+        <p>{camp.assignedCount} dans une famille · <span title={`${camp.pereCount} Père(s) et ${camp.mereCount} Mère(s) choisis`}>Père/Mère : {camp.leadersCompleteCount}/{camp.famillesCount}</span></p>
       </div>
       <ChevronRight className="h-5 w-5 text-muted-foreground" />
     </Link>
