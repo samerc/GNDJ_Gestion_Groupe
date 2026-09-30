@@ -685,8 +685,8 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
         </Callout>
       ) : unitStatus && unitStatus.missingLines > 0 ? (
         <Callout tone="warning">
-          {unitStatus.missingLines} membre(s) n'ont pas encore de proposition. Quand chaque membre en a une, cliquez sur
-          « Terminer le passage de l'unité ».
+          {unitStatus.missingLines} membre(s) n'ont pas encore de proposition.
+          {!embedded && " Quand chaque membre en a une, cliquez sur « Terminer le passage de l'unité »."}
         </Callout>
       ) : null}
       {memberRows.some(r => r.passage?.cgModified) && (

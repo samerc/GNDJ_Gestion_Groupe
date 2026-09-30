@@ -119,6 +119,62 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
   const originLabel = (id: string) => (id === DEMANDES ? 'Demandes' : codeById.get(id) ?? '?')
   const newcomersTotal = data?.newcomers?.length ?? 0
 
+  type Row = (typeof rows)[number]
+  // Detail of a unit (who stays / arrives / leaves) — shared by the desktop table and the phone cards.
+  const detail = (r: Row) => (
+    <>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-3">
+          {/* Members the chef hasn't given a line yet — counted as staying, listed apart so the CG sees who. */}
+          {r.noLine.length > 0 && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 dark:border-amber-800 dark:bg-amber-950/30">
+              <MemberList title="Sans proposition (restent pour l'instant)" tone="amber" items={r.noLine.map(m => m.memberName)} />
+            </div>
+          )}
+          <MemberList title="Restent" tone="slate" items={r.stays.filter(m => m.lineStatus !== 'None').map(m => m.memberName)} />
+        </div>
+        <MemberList title="Arrivent" tone="green"
+          groups={r.byOrigin.map(([id]) => ({
+            label: id === DEMANDES ? "demandes d'inscription acceptées" : `de ${codeById.get(id) ?? '?'}`,
+            names: id === DEMANDES ? r.newcomers.map(n => n.name)
+              : r.arrivals.filter(m => m.currentUnitId === id).map(m => m.memberName),
+          }))} />
+        <MemberList title="Partent" tone="orange"
+          groups={r.byDest.map(([id]) => ({
+            label: destLabel(id),
+            names: r.departures.filter(m => r.eff.get(m.memberId) === id).map(m => m.memberName),
+          }))} />
+      </div>
+      <div className="mt-3">
+        <Button size="sm" variant="outline" onClick={() => onShowMembers(r.u.unitId)}>
+          Voir les lignes de passage de {r.u.unitCode}
+        </Button>
+      </div>
+    </>
+  )
+  // Finish / reopen a unit in place of its chef — shared by the table and the cards.
+  const finishButton = (r: Row) => r.s && r.s.finalized === 0 && (r.s.submitted || r.s.missingLines === 0) && (
+    <Tip content={r.s.submitted ? 'Rouvrir pour le chef d\'unité (il pourra à nouveau modifier)' : 'Marquer comme terminée à la place du chef'}>
+      <Button size="icon" variant="ghost" className="h-8 w-8" disabled={busyUnitId === r.u.unitId}
+        onClick={(e) => { e.stopPropagation(); onToggleFinished(r.u.unitId, r.s!.submitted) }}>
+        {r.s.submitted ? <Unlock className="h-4 w-4" /> : <Flag className="h-4 w-4" />}
+      </Button>
+    </Tip>
+  )
+  // "now → next year +arrivals −departures (quota)" — shared by the table and the cards.
+  const headcount = (r: Row) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-muted-foreground">{r.currentCount}</span>
+      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className={cn('font-semibold', r.overQuota && 'text-red-600 dark:text-red-400')}>{r.projected}</span>
+      {r.arrivalCount > 0 && <span className="text-xs text-green-700 dark:text-green-400">+{r.arrivalCount}</span>}
+      {r.departures.length > 0 && <span className="text-xs text-orange-600 dark:text-orange-400">−{r.departures.length}</span>}
+      {!!r.u.quota && (
+        <Badge variant={r.overQuota ? 'destructive' : 'outline'} className="text-[10px]">quota {r.u.quota}</Badge>
+      )}
+    </div>
+  )
+
   return (
     <Card>
       <CardContent className="space-y-3 pt-4">
@@ -152,7 +208,37 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                 {data.missingLines} membre(s) n'ont pas encore de proposition : ils sont comptés dans leur unité actuelle.
               </p>
             )}
-            <div className="overflow-x-auto rounded-lg border">
+            {/* Phones: one card per unit (tap to open who stays / arrives / leaves). */}
+            <div className="space-y-2 md:hidden">
+              {rows.map(r => {
+                const isOpenRow = expanded === r.u.unitId
+                const pending = r.s?.pending ?? 0
+                return (
+                  <div key={r.u.unitId} className={cn('rounded-lg border', isOpenRow && 'bg-muted/20')}>
+                    <div role="button" tabIndex={0} className="space-y-2 p-3"
+                      onClick={() => setExpanded(isOpenRow ? null : r.u.unitId)}
+                      onKeyDown={e => { if (e.key === 'Enter') setExpanded(isOpenRow ? null : r.u.unitId) }}>
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpenRow && 'rotate-90')} />
+                        <span className="font-semibold">{r.u.unitCode}</span>
+                        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{r.u.unitName}</span>
+                        {pending > 0 && <Badge variant="warning">{pending} à valider</Badge>}
+                        {finishButton(r)}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        {r.s ? <StageBadge u={r.s} /> : null}
+                        {headcount(r)}
+                      </div>
+                      {r.byOrigin.length > 0 && (
+                        <p className="text-xs text-muted-foreground">Arrivent de : {r.byOrigin.map(([id, n]) => `${originLabel(id)} ${n}`).join(' · ')}</p>
+                      )}
+                    </div>
+                    {isOpenRow && <div className="border-t px-3 pb-3 pt-2">{detail(r)}</div>}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="hidden overflow-x-auto rounded-lg border md:block">
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
@@ -183,63 +269,19 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
                             ? <Badge variant="warning">{pending}</Badge>
                             : <CheckCircle2 className="mx-auto h-4 w-4 text-green-600 dark:text-green-400" aria-label="Rien à valider" />}
                         </td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">{r.currentCount}</span>
-                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className={cn('font-semibold', r.overQuota && 'text-red-600 dark:text-red-400')}>{r.projected}</span>
-                            {r.arrivalCount > 0 && <span className="text-xs text-green-700 dark:text-green-400">+{r.arrivalCount}</span>}
-                            {r.departures.length > 0 && <span className="text-xs text-orange-600 dark:text-orange-400">−{r.departures.length}</span>}
-                            {!!r.u.quota && (
-                              <Badge variant={r.overQuota ? 'destructive' : 'outline'} className="text-[10px]">quota {r.u.quota}</Badge>
-                            )}
-                          </div>
-                        </td>
+                        <td className="px-3 py-2">{headcount(r)}</td>
                         <td className="px-3 py-2 text-xs">
                           {r.byOrigin.length === 0 ? <span className="text-muted-foreground">—</span>
                             : r.byOrigin.map(([id, n]) => `${originLabel(id)} ${n}`).join(' · ')}
                         </td>
                         <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
-                          {r.s && r.s.finalized === 0 && (r.s.submitted || r.s.missingLines === 0) && (
-                            <Tip content={r.s.submitted ? 'Rouvrir pour le chef d\'unité (il pourra à nouveau modifier)' : 'Marquer comme terminée à la place du chef'}>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busyUnitId === r.u.unitId}
-                                onClick={() => onToggleFinished(r.u.unitId, r.s!.submitted)}>
-                                {r.s.submitted ? <Unlock className="h-3.5 w-3.5" /> : <Flag className="h-3.5 w-3.5" />}
-                              </Button>
-                            </Tip>
-                          )}
+                          {finishButton(r)}
                         </td>
                       </tr>
                       {isOpenRow && (
                         <tr className="bg-muted/10">
                           <td colSpan={6} className="px-4 pb-4 pt-2">
-                            <div className="grid gap-4 sm:grid-cols-3">
-                              <div className="space-y-3">
-                                {/* Members the chef hasn't given a line yet — counted as staying, listed apart so the CG sees who. */}
-                                {r.noLine.length > 0 && (
-                                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 dark:border-amber-800 dark:bg-amber-950/30">
-                                    <MemberList title="Sans proposition (restent pour l'instant)" tone="amber" items={r.noLine.map(m => m.memberName)} />
-                                  </div>
-                                )}
-                                <MemberList title="Restent" tone="slate" items={r.stays.filter(m => m.lineStatus !== 'None').map(m => m.memberName)} />
-                              </div>
-                              <MemberList title="Arrivent" tone="green"
-                                groups={r.byOrigin.map(([id]) => ({
-                                  label: id === DEMANDES ? "demandes d'inscription acceptées" : `de ${codeById.get(id) ?? '?'}`,
-                                  names: id === DEMANDES ? r.newcomers.map(n => n.name)
-                                    : r.arrivals.filter(m => m.currentUnitId === id).map(m => m.memberName),
-                                }))} />
-                              <MemberList title="Partent" tone="orange"
-                                groups={r.byDest.map(([id]) => ({
-                                  label: destLabel(id),
-                                  names: r.departures.filter(m => r.eff.get(m.memberId) === id).map(m => m.memberName),
-                                }))} />
-                            </div>
-                            <div className="mt-3">
-                              <Button size="sm" variant="outline" onClick={() => onShowMembers(r.u.unitId)}>
-                                Voir les lignes de passage de {r.u.unitCode}
-                              </Button>
-                            </div>
+                            {detail(r)}
                           </td>
                         </tr>
                       )}
