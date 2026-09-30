@@ -353,15 +353,18 @@ Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vo
   ajustez à la main (glisser-déposer) et choisissez le Père et la Mère de chaque famille. Le crayon à côté d'une
   famille lui donne un **nom** (son personnage) et une **description**, imprimés sur son passeport.
   **Superfamilles** (facultatif) : regroupez les familles, par exemple 5 univers de 10 familles.
-- **Jeux** : les 25 jeux, chacun avec son **numéro** (jeu 1 à 25), son **lieu A**, son **lieu B** (repli en cas de mauvais temps) et ses étapistes. Le numéro place le jeu
+- **Jeux** : un jeu pour deux familles (50 familles = 25 jeux), chacun avec son **numéro** (jeu 1 à 25 pour 50 familles), son **lieu A**, son **lieu B** (repli en cas de mauvais temps) et ses étapistes. Le numéro place le jeu
   dans la grille de rotation. **Attribuer les lieux** donne à chaque jeu un lieu libre de la liste (lieu A, lieu B
   ou les deux). Un lieu qui sert à la fois de lieu A et de lieu B est mis des deux côtés du jeu. Un jeu qui ne peut pas se jouer au lieu B reçoit un **jeu de repli** : en plan B, c'est
   lui qui est joué à cette étape.
 - **Les lieux** se gèrent dans **Paramètres → Camp BP** (les mêmes chaque année) : pour chaque lieu, s'il sert de
   lieu A et/ou de lieu B et combien de jeux il peut accueillir en même temps.
-- **Rotation** : la grille est **fixe** (50 familles, 25 jeux, 25 étapes : 15 le premier jour, 10 le second ;
-  chaque famille joue chaque jeu une fois et ne rencontre jamais deux fois la même famille). Choisissez les deux
-  jours du camp, ajustez les horaires si besoin, et imprimez les **passeports des familles** et les **feuilles de
+- **Rotation** : la grille suit le **nombre de familles** du camp : deux familles par jeu, donc autant de jeux et
+  d'étapes que de familles ÷ 2 (50 familles → 25 jeux, 25 étapes). Chaque famille joue chaque jeu une fois et ne
+  rencontre jamais deux fois la même famille. Le nombre de familles doit être **pair**, de 8 à 100 (avec 4 ou 6
+  familles, aucune rotation n'est possible). Pour 50 familles, c'est la
+  grille habituelle de la commission. Choisissez les deux jours du camp et le nombre d'étapes du premier jour
+  (proposé : environ 60 %), ajustez les horaires si besoin, et imprimez les **passeports des familles** et les **feuilles de
   pointage**. S'il pleut, activez **Plan B** : tous les lieux passent aux lieux de repli.
 - **Pointage** : saisissez les scores par jeu ou par étape — sur place, ou plus tard depuis la feuille papier.
   Les règles sont appliquées toutes seules (manches de 50 points, retards A et B, 5 points d'esprit, énigme) et le

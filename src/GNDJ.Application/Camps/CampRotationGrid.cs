@@ -1,21 +1,115 @@
 namespace GNDJ.Application.Camps;
 
-// The Camp BP rotation grid — FIXED (the same every year): 50 familles, 25 games, 25 time slots ("étapes").
-// At each slot every game is played by two familles; over the 25 slots every famille plays each game exactly once
-// and never meets the same famille twice (checked). Copied from the commission's "Grille de Rotation.xlsx".
-// Pairs[slot - 1][game - 1] = (famille A, famille B). Only the dates / hours (DefaultTimes) and the places of the
-// games change from one year to the next — the places live on each CampGame.
-// Generated from the Excel — do not edit by hand.
+// The Camp BP rotation grid, for any number of games G (always 2 × G familles, G time slots = "étapes").
+// At each slot every game is played by two familles; over the G slots every famille plays each game exactly once
+// and never meets the same famille twice (checked by the unit tests for every supported size).
+//
+// How the grid is built:
+//   • 25 games = the commission's historical "Grille de Rotation.xlsx" (ClassicPairs), kept as-is.
+//   • Odd G   = a formula: familles 1…G ("A") meet familles G+1…2G ("B"); at slot t, game g hosts
+//               A(g − t) vs B(g + t) (mod G). Each A meets B(i + 2t) → all different because G is odd.
+//   • Even G  = a precomputed first slot (EvenBases, found by a computer search and checked); every next slot is the
+//               same slot with all familles and games shifted by one (famille x of half s → x+1 of the same half).
+//   • 2 or 3 games (4 or 6 familles) are mathematically impossible — Problem() says so.
+// Numbers returned are 1-based: Build(G)[slot - 1][game - 1] = (famille A, famille B).
+// Only the dates / hours of the slots and the places of the games change from one camp to the next.
 public static class CampRotationGrid
 {
-    public const int Familles = 50;
-    public const int Games = 25;
-    public const int Slots = 25;
-    // Slots 1…15 are on the first day, 16…25 on the second.
-    public const int FirstDaySlots = 15;
+    public const int MaxGames = 50;                 // 100 familles
+    private const int ClassicGames = 25;
+    private const int ClassicFirstDaySlots = 15;
 
-    // Default hours of each slot (camp 2026); editable per camp.
-    public static readonly (TimeOnly Start, TimeOnly End)[] DefaultTimes =
+    // Why a camp's famille count can't get a rotation (null = fine).
+    public static string? Problem(int familles)
+    {
+        if (familles < 2) return "Il faut au moins 2 familles pour la rotation.";
+        if (familles % 2 != 0) return $"La rotation demande un nombre pair de familles (2 par jeu) ; ce camp en a {familles}.";
+        var games = familles / 2;
+        if (games is 2 or 3) return $"Aucune rotation n'est possible avec {familles} familles ({games} jeux) : il est impossible que chaque famille joue tous les jeux sans rencontrer deux fois la même famille. Choisissez au moins 8 familles.";
+        if (games > MaxGames) return $"La rotation va jusqu'à {MaxGames * 2} familles ({MaxGames} jeux) ; ce camp en a {familles}.";
+        return null;
+    }
+
+    public static int GamesFor(int familles) => familles / 2;
+
+    // Slots on the first day by default (~60 %, like the historical 15 of 25).
+    public static int DefaultFirstDaySlots(int games) => games == ClassicGames ? ClassicFirstDaySlots : (int)Math.Ceiling(games * 0.6);
+
+    // Default hours of a slot. The historical 25-game camp keeps its hours; otherwise each day starts at the usual
+    // time (11:30 first day, 11:00 second day) with a 13-minute étape every 20 minutes. Editable per camp.
+    public static (TimeOnly Start, TimeOnly End) DefaultTime(int games, int firstDaySlots, int slot)
+    {
+        if (games == ClassicGames && firstDaySlots == ClassicFirstDaySlots) return ClassicTimes[slot - 1];
+        var firstDay = slot <= firstDaySlots;
+        var index = firstDay ? slot - 1 : slot - firstDaySlots - 1;
+        var start = (firstDay ? new TimeOnly(11, 30) : new TimeOnly(11, 0)).AddMinutes(20 * index);
+        return (start, start.AddMinutes(13));
+    }
+
+    public static (int A, int B)[][] Build(int games)
+    {
+        if (Problem(games * 2) is { } problem) throw new ArgumentException(problem, nameof(games));
+        if (games == ClassicGames) return ClassicPairs;
+        var n = games;
+        var grid = new (int A, int B)[n][];
+        if (n % 2 == 1)
+        {
+            for (var t = 0; t < n; t++)
+            {
+                grid[t] = new (int, int)[n];
+                for (var g = 0; g < n; g++)
+                    grid[t][g] = (Mod(g - t, n) + 1, n + Mod(g + t, n) + 1);
+            }
+            return grid;
+        }
+
+        // Even: shift the stored first slot. Famille index f (0-based) = x + half × n.
+        var bases = EvenBases[n].Split(',').Select(p => p.Split('-')).Select(p => (int.Parse(p[0]), int.Parse(p[1]))).ToArray();
+        int Shift(int f, int t) => Mod(f % n + t, n) + f / n * n + 1;
+        for (var t = 0; t < n; t++)
+        {
+            grid[t] = new (int, int)[n];
+            for (var k = 0; k < n; k++)
+                grid[t][Mod(k + t, n)] = (Shift(bases[k].Item1, t), Shift(bases[k].Item2, t));
+        }
+        return grid;
+    }
+
+    private static int Mod(int a, int n) => ((a % n) + n) % n;
+
+    // First slot of every even game count 4…50: game k → "famille-famille" (0-based: x + half × G). Generated and
+    // verified by a search script (cyclic construction) — do not edit by hand.
+    private static readonly Dictionary<int, string> EvenBases = new()
+    {
+        [4] = "4-7,2-6,0-1,3-5",
+        [6] = "1-7,9-11,5-8,2-6,0-4,3-10",
+        [8] = "12-14,3-9,5-13,1-2,0-11,6-10,8-15,4-7",
+        [10] = "1-16,3-5,7-11,10-13,15-19,17-18,2-14,0-4,6-12,8-9",
+        [12] = "5-15,0-1,20-22,14-17,10-21,8-12,2-19,9-16,6-18,4-13,7-11,3-23",
+        [14] = "7-9,0-1,3-25,11-22,14-19,10-26,2-8,5-23,12-21,6-20,13-18,15-17,4-24,16-27",
+        [16] = "8-17,2-23,12-13,5-19,4-7,3-20,15-30,18-21,26-31,28-29,0-14,10-16,1-24,9-22,11-27,6-25",
+        [18] = "17-33,14-28,18-23,6-32,12-15,19-29,8-10,1-25,20-31,7-22,2-27,0-30,9-13,21-35,5-34,3-11,16-26,4-24",
+        [20] = "24-32,20-21,5-37,30-34,11-22,26-33,3-19,1-9,14-16,8-31,0-35,6-25,4-28,18-39,15-23,13-38,12-29,17-27,2-7,10-36",
+        [22] = "11-42,32-40,1-26,35-36,22-25,34-39,2-41,13-33,9-30,12-24,0-29,5-38,20-28,6-15,14-37,19-43,7-21,4-31,3-10,17-27,8-23,16-18",
+        [24] = "22-23,1-21,4-29,9-38,25-44,13-16,15-28,31-32,34-45,37-43,14-42,5-47,2-17,6-30,0-33,7-12,19-39,8-46,24-27,20-26,3-35,10-41,36-40,11-18",
+        [26] = "14-49,11-17,6-20,16-29,46-51,36-38,28-43,41-47,1-35,5-26,19-30,9-18,12-40,8-10,0-32,27-39,45-48,23-42,3-7,22-34,2-50,15-31,13-21,24-25,33-37,4-44",
+        [28] = "19-34,4-12,8-23,0-2,14-54,27-31,33-48,21-25,15-44,26-29,38-55,3-51,17-50,9-37,18-53,13-52,24-47,46-49,6-36,20-42,41-45,16-40,22-35,7-10,5-39,30-32,11-28,1-43",
+        [30] = "25-30,7-37,4-48,0-2,24-52,22-42,16-29,12-59,9-21,28-47,10-53,5-58,15-23,20-41,18-54,40-57,1-39,32-43,38-50,3-27,49-51,13-35,46-55,19-34,6-45,11-44,14-17,31-36,26-33,8-56",
+        [32] = "6-32,19-46,3-36,7-50,45-63,24-59,1-35,15-18,29-30,22-42,4-9,31-61,21-40,38-49,5-17,34-57,0-13,52-54,14-62,2-58,27-41,23-44,53-60,28-37,16-48,25-33,43-56,12-20,26-39,11-55,8-10,47-51",
+        [34] = "25-58,17-27,41-49,22-52,15-28,18-53,11-66,0-9,14-64,3-45,47-51,55-65,54-67,36-38,24-46,1-44,16-56,29-63,7-35,2-6,39-50,19-48,21-40,26-31,5-59,13-20,10-42,23-60,37-62,33-57,34-61,4-32,12-43,8-30",
+        [36] = "0-24,12-21,34-61,22-71,31-46,48-49,16-52,40-62,37-47,3-8,7-63,20-58,28-35,39-44,15-29,19-69,65-67,6-23,30-70,1-59,45-57,14-43,17-60,25-51,2-10,32-55,11-50,41-54,18-64,27-38,33-42,36-66,9-13,5-53,26-68,4-56",
+        [38] = "0-39,4-36,63-64,2-40,11-68,24-70,14-31,30-45,19-43,29-59,3-57,15-47,6-17,53-58,32-35,10-66,22-74,49-71,7-27,33-67,61-72,13-46,44-50,41-56,26-54,21-37,5-69,25-42,18-62,1-60,16-38,73-75,9-51,8-34,12-55,23-52,20-65,28-48",
+        [40] = "31-48,58-67,9-61,4-21,69-72,3-43,26-77,17-62,55-57,28-51,24-50,22-35,2-38,65-76,39-74,20-54,40-46,25-53,12-45,52-75,8-49,66-79,5-63,0-18,30-78,60-68,19-29,14-16,27-41,11-73,34-64,23-42,1-13,6-70,36-56,7-10,32-33,37-47,44-59,15-71",
+        [42] = "10-61,24-35,54-78,12-76,28-41,27-50,8-71,40-47,64-67,21-48,38-81,36-55,9-59,7-82,13-52,18-77,65-80,43-49,14-46,60-72,25-53,32-37,6-79,2-69,22-66,73-75,3-30,34-63,29-44,1-42,17-20,4-39,56-57,11-33,5-19,23-70,0-45,26-74,31-68,15-51,58-83,16-62",
+        [44] = "47-70,33-66,36-77,12-81,1-44,79-84,49-55,28-63,60-71,21-32,58-78,3-38,6-54,15-52,72-87,61-74,29-67,23-24,42-73,17-51,35-56,48-75,45-82,10-76,19-40,16-62,2-34,9-68,14-50,46-86,31-80,5-69,13-65,0-26,30-59,8-53,25-64,41-57,22-37,39-83,43-85,7-11,20-27,4-18",
+        [46] = "12-27,67-79,0-69,39-88,25-32,6-46,10-63,24-54,45-59,17-61,52-85,56-91,35-70,18-89,34-62,9-29,72-78,36-81,1-14,50-87,33-44,48-90,40-66,23-82,49-77,20-51,13-86,15-73,4-83,8-64,22-68,42-71,16-21,3-30,43-84,28-38,55-60,65-80,37-75,19-41,57-76,26-74,2-11,7-58,5-47,31-53",
+        [48] = "22-25,17-66,11-89,3-32,16-74,18-68,12-26,54-55,39-45,8-78,29-86,14-19,53-73,36-90,1-85,9-69,37-51,24-77,46-71,43-64,4-52,7-48,20-79,2-34,61-82,15-27,21-50,23-67,6-10,30-47,44-60,81-93,42-65,59-88,70-72,40-87,5-80,56-62,49-58,57-95,31-83,33-75,84-91,28-94,0-41,38-76,13-92,35-63",
+        [50] = "68-99,3-22,25-80,75-85,29-35,13-63,43-44,4-61,17-82,38-50,10-77,5-23,32-71,19-49,42-70,30-59,27-81,7-65,11-98,18-66,2-53,60-97,39-88,12-94,46-93,1-9,51-57,37-62,20-91,24-48,26-64,54-86,36-89,47-78,74-76,15-95,34-41,40-73,6-67,16-90,83-92,79-87,33-56,0-28,45-55,8-72,58-96,21-84,14-31,52-69",
+    };
+
+    // ── The historical 25-game grid (Grille de Rotation.xlsx) ──
+    // Default hours of each slot (camp 2026; 15 slots on day 1, 10 on day 2).
+    private static readonly (TimeOnly Start, TimeOnly End)[] ClassicTimes =
     [
         (new TimeOnly(11, 30), new TimeOnly(11, 43)),
         (new TimeOnly(11, 50), new TimeOnly(12, 3)),
@@ -44,7 +138,7 @@ public static class CampRotationGrid
         (new TimeOnly(14, 7), new TimeOnly(14, 20)),
     ];
 
-    public static readonly (int A, int B)[][] Pairs =
+    private static readonly (int A, int B)[][] ClassicPairs =
     [
         [(1, 26), (2, 27), (3, 28), (4, 29), (5, 30), (6, 31), (7, 32), (8, 33), (9, 34), (10, 35), (11, 36), (12, 37), (13, 38), (14, 39), (15, 40), (16, 41), (17, 42), (18, 43), (19, 44), (20, 45), (21, 46), (22, 47), (23, 48), (24, 49), (25, 50)],
         [(5, 29), (1, 30), (2, 26), (3, 27), (4, 28), (10, 34), (6, 35), (7, 31), (8, 32), (9, 33), (15, 39), (11, 40), (12, 36), (13, 37), (14, 38), (20, 44), (16, 45), (17, 41), (18, 42), (19, 43), (25, 49), (21, 50), (22, 46), (23, 47), (24, 48)],

@@ -14,6 +14,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
+import { rotationProblem } from '@/lib/camp-rotation'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { useIsCampCg } from '@/components/camp/use-is-camp-cg'
@@ -85,7 +86,8 @@ export default function CampsAdminPage() {
             {yearTaken && <p className="text-sm text-destructive">Il existe déjà un camp pour l'année {scoutYear}.</p>}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1 sm:col-span-2"><RequiredLabel>Thème</RequiredLabel><Input value={form.theme} maxLength={200} onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} placeholder="Le thème du camp" /></div>
-              <div className="space-y-1"><RequiredLabel>Nb familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: e.target.value }))} placeholder="défaut" /></div>
+              <div className="space-y-1"><RequiredLabel>Nb familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: e.target.value }))} placeholder="défaut" />
+                {form.famillesCount && rotationProblem(Number(form.famillesCount)) && <p className="text-xs text-amber-700 dark:text-amber-400">{rotationProblem(Number(form.famillesCount))}</p>}</div>
             </div>
             <div className="space-y-1">
               <RequiredLabel>Chefs de commission</RequiredLabel>

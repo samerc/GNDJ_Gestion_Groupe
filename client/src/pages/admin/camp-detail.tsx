@@ -29,6 +29,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
+import { rotationProblem } from '@/lib/camp-rotation'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive, Wand2, CloudRain, CheckCircle2, FileSpreadsheet } from 'lucide-react'
@@ -169,7 +170,10 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="space-y-1 sm:col-span-2"><RequiredLabel>Nom</RequiredLabel><Input value={camp.name} disabled readOnly /></div>
         <div className="space-y-1"><RequiredLabel>Année scoute</RequiredLabel><Input value={camp.scoutYear} disabled readOnly /></div>
         <div className="space-y-1 sm:col-span-2"><RequiredLabel>Thème</RequiredLabel><Input value={form.theme} maxLength={200} placeholder="Le thème du camp" onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} /></div>
-        <div className="space-y-1"><RequiredLabel>Nombre de familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: Number(e.target.value) }))} /></div>
+        <div className="space-y-1"><RequiredLabel>Nombre de familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: Number(e.target.value) }))} />
+          {/* The grand-jeu rotation needs an even count (2 familles per game), not 4 or 6, at most 100. */}
+          {rotationProblem(Number(form.famillesCount)) && <p className="text-xs text-amber-700 dark:text-amber-400">{rotationProblem(Number(form.famillesCount))}</p>}
+          {!rotationProblem(form.famillesCount) && <p className="text-xs text-muted-foreground">{form.famillesCount / 2} jeux dans la rotation.</p>}</div>
       </div>
       <p className="-mt-3 text-xs text-muted-foreground">Le nom et l'année scoute sont fixés automatiquement à la création du camp.</p>
 
@@ -569,6 +573,9 @@ function hasText(html: string | null) {
 // Edit a game's name + its formatted description (TipTap; shown sanitized on the game card).
 function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game: CampGameDto; taken: number[]; onClose: () => void }) {
   const update = useUpdateGame(campId)
+  const { data: camp } = useCamp(campId)
+  // Numbers of this camp's grid: 1 … familles / 2 (plus the game's current number if the count was lowered).
+  const gameCount = Math.max(Math.floor((camp?.famillesCount ?? 0) / 2), game.number ?? 0)
   const [number, setNumber] = useState<number | null>(game.number)
   const [name, setName] = useState(game.name)
   const [description, setDescription] = useState(game.description ?? '')
@@ -611,7 +618,7 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_PLACE}>Aucun</SelectItem>
-                  {Array.from({ length: 25 }, (_, i) => i + 1).map(n => (
+                  {Array.from({ length: gameCount }, (_, i) => i + 1).map(n => (
                     <SelectItem key={n} value={String(n)} disabled={taken.includes(n)}>Jeu {n}{taken.includes(n) ? ' (pris)' : ''}</SelectItem>
                   ))}
                 </SelectContent>
@@ -622,7 +629,7 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
               <Input value={name} onChange={e => setName(e.target.value)} />
             </div>
           </div>
-          <p className="-mt-1 text-xs text-muted-foreground">Le numéro place le jeu dans la grille de rotation (jeu 1 à 25) : c'est ce qui donne son lieu à chaque famille.</p>
+          <p className="-mt-1 text-xs text-muted-foreground">Le numéro place le jeu dans la grille de rotation (jeu 1 à {gameCount}) : c'est ce qui donne son lieu à chaque famille.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <LocationSelect label="Lieu A" value={mainLocation} onChange={pickMain} options={optionsWithCurrent(placesA, mainLocation)} />
             <LocationSelect label="Lieu B (mauvais temps)" value={backupLocation} onChange={pickBackup} options={optionsWithCurrent(placesB, backupLocation)} />

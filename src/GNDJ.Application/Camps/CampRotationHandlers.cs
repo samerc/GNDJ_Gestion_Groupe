@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Camps;
 
-// Camp BP — the grand jeu rotation. The grid (which two familles play which game at each slot) is fixed
-// (CampRotationGrid); per camp we store the slots' dates / hours and one row per match (which also holds its score).
-// A game is linked to the grid by its Number (Jeu 1…25), which is how a match finds its name, places and étapistes.
+// Camp BP — the grand jeu rotation. The grid (which two familles play which game at each slot) follows the camp's
+// number of familles (CampRotationGrid: G games for 2 × G familles, G slots); per camp we store the slots' dates / hours and one row per match (which also holds its score).
+// A game is linked to the grid by its Number (Jeu 1…G), which is how a match finds its name, places and étapistes.
 //
 // Who does what:
 //   • Set up the rotation (generate, hours, rain plan): the commission with Jeux "edit" (or the CG).
@@ -22,9 +22,12 @@ namespace GNDJ.Application.Camps;
 public record CampRotationSlotDto(int Number, DateOnly Date, TimeOnly StartTime, TimeOnly EndTime);
 public record CampRotationGameDto(int Number, Guid? GameId, string? Name, string? MainLocation, string? BackupLocation, IReadOnlyList<string> Etapistes,
     string? BackupGameName = null);
+// GamesCount = games of the generated grid (or, before generating, of the camp's famille count). GridProblem = why the
+// camp's famille count can't get a rotation. GeneratedFamilles = familles of the generated grid (0 before), so the
+// page can warn when the famille count was changed afterwards. DefaultFirstDaySlots = proposed split of the étapes.
 public record CampRotationDto(bool Generated, bool UseBackupLocations, int FamillesCount, int ExistingFamilles,
     int MatchCount, int ScoredCount, IReadOnlyList<CampRotationSlotDto> Slots, IReadOnlyList<CampRotationGameDto> Games,
-    DateTime Now);
+    DateTime Now, int GamesCount, string? GridProblem, int GeneratedFamilles, int DefaultFirstDaySlots);
 
 public record CampPersonMatchDto(Guid MemberId, string FirstName, string LastName, string? UnitCode, string Role,
     int? FamilleNumber, string? FamilleName);
@@ -92,25 +95,30 @@ public class GetCampRotationQueryHandler(IApplicationDbContext context, ICurrent
         var counts = await context.CampRotationMatches.Where(m => m.CampId == camp.Id)
             .GroupBy(_ => 1).Select(g => new { Total = g.Count(), Scored = g.Count(m => m.ScoredAt != null) }).FirstOrDefaultAsync(ct);
         var games = await CampRotationData.GamesByNumberAsync(context, camp.Id, ct);
-        var existing = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= CampRotationGrid.Familles, ct);
+        var existing = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= camp.FamillesCount, ct);
+        var gamesCount = slots.Count > 0 ? slots.Count : CampRotationGrid.GamesFor(camp.FamillesCount);
+        var plannedGames = CampRotationGrid.GamesFor(camp.FamillesCount);
 
-        var gameRows = Enumerable.Range(1, CampRotationGrid.Games).Select(n => games.TryGetValue(n, out var g)
+        var gameRows = Enumerable.Range(1, gamesCount).Select(n => games.TryGetValue(n, out var g)
             ? new CampRotationGameDto(n, g.Id, g.Name, g.MainLocation, g.BackupLocation, g.Etapistes, g.BackupGameName)
             : new CampRotationGameDto(n, null, null, null, null, [])).ToList();
 
         return Result<CampRotationDto>.Success(new CampRotationDto(slots.Count > 0, camp.UseBackupLocations, camp.FamillesCount, existing,
-            counts?.Total ?? 0, counts?.Scored ?? 0, slots, gameRows, LebanonClock.Now));
+            counts?.Total ?? 0, counts?.Scored ?? 0, slots, gameRows, LebanonClock.Now,
+            gamesCount, CampRotationGrid.Problem(camp.FamillesCount), slots.Count * 2, CampRotationGrid.DefaultFirstDaySlots(plannedGames)));
     }
 }
 
-// Creates the 25 slots (15 on the first day, 10 on the second, default hours) and the 625 matches of the fixed grid.
-// Refused once a score has been entered (regenerating would wipe it).
-public record GenerateCampRotationCommand(Guid CampId, DateOnly FirstDay, DateOnly SecondDay) : IRequest<Result<bool>>;
+// Creates the G slots (FirstDaySlots on the first day — default ~60 % — the rest on the second, default hours) and the
+// G × G matches of the grid for the camp's famille count (2 × G). Refused once a score has been entered (regenerating
+// would wipe it) and when the famille count can't get a rotation (odd, 4, 6, over 100).
+public record GenerateCampRotationCommand(Guid CampId, DateOnly FirstDay, DateOnly SecondDay, int? FirstDaySlots = null) : IRequest<Result<bool>>;
 public class GenerateCampRotationCommandValidator : AbstractValidator<GenerateCampRotationCommand>
 {
     public GenerateCampRotationCommandValidator()
     {
         RuleFor(x => x.SecondDay).GreaterThanOrEqualTo(x => x.FirstDay).WithMessage("Le 2ème jour doit suivre le 1er jour.");
+        RuleFor(x => x.FirstDaySlots).InclusiveBetween(1, CampRotationGrid.MaxGames).When(x => x.FirstDaySlots != null);
     }
 }
 public class GenerateCampRotationCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
@@ -119,23 +127,29 @@ public class GenerateCampRotationCommandHandler(IApplicationDbContext context, I
     public async ValueTask<Result<bool>> Handle(GenerateCampRotationCommand request, CancellationToken ct)
     {
         if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, true, ct) is { } denied) return Result<bool>.Failure(denied);
-        if (!await context.Camps.AnyAsync(c => c.Id == request.CampId && !c.IsArchived, ct)) return Result<bool>.Failure("Camp introuvable ou archivé.");
+        var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.CampId && !c.IsArchived, ct);
+        if (camp is null) return Result<bool>.Failure("Camp introuvable ou archivé.");
+        if (CampRotationGrid.Problem(camp.FamillesCount) is { } problem) return Result<bool>.Failure(problem);
+        var games = CampRotationGrid.GamesFor(camp.FamillesCount);
+        var firstDaySlots = request.FirstDaySlots ?? CampRotationGrid.DefaultFirstDaySlots(games);
+        if (firstDaySlots > games) return Result<bool>.Failure($"Il n'y a que {games} étapes.");
         if (await context.CampRotationMatches.AnyAsync(m => m.CampId == request.CampId && m.ScoredAt != null, ct))
             return Result<bool>.Failure("Des scores ont déjà été saisis : la rotation ne peut plus être régénérée. Modifiez seulement les horaires.");
 
         await context.CampRotationMatches.Where(m => m.CampId == request.CampId).ExecuteDeleteAsync(ct);
         await context.CampRotationSlots.Where(s => s.CampId == request.CampId).ExecuteDeleteAsync(ct);
 
-        for (var s = 1; s <= CampRotationGrid.Slots; s++)
+        var grid = CampRotationGrid.Build(games);
+        for (var s = 1; s <= games; s++)
         {
-            var (start, end) = CampRotationGrid.DefaultTimes[s - 1];
+            var (start, end) = CampRotationGrid.DefaultTime(games, firstDaySlots, s);
             context.CampRotationSlots.Add(new CampRotationSlot
             {
                 CampId = request.CampId, Number = s, StartTime = start, EndTime = end,
-                Date = s <= CampRotationGrid.FirstDaySlots ? request.FirstDay : request.SecondDay,
+                Date = s <= firstDaySlots ? request.FirstDay : request.SecondDay,
             });
-            var pairs = CampRotationGrid.Pairs[s - 1];
-            for (var g = 1; g <= CampRotationGrid.Games; g++)
+            var pairs = grid[s - 1];
+            for (var g = 1; g <= games; g++)
                 context.CampRotationMatches.Add(new CampRotationMatch
                 {
                     CampId = request.CampId, SlotNumber = s, GameNumber = g, FamilleA = pairs[g - 1].A, FamilleB = pairs[g - 1].B,
@@ -143,7 +157,7 @@ public class GenerateCampRotationCommandHandler(IApplicationDbContext context, I
         }
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("GenerateRotation", "Camp", request.CampId, null,
-            new { FirstDay = request.FirstDay.ToString("yyyy-MM-dd"), SecondDay = request.SecondDay.ToString("yyyy-MM-dd") }, ct);
+            new { FirstDay = request.FirstDay.ToString("yyyy-MM-dd"), SecondDay = request.SecondDay.ToString("yyyy-MM-dd"), Familles = camp.FamillesCount, Games = games, FirstDaySlots = firstDaySlots }, ct);
         return Result<bool>.Success(true);
     }
 }
@@ -155,7 +169,7 @@ public class UpdateCampRotationSlotsCommandValidator : AbstractValidator<UpdateC
 {
     public UpdateCampRotationSlotsCommandValidator()
     {
-        RuleFor(x => x.Slots).NotEmpty().Must(s => s.Count <= CampRotationGrid.Slots);
+        RuleFor(x => x.Slots).NotEmpty().Must(s => s.Count <= CampRotationGrid.MaxGames);
         RuleForEach(x => x.Slots).Must(s => s.EndTime > s.StartTime).WithMessage("L'heure de fin doit suivre l'heure de début.");
     }
 }
@@ -257,7 +271,7 @@ public class SearchCampPeopleQueryHandler(IApplicationDbContext context, ICurren
     }
 }
 
-// The famille's whole route (its 25 steps: time, game, place, opponent) + its Père / Mère with a phone to call.
+// The famille's whole route (its G steps: time, game, place, opponent) + its Père / Mère with a phone to call.
 // The screen picks the step in progress, the one before and the one after from `Now` (camp time, Lebanon).
 public record GetFamilleScheduleQuery(Guid CampId, int FamilleNumber) : IRequest<Result<CampFamilleScheduleDto>>;
 public class GetFamilleScheduleQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -433,7 +447,9 @@ public class GetCampRankingQueryHandler(IApplicationDbContext context, ICurrentU
     {
         if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, false, ct) is { } denied) return Result<CampRankingDto>.Failure(denied);
         var matches = await context.CampRotationMatches.Where(m => m.CampId == request.CampId).ToListAsync(ct);
-        var familles = await context.Familles.Where(f => f.CampId == request.CampId && !f.IsDeleted && f.Number <= CampRotationGrid.Familles)
+        // Familles in the grid = the ones that appear in its matches.
+        var inGrid = matches.SelectMany(m => new[] { m.FamilleA, m.FamilleB }).DefaultIfEmpty(0).Max();
+        var familles = await context.Familles.Where(f => f.CampId == request.CampId && !f.IsDeleted && f.Number <= inGrid)
             .Select(f => new { f.Number, f.Name, SuperFamille = f.SuperFamille != null ? f.SuperFamille.Name : null })
             .ToListAsync(ct);
 
@@ -515,7 +531,7 @@ public class GenerateCampRotationPdfQueryHandler(IApplicationDbContext context, 
 
         if (request.Kind == "scoresheets")
         {
-            var numbers = request.Number is int gn ? [gn] : Enumerable.Range(1, CampRotationGrid.Games).ToList();
+            var numbers = request.Number is int gn ? [gn] : Enumerable.Range(1, slots.Count).ToList();
             var sheets = numbers.Select(num =>
             {
                 games.TryGetValue(num, out var g);

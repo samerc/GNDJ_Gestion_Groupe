@@ -52,8 +52,8 @@ public class CreateCampGameCommandValidator : AbstractValidator<CreateCampGameCo
         RuleFor(x => x.BackupLocation).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupGameName).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupGameDescription).MaximumLength(50000); // rich text, sanitized when displayed
-        RuleFor(x => x.Number).InclusiveBetween(1, CampRotationGrid.Games).When(x => x.Number != null)
-            .WithMessage($"Le numéro du jeu va de 1 à {CampRotationGrid.Games}.");
+        RuleFor(x => x.Number).InclusiveBetween(1, CampRotationGrid.MaxGames).When(x => x.Number != null)
+            .WithMessage($"Le numéro du jeu va de 1 à {CampRotationGrid.MaxGames}.");
     }
 }
 public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<CreateCampGameCommand, Result<Guid>>
@@ -62,9 +62,13 @@ public class CreateCampGameCommandHandler(IApplicationDbContext context, ICurren
     internal static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     // A game number (its place in the rotation grid) is used by one game only in a camp.
+    // Also: the number must exist in this camp's grid (1 … familles / 2).
     internal static async Task<string?> NumberTakenError(IApplicationDbContext context, Guid campId, int? number, Guid? exceptId, CancellationToken ct)
     {
         if (number is null) return null;
+        var familles = await context.Camps.Where(c => c.Id == campId).Select(c => c.FamillesCount).FirstOrDefaultAsync(ct);
+        var games = CampRotationGrid.GamesFor(familles);
+        if (number > games) return $"Ce camp a {familles} familles, donc {games} jeux : le numéro va de 1 à {games}.";
         var other = await context.CampGames.Where(g => g.CampId == campId && !g.IsDeleted && g.Number == number && g.Id != exceptId)
             .Select(g => g.Name).FirstOrDefaultAsync(ct);
         return other is null ? null : $"Le numéro {number} est déjà pris par le jeu « {other} ».";
@@ -102,8 +106,8 @@ public class UpdateCampGameCommandValidator : AbstractValidator<UpdateCampGameCo
         RuleFor(x => x.BackupLocation).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupGameName).MaximumLength(150).NoHtml();
         RuleFor(x => x.BackupGameDescription).MaximumLength(50000); // rich text, sanitized when displayed
-        RuleFor(x => x.Number).InclusiveBetween(1, CampRotationGrid.Games).When(x => x.Number != null)
-            .WithMessage($"Le numéro du jeu va de 1 à {CampRotationGrid.Games}.");
+        RuleFor(x => x.Number).InclusiveBetween(1, CampRotationGrid.MaxGames).When(x => x.Number != null)
+            .WithMessage($"Le numéro du jeu va de 1 à {CampRotationGrid.MaxGames}.");
     }
 }
 public class UpdateCampGameCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<UpdateCampGameCommand, Result<bool>>

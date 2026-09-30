@@ -6356,3 +6356,11 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   `ICampPresenceSheet` (ClosedXML): one sheet per unit (code, parcours order), framed title, Prénom / Nom / Présence /
   Cotisation, « Absent(e) » for members marked « Ne vient pas ». Buttons: CU grading page + Familles toolbar.
   FIXED: SaveCampGrades skipped a not-coming member with no grade (the absence was never stored).
+- **Camp BP rotation for any size** (2026-09-30): `CampRotationGrid.Build(G)` for G games / 2G familles / G slots
+  (MaxGames 50). 25 = the commission's historical grid (unchanged); odd G = formula A(g−t) vs B(g+t) mod G; even G =
+  precomputed first slot (`EvenBases`, cyclic search, shifted by one each slot). `Problem(familles)` refuses odd, 4,
+  6 (2/3 games are mathematically impossible) and > 100. Generate takes `FirstDaySlots` (default ~60 %, 15 for 25);
+  default hours = the 2026 hours for 25 games, else 13-min étapes every 20 min from 11:30 / 11:00. Game numbers
+  1…familles/2 (checked server-side). Rotation DTO: GamesCount, GridProblem, GeneratedFamilles (page warns + offers
+  « Régénérer » when the famille count changed). Unit tests check every size 1…50.
+

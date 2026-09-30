@@ -244,8 +244,8 @@ public class CampsController : BaseApiController
     [HttpPost("{id:guid}/rotation/generate")]
     [HasPermission(Permissions.CampGrade)]
     public async Task<IActionResult> GenerateRotation(Guid id, [FromBody] GenerateRotationBody body)
-        => Res(await Mediator.Send(new GenerateCampRotationCommand(id, body.FirstDay, body.SecondDay)));
-    public record GenerateRotationBody(DateOnly FirstDay, DateOnly SecondDay);
+        => Res(await Mediator.Send(new GenerateCampRotationCommand(id, body.FirstDay, body.SecondDay, body.FirstDaySlots)));
+    public record GenerateRotationBody(DateOnly FirstDay, DateOnly SecondDay, int? FirstDaySlots = null);
 
     /// <summary>Updates the dates / hours of the slots.</summary>
     [HttpPut("{id:guid}/rotation/slots")]

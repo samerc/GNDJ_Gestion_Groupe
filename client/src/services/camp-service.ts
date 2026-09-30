@@ -246,6 +246,9 @@ export interface CampRotationSlotDto { number: number; date: string; startTime: 
 export interface CampRotationGameDto { number: number; gameId: string | null; name: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: string[]; backupGameName: string | null }
 export interface CampRotationDto {
   generated: boolean; useBackupLocations: boolean; famillesCount: number; existingFamilles: number
+  // gamesCount = games of the grid (G games for 2 × G familles); gridProblem = why the famille count can't get a
+  // rotation; generatedFamilles = familles of the generated grid (0 before); defaultFirstDaySlots = proposed split.
+  gamesCount: number; gridProblem: string | null; generatedFamilles: number; defaultFirstDaySlots: number
   matchCount: number; scoredCount: number; slots: CampRotationSlotDto[]; games: CampRotationGameDto[]; now: string
 }
 export interface CampPersonMatchDto { memberId: string; firstName: string; lastName: string; unitCode: string | null; role: string; familleNumber: number | null; familleName: string | null }
@@ -284,7 +287,7 @@ export const useCampRotation = (campId?: string, enabled = true) =>
 // POST /camps/{id}/rotation/generate → slots + matches of the fixed grid for the two camp days.
 export function useGenerateRotation(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: (b: { firstDay: string; secondDay: string }) => apiClient.post(`/camps/${campId}/rotation/generate`, b), onSuccess: () => invalidateGrandJeu(qc, campId) })
+  return useMutation({ mutationFn: (b: { firstDay: string; secondDay: string; firstDaySlots?: number | null }) => apiClient.post(`/camps/${campId}/rotation/generate`, b), onSuccess: () => invalidateGrandJeu(qc, campId) })
 }
 // PUT /camps/{id}/rotation/slots → dates / hours of the slots.
 export function useUpdateRotationSlots(campId: string) {
