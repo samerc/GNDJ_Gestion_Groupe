@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useCamps, useCamp, useCampGrading, useSaveCampGrades } from '@/services/camp-service'
+import { useCamps, useCamp, useCampGrading, useSaveCampGrades, downloadPresenceList } from '@/services/camp-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -10,8 +10,8 @@ import { PageHeader } from '@/components/shared/page-header'
 import { MyGamesList } from '@/components/camp/my-games-list'
 import { CampLookupCard } from '@/components/camp/camp-lookup'
 import { SearchInput } from '@/components/shared/search-input'
-import { parseApiError } from '@/lib/error-utils'
-import { Tent, Save, ArrowUp, ArrowDown, Users } from 'lucide-react'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { Tent, Save, ArrowUp, ArrowDown, Users, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Row = { attending: boolean; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string }
@@ -130,7 +130,15 @@ export default function CampPage() {
         title={active.name}
         icon={Tent}
         description="Notez vos membres pour le camp — cochez « Ne vient pas » pour les absents, puis renseignez force, année et candidats Père/Mère."
-        actions={<Button onClick={save} disabled={!dirty || saveGrades.isPending}><Save className="mr-1.5 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>}
+        actions={<div className="flex flex-wrap gap-2">
+          {/* The Excel reads the SAVED presence — disabled while there are unsaved changes. */}
+          <Button variant="outline" disabled={dirty || !grading?.length}
+            title={dirty ? "Enregistrez d'abord vos modifications" : 'Liste de présence (Excel), les absents sont indiqués'}
+            onClick={() => downloadPresenceList(active.id).catch(async e => toast.error(await parseBlobError(e)))}>
+            <FileSpreadsheet className="mr-1.5 h-4 w-4" />Liste de présence
+          </Button>
+          <Button onClick={save} disabled={!dirty || saveGrades.isPending}><Save className="mr-1.5 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
+        </div>}
       />
 
       {/* The member's own game(s) as étapiste — description, other étapistes, locations. Hidden when none. */}

@@ -15,7 +15,7 @@ import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSetLeaders, useLeaderCandidates,
   useCampGames, useCreateGame, useUpdateGame, printGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
-  printFamille, printAllFamilles, printUnitList,
+  printFamille, printAllFamilles, printUnitList, downloadPresenceList,
   type CampFamilleDto, type CampGameDto, useAutoAssignPlaces, type CampPlacesAssignResult,
   useCamps,
 } from '@/services/camp-service'
@@ -31,7 +31,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive, Wand2, CloudRain, CheckCircle2 } from 'lucide-react'
+import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive, Wand2, CloudRain, CheckCircle2, FileSpreadsheet } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { RichContent } from '@/components/public/rich-content'
 import { GameLocations } from '@/components/camp/my-games-list'
@@ -312,6 +312,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
           <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
+          <Button variant="outline" size="sm" onClick={() => downloadPresenceList(campId).catch(async e => toast.error(await parseBlobError(e)))}><FileSpreadsheet className="mr-1 h-4 w-4" />Liste de présence</Button>
           <Button variant="outline" size="sm" onClick={() => setSupersOpen(true)}>Superfamilles</Button>
           {!readOnly && <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>}
         </div>

@@ -276,8 +276,9 @@ public class SaveCampGradesCommandHandler(IApplicationDbContext context, ICurren
             if (!seesAll && !authorized.Contains(a.UnitId)) continue;                // out of scope
 
             existingByMember.TryGetValue(g.MemberId, out var p);
-            // Don't create a row for an untouched, not-coming member.
-            if (p is null && !g.Attending && g.Force is null && !g.IsLeaderCandidate && string.IsNullOrWhiteSpace(g.Notes))
+            // Don't create a row for an untouched member (coming by default, nothing graded). A member marked
+            // "ne vient pas" MUST get a row, even with no grade — that row is what records the absence.
+            if (p is null && g.Attending && g.Force is null && !g.IsLeaderCandidate && string.IsNullOrWhiteSpace(g.Notes))
                 continue;
 
             if (p is null)

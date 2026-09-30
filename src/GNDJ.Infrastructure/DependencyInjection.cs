@@ -112,6 +112,7 @@ public static class DependencyInjection
         services.AddSingleton<ICampRotationReportService, CampRotationReportService>();
         services.AddSingleton<IExportService, ExportService>();
         services.AddSingleton<IDemandeSheetService, DemandeSheetService>(); // Excel export/import of CG decisions
+        services.AddSingleton<ICampPresenceSheet, CampPresenceSheet>(); // Camp BP liste de présence (Excel)
         services.AddSingleton<IUnitNewMembersSheet, UnitNewMembersSheet>(); // Excel of new members emailed to each CU
         services.AddSingleton<IPassageNewcomersDocument, PassageNewcomersDocument>(); // Word list of passage newcomers per association
         services.AddSingleton<IMemberImportService, MemberImportService>(); // Excel/CSV member import (parse + template)

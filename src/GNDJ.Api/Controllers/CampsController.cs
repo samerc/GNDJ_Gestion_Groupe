@@ -148,6 +148,18 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> UnitListPdf(Guid id)
         => Pdf(await Mediator.Send(new GenerateCampReportQuery(id, "units", null)), "Liste_par_unite.pdf");
 
+    /// <summary>Downloads the « Liste de présence » Excel: one sheet per unit in the caller's scope (or <paramref name="unitId"/>),
+    /// Prénom / Nom / Présence / Cotisation; members marked "ne vient pas" show « Absent(e) ». Requires camp.grade.</summary>
+    [HttpGet("{id:guid}/presence/xlsx")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> PresenceList(Guid id, [FromQuery] Guid? unitId)
+    {
+        var r = await Mediator.Send(new GenerateCampPresenceListQuery(id, unitId));
+        return r.IsSuccess
+            ? File(r.Value!, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Liste_de_presence.xlsx")
+            : BadRequest(new { error = r.Error });
+    }
+
     /// <summary>Moves a participant to another famille. Rights checked per area in the handler (CampAccess).</summary>
     [HttpPost("participants/{participantId:guid}/move")]
     [HasPermission(Permissions.CampGrade)]

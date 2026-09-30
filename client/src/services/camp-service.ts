@@ -233,6 +233,11 @@ export const printFamille = (campId: string, number: number) => downloadPdf(`/ca
 export const printAllFamilles = (campId: string) => downloadPdf(`/camps/${campId}/familles/pdf`, 'Familles.pdf')
 // GET /camps/{id}/unit-list/pdf → members grouped by unit with famille number (blob → save).
 export const printUnitList = (campId: string) => downloadPdf(`/camps/${campId}/unit-list/pdf`, 'Liste_par_unite.pdf')
+// GET /camps/{id}/presence/xlsx → « Liste de présence » Excel, one sheet per unit in my scope (absents marked).
+export async function downloadPresenceList(campId: string) {
+  const r = await apiClient.get(`/camps/${campId}/presence/xlsx`, { responseType: 'blob' })
+  saveBlob(r.data, 'Liste de présence.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+}
 
 
 // ── Grand jeu: rotation (fixed grid), lookup, scoring ──

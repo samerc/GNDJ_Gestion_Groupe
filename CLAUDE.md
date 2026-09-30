@@ -6351,3 +6351,8 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   exported from `pages/passage.tsx`, `embedded` = no CU header/picker/Terminer, finished unit not locked for the CG)
   showing every member with the CU's choices; « Lignes de passage » = the review view. Unit codes only (name on
   hover). On phones the units table is a card list.
+- **Camp BP « Liste de présence »** (2026-09-30): `GET /camps/{id}/presence/xlsx?unitId=` (camp.grade) →
+  `GenerateCampPresenceListQuery` reuses `GetCampGradingQuery` (same scope: CU = own units, CG = all) →
+  `ICampPresenceSheet` (ClosedXML): one sheet per unit (code, parcours order), framed title, Prénom / Nom / Présence /
+  Cotisation, « Absent(e) » for members marked « Ne vient pas ». Buttons: CU grading page + Familles toolbar.
+  FIXED: SaveCampGrades skipped a not-coming member with no grade (the absence was never stored).
