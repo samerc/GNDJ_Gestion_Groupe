@@ -6363,4 +6363,7 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   default hours = the 2026 hours for 25 games, else 13-min étapes every 20 min from 11:30 / 11:00. Game numbers
   1…familles/2 (checked server-side). Rotation DTO: GamesCount, GridProblem, GeneratedFamilles (page warns + offers
   « Régénérer » when the famille count changed). Unit tests check every size 1…50.
+- **Camp BP « Liste par unité » PDF** (2026-09-30): one unit per page in TWO columns balanced by height (a team cut
+  in the middle continues as « … (suite) »), compact rows, `ScaleToFit` so a unit never spills onto a 2nd page.
+  NOTE: until BP work is done, BP changes get NO changelog.json lines and NO docs/help edits (one pass at the end).
 

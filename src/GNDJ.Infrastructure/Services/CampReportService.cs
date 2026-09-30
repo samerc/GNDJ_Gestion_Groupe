@@ -7,7 +7,7 @@ namespace GNDJ.Infrastructure.Services;
 
 // Generates the Camp BP roster PDFs (QuestPDF, A4). Three layouts share the same page setup/footer:
 // a single famille sheet, all familles (one per page via PageBreak), and a unit list (one unit per
-// page, members grouped by team, showing each member's assigned famille number). Leaders (Père/Mère,
+// page in two columns, members grouped by team, showing each member's assigned famille number). Leaders (Père/Mère,
 // Role != null) are tinted blue and kept out of the zebra-striping alternation.
 public class CampReportService : ICampReportService
 {
@@ -54,33 +54,77 @@ public class CampReportService : ICampReportService
             Foot(page);
         })).GeneratePdf();
 
+    // One unit = one page: title, then the members split into TWO columns of about the same height. Teams stay in
+    // order; a team cut at the middle continues at the top of the second column (header "… (suite)"). Rows are
+    // compact, and ScaleToFit shrinks the page if a very big unit still wouldn't fit — so a unit never spills over.
     private static void UnitBlock(IContainer container, CampReportData data, CampReportUnit u) =>
-        container.Column(col =>
+        container.ScaleToFit().Column(col =>
         {
-            col.Item().Text(u.UnitName).FontSize(18).Bold();
+            col.Item().Row(r =>
+            {
+                r.RelativeItem().Text(u.UnitName).FontSize(18).Bold();
+                r.AutoItem().AlignBottom().Text($"{u.Members.Count} membres").FontSize(9).Light();
+            });
             col.Item().Text($"{data.CampName} — Année scoute {data.ScoutYear}").FontSize(9).Light();
-            col.Item().Text($"{u.Members.Count} membres").FontSize(9).Light();
 
+            // Flatten into lines (team header or member), then cut at the middle of the total height.
+            var lines = new List<(string Team, CampReportMember? Member)>();
             foreach (var team in u.Members.GroupBy(m => m.TeamName ?? "Sans équipe").OrderBy(g => g.Key))
             {
-                col.Item().PaddingTop(10).Background(Colors.Grey.Lighten3).Padding(4)
-                    .Text($"{team.Key} ({team.Count()})").FontSize(11).SemiBold();
-                col.Item().PaddingTop(2).Table(table =>
+                lines.Add((team.Key, null));
+                foreach (var m in team.OrderBy(x => x.Name)) lines.Add((team.Key, m));
+            }
+            const double headerWeight = 1.4;
+            double Weight((string, CampReportMember?) l) => l.Item2 == null ? headerWeight : 1;
+            var half = lines.Sum(Weight) / 2;
+            double acc = 0; var cut = lines.Count;
+            for (var i = 0; i < lines.Count; i++)
+            {
+                if (acc + Weight(lines[i]) / 2 > half) { cut = i; break; }
+                acc += Weight(lines[i]);
+            }
+            // Never leave a team header alone at the bottom of the first column.
+            if (cut > 0 && cut < lines.Count && lines[cut - 1].Member == null) cut--;
+            var left = lines.Take(cut).ToList();
+            var right = lines.Skip(cut).ToList();
+            if (right.Count > 0 && right[0].Member != null) right.Insert(0, (right[0].Team + " (suite)", null));
+
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.RelativeItem().Element(e => UnitColumn(e, left, u));
+                r.ConstantItem(14);
+                r.RelativeItem().Element(e => UnitColumn(e, right, u));
+            });
+        });
+
+    private static void UnitColumn(IContainer container, List<(string Team, CampReportMember? Member)> lines, CampReportUnit u) =>
+        container.Column(col =>
+        {
+            var alt = false;
+            var first = true;
+            foreach (var (team, m) in lines)
+            {
+                if (m == null)
                 {
-                    table.ColumnsDefinition(d => { d.RelativeColumn(4); d.RelativeColumn(1); });
-                    table.Header(h =>
+                    var count = u.Members.Count(x => (x.TeamName ?? "Sans équipe") == team);
+                    col.Item().PaddingTop(first ? 0 : 5).Background(Colors.Grey.Lighten3).PaddingVertical(2).PaddingHorizontal(4)
+                        .Row(r =>
+                        {
+                            r.RelativeItem().Text(team.EndsWith(" (suite)") ? team : $"{team} ({count})").FontSize(10).SemiBold();
+                            r.AutoItem().Text("Famille").FontSize(7).Light();
+                        });
+                    alt = false;
+                }
+                else
+                {
+                    var bg = alt ? Colors.Grey.Lighten4 : Colors.White; alt = !alt;
+                    col.Item().Background(bg).PaddingVertical(1.5f).PaddingHorizontal(4).Row(r =>
                     {
-                        h.Cell().Element(HeadCell).Text("Nom complet");
-                        h.Cell().Element(HeadCell).AlignRight().Text("Famille");
+                        r.RelativeItem().Text(m.Name);
+                        r.ConstantItem(30).AlignRight().Text(m.FamilleNumber?.ToString() ?? "—").SemiBold();
                     });
-                    var alt = false;
-                    foreach (var m in team.OrderBy(x => x.Name))
-                    {
-                        var bg = alt ? Colors.Grey.Lighten4 : Colors.White; alt = !alt;
-                        table.Cell().Background(bg).Padding(3).Text(m.Name);
-                        table.Cell().Background(bg).Padding(3).AlignRight().Text(m.FamilleNumber?.ToString() ?? "—").SemiBold();
-                    }
-                });
+                }
+                first = false;
             }
         });
 
