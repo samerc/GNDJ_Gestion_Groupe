@@ -6370,4 +6370,9 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   attending participant; « dans une famille » = FamilleId set OR Role Père/Mère (a leader has FamilleId null but belongs
   to the famille they lead). New PereCount / MereCount / LeadersCompleteCount → header « Père/Mère : x/50 ». The
   « Liste par unité » PDF lists Père/Mère in their own unit with « (Père) / (Mère) » and their famille number.
+- **Camp BP draft « Inclure les Pères / Mères »** (2026-09-30): checkbox in the « Lancer le tirage » dialog →
+  `RunCampDraftCommand(IncludeLeaders)` (`POST /camps/{id}/draft {includeLeaders}`). Ticked: releases every Père/Mère,
+  picks one boy + one girl per famille at random among attending participants ticked « Père/Mère » (IsLeaderCandidate),
+  the rest are dealt as members; returns `CampDraftResultDto` (toast warns when candidates are short). Unticked: members
+  only, hand-picked Pères/Mères stay. Nothing is assigned automatically without the box.
 

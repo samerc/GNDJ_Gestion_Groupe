@@ -26,15 +26,22 @@ public record PereMereCandidateDto(Guid MemberId, string FirstName, string LastN
 // Balanced randomized assignment: per (branche × genre) stratum, deal members (highest Note first,
 // ties shuffled) to the famille that has the fewest of that stratum, tie-broken by lowest Note-sum
 // then size then random. Spreads branch, gender and size evenly while balancing the Note-sum.
-public record RunCampDraftCommand(Guid CampId) : IRequest<Result<bool>>;
+//
+// IncludeLeaders (the "inclure les Pères / Mères" box): the draft ALSO chooses one Père (boy) and one Mère (girl) per
+// famille, at random among the campers ticked « Père/Mère » on the grading page. Every current Père / Mère is released
+// first (back to the pool), and candidates not chosen are dealt as ordinary members. Without it, the draft deals the
+// members only: Pères / Mères already chosen by hand stay in place, and the others are chosen later on the board.
+public record RunCampDraftCommand(Guid CampId, bool IncludeLeaders = false) : IRequest<Result<CampDraftResultDto>>;
+// What the draft did — PereCount / MereCount = familles that got one (less than Familles when candidates were short).
+public record CampDraftResultDto(int Familles, int Members, int PereCount, int MereCount);
 
-public class RunCampDraftCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<RunCampDraftCommand, Result<bool>>
+public class RunCampDraftCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<RunCampDraftCommand, Result<CampDraftResultDto>>
 {
-    public async ValueTask<Result<bool>> Handle(RunCampDraftCommand request, CancellationToken ct)
+    public async ValueTask<Result<CampDraftResultDto>> Handle(RunCampDraftCommand request, CancellationToken ct)
     {
-        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Familles, true, ct) is { } denied) return Result<bool>.Failure(denied);
+        if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Familles, true, ct) is { } denied) return Result<CampDraftResultDto>.Failure(denied);
         var camp = await context.Camps.FirstOrDefaultAsync(c => c.Id == request.CampId, ct);
-        if (camp is null) return Result<bool>.Failure("Camp introuvable.");
+        if (camp is null) return Result<CampDraftResultDto>.Failure("Camp introuvable.");
 
         // Ensure N familles exist (create the missing numbers).
         var familles = await context.Familles.Where(f => f.CampId == camp.Id && !f.IsDeleted).OrderBy(f => f.Number).ToListAsync(ct);
@@ -46,16 +53,32 @@ public class RunCampDraftCommandHandler(IApplicationDbContext context, ICurrentU
                 context.Familles.Add(nf); familles.Add(nf);
             }
         familles = familles.Where(f => f.Number <= camp.FamillesCount).OrderBy(f => f.Number).ToList();
-        if (familles.Count == 0) return Result<bool>.Failure("Aucune famille à remplir.");
+        if (familles.Count == 0) return Result<CampDraftResultDto>.Failure("Aucune famille à remplir.");
+        var rng = new Random();
 
-        var members = await context.CampParticipants
-            .Where(p => p.CampId == camp.Id && !p.IsDeleted && p.IsAttending && p.Role == CampRole.Membre).ToListAsync(ct);
+        var participants = await context.CampParticipants
+            .Where(p => p.CampId == camp.Id && !p.IsDeleted && p.IsAttending).ToListAsync(ct);
 
-        // Reset member assignments (Père/Mère are Role != Membre, untouched / pinned).
+        if (request.IncludeLeaders)
+        {
+            // Release every Père / Mère (back to the pool), then pick new ones among the ticked candidates.
+            foreach (var f in familles) { f.PereMemberId = null; f.MereMemberId = null; }
+            foreach (var p in participants.Where(p => p.Role != CampRole.Membre)) p.Role = CampRole.Membre;
+            var candidates = participants.Where(p => p.IsLeaderCandidate).OrderBy(_ => rng.Next()).ToList();
+            var boys = new Queue<CampParticipant>(candidates.Where(p => p.Gender == "Masculin"));
+            var girls = new Queue<CampParticipant>(candidates.Where(p => p.Gender == "Féminin"));
+            foreach (var f in familles)
+            {
+                if (boys.TryDequeue(out var pere)) { f.PereMemberId = pere.MemberId; pere.Role = CampRole.Pere; pere.FamilleId = null; }
+                if (girls.TryDequeue(out var mere)) { f.MereMemberId = mere.MemberId; mere.Role = CampRole.Mere; mere.FamilleId = null; }
+            }
+        }
+
+        // Members to deal = everyone coming who isn't a Père / Mère (those are pinned to their famille).
+        var members = participants.Where(p => p.Role == CampRole.Membre).ToList();
         foreach (var p in members) p.FamilleId = null;
 
         var state = familles.ToDictionary(f => f.Id, _ => new FamilleState());
-        var rng = new Random();
 
         foreach (var stratum in members.GroupBy(m => (m.Branche ?? "", m.Gender ?? "")))
         {
@@ -78,7 +101,8 @@ public class RunCampDraftCommandHandler(IApplicationDbContext context, ICurrentU
 
         camp.Status = CampStatus.Assigned;
         await context.SaveChangesAsync(ct);
-        return Result<bool>.Success(true);
+        return Result<CampDraftResultDto>.Success(new CampDraftResultDto(familles.Count, members.Count,
+            familles.Count(f => f.PereMemberId != null), familles.Count(f => f.MereMemberId != null)));
     }
 
     class FamilleState

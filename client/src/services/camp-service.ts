@@ -148,9 +148,11 @@ export function useSaveCampGrades(campId: string) {
 
 // ── Draft + familles (CG) ──
 // POST /camps/{id}/draft → run the balanced randomized draft into familles; invalidates familles + camp.
+export interface CampDraftResult { familles: number; members: number; pereCount: number; mereCount: number }
 export function useRunDraft(campId: string) {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: () => apiClient.post(`/camps/${campId}/draft`), onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-familles', campId] }); qc.invalidateQueries({ queryKey: ['camp', campId] }) } })
+  // includeLeaders = the draft also picks one Père + one Mère per famille among the ticked candidates.
+  return useMutation({ mutationFn: (includeLeaders: boolean) => apiClient.post<CampDraftResult>(`/camps/${campId}/draft`, { includeLeaders }).then(r => r.data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-familles', campId] }); qc.invalidateQueries({ queryKey: ['camp', campId] }) } })
 }
 // GET /camps/{id}/familles → familles with members + balance metrics; disabled until campId.
 export const useCampFamilles = (campId?: string) =>

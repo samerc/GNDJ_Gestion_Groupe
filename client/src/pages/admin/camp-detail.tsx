@@ -243,6 +243,29 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
   const draft = useRunDraft(campId)
   const move = useMoveParticipant(campId)
   const [confirmDraft, setConfirmDraft] = useState(false)
+  // « Inclure les Pères / Mères »: the draft also picks them among the campers ticked Père/Mère (off = members only).
+  const [includeLeaders, setIncludeLeaders] = useState(false)
+  const runDraft = async () => {
+    try {
+      const r = await draft.mutateAsync(includeLeaders)
+      if (!includeLeaders) toast.success('Tirage effectué')
+      else if (r.pereCount < r.familles || r.mereCount < r.familles)
+        toast.warning(`Tirage effectué — pas assez de candidats : ${r.pereCount} Père(s) et ${r.mereCount} Mère(s) pour ${r.familles} familles.`)
+      else toast.success(`Tirage effectué avec ${r.pereCount} Pères et ${r.mereCount} Mères`)
+    } catch (e) { toast.error(parseApiError(e)) } finally { setConfirmDraft(false) }
+  }
+  const leadersBox = (
+    <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+      <input type="checkbox" className="mt-0.5 h-4 w-4" checked={includeLeaders} onChange={e => setIncludeLeaders(e.target.checked)} />
+      <span>
+        <span className="font-medium">Inclure les Pères / Mères</span>
+        <span className="block text-xs text-muted-foreground">
+          Le tirage choisit aussi un Père et une Mère par famille, au hasard parmi les membres cochés « Père/Mère » dans la notation
+          (les Pères / Mères actuels sont remplacés). Décoché : les familles sont créées sans eux, vous les choisissez ensuite.
+        </span>
+      </span>
+    </label>
+  )
   const [slotA, setSlotA] = useState<string | null>(null)
   const [slotB, setSlotB] = useState<string | null>(null)
   const [leaderDialog, setLeaderDialog] = useState<CampFamilleDto | null>(null)
@@ -269,7 +292,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
       <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{readOnly ? "Aucune famille pour l'instant." : 'Aucune famille. Lancez le tirage pour les créer et répartir les membres.'}</p>
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage" confirmLabel="Lancer"
         description="Répartit tous les membres notés dans les familles (équilibre note/effectif/branche/genre)."
-        loading={draft.isPending} onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } finally { setConfirmDraft(false) } }} />
+        loading={draft.isPending} onConfirm={runDraft}>{leadersBox}</ConfirmDialog>
     </div>
   )
 
@@ -377,8 +400,8 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
       </div>
 
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage"
-        description="Cela répartit (ou re-répartit) tous les membres notés dans les familles, en équilibrant note, effectif, branche et genre. Les Pères/Mères restent en place. Les déplacements manuels seront écrasés. Continuer ?"
-        confirmLabel="Lancer" loading={draft.isPending} onConfirm={async () => { try { await draft.mutateAsync(); toast.success('Tirage effectué') } catch (e) { toast.error(parseApiError(e)) } finally { setConfirmDraft(false) } }} />
+        description="Cela répartit (ou re-répartit) tous les membres notés dans les familles, en équilibrant note, effectif, branche et genre. Les déplacements manuels seront écrasés. Sans la case ci-dessous, les Pères/Mères déjà choisis restent en place."
+        confirmLabel="Lancer" loading={draft.isPending} onConfirm={runDraft}>{leadersBox}</ConfirmDialog>
 
       {leaderDialog && <LeaderDialog campId={campId} famille={leaderDialog} onClose={() => setLeaderDialog(null)} />}
       {infoDialog && <FamilleInfoDialog campId={campId} famille={infoDialog} onClose={() => setInfoDialog(null)} />}

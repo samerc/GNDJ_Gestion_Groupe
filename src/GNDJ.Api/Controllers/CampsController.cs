@@ -117,7 +117,9 @@ public class CampsController : BaseApiController
 
     [HttpPost("{id:guid}/draft")]
     [HasPermission(Permissions.CampGrade)]
-    public async Task<IActionResult> Draft(Guid id) => Res(await Mediator.Send(new RunCampDraftCommand(id)));
+    public async Task<IActionResult> Draft(Guid id, [FromBody] DraftBody? body)
+        => Res(await Mediator.Send(new RunCampDraftCommand(id, body?.IncludeLeaders ?? false)));
+    public record DraftBody(bool IncludeLeaders);
 
     /// <summary>Lists the camp's familles with their members and balance metrics. Rights checked per area in the handler (CampAccess).</summary>
     [HttpGet("{id:guid}/familles")]
