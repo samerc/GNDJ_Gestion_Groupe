@@ -6330,3 +6330,24 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   `DemandeExportUnit` carries quota + youth headcount. Import reads only this layout (Réf. + Réponse headers);
   gender title rows are skipped (no Réf.). Verified: LibreOffice-computed values correct, import round trip OK.
   (2026's decisions were staged on prod from the CG's hand-made files with a one-off script, since removed.)
+
+### Demandes / Maîtrises / Passage batch (2026-09-29/30, DEV until deploy)
+- **Demandes decisions on prod:** 2026 boys (112) + girls (129 incl. Haya HALWANY → R3) staged from the CG's
+  hand-made Excel files (157 accepted / 84 declined « faute de place »); the one-off script was deleted afterwards.
+  Left « Soumise » on purpose: Anna HIMO, Yasmina HOBEICHE, Sasha MAALOUF. Christia Sleilaty (NOYAU sheet) has no demande.
+- **Passage projection counts accepted demandes** (`PassageProjectionDto.Newcomers`: Approved, not converted, decided
+  unit, scout year = `demande.scout_year`) as arrivals « Demandes » in both modes.
+- **Demandes spreadsheet mode** (`components/admin/demande-grid.tsx`, « Modifier » above the review table, desktop):
+  nom/prénom/naissance/genre/classe/école + Réponse edited in cells, drafts in yellow, « Enregistrer (N) » saves all.
+  Child fields via new `PUT /demandes/{id}/quick-edit` (`QuickEditDemandeCommand`, never touches the household);
+  answer via the existing decide endpoint. Review page search is compact: only the search bar + « Filtres » (count).
+- **« Lier » confirmation** (`components/admin/link-relation-dialog.tsx`): `GET /demandes/relations/{id}/link-preview
+  ?memberId=` compares the declared proche + family parents with the member (birth date, posts, parents; parents in
+  common flagged); « Non, ce n'est pas lui » = `POST .../dismiss-suggestion` (clears SuggestedMemberId). Links made
+  at submission are suggestions only (dev: 103 pending « À lier », 0 confirmed on open demandes).
+- **Maîtrises « Ajouter un chef »** search = `GET /maitrises/candidates?search=` (`GetMaitriseCandidatesQuery`):
+  chefs anywhere + older branches only (no Meute/Ronde/Troupe/Compagnie youth), shows current posts, 25 results.
+- **Validation des passages:** with a unit selected, « Tous les membres » embeds the CU page (`PassageUnitPanel`
+  exported from `pages/passage.tsx`, `embedded` = no CU header/picker/Terminer, finished unit not locked for the CG)
+  showing every member with the CU's choices; « Lignes de passage » = the review view. Unit codes only (name on
+  hover). On phones the units table is a card list.
