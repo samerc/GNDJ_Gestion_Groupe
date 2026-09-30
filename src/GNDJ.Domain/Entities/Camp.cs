@@ -111,6 +111,8 @@ public class CampGame : BaseEntity
     // (Camp.UseBackupLocations) — name + formatted description (TipTap HTML). Null = the same game in lieu B.
     public string? BackupGameName { get; set; }
     public string? BackupGameDescription { get; set; }
+    // « Liste de matériel » of the étape: JSON array of { name, quantity? } (CampMaterials in Application).
+    public string? MaterialsJson { get; set; }
 
     public Camp Camp { get; set; } = null!;
     public ICollection<CampGameEtapiste> Etapistes { get; set; } = [];

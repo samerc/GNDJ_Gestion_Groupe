@@ -224,6 +224,13 @@ public class CampsController : BaseApiController
     public record EtapistesBody(List<Guid> MemberIds);
 
     /// <summary>Games of live camps where the caller is an étapiste (with description). Any signed-in member.</summary>
+    /// <summary>Replaces a game's « liste de matériel » (the whole list; items: name + optional quantity).
+    /// Commission with Jeux edit rights, or an étapiste of the game. Requires authentication.</summary>
+    [HttpPut("games/{gameId:guid}/materials")]
+    public async Task<IActionResult> SetMaterials(Guid gameId, [FromBody] MaterialsBody body)
+        => Res(await Mediator.Send(new SetCampGameMaterialsCommand(gameId, body.Items ?? [])));
+    public record MaterialsBody(List<CampGameMaterialDto>? Items);
+
     [HttpGet("my-games")]
     public async Task<IActionResult> MyGames() => Res(await Mediator.Send(new GetMyCampGamesQuery()));
 

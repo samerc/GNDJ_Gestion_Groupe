@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useMyCampGames, printGame, useCampMatches, printScoreSheets, type MyCampGameDto } from '@/services/camp-service'
+import { GameMaterials } from '@/components/camp/game-materials'
 import { MatchList } from '@/components/camp/camp-scoring'
 import { parseBlobError } from '@/lib/error-utils'
 import { useAuthStore } from '@/stores/auth-store'
@@ -71,6 +72,8 @@ export function MyGamesList({ hideWhenEmpty = false }: { hideWhenEmpty?: boolean
                   {g.backupGameDescription && g.backupGameDescription.replace(/<[^>]*>/g, '').trim() && <RichContent html={g.backupGameDescription} className="mt-1 text-sm" />}
                 </div>
               )}
+              {/* The étapiste can complete the material list of their own game. */}
+              <GameMaterials gameId={g.id} campId={g.campId} items={g.materials ?? []} canEdit />
               {g.number != null && <GameScoring campId={g.campId} gameNumber={g.number} />}
               {g.description && g.description.replace(/<[^>]*>/g, '').trim()
                 ? <RichContent html={g.description} className="border-t pt-3 text-sm" />

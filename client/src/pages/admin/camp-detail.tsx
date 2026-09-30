@@ -30,6 +30,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { rotationProblem } from '@/lib/camp-rotation'
+import { GameMaterials } from '@/components/camp/game-materials'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Users, Printer, Pencil, Archive, Wand2, CloudRain, CheckCircle2, FileSpreadsheet } from 'lucide-react'
@@ -568,6 +569,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
               </div>
             </div>
             <div className="mt-1"><GameLocations main={g.mainLocation} backup={g.backupLocation} /></div>
+            <div className="mt-2"><GameMaterials gameId={g.id} campId={campId} items={g.materials ?? []} canEdit={!readOnly} /></div>
             <div className="mt-1 flex flex-wrap gap-2 text-xs">
               {g.backupGameName && <span className="flex items-center gap-1 rounded bg-sky-100 px-1.5 py-0.5 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300"><CloudRain className="h-3 w-3" />Plan B : {g.backupGameName}</span>}
             </div>

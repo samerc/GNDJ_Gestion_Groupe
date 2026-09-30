@@ -38,9 +38,19 @@ export interface PereMereCandidateDto { memberId: string; firstName: string; las
 export interface EtapisteDto { memberId: string; firstName: string; lastName: string; unitName: string | null }
 // mainLocation (lieu A) / backupLocation (lieu B, bad weather) are picked from the camp.places setting.
 // backupGame*: the game played instead when Plan B is on.
+// One line of a game's « liste de matériel » (quantity optional).
+export interface CampGameMaterial { name: string; quantity: number | null }
 export interface CampGameDto {
   id: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[]
-  backupGameName: string | null; backupGameDescription: string | null
+  backupGameName: string | null; backupGameDescription: string | null; materials: CampGameMaterial[]
+}
+// PUT /camps/games/{id}/materials → replaces the game's material list (commission Jeux edit, or its étapistes).
+export function useSetGameMaterials(campId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ gameId, items }: { gameId: string; items: CampGameMaterial[] }) => apiClient.put(`/camps/games/${gameId}/materials`, { items }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['camp-games', campId] }); qc.invalidateQueries({ queryKey: ['camp-my-games'] }) },
+  })
 }
 // isAine = routier / caravelle / JEM (offered only when the camp.etapistes_aines setting is on); branch = their branch name.
 export interface EtapisteCandidateDto { memberId: string; firstName: string; lastName: string; unitName: string | null; unitCode: string | null; roleName: string | null; isAine: boolean; branch: string | null }
@@ -222,7 +232,7 @@ async function downloadPdf(url: string, filename: string) {
 // ── Étapistes: my games ──
 export interface MyCampGameDto {
   id: string; campId: string; campName: string; number: number | null; name: string; description: string | null; mainLocation: string | null; backupLocation: string | null; etapistes: EtapisteDto[]
-  backupGameName: string | null; backupGameDescription: string | null; useBackupLocations: boolean
+  backupGameName: string | null; backupGameDescription: string | null; useBackupLocations: boolean; materials: CampGameMaterial[]
 }
 // GET /camps/my-games → games of live camps where I am an étapiste (any signed-in member).
 export const useMyCampGames = () =>

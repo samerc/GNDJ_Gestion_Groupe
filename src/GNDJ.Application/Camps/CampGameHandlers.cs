@@ -13,7 +13,7 @@ namespace GNDJ.Application.Camps;
 // who run/score it). Phase 2 (actually scoring the games) is not built yet.
 
 public record CampGameDto(Guid Id, int? Number, string Name, string? Description, string? MainLocation, string? BackupLocation, IReadOnlyList<EtapisteDto> Etapistes,
-    string? BackupGameName = null, string? BackupGameDescription = null);
+    string? BackupGameName = null, string? BackupGameDescription = null, IReadOnlyList<CampGameMaterialDto>? Materials = null);
 public record EtapisteDto(Guid MemberId, string FirstName, string LastName, string? UnitName);
 // IsAine = an older youth (routier / caravelle / JEM, not maîtrise) — only offered when the setting
 // camp.etapistes_aines is on, and shown apart in the picker.
@@ -27,14 +27,20 @@ public class GetCampGamesQueryHandler(IApplicationDbContext context, ICurrentUse
     public async ValueTask<Result<IReadOnlyList<CampGameDto>>> Handle(GetCampGamesQuery request, CancellationToken ct)
     {
         if (await CampAccess.DenyAsync(context, currentUser, request.CampId, CampArea.Jeux, false, ct) is { } denied) return Result<IReadOnlyList<CampGameDto>>.Failure(denied);
-        var games = await context.CampGames.Where(g => g.CampId == request.CampId && !g.IsDeleted)
+        var rows = await context.CampGames.Where(g => g.CampId == request.CampId && !g.IsDeleted)
             .OrderBy(g => g.Number == null).ThenBy(g => g.Number).ThenBy(g => g.Name)
-            .Select(g => new CampGameDto(g.Id, g.Number, g.Name, g.Description, g.MainLocation, g.BackupLocation,
-                g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
-                    e.MemberId, e.Member.FirstName, e.Member.LastName,
-                    e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList(),
-                g.BackupGameName, g.BackupGameDescription))
+            .Select(g => new
+            {
+                Dto = new CampGameDto(g.Id, g.Number, g.Name, g.Description, g.MainLocation, g.BackupLocation,
+                    g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
+                        e.MemberId, e.Member.FirstName, e.Member.LastName,
+                        e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList(),
+                    g.BackupGameName, g.BackupGameDescription, null),
+                g.MaterialsJson,
+            })
             .ToListAsync(ct);
+        // The material list is JSON: parsed in memory (EF can't deserialize inside the query).
+        var games = rows.Select(r => r.Dto with { Materials = CampMaterials.Parse(r.MaterialsJson) }).ToList();
         return Result<IReadOnlyList<CampGameDto>>.Success(games);
     }
 }
@@ -224,22 +230,28 @@ static class EtapisteCandidates
 // The étapistes (heads of a game) may not be on the commission, so they can't open the Jeux tab: this lists the
 // games of live camps where the caller is an étapiste, with the description and the other étapistes.
 public record MyCampGameDto(Guid Id, Guid CampId, string CampName, int? Number, string Name, string? Description, string? MainLocation, string? BackupLocation, IReadOnlyList<EtapisteDto> Etapistes,
-    string? BackupGameName = null, string? BackupGameDescription = null, bool UseBackupLocations = false);
+    string? BackupGameName = null, string? BackupGameDescription = null, bool UseBackupLocations = false,
+    IReadOnlyList<CampGameMaterialDto>? Materials = null);
 public record GetMyCampGamesQuery : IRequest<Result<IReadOnlyList<MyCampGameDto>>>;
 public class GetMyCampGamesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetMyCampGamesQuery, Result<IReadOnlyList<MyCampGameDto>>>
 {
     public async ValueTask<Result<IReadOnlyList<MyCampGameDto>>> Handle(GetMyCampGamesQuery request, CancellationToken ct)
     {
         if (currentUser.MemberId is not { } me) return Result<IReadOnlyList<MyCampGameDto>>.Success([]);
-        var games = await context.CampGames
+        var rows = await context.CampGames
             .Where(g => !g.IsDeleted && !g.Camp.IsDeleted && !g.Camp.IsArchived && g.Etapistes.Any(e => e.MemberId == me && !e.IsDeleted))
             .OrderBy(g => g.Camp.Name).ThenBy(g => g.Number).ThenBy(g => g.Name)
-            .Select(g => new MyCampGameDto(g.Id, g.CampId, g.Camp.Name, g.Number, g.Name, g.Description, g.MainLocation, g.BackupLocation,
-                g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
-                    e.MemberId, e.Member.FirstName, e.Member.LastName,
-                    e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList(),
-                g.BackupGameName, g.BackupGameDescription, g.Camp.UseBackupLocations))
+            .Select(g => new
+            {
+                Dto = new MyCampGameDto(g.Id, g.CampId, g.Camp.Name, g.Number, g.Name, g.Description, g.MainLocation, g.BackupLocation,
+                    g.Etapistes.Where(e => !e.IsDeleted).Select(e => new EtapisteDto(
+                        e.MemberId, e.Member.FirstName, e.Member.LastName,
+                        e.Member.Assignments.Where(a => !a.IsDeleted && a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault())).ToList(),
+                    g.BackupGameName, g.BackupGameDescription, g.Camp.UseBackupLocations, null),
+                g.MaterialsJson,
+            })
             .ToListAsync(ct);
+        var games = rows.Select(r => r.Dto with { Materials = CampMaterials.Parse(r.MaterialsJson) }).ToList();
         return Result<IReadOnlyList<MyCampGameDto>>.Success(games);
     }
 }
@@ -256,7 +268,7 @@ public class GetCampGamePdfQueryHandler(IApplicationDbContext context, ICurrentU
         var g = await context.CampGames.Where(x => x.Id == request.GameId && !x.IsDeleted && !x.Camp.IsDeleted)
             .Select(x => new
             {
-                x.CampId, CampName = x.Camp.Name, x.Name, x.Description, x.MainLocation, x.BackupLocation, x.BackupGameName, x.BackupGameDescription,
+                x.CampId, CampName = x.Camp.Name, x.Name, x.Description, x.MainLocation, x.BackupLocation, x.BackupGameName, x.BackupGameDescription, x.MaterialsJson,
                 Etapistes = x.Etapistes.Where(e => !e.IsDeleted).Select(e => new { e.MemberId, e.Member.FirstName, e.Member.LastName }).ToList(),
             })
             .FirstOrDefaultAsync(ct);
@@ -272,12 +284,18 @@ public class GetCampGamePdfQueryHandler(IApplicationDbContext context, ICurrentU
         var html = $"<h1>{Enc(g.Name)}</h1><p><strong>Camp :</strong> {Enc(g.CampName)}</p>"
                  + $"<p><strong>Étapistes :</strong> {Enc(etapistes)}</p>"
                  + $"<p><strong>Lieu :</strong> {Enc(g.MainLocation ?? "—")}</p>"
-                 + $"<p><strong>Lieu de repli (mauvais temps) :</strong> {Enc(g.BackupLocation ?? "—")}</p><hr>"
+                 + $"<p><strong>Lieu de repli (mauvais temps) :</strong> {Enc(g.BackupLocation ?? "—")}</p>"
+                 + MaterialsHtml(CampMaterials.Parse(g.MaterialsJson)) + "<hr>"
                  + (string.IsNullOrWhiteSpace(g.Description) ? "<p><em>Pas encore de description.</em></p>" : g.Description)
                  // The étape's backup game (played instead when Plan B is on), on the same sheet.
                  + (g.BackupGameName is null ? "" : $"<hr><h2>Jeu de repli (plan B) : {Enc(g.BackupGameName)}</h2>"
                     + (string.IsNullOrWhiteSpace(g.BackupGameDescription) ? "<p><em>Pas encore de description.</em></p>" : g.BackupGameDescription));
         var pdf = renderer.Render(html, new Dictionary<string, string?>());
+
+        // « Matériel » as a bulleted list (quantity first when given).
+        static string MaterialsHtml(IReadOnlyList<CampGameMaterialDto> items) => items.Count == 0 ? ""
+            : "<h3>Matériel</h3><ul>" + string.Concat(items.Select(i =>
+                $"<li>{(i.Quantity is { } q ? $"{q} × " : "")}{System.Net.WebUtility.HtmlEncode(i.Name)}</li>")) + "</ul>";
         var safe = string.Concat(g.Name.Where(c => !System.IO.Path.GetInvalidFileNameChars().Contains(c))).Trim();
         return Result<CampGamePdf>.Success(new CampGamePdf(pdf, $"Jeu - {(safe.Length > 0 ? safe : "jeu")}.pdf"));
     }

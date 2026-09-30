@@ -6375,4 +6375,10 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   picks one boy + one girl per famille at random among attending participants ticked « Père/Mère » (IsLeaderCandidate),
   the rest are dealt as members; returns `CampDraftResultDto` (toast warns when candidates are short). Unticked: members
   only, hand-picked Pères/Mères stay. Nothing is assigned automatically without the box.
+- **Camp BP « liste de matériel » per game** (2026-09-30): `CampGame.MaterialsJson` (migration `AddCampGameMaterials`,
+  JSON `[{name, quantity?}]`, `CampMaterials` Parse/Serialize). `PUT /camps/games/{id}/materials {items}`
+  (`SetCampGameMaterialsCommand`: ≤200 items, name NoHtml ≤150, quantity 1…100000; commission Jeux edit OR an
+  étapiste of the game; refused once archived). `Materials` on CampGameDto + MyCampGameDto; shared
+  `components/camp/game-materials.tsx` on the game card (Jeux tab) and « Mes jeux » (étapiste can edit); game PDF
+  lists it under « Matériel ».
 
