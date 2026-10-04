@@ -12,7 +12,7 @@ export default function CommunicationsAccesPage() {
   return (
     <Page>
       <PageHeader title="Emails aux chefs" icon={Send}
-        description="Choisissez un modèle et les destinataires, prévisualisez, puis envoyez — par exemple l'email de rentrée. Les chefs sans email de contact sont ignorés." />
+        description="Choisissez un modèle et les chefs, prévisualisez, puis envoyez (ex. : l'email de rentrée)." />
       <CommunicationsPage embedded />
     </Page>
   )

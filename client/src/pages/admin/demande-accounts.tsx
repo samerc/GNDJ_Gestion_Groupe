@@ -20,8 +20,9 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
 import { Tip } from '@/components/ui/tooltip'
+import { CopyButton } from '@/components/shared/copy-button'
 import { DemandeInvitesPanel } from '@/components/admin/demande-invites-panel'
-import { CheckCircle2, MailWarning, ShieldCheck, FileText, FileX, KeyRound, Copy, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
+import { CheckCircle2, MailWarning, ShieldCheck, FileText, FileX, KeyRound, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
 
@@ -30,7 +31,7 @@ type SortKey = 'email' | 'contact' | 'status' | 'demandes' | 'created'
 function SortHeader({ label, field, current, dir, onSort, className }: { label: string; field: SortKey; current: SortKey | null; dir: 'asc' | 'desc'; onSort: (f: SortKey) => void; className?: string }) {
   const active = current === field
   return (
-    <button className={`flex items-center gap-1 text-xs font-medium uppercase text-muted-foreground hover:text-foreground transition-colors ${className ?? ''}`} onClick={() => onSort(field)}>
+    <button type="button" className={`flex items-center gap-1 text-xs font-medium uppercase text-muted-foreground hover:text-foreground transition-colors ${className ?? ''}`} onClick={() => onSort(field)}>
       {label}
       {active ? (dir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-50" />}
     </button>
@@ -152,7 +153,7 @@ export default function DemandeAccountsPage() {
     if (!toVerify) return
     try {
       await verify.mutateAsync(toVerify.id)
-      toast.success('Email vérifié — le parent peut maintenant se connecter et soumettre.')
+      toast.success('Email vérifié — le parent peut maintenant se connecter et soumettre')
       setToVerify(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -175,8 +176,8 @@ export default function DemandeAccountsPage() {
     try {
       const r = await del.mutateAsync(toDelete.id)
       toast.success(r.demandesDeleted > 0
-        ? `Compte supprimé (${r.demandesDeleted} demande(s) supprimée(s)).`
-        : 'Compte supprimé.')
+        ? `Compte supprimé (${r.demandesDeleted} demande(s) supprimée(s))`
+        : 'Compte supprimé')
       setToDelete(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -188,7 +189,7 @@ export default function DemandeAccountsPage() {
       <PageHeader
         title="Comptes d'inscription"
         icon={ShieldCheck}
-        description="Comptes des parents. Chaque compte peut déposer une demande par enfant (« soumise » = prête à traiter, « brouillon » = pas encore soumise). Utilisez « Voir les demandes » pour les ouvrir. Un parent dont l'email de vérification n'est jamais arrivé peut être vérifié manuellement, et son mot de passe réinitialisé."
+        description="Comptes des parents : demandes (soumises / brouillons), vérification de l'email et mot de passe du portail."
       />
 
       {/* Late-access invites: let one family enroll after the deadline without reopening for everyone. */}
@@ -320,11 +321,11 @@ export default function DemandeAccountsPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
                 <div className="min-w-0"><div className="text-xs text-muted-foreground">Identifiant (email)</div><div className="break-all font-mono text-sm">{creds?.email}</div></div>
-                <Button variant="ghost" size="sm" aria-label="Copier l'identifiant" title="Copier" onClick={() => { navigator.clipboard.writeText(creds?.email ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                <CopyButton value={creds?.email} label="Copier l'identifiant" className="p-2" />
               </div>
               <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
                 <div className="min-w-0"><div className="text-xs text-muted-foreground">Mot de passe temporaire</div><div className="font-mono text-sm">{creds?.password}</div></div>
-                <Button variant="ghost" size="sm" aria-label="Copier le mot de passe" title="Copier" onClick={() => { navigator.clipboard.writeText(creds?.password ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                <CopyButton value={creds?.password} label="Copier le mot de passe" className="p-2" />
               </div>
             </div>
           </div>

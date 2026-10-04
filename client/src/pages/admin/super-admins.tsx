@@ -24,7 +24,7 @@ export function SuperAdminsSection() {
     if (!grantConfirm) return
     try {
       await setSuperAdmin.mutateAsync({ memberId: grantConfirm.id, grant: true })
-      toast.success(`${grantConfirm.name} est maintenant super-administrateur.`)
+      toast.success(`${grantConfirm.name} est maintenant super-administrateur`)
       setGrantConfirm(null)
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -33,7 +33,7 @@ export function SuperAdminsSection() {
     if (!removing) return
     try {
       await setSuperAdmin.mutateAsync({ memberId: removing.id, grant: false })
-      toast.success(`Super-administrateur retiré pour ${removing.name}.`)
+      toast.success(`Super-administrateur retiré pour ${removing.name}`)
       setRemoving(null)
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -83,12 +83,12 @@ export function SuperAdminsSection() {
         onPick={(m) => { setPickerOpen(false); setGrantConfirm(m) }} />
 
       <ConfirmDialog open={!!grantConfirm} onOpenChange={(v) => { if (!v) setGrantConfirm(null) }}
-        title="Rendre super-administrateur"
+        title="Rendre super-administrateur ?"
         description={`Accorder l'accès super-administrateur à ${grantConfirm?.name} ? Cette personne aura TOUS les droits sur TOUT le groupe.`}
         confirmLabel="Accorder" loading={setSuperAdmin.isPending} onConfirm={grant} />
 
       <ConfirmDialog open={!!removing} onOpenChange={(v) => { if (!v) setRemoving(null) }}
-        title="Retirer le super-administrateur"
+        title="Retirer le super-administrateur ?"
         description={`Retirer l'accès super-administrateur de ${removing?.name} ?`}
         confirmLabel="Retirer" variant="destructive" loading={setSuperAdmin.isPending} onConfirm={remove} />
     </Card>

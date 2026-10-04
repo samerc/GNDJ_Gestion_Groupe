@@ -26,6 +26,7 @@ import { usePublicSiteConfig } from '@/services/public-service'
 import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
 import { NavDropdown } from './nav-dropdown'
+import { GROUP_NAME } from '@/lib/constants'
 
 const FIXED_LEFT = [{ to: '/', label: 'Accueil', end: true }]
 // A fixed nav entry is either a direct link (to) or a group with a hover dropdown (children).
@@ -45,7 +46,7 @@ function Brand({ onClick }: { onClick?: () => void }) {
     <Link to="/" onClick={onClick} className="flex items-center gap-2.5">
       <BrandMark className="h-10 w-10" />
       <span className="flex flex-col leading-none">
-        <span className="whitespace-nowrap text-base font-bold tracking-tight">Notre-Dame Jamhour</span>
+        <span className="whitespace-nowrap text-base font-bold tracking-tight">Notre-Dame de Jamhour</span>
         <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Groupe scout · GNDJ</span>
       </span>
     </Link>
@@ -230,7 +231,7 @@ export function PublicLayout() {
 // membership actions. Contact/email/phone come from the editable site.content (Textes du site).
 type FooterContent = { tagline?: string; instagram?: string; facebook?: string; email?: string; phone?: string }
 function PublicFooter({ footer, address, inscriptionsOpen }: { footer?: FooterContent; address?: string; inscriptionsOpen: boolean }) {
-  const tagline = footer?.tagline ?? "Le Groupe Notre-Dame Jamhour, au service de la jeunesse du Liban depuis 1935."
+  const tagline = footer?.tagline ?? `Le ${GROUP_NAME}, au service de la jeunesse du Liban depuis 1935.`
   const { instagram, facebook, email, phone } = footer ?? {}
   const hasContact = !!(address || email || phone)
 
@@ -301,7 +302,7 @@ function PublicFooter({ footer, address, inscriptionsOpen }: { footer?: FooterCo
 
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
-          <p>© {new Date().getFullYear()} Groupe Notre Dame - Jamhour — Tous droits réservés</p>
+          <p>© {new Date().getFullYear()} {GROUP_NAME} — Tous droits réservés</p>
           <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
             Retour en haut <ArrowUp className="h-3.5 w-3.5" />

@@ -23,10 +23,12 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Newspaper, ImagePlus, Paperclip, X, FileText } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatDate } from '@/lib/utils'
 import { confirmAsync } from '@/lib/confirm'
 
 const emptyForm: NewsFormData = { title: '', bodyHtml: '', isPublished: false, tagType: 'Group', tagUnitTypeId: null, tagUnitId: null, coverImagePath: null, attachments: [] }
@@ -98,7 +100,7 @@ export default function AdminNewsPage() {
     if (form.tagType === 'UnitType' && !form.tagUnitTypeId) { setError('Choisissez une branche.'); return }
     if (form.tagType === 'Unit' && !form.tagUnitId) { setError('Choisissez une unité.'); return }
     try {
-      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Article modifié') }
+      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Article enregistré') }
       else { await createMutation.mutateAsync(form); toast.success('Article créé') }
       setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
@@ -114,7 +116,7 @@ export default function AdminNewsPage() {
 
   return (
     <Page>
-      <PageHeader title="Actualités" icon={Newspaper}
+      <PageHeader title="Actualités" description="Articles publiés sur le site public du groupe." icon={Newspaper}
         actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvel article</Button>} />
 
       {isLoading ? (
@@ -140,11 +142,11 @@ export default function AdminNewsPage() {
                   <TableCell className="font-medium">{p.title}</TableCell>
                   <TableCell>{p.tagLabel}</TableCell>
                   <TableCell><Badge variant={p.isPublished ? 'default' : 'secondary'}>{p.isPublished ? 'Publié' : 'Brouillon'}</Badge></TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(p.publishedAt ?? p.createdAt).toLocaleDateString('fr-FR')}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(p.publishedAt ?? p.createdAt)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(p)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(p)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -159,7 +161,7 @@ export default function AdminNewsPage() {
           <DialogHeader><DialogTitle>{editingId ? "Modifier l'article" : 'Nouvel article'}</DialogTitle></DialogHeader>
           {/* onChange on the form marks the draft dirty for native inputs (title/checkbox/attachment names). */}
           <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <RequiredLabel required>Titre</RequiredLabel>
               <Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} required />
@@ -167,7 +169,7 @@ export default function AdminNewsPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Concerne</label>
+                <RequiredLabel>Concerne</RequiredLabel>
                 {/* Switching tag type clears both id fields; the matching id picker below is shown conditionally */}
                 <Select value={form.tagType} onValueChange={(v) => { setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -200,7 +202,7 @@ export default function AdminNewsPage() {
 
             {/* Cover image — shown on the article header + news cards (icon fallback when empty). */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Image de couverture</label>
+              <RequiredLabel>Image de couverture</RequiredLabel>
               {form.coverImagePath ? (
                 <div className="relative overflow-hidden rounded-lg border">
                   <img src={form.coverImagePath} alt="" className="h-44 w-full object-cover" />
@@ -222,7 +224,7 @@ export default function AdminNewsPage() {
 
             {/* Attachments — downloadable PDF/image files listed on the public article. Name is editable. */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Pièces jointes</label>
+              <RequiredLabel>Pièces jointes</RequiredLabel>
               {form.attachments.length > 0 && (
                 <ul className="space-y-1.5">
                   {form.attachments.map((a, i) => (
@@ -230,7 +232,7 @@ export default function AdminNewsPage() {
                       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <input value={a.name} onChange={(e) => setForm(f => ({ ...f, attachments: f.attachments.map((x, j) => j === i ? { ...x, name: e.target.value } : x) }))} className="min-w-0 flex-1 bg-transparent outline-none" />
                       <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Voir</a>
-                      <button type="button" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button>
+                      <Tip content="Retirer la pièce jointe"><button type="button" aria-label="Retirer la pièce jointe" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button></Tip>
                     </li>
                   ))}
                 </ul>
@@ -243,11 +245,11 @@ export default function AdminNewsPage() {
 
             <div className="flex items-center gap-2">
               <input type="checkbox" id="isPublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
-              <label htmlFor="isPublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
+              <RequiredLabel htmlFor="isPublished">Publier (visible sur le site public)</RequiredLabel>
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -256,7 +258,7 @@ export default function AdminNewsPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer l'article"
+        title="Supprimer l'article ?"
         description={`Supprimer « ${deleting?.title} » ? Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"

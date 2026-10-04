@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Package, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
 import { useSetGameMaterials, type CampGameMaterial } from '@/services/camp-service'
 
@@ -41,11 +42,13 @@ export function GameMaterials({ gameId, campId, items, canEdit, framed = false }
                 </span>
                 <span className="min-w-0 flex-1 break-words">{m.name}</span>
                 {canEdit && (
-                  <button type="button" aria-label={`Retirer ${m.name}`} disabled={save.isPending}
-                    className="rounded p-1 text-muted-foreground/60 transition hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                    onClick={() => commit(items.filter((_, j) => j !== i))}>
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <Tip content="Retirer de la liste">
+                    <button type="button" aria-label={`Retirer ${m.name}`} disabled={save.isPending}
+                      className="rounded p-1 text-muted-foreground/60 transition hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                      onClick={() => commit(items.filter((_, j) => j !== i))}>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </Tip>
                 )}
               </li>
             ))}
@@ -59,10 +62,12 @@ export function GameMaterials({ gameId, campId, items, canEdit, framed = false }
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Ajouter du matériel…" maxLength={150}
             aria-label="Matériel" className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none placeholder:text-muted-foreground"
             onKeyDown={e => { if (e.key === 'Enter') add() }} />
-          <button type="button" onClick={add} disabled={!name.trim() || save.isPending} aria-label="Ajouter"
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-primary transition hover:bg-primary/10 disabled:text-muted-foreground/40 disabled:hover:bg-transparent">
-            <Plus className="h-4 w-4" />
-          </button>
+          <Tip content="Ajouter le matériel">
+            <button type="button" onClick={add} disabled={!name.trim() || save.isPending} aria-label="Ajouter le matériel"
+              className="flex h-9 w-9 shrink-0 items-center justify-center text-primary transition hover:bg-primary/10 disabled:text-muted-foreground/40 disabled:hover:bg-transparent">
+              <Plus className="h-4 w-4" />
+            </button>
+          </Tip>
         </div>
       )}
     </>

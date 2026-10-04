@@ -1,10 +1,11 @@
 import { Link } from 'react-router'
-import { ArrowRight, Users } from 'lucide-react'
+import { ArrowRight, Users, Tent } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
 import { foulardColors } from '@/components/public/foulard'
 import { FoulardGlyph } from '@/components/public/foulard-glyph'
 import { usePublicUnits, type PublicUnitListItem } from '@/services/public-service'
 import { Seo } from '@/components/public/seo'
+import { EmptyState } from '@/components/shared/empty-state'
 
 // Format an age range into a French label, tolerating either bound being absent (returns null if both are).
 function ageLabel(min: number | null, max: number | null) {
@@ -71,9 +72,9 @@ export default function PublicUnitsPage() {
             ))}
           </div>
         ) : isError ? (
-          <p className="text-muted-foreground">Impossible de charger les unités pour le moment.</p>
+          <EmptyState icon={Tent} title="Impossible de charger les unités" description="Veuillez réessayer dans un instant." />
         ) : !groups || groups.length === 0 ? (
-          <p className="text-muted-foreground">Les unités seront bientôt présentées ici.</p>
+          <EmptyState icon={Tent} title="Aucune unité" description="Les unités seront bientôt présentées ici." />
         ) : (
           <div className="space-y-16">
             {groups.map((group) => {

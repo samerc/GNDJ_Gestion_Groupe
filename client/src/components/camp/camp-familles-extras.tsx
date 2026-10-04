@@ -11,9 +11,12 @@ import {
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Tip } from '@/components/ui/tooltip'
+import { EmptyState } from '@/components/shared/empty-state'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Trash2, Shuffle, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Trash2, Shuffle, ArrowUp, ArrowDown, Layers } from 'lucide-react'
 
 const NONE = '__none__'
 
@@ -37,8 +40,7 @@ export function FamilleInfoDialog({ campId, famille, onClose }: { campId: string
           <label className="block space-y-1 text-sm"><span className="font-medium">Nom (personnage, emblème…)</span>
             <Input value={name} maxLength={100} onChange={e => setName(e.target.value)} placeholder="ex. Yoda" /></label>
           <label className="block space-y-1 text-sm"><span className="font-medium">Description (imprimée sur le passeport)</span>
-            <textarea value={description} maxLength={1000} rows={4} onChange={e => setDescription(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" /></label>
+            <Textarea value={description} maxLength={1000} rows={4} onChange={e => setDescription(e.target.value)} /></label>
           {(supers ?? []).length > 0 && (
             <div className="space-y-1 text-sm">
               <p className="font-medium">Superfamille</p>
@@ -54,7 +56,7 @@ export function FamilleInfoDialog({ campId, famille, onClose }: { campId: string
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={save} disabled={update.isPending}>Enregistrer</Button>
+          <Button onClick={save} disabled={update.isPending}>{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -90,15 +92,15 @@ export function SuperFamillesDialog({ campId, readOnly, onClose }: { campId: str
           sans effet sur le tirage ni sur la rotation.
         </p>
         <div className="max-h-[55vh] space-y-2 overflow-y-auto">
-          {list.length === 0 && <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">Aucune superfamille.</p>}
+          {list.length === 0 && <EmptyState icon={Layers} title="Aucune superfamille." />}
           {list.map((r, i) => (
             <div key={r.id ?? `new-${i}`} className="space-y-1.5 rounded-lg border p-2">
               <div className="flex items-center gap-2">
                 <Input value={r.name} maxLength={100} disabled={readOnly} placeholder="Nom (ex. Superhéros)" onChange={e => set(i, { name: e.target.value })} />
                 {!readOnly && <>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Monter"><ArrowUp className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={i === list.length - 1} onClick={() => move(i, 1)} aria-label="Descendre"><ArrowDown className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setRows(list.filter((_, j) => j !== i))} aria-label="Supprimer"><Trash2 className="h-4 w-4" /></Button>
+                  <Tip content="Monter"><Button variant="ghost" size="icon" className="h-8 w-8" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Monter"><ArrowUp className="h-4 w-4" /></Button></Tip>
+                  <Tip content="Descendre"><Button variant="ghost" size="icon" className="h-8 w-8" disabled={i === list.length - 1} onClick={() => move(i, 1)} aria-label="Descendre"><ArrowDown className="h-4 w-4" /></Button></Tip>
+                  <Tip content="Supprimer la superfamille"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setRows(list.filter((_, j) => j !== i))} aria-label="Supprimer la superfamille"><Trash2 className="h-4 w-4" /></Button></Tip>
                 </>}
               </div>
               <Input value={r.description} maxLength={1000} disabled={readOnly} placeholder="Description (facultatif)" onChange={e => set(i, { description: e.target.value })} />
@@ -120,7 +122,7 @@ export function SuperFamillesDialog({ campId, readOnly, onClose }: { campId: str
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fermer</Button>
-          {!readOnly && <Button disabled={!dirty || save.isPending} onClick={async () => { if (await persist()) toast.success('Superfamilles enregistrées') }}>Enregistrer</Button>}
+          {!readOnly && <Button disabled={!dirty || save.isPending} onClick={async () => { if (await persist()) toast.success('Superfamilles enregistrées') }}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

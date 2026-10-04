@@ -13,6 +13,7 @@ import { SearchInput } from '@/components/shared/search-input'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { Tent, Save, ArrowUp, ArrowDown, Users, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
+import { Tip } from '@/components/ui/tooltip'
 
 type Row = { attending: boolean; force: number | null; annee: number | null; isLeaderCandidate: boolean; notes: string }
 type SortKey = 'name' | 'team' | 'annee' | 'force' | 'note'
@@ -83,7 +84,7 @@ export default function CampPage() {
         const v = rows[g.memberId] ?? { attending: true, force: null, annee: g.annee, isLeaderCandidate: false, notes: '' }
         return { memberId: g.memberId, attending: v.attending, force: v.force, annee: v.annee, isLeaderCandidate: v.isLeaderCandidate, notes: v.notes || null }
       }))
-      toast.success('Enregistré'); setDirty(false)
+      toast.success('Notes du camp enregistrées'); setDirty(false)
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -115,10 +116,12 @@ export default function CampPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grading, rows, search, sort, camp])
 
-  if (loadingCamps) return <LoadingSpinner variant="page" />
-  if (!active) return (
+  if (loadingCamps || !active) return (
     <Page>
-      <EmptyState icon={Tent} title="Aucun camp n'est ouvert pour le moment." />
+      <PageHeader title="Camp BP" icon={Tent} description="Notez vos membres pour le camp." />
+      {loadingCamps
+        ? <LoadingSpinner variant="table" />
+        : <EmptyState icon={Tent} title="Aucun camp n'est ouvert pour le moment" />}
     </Page>
   )
 
@@ -132,11 +135,15 @@ export default function CampPage() {
         description="Notez vos membres pour le camp — cochez « Ne vient pas » pour les absents, puis renseignez force, année et candidats Père/Mère."
         actions={<div className="flex flex-wrap gap-2">
           {/* The Excel reads the SAVED presence — disabled while there are unsaved changes. */}
-          <Button variant="outline" disabled={dirty || !grading?.length}
-            title={dirty ? "Enregistrez d'abord vos modifications" : 'Liste de présence (Excel), les absents sont indiqués'}
-            onClick={() => downloadPresenceList(active.id).catch(async e => toast.error(await parseBlobError(e)))}>
-            <FileSpreadsheet className="mr-1.5 h-4 w-4" />Liste de présence
-          </Button>
+          <Tip content={dirty ? "Enregistrez d'abord vos modifications" : 'Liste de présence (Excel), les absents sont indiqués'}>
+            {/* Span wrapper so the tooltip still shows while the button is disabled. */}
+            <span className="inline-flex">
+              <Button variant="outline" disabled={dirty || !grading?.length}
+                onClick={() => downloadPresenceList(active.id).catch(async e => toast.error(await parseBlobError(e)))}>
+                <FileSpreadsheet className="mr-1.5 h-4 w-4" />Liste de présence
+              </Button>
+            </span>
+          </Tip>
           <Button onClick={save} disabled={!dirty || saveGrades.isPending}><Save className="mr-1.5 h-4 w-4" />{saveGrades.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </div>}
       />
@@ -153,7 +160,7 @@ export default function CampPage() {
       </div>
 
       {isLoading ? <LoadingSpinner variant="table" /> :
-       (grading ?? []).length === 0 ? <EmptyState icon={Users} title="Aucun membre dans votre unité." /> :
+       (grading ?? []).length === 0 ? <EmptyState icon={Users} title="Aucun membre dans votre unité" /> :
        (
         <>
         {/* Desktop: dense grading table. Phones get a per-member card grid below (md:hidden). */}
@@ -189,11 +196,11 @@ export default function CampPage() {
                     </td>
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={r.isLeaderCandidate} disabled={absent}
-                        onChange={e => set(g.memberId, { isLeaderCandidate: e.target.checked })} title="Candidat Père / Mère" />
+                        onChange={e => set(g.memberId, { isLeaderCandidate: e.target.checked })} aria-label="Candidat Père / Mère" />
                     </td>
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4 accent-orange-500" checked={absent}
-                        onChange={e => set(g.memberId, { attending: !e.target.checked })} title="Cocher si le membre ne vient pas au camp" />
+                        onChange={e => set(g.memberId, { attending: !e.target.checked })} aria-label="Cocher si le membre ne vient pas au camp" />
                     </td>
                     <td className="p-2"><Input value={r.notes} disabled={absent} onChange={e => set(g.memberId, { notes: e.target.value })} className="h-8" placeholder="—" /></td>
                   </tr>

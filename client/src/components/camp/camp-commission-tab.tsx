@@ -6,7 +6,7 @@
 // Changes apply at each member's next sign-in / session refresh (≤ 15 min).
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { UserPlus, X, Users, Search, ShieldCheck, Pencil } from 'lucide-react'
+import { UserPlus, X, Users, ShieldCheck, Pencil } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import {
   useCampCommission, useSetCampCommission, useSetCampCommissionAccess, useCampCommissionCandidates, useSetCampChefs, useCampSubCommissions,
@@ -14,13 +14,14 @@ import {
 } from '@/services/camp-service'
 import { SubCommissionChips, SubCommissionsOverview, SubCommissionsDialog } from '@/components/camp/camp-sub-commissions'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { ChefsPicker } from './chefs-picker'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { SearchInput } from '@/components/shared/search-input'
+import { confirmAsync } from '@/lib/confirm'
 
 const LEVELS: { value: CampAccessLevel; label: string }[] = [
   { value: 'none', label: 'Aucun' },
@@ -94,7 +95,7 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-sm font-medium">
                   {m.lastName} {m.firstName}
-                  {m.isChef && <Badge variant="outline" className="gap-1 border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300"><ShieldCheck className="h-3 w-3" />Chef de commission</Badge>}
+                  {m.isChef && <Badge variant="info" className="gap-1"><ShieldCheck className="h-3 w-3" />Chef de commission</Badge>}
                 </p>
                 {m.roles && <p className="truncate text-xs text-muted-foreground">{m.roles}</p>}
                 <SubCommissionChips campId={campId} member={m} names={subNames ?? []} editable={access.canManageCommission} />
@@ -118,7 +119,14 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
                 {access.canManageCommission && (
                   <>
                     {!m.isChef && <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-destructive" disabled={save.isPending}
-                      onClick={() => update(ids.filter((x) => x !== m.memberId), 'Retiré de la commission')}>
+                      onClick={async () => {
+                        if (!(await confirmAsync({
+                          title: `Retirer ${m.firstName} ${m.lastName} de la commission ?`,
+                          description: 'Ce membre perdra son accès à ce camp à sa prochaine connexion.',
+                          confirmLabel: 'Retirer', destructive: true,
+                        }))) return
+                        await update(ids.filter((x) => x !== m.memberId), `${m.firstName} ${m.lastName} retiré(e) de la commission`)
+                      }}>
                       <X className="mr-1 h-4 w-4" />Retirer
                     </Button>}
                   </>
@@ -150,7 +158,7 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
               <Button disabled={setChefsMut.isPending} onClick={async () => {
                 try { await setChefsMut.mutateAsync(editingChefs); toast.success('Chefs de commission enregistrés'); setEditingChefs(null) }
                 catch (err) { toast.error(parseApiError(err)) }
-              }}>Enregistrer</Button>
+              }}>{setChefsMut.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -187,10 +195,7 @@ function MaitrisePicker({ open, onOpenChange, exclude, onPick }: {
           <DialogTitle>Ajouter à la Commission BP</DialogTitle>
           <DialogDescription>Seuls les membres de la maîtrise peuvent faire partie de la commission.</DialogDescription>
         </DialogHeader>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Rechercher un chef…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un chef…" autoFocus />
         <div className="max-h-[50vh] space-y-1 overflow-y-auto">
           {isLoading ? <LoadingSpinner /> : filtered.length === 0 ? (
             <p className="py-4 text-center text-xs text-muted-foreground">Aucun membre de la maîtrise trouvé.</p>

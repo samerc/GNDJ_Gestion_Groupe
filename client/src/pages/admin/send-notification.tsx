@@ -15,18 +15,18 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { EmptyState } from '@/components/shared/empty-state'
+import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { RequiredLabel } from '@/components/shared/required-label'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Tip } from '@/components/ui/tooltip'
+import { formatDateTime } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { Bell, Plus, X, Send, History, Users, RotateCcw } from 'lucide-react'
 
 type Audience = 'unit' | 'group' | 'members'
-
-// Full date + time in French, e.g. "23 sept. 2026 à 14:35".
-function formatSentAt(iso: string) {
-  return new Date(iso).toLocaleString('fr-FR', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
 
 export default function SendNotificationPage() {
   const [audience, setAudience] = useState<Audience>('unit')
@@ -37,6 +37,7 @@ export default function SendNotificationPage() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [url, setUrl] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const [historyPage, setHistoryPage] = useState(1)
 
@@ -68,9 +69,25 @@ export default function SendNotificationPage() {
     (audience === 'group' && !!groupId) ||
     (audience === 'members' && members.length > 0)
 
-  const submit = async () => {
+  // Who the confirm dialog says the notification goes to (a broadcast send always asks first).
+  const audienceText =
+    audience === 'unit'
+      ? `les membres de l'unité ${units?.items.find((u) => u.id === unitId)?.name ?? ''}`
+      : audience === 'group'
+        ? (() => {
+            const g = groups?.find((x) => x.id === groupId)
+            return g ? `le groupe « ${g.name} » (${g.memberCount} membre(s))` : 'le groupe choisi'
+          })()
+        : `${members.length} membre(s) choisi(s)`
+
+  // "Envoyer" validates, then asks for confirmation before the broadcast goes out.
+  const askSend = () => {
     if (!title.trim()) { toast.error('Le titre est requis.'); return }
     if (!audienceReady) { toast.error('Choisissez les destinataires.'); return }
+    setConfirmOpen(true)
+  }
+
+  const submit = async () => {
     try {
       const res = await send.mutateAsync({
         title: title.trim(),
@@ -81,6 +98,7 @@ export default function SendNotificationPage() {
         memberIds: audience === 'members' ? members.map((m) => m.id) : undefined,
       })
       toast.success(`Notification envoyée à ${res.count} destinataire(s)`)
+      setConfirmOpen(false)
       setTitle(''); setBody(''); setUrl('')
     } catch (e) {
       toast.error(parseApiError(e))
@@ -88,11 +106,11 @@ export default function SendNotificationPage() {
   }
 
   return (
-    <Page className="mx-auto max-w-2xl">
+    <Page size="narrow">
       <PageHeader
         title="Envoyer une notification"
         icon={Bell}
-        description="Envoie une notification aux membres choisis. Elle apparaît dans leur cloche de notifications et, s'ils ont activé les notifications sur leur appareil, sous forme de notification poussée (même application fermée ; sur iPhone uniquement si l'application est installée)."
+        description="Une notification dans la cloche des membres choisis, et sur leur appareil s'ils l'ont activée."
       />
 
       <Card>
@@ -132,9 +150,11 @@ export default function SendNotificationPage() {
                 {members.map((m) => (
                   <span key={m.id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-sm">
                     {m.name}
-                    <button type="button" onClick={() => setMembers((p) => p.filter((x) => x.id !== m.id))} className="text-muted-foreground hover:text-foreground">
-                      <X className="h-3 w-3" />
-                    </button>
+                    <Tip content="Retirer">
+                      <button type="button" aria-label={`Retirer ${m.name}`} onClick={() => setMembers((p) => p.filter((x) => x.id !== m.id))} className="text-muted-foreground hover:text-foreground">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Tip>
                   </span>
                 ))}
                 {members.length === 0 && <span className="text-sm text-muted-foreground">Aucun membre choisi.</span>}
@@ -151,20 +171,20 @@ export default function SendNotificationPage() {
         <CardHeader><CardTitle className="text-base">Message</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Titre</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} placeholder="Ex. : Réunion annulée demain" />
+            <RequiredLabel htmlFor="notif-title" required>Titre</RequiredLabel>
+            <Input id="notif-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} placeholder="Ex. : Réunion annulée demain" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Message <span className="font-normal text-muted-foreground">(optionnel)</span></label>
-            <textarea className="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            <Label htmlFor="notif-body">Message <span className="font-normal text-muted-foreground">(optionnel)</span></Label>
+            <Textarea id="notif-body" className="min-h-24"
               value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder="Détails de la notification…" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Lien <span className="font-normal text-muted-foreground">(optionnel — page ouverte au clic)</span></label>
-            <Input value={url} onChange={(e) => setUrl(e.target.value)} maxLength={500} placeholder="/my-documents" />
+            <Label htmlFor="notif-url">Lien <span className="font-normal text-muted-foreground">(optionnel — page ouverte au clic)</span></Label>
+            <Input id="notif-url" value={url} onChange={(e) => setUrl(e.target.value)} maxLength={500} placeholder="/my-documents" />
           </div>
           <div className="flex justify-end">
-            <Button onClick={submit} disabled={send.isPending || !title.trim() || !audienceReady}>
+            <Button onClick={askSend} disabled={send.isPending || !title.trim() || !audienceReady}>
               <Send className="mr-1.5 h-4 w-4" />{send.isPending ? 'Envoi…' : 'Envoyer'}
             </Button>
           </div>
@@ -178,7 +198,7 @@ export default function SendNotificationPage() {
         </CardHeader>
         <CardContent>
           {historyLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement…</p>
+            <LoadingSpinner />
           ) : !history || history.items.length === 0 ? (
             <EmptyState icon={History} title="Aucun envoi" description="Aucune notification envoyée pour l'instant." />
           ) : (
@@ -187,7 +207,7 @@ export default function SendNotificationPage() {
                 <div key={b.id} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-medium">{b.title}</p>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatSentAt(b.sentAt)}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(b.sentAt)}</span>
                   </div>
                   {b.body && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">{b.body}</p>}
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -214,6 +234,16 @@ export default function SendNotificationPage() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Envoyer la notification ?"
+        description={`« ${title.trim()} » sera envoyée à ${audienceText}.`}
+        confirmLabel="Envoyer"
+        loading={send.isPending}
+        onConfirm={submit}
+      />
 
       <MemberPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onPick={addMember}
         title="Ajouter un destinataire" description="Recherchez un membre à notifier." />

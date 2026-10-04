@@ -27,6 +27,8 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
+import { Callout } from '@/components/shared/callout'
+import { Tip } from '@/components/ui/tooltip'
 import { GripVertical, ArrowRightLeft, Users, Crown, ChevronDown, ChevronRight, Check, LogOut, ClipboardList, Table2, LayoutGrid } from 'lucide-react'
 
 // One allowed passage move target for a member (parcours scout): kind 'same' = same branch (équipe/fonction
@@ -37,6 +39,8 @@ interface PassageDestination {
 }
 
 // Accent/case-insensitive normalize for the member search box.
+// "Quitte le groupe" action button — same outlined orange style here and on the passage table.
+const LEAVE_BUTTON_CLASS = 'border-orange-400 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950/40'
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 
 // A "column" here is just a team of the unit, plus a virtual "Sans équipe" (teamId null) — used both to
@@ -204,9 +208,11 @@ export default function OrganizeUnitPage() {
         actions={
           <>
             {proposalMode && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/passage')} title="Basculer vers le tableau des passages">
-                <Table2 className="mr-1.5 h-4 w-4" />Vue tableau
-              </Button>
+              <Tip content="Basculer vers le tableau des passages">
+                <Button variant="outline" size="sm" onClick={() => navigate('/passage')}>
+                  <Table2 className="mr-1.5 h-4 w-4" />Vue tableau
+                </Button>
+              </Tip>
             )}
             {unitOptions.length > 1 && (
               <Select value={unitId} onValueChange={setSelectedUnit}>
@@ -230,17 +236,18 @@ export default function OrganizeUnitPage() {
           {proposalMode && (() => {
             const missing = (org.members ?? []).filter((m) => !passageByMember.has(m.memberId)).length
             return (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning-border bg-warning-subtle px-3 py-2 text-sm">
-                <ClipboardList className="h-4 w-4 shrink-0 text-warning" />
-                <span className="text-foreground">
-                  Mode passage — <b>{(org.members?.length ?? 0) - missing}/{org.members?.length ?? 0}</b> ligne(s) créée(s).
-                </span>
-                {missing > 0 && (
-                  <Button size="sm" variant="outline" className="ml-auto border-warning-border text-warning hover:bg-warning-subtle" disabled={generating} onClick={generateMissing}>
-                    <Check className="mr-1.5 h-4 w-4" />Générer les {missing} ligne(s) manquante(s) « Pas de changement »
-                  </Button>
-                )}
-              </div>
+              <Callout tone="warning" icon={ClipboardList}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>
+                    Mode passage — <b>{(org.members?.length ?? 0) - missing}/{org.members?.length ?? 0}</b> ligne(s) créée(s).
+                  </span>
+                  {missing > 0 && (
+                    <Button size="sm" variant="outline" disabled={generating} onClick={generateMissing}>
+                      <Check className="mr-1.5 h-4 w-4" />Générer les {missing} ligne(s) manquante(s) « Pas de changement »
+                    </Button>
+                  )}
+                </div>
+              </Callout>
             )
           })()}
 
@@ -258,11 +265,11 @@ export default function OrganizeUnitPage() {
               <span className="text-sm font-medium">{selected.size} sélectionné{selected.size > 1 ? 's' : ''}</span>
               {proposalMode ? (
                 <>
-                  <Button size="sm" variant="outline" className="border-green-500 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-950/40"
+                  <Button size="sm" variant="success"
                     disabled={proposeMutation.isPending} onClick={async () => { for (const m of selectedMembers) await proposeNoChange(m); setSelected(new Set()) }}>
                     <Check className="mr-1 h-4 w-4" />Pas de changement
                   </Button>
-                  <Button size="sm" variant="outline" className="border-orange-400 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950/40"
+                  <Button size="sm" variant="outline" className={LEAVE_BUTTON_CLASS}
                     onClick={() => startLeaving(selectedMembers)}>
                     <LogOut className="mr-1 h-4 w-4" />Quitte le groupe
                   </Button>
@@ -378,11 +385,11 @@ export default function OrganizeUnitPage() {
 // The passage-proposal badge for a member (Mode B): shows what's proposed for them next year.
 function ProposalBadge({ proposal, m, currentUnitId }: { proposal?: PassageDto; m: OrgMember; currentUnitId: string }) {
   const mark = proposal?.status === 'Approved' ? ' ✓' : proposal?.status === 'Rejected' ? ' ✗' : ''
-  if (!proposal) return <Badge variant="outline" className="border-amber-400 bg-amber-50 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">À proposer</Badge>
-  if (proposal.isLeaving) return <Badge className="bg-orange-600 text-[10px] hover:bg-orange-600">Quitte{mark}</Badge>
+  if (!proposal) return <Badge variant="warning" className="text-[10px]">À proposer</Badge>
+  if (proposal.isLeaving) return <Badge variant="danger" className="text-[10px]">Quitte{mark}</Badge>
   const noChange = proposal.proposedUnitId === currentUnitId && proposal.proposedRoleName === m.functionalRoleName
-  if (noChange) return <Badge className="bg-green-600 text-[10px] hover:bg-green-600">Pas de changement{mark}</Badge>
-  return <Badge className="bg-blue-600 text-[10px] hover:bg-blue-600">→ {proposal.proposedUnitCode}{mark}</Badge>
+  if (noChange) return <Badge variant="success" className="text-[10px]">Pas de changement{mark}</Badge>
+  return <Badge variant="info" className="text-[10px]">→ {proposal.proposedUnitCode}{mark}</Badge>
 }
 
 // ─── One member row (checkbox + drag handle + photo + name + fonction + [proposal badge] + ⇄) ───
@@ -399,7 +406,7 @@ function MemberRow({ m, checked, onCheck, onMove, proposalMode, proposal, curren
   return (
     <li ref={setNodeRef} className={cn('flex items-center gap-2.5 border-t px-3 py-3 first:border-t-0 hover:bg-muted/20 sm:gap-2 sm:py-2', isDragging && 'opacity-40', checked && 'bg-primary/5')}>
       <input type="checkbox" checked={checked} onChange={onCheck} className="h-5 w-5 shrink-0 rounded border-input accent-primary sm:h-4 sm:w-4" aria-label="Sélectionner" />
-      <button type="button" className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing" {...listeners} {...attributes} title="Glisser vers le centre">
+      <button type="button" className="cursor-grab touch-none text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing" {...listeners} {...attributes} aria-label="Glisser vers le centre">
         <GripVertical className="h-5 w-5 sm:h-4 sm:w-4" />
       </button>
       <MemberPhoto memberId={m.memberId} name={`${m.firstName} ${m.lastName}`} photoPath={m.photoPath} size={34} />
@@ -410,9 +417,11 @@ function MemberRow({ m, checked, onCheck, onMove, proposalMode, proposal, curren
         <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">· {m.functionalRoleName}</span>
       </div>
       {proposalMode && <ProposalBadge proposal={proposal} m={m} currentUnitId={currentUnitId ?? ''} />}
-      <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 sm:h-8 sm:w-8" onClick={onMove} title={proposalMode ? 'Proposer un changement' : 'Déplacer'}>
-        <ArrowRightLeft className="h-5 w-5 sm:h-4 sm:w-4" />
-      </Button>
+      <Tip content={proposalMode ? 'Proposer un changement' : 'Déplacer'}>
+        <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 sm:h-8 sm:w-8" onClick={onMove} aria-label={proposalMode ? 'Proposer un changement' : 'Déplacer'}>
+          <ArrowRightLeft className="h-5 w-5 sm:h-4 sm:w-4" />
+        </Button>
+      </Tip>
     </li>
   )
 }
@@ -592,10 +601,10 @@ function ProposalPopup({ m, currentUnitId, currentUnitName, teams, unitRoles, al
 
         {/* Quick choices */}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" className="border-green-500 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-950/40" disabled={busy} onClick={onNoChange}>
+          <Button size="sm" variant="success" disabled={busy} onClick={onNoChange}>
             <Check className="mr-1 h-4 w-4" />Pas de changement
           </Button>
-          <Button size="sm" variant="outline" className="border-orange-400 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950/40" onClick={onLeave}>
+          <Button size="sm" variant="outline" className={LEAVE_BUTTON_CLASS} onClick={onLeave}>
             <LogOut className="mr-1 h-4 w-4" />Quitte le groupe
           </Button>
         </div>

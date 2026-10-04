@@ -35,7 +35,12 @@ import { MemberAuditLog } from '@/components/members/member-audit-log'
 import { generateMemberCard } from '@/services/report-service'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { useMemberAbsencesByYear, type MemberAbsenceYear } from '@/services/meeting-service'
-import { cn, computeAge } from '@/lib/utils'
+import { computeAge, formatDate, formatDateTime } from '@/lib/utils'
+import { Callout } from '@/components/shared/callout'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { DateInput } from '@/components/shared/date-input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Copy, CreditCard, FileSpreadsheet, User, GraduationCap, Contact, Droplet, Pencil, KeyRound, Save, Trash2, Send, CalendarCheck, ChevronDown, ShieldCheck, ListChecks, Star, Eye, Lock, Unlock, Smartphone } from 'lucide-react'
 import { pushRecentMember, isFavoriteMember, toggleFavoriteMember } from '@/lib/recent-members'
 import { DelegationDialog } from '@/pages/members/delegation-dialog'
@@ -57,12 +62,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 
 // Réunion type labels + a dd/MM/yyyy (range) date formatter for the absence-details popup.
 const MEETING_TYPE_LABELS: Record<string, string> = { Reunion: 'Réunion', Sortie: 'Sortie', Camp: 'Camp' }
-function frDate(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return d && m && y ? `${d}/${m}/${y}` : iso
-}
 function formatAbsenceDate(date: string, endDate: string | null): string {
-  return endDate && endDate !== date ? `${frDate(date)} → ${frDate(endDate)}` : frDate(date)
+  return endDate && endDate !== date ? `${formatDate(date)} → ${formatDate(endDate)}` : formatDate(date)
 }
 
 function Section({ icon: Icon, title, children }: { icon: ComponentType<{ className?: string }>; title: string; children: ReactNode }) {
@@ -198,7 +199,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
 
   // (Coordonnées add/edit/delete now live in the shared <HouseholdContacts> component.)
 
-  if (isLoading) return <div className="flex items-center justify-center h-full"><LoadingSpinner /></div>
+  if (isLoading) return <LoadingSpinner className="h-full" />
   if (!member) return null
 
   const age = computeAge(member.dateOfBirth)
@@ -249,7 +250,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
         medicalNotes: form.medicalNotes || null, allergies: form.allergies || null, notes: form.notes || null,
         parentsSituation: form.parentsSituation || null,
       })
-      toast.success('Membre modifié')
+      toast.success('Fiche enregistrée')
       setEditing(false)
     } catch (err) { setError(parseApiError(err)) }
   }
@@ -349,7 +350,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
             <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
               {member.username && (
                 member.lastLoginAt
-                  ? <span className="text-muted-foreground">Connexion : {new Date(member.lastLoginAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  ? <span className="text-muted-foreground">Connexion : {formatDateTime(member.lastLoginAt)}</span>
                   : <span className="font-medium text-amber-600 dark:text-amber-400">Jamais connecté</span>
               )}
               {member.username && member.loginActive === false && (
@@ -357,12 +358,12 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
               )}
               {/* Contact-review state: did the member confirm/fix their coordonnées via the one-time popup? */}
               {member.contactReviewedAt
-                ? <span title={`Vérifiées le ${new Date(member.contactReviewedAt).toLocaleDateString('fr-FR')}`} className="text-emerald-600 dark:text-emerald-400">Coordonnées vérifiées</span>
+                ? <span title={`Vérifiées le ${formatDate(member.contactReviewedAt)}`} className="text-emerald-600 dark:text-emerald-400">Coordonnées vérifiées</span>
                 : <span className="font-medium text-amber-600 dark:text-amber-400">Coordonnées à vérifier</span>}
               {/* PWA install (best-effort): "installée" = detected running standalone; else "non détectée". */}
               {member.username && (
                 member.appInstalledAt
-                  ? <span title={`Détectée le ${new Date(member.appInstalledAt).toLocaleDateString('fr-FR')}`} className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Smartphone className="h-3 w-3" />App installée</span>
+                  ? <span title={`Détectée le ${formatDate(member.appInstalledAt)}`} className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Smartphone className="h-3 w-3" />App installée</span>
                   : <span className="inline-flex items-center gap-1 text-muted-foreground"><Smartphone className="h-3 w-3" />App non détectée</span>
               )}
               {/* Access delegation — visible to the CG so they know this member holds hidden extra access. */}
@@ -374,10 +375,12 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
           <div className="flex w-full flex-wrap items-center gap-2 @lg:w-auto @lg:shrink-0 @lg:justify-end">
             {/* Favorite toggle (per-device) — surfaces this member in the Ctrl-K palette's "Favoris". */}
             {!editing && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'} title={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                onClick={() => setFav(toggleFavoriteMember({ id: memberId, name: `${member.firstName} ${member.lastName}` }))}>
-                <Star className={`h-4 w-4 ${fav ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
-              </Button>
+              <Tip content={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  onClick={() => setFav(toggleFavoriteMember({ id: memberId, name: `${member.firstName} ${member.lastName}` }))}>
+                  <Star className={`h-4 w-4 ${fav ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
+                </Button>
+              </Tip>
             )}
             {/* Member actions as a single LABELLED menu (was four hover-only, unlabelled icon buttons — invisible
                 on touch and ambiguous). Reset-password is a top support task, so it deserves a readable label. */}
@@ -439,7 +442,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
               <>
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Annuler</Button>
                 <Button size="sm" onClick={handleSave} disabled={updateMember.isPending}>
-                  <Save className="mr-1 h-4 w-4" />{updateMember.isPending ? '…' : 'Enregistrer'}
+                  <Save className="mr-1 h-4 w-4" />{updateMember.isPending ? 'Enregistrement…' : 'Enregistrer'}
                 </Button>
               </>
             ) : (
@@ -467,7 +470,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
 
         <div className="flex-1 overflow-auto p-4">
           <TabsContent value="info" className="mt-0 space-y-6">
-            {error && editing && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && editing && <Callout tone="danger">{error}</Callout>}
 
             {/* Identité — the member photo lives here now (the standalone hero that duplicated the name,
                 matricule and identity chips was removed; age shows next to the DOB below, sexe/nationalité are
@@ -478,9 +481,9 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                   <MemberPhoto memberId={memberId} name={`${member.firstName} ${member.lastName}`} photoPath={member.photoPath} size={120} height={156} rounded="rounded-xl" editable={canEdit} className="shadow-sm ring-1 ring-border" />
                   {member.absencesThisYear > 0 && (
                     <Tip content="Absences aux réunions cette année scoute">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                      <Badge variant="warning" className="gap-1.5 font-medium">
                         <CalendarCheck className="h-3.5 w-3.5" />{member.absencesThisYear} absence{member.absencesThisYear > 1 ? 's' : ''}
-                      </span>
+                      </Badge>
                     </Tip>
                   )}
                 </div>
@@ -489,7 +492,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="space-y-1.5"><RequiredLabel required>Prénom</RequiredLabel><Input value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
                   <div className="space-y-1.5"><RequiredLabel required>Nom</RequiredLabel><Input value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value.toUpperCase() }))} /></div>
-                  <div className="space-y-1.5"><RequiredLabel required>Date de naissance</RequiredLabel><Input type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel required>Date de naissance</RequiredLabel><DateInput value={form.dateOfBirth ?? ''} onChange={(iso) => setForm(f => ({ ...f, dateOfBirth: iso ?? '' }))} /></div>
                   <div className="space-y-1.5">
                     <RequiredLabel required>Sexe</RequiredLabel>
                     <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v }))}>
@@ -519,7 +522,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                 <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Field label="Prénom" value={member.firstName} />
                   <Field label="Nom" value={member.lastName} />
-                  <Field label="Date de naissance" value={member.dateOfBirth ? `${new Date(member.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : null} />
+                  <Field label="Date de naissance" value={member.dateOfBirth ? `${formatDate(member.dateOfBirth)}${age != null ? ` (${age} ans)` : ''}` : null} />
                   <Field label="Sexe" value={member.gender} />
                   <Field label="Nationalité" value={member.nationality} />
                   <Field label="Matricule" value={member.cardNumber} />
@@ -544,15 +547,12 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                   {member.showProfession && (
                     <div className="space-y-1.5 sm:col-span-2 xl:col-span-3">
                       <RequiredLabel>Situation</RequiredLabel>
-                      <div className="inline-flex h-9 items-center rounded-md border p-0.5">
-                        <button type="button" onClick={() => setSituation('student')}
-                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                          Scolarisé(e)
-                        </button>
-                        <button type="button" onClick={() => setSituation('working')}
-                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                          En activité
-                        </button>
+                      <div>
+                        <SegmentedToggle
+                          options={[{ value: 'student', label: 'Scolarisé(e)' }, { value: 'working', label: 'En activité' }]}
+                          value={situation}
+                          onChange={setSituation}
+                        />
                       </div>
                     </div>
                   )}
@@ -568,7 +568,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE…" maxLength={5} /></div>
+                      <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex. : SV, SE…" maxLength={5} /></div>
                     </>
                   ) : (
                     <>
@@ -583,7 +583,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5"><RequiredLabel>Profession</RequiredLabel><Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin…" maxLength={150} /></div>
+                      <div className="space-y-1.5"><RequiredLabel>Profession</RequiredLabel><Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex. : Ingénieur, Médecin…" maxLength={150} /></div>
                     </>
                   )}
                 </div>
@@ -637,7 +637,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
 
           {/* Médical + Infos complémentaires merged */}
           <TabsContent value="medical" className="mt-0 space-y-8">
-            {error && editing && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && editing && <Callout tone="danger">{error}</Callout>}
             <Section icon={Droplet} title="Médical">
               {editing ? (
                 <div className="space-y-4">
@@ -650,9 +650,9 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                       </Select>
                     </div>
                   </div>
-                  <div className="space-y-1.5"><RequiredLabel>Allergies</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.allergies ?? ''} onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))} /></div>
-                  <div className="space-y-1.5"><RequiredLabel>Notes médicales</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.medicalNotes ?? ''} onChange={(e) => setForm(f => ({ ...f, medicalNotes: e.target.value }))} /></div>
-                  <div className="space-y-1.5"><RequiredLabel>Notes générales</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.notes ?? ''} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel>Allergies</RequiredLabel><Textarea className="min-h-20" value={form.allergies ?? ''} onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel>Notes médicales</RequiredLabel><Textarea className="min-h-20" value={form.medicalNotes ?? ''} onChange={(e) => setForm(f => ({ ...f, medicalNotes: e.target.value }))} /></div>
+                  <div className="space-y-1.5"><RequiredLabel>Notes générales</RequiredLabel><Textarea className="min-h-20" value={form.notes ?? ''} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -668,17 +668,17 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
               {absencesByYear && absencesByYear.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {absencesByYear.map(a => (
-                    <button
-                      key={a.scoutYear}
-                      type="button"
-                      onClick={() => setAbsenceYear(a)}
-                      title="Voir le détail des absences"
-                      className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm transition hover:bg-muted"
-                    >
-                      <span className="text-muted-foreground">{a.scoutYear}</span>
-                      <span className="font-semibold tabular-nums">{a.count}</span>
-                      <span className="text-muted-foreground">absence{a.count > 1 ? 's' : ''}</span>
-                    </button>
+                    <Tip key={a.scoutYear} content="Voir le détail des absences">
+                      <button
+                        type="button"
+                        onClick={() => setAbsenceYear(a)}
+                        className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm transition hover:bg-muted"
+                      >
+                        <span className="text-muted-foreground">{a.scoutYear}</span>
+                        <span className="font-semibold tabular-nums">{a.count}</span>
+                        <span className="text-muted-foreground">absence{a.count > 1 ? 's' : ''}</span>
+                      </button>
+                    </Tip>
                   ))}
                 </div>
               ) : (
@@ -738,7 +738,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
       )}
 
       {/* Delete member (soft-delete → Corbeille) */}
-      <ConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} title="Supprimer le membre"
+      <ConfirmDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen} title="Supprimer le membre ?"
         description={`${member.firstName} ${member.lastName} sera déplacé(e) vers la Corbeille (son compte est désactivé). Vous pourrez le/la restaurer jusqu'à sa suppression définitive automatique. Continuer ?`}
         confirmLabel="Supprimer" variant="destructive" loading={deleteMember.isPending} onConfirm={handleDelete} />
 
@@ -769,7 +769,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
       </Dialog>
 
       {/* Reset password */}
-      <ConfirmDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen} title="Réinitialiser le mot de passe"
+      <ConfirmDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen} title="Réinitialiser le mot de passe ?"
         description={`Un nouveau mot de passe temporaire sera généré pour ${member.firstName} ${member.lastName}. Les sessions actives seront déconnectées. Continuer ?`}
         confirmLabel="Réinitialiser" loading={resetPassword.isPending} onConfirm={handleResetPassword} />
       <ConfirmDialog open={loginToggleOpen} onOpenChange={setLoginToggleOpen}
@@ -783,22 +783,22 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
           <DialogHeader><DialogTitle>Mot de passe réinitialisé</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {resetCreds?.sentToEmail
-              ? <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 p-3 text-sm text-green-800 dark:text-green-300">Un email avec le mot de passe temporaire a été envoyé à <strong>{resetCreds.sentToEmail}</strong>. Le membre devra le changer à la première connexion.</div>
-              : <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300">Aucune adresse email sur la fiche : communiquez ces informations manuellement au membre.</div>}
+              ? <Callout tone="success">Un email avec le mot de passe temporaire a été envoyé à <strong>{resetCreds.sentToEmail}</strong>. Le membre devra le changer à la première connexion.</Callout>
+              : <Callout tone="warning">Aucune adresse email sur la fiche : communiquez ces informations manuellement au membre.</Callout>}
             <p className="text-sm text-muted-foreground">Communiquez ces informations au membre. Le mot de passe ne sera plus affiché.</p>
             <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
               <div>
                 <span className="text-muted-foreground">Identifiant :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.username}</code>
-                  <Button variant="ghost" size="sm" aria-label="Copier l'identifiant" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <CopyButton value={resetCreds?.username} label="Copier l'identifiant" className="px-2" />
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Nouveau mot de passe :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.password}</code>
-                  <Button variant="ghost" size="sm" aria-label="Copier le mot de passe" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.password ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <CopyButton value={resetCreds?.password} label="Copier le mot de passe" className="px-2" />
                 </div>
               </div>
             </div>

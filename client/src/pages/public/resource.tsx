@@ -1,5 +1,7 @@
-import { Link, useParams } from 'react-router'
-import { ArrowLeft, FileText, Download } from 'lucide-react'
+import { useParams } from 'react-router'
+import { FileText, Download, Library } from 'lucide-react'
+import { PublicBackLink } from '@/components/public/public-back-link'
+import { EmptyState } from '@/components/shared/empty-state'
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicResource, categoryLabel } from '@/services/resources-service'
@@ -31,10 +33,8 @@ export default function PublicResourcePage() {
       <>
         <PageHero title="Ressource introuvable" />
         <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-          <p className="text-muted-foreground">Cette ressource n'existe pas ou n'est pas publiée.</p>
-          <Link to="/ressources" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-            <ArrowLeft className="h-4 w-4" /> Retour aux ressources
-          </Link>
+          <EmptyState icon={Library} title="Ressource introuvable" description="Cette ressource n'existe pas ou n'est pas publiée."
+            action={<PublicBackLink to="/ressources" label="Toutes les ressources" />} />
         </section>
       </>
     )
@@ -50,9 +50,7 @@ export default function PublicResourcePage() {
       <PageHero title={r.title} />
       <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Link to="/ressources" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Toutes les ressources
-          </Link>
+          <PublicBackLink to="/ressources" label="Toutes les ressources" />
           <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">{categoryLabel(r.category)}</span>
         </div>
 

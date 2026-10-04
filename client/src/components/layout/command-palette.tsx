@@ -1,41 +1,34 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import {
-  Search, LayoutDashboard, Users, Inbox, ClipboardList, ArrowRightLeft, CalendarCheck, Receipt,
-  FileWarning, Building2, Crown, Star, ListChecks, Newspaper, MessageSquare, Settings2, ScrollText, Clock, Contact,
-} from 'lucide-react'
+import { Search, Home, Users, Star, Clock, Contact } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { useMembers, useSearchParents } from '@/services/member-service'
 import { getRecentMembers, getFavoriteMembers, type RecentMember } from '@/lib/recent-members'
 import { useDebounce } from '@/hooks/use-debounce'
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut } from '@/components/ui/command'
-import type { LucideIcon } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
+import { adminGroups, adminNavItems, leaderNavItems, type NavLink } from './nav-items'
 
 // Accent- + case-insensitive normalize (so "coti" matches "Cotisations", "rentree" matches "Rentrée").
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-// Curated jump-to destinations (flat), each gated by a permission (null = any leader). Mirrors the main nav —
-// enough to reach the frequent pages fast without duplicating the whole sidebar tree.
-interface Dest { label: string; path: string; icon: LucideIcon; perm: string | null }
-const DESTINATIONS: Dest[] = [
-  { label: 'Tableau de bord', path: '/dashboard', icon: LayoutDashboard, perm: null },
-  { label: 'Membres', path: '/members', icon: Users, perm: PERMISSIONS.MEMBERS_EDIT },
-  { label: 'Rentrée scoute', path: '/rentree', icon: ListChecks, perm: PERMISSIONS.RENTREE_MANAGE },
-  { label: 'Demandes d\'inscription', path: '/admin/demandes', icon: Inbox, perm: PERMISSIONS.DEMANDE_VIEW },
-  { label: 'Modifications à valider', path: '/change-requests', icon: ClipboardList, perm: PERMISSIONS.MEMBERS_EDIT },
-  { label: 'Validation passages', path: '/admin/passage-validation', icon: ArrowRightLeft, perm: PERMISSIONS.PASSAGE_MANAGE },
-  { label: 'Réunions & absences', path: '/attendance', icon: CalendarCheck, perm: PERMISSIONS.ATTENDANCE_MANAGE },
-  { label: 'Cotisations', path: '/admin/cotisations', icon: Receipt, perm: PERMISSIONS.MAITRISE_MANAGE },
-  { label: 'Suivi documents', path: '/admin/documents-suivi', icon: FileWarning, perm: PERMISSIONS.MAITRISE_MANAGE },
-  { label: 'Unités', path: '/units', icon: Building2, perm: PERMISSIONS.UNITS_VIEW },
-  { label: 'Maîtrises', path: '/maitrises', icon: Crown, perm: PERMISSIONS.MAITRISE_MANAGE },
-  { label: 'Progression scoute', path: '/admin/progression', icon: Star, perm: PERMISSIONS.PROGRESSION_MANAGE },
-  { label: 'Messages de contact', path: '/admin/contact-messages', icon: MessageSquare, perm: PERMISSIONS.CONTENT_MANAGE },
-  { label: 'Actualités (site public)', path: '/admin/news', icon: Newspaper, perm: PERMISSIONS.CONTENT_MANAGE },
-  { label: 'Journal d\'audit', path: '/admin/audit-logs', icon: ScrollText, perm: PERMISSIONS.AUDIT_VIEW },
-  { label: 'Paramètres', path: '/admin/settings', icon: Settings2, perm: PERMISSIONS.MAITRISE_MANAGE },
-]
+// Jump-to destinations = the same pages, labels, icons and permission gates as the menu (nav-items.ts), so the
+// palette never offers a page the menu hides (or names it differently). "Accueil" (the role-aware home) first.
+interface Dest { label: string; path: string; icon: React.ComponentType<{ className?: string }>; perm: string | null }
+function buildDestinations(isManager: boolean): Dest[] {
+  const links: NavLink[] = isManager
+    ? [...adminNavItems, ...adminGroups.flatMap((g) => g.items)]
+    : leaderNavItems.filter((i) => i.path !== '/dashboard')
+  const seen = new Set<string>()
+  const out: Dest[] = [{ label: 'Accueil', path: '/dashboard', icon: Home, perm: null }]
+  for (const l of links) {
+    if (seen.has(l.path)) continue
+    seen.add(l.path)
+    out.push({ label: l.label, path: l.path, icon: l.icon, perm: l.permission })
+  }
+  return out
+}
 
 // Global quick-search / command palette (Ctrl/⌘-K). Renders a compact trigger in the header + the dialog.
 // Leaders only (CU and above): a regular member has no admin pages to jump to and can't search other members
@@ -47,6 +40,8 @@ export function CommandPalette() {
   const canSearchMembers = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MEMBERS_EDIT)
   // Leader = can edit members OR is a manager (CG/ACG/super-admin). Only they get the palette.
   const isLeader = canSearchMembers || hasPermission(PERMISSIONS.MAITRISE_MANAGE)
+  // Same "manager" rule as the menu (sidebar NavContent): they get the admin pages, others the leader pages.
+  const isManager = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.MAITRISE_MANAGE) || !!user?.unitAccess.some((u) => u.isGroupLevel)
 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -75,11 +70,11 @@ export function CommandPalette() {
 
   // Nav destinations visible to this user, filtered by the typed query.
   const dests = useMemo(() => {
-    const visible = DESTINATIONS.filter((d) => !d.perm || hasPermission(d.perm) || user?.isSuperAdmin)
+    const visible = buildDestinations(isManager).filter((d) => !d.perm || hasPermission(d.perm))
     if (!debounced) return visible
     const q = norm(debounced)
     return visible.filter((d) => norm(d.label).includes(q))
-  }, [debounced, hasPermission, user?.isSuperAdmin])
+  }, [debounced, hasPermission, isManager])
 
   // Ctrl/⌘-K toggles the palette from anywhere. `openRef` keeps the handler's view of open current without
   // re-subscribing on every toggle; favorites/recents are loaded in the handler (an event, not an effect).
@@ -106,15 +101,16 @@ export function CommandPalette() {
   return (
     <>
       {/* Header trigger: a compact magnifying-glass icon (saves space); click opens the full search dialog (Ctrl/⌘-K). */}
-      <button
-        type="button"
-        onClick={openPalette}
-        aria-label="Rechercher (Ctrl+K)"
-        title="Rechercher (Ctrl+K)"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-      >
-        <Search className="h-4 w-4" />
-      </button>
+      <Tip content="Rechercher (Ctrl+K)">
+        <button
+          type="button"
+          onClick={openPalette}
+          aria-label="Rechercher (Ctrl+K)"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+      </Tip>
 
       <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
         <CommandInput

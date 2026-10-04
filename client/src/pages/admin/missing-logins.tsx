@@ -65,7 +65,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
         <PageHeader
           title="Comptes manquants"
           icon={UserPlus}
-          description="Créez un identifiant de connexion pour les membres qui n'en ont pas encore. Ceux qui ont un email reçoivent un lien d'activation ; pour les autres, un mot de passe temporaire est affiché à l'écran (à communiquer à la main)."
+          description="Créez un identifiant pour les membres qui n'en ont pas : lien d'activation par email, sinon mot de passe affiché à l'écran."
         />
       )}
       <EmailDeliveryWarning />

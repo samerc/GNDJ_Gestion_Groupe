@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
 import { Smartphone, RefreshCw, CheckCircle2, Clock } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { useCreateUploadSession, useUploadSessionStatus } from '@/services/scan-upload-service'
@@ -114,10 +115,9 @@ export function ScanUploadDialog({ memberId, open, onOpenChange, documentTypeId,
             </div>
 
             {uploadedCount > 0 ? (
-              <div className="flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
-                <CheckCircle2 className="h-5 w-5" />
+              <Callout tone="success" icon={CheckCircle2}>
                 {uploadedCount} document{uploadedCount > 1 ? 's' : ''} reçu{uploadedCount > 1 ? 's' : ''} — vous pouvez continuer ou fermer.
-              </div>
+              </Callout>
             ) : (
               <div className="flex items-center justify-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />

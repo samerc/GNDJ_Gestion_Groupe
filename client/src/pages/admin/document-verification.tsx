@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { calendarScoutYear } from '@/hooks/use-scout-year'
+import { calendarScoutYear, recentScoutYears } from '@/hooks/use-scout-year'
+import { formatDateLong } from '@/lib/utils'
 import {
   useDocumentCampaignAdmin, useUpdateDocumentCampaign, useSendCampaignErrors,
   useApplyCampaignHold, useOnHoldMembers, useReactivateMember,
   CAMPAIGN_PHASE_LABELS,
 } from '@/services/documents-campaign-service'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DateInput } from '@/components/shared/date-input'
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RequiredLabel } from '@/components/shared/required-label'
@@ -24,10 +26,6 @@ import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 // per-unit completion, and run the two steps (error emails / on-hold) manually if the CU verification wasn't
 // finished by the transition date (else a daily job does it automatically). Plus the on-hold list + reactivation.
 
-function frDate(d: string | null): string {
-  return d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'
-}
-
 // A metric tile in the "Étape en cours" grid (module scope so it isn't recreated each render).
 function Stat({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
@@ -38,12 +36,12 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
   )
 }
 
-// A date field is stored/sent as yyyy-MM-dd (what <input type="date"> uses) or '' when unset.
+// A date field is stored/sent as yyyy-MM-dd or '' when unset.
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1.5">
       <RequiredLabel>{label}</RequiredLabel>
-      <Input type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+      <DateInput value={value} onChange={(iso) => onChange(iso ?? '')} />
     </div>
   )
 }
@@ -75,6 +73,15 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
       correctionStart: s.correctionStart ?? '', correctionDeadline: s.correctionDeadline ?? '', finalDeadline: s.finalDeadline ?? '',
     })
   }
+
+  // Year picker (next year + current + previous ones, plus the saved year if outside) instead of a free-text
+  // box where a typo silently broke the campaign.
+  const formYear = form?.scoutYear
+  const yearOptions = useMemo(() => {
+    const list = recentScoutYears(5)
+    if (formYear && !list.includes(formYear)) list.unshift(formYear)
+    return list
+  }, [formYear])
 
   const [confirmErrors, setConfirmErrors] = useState(false)
   const [confirmHold, setConfirmHold] = useState(false)
@@ -118,7 +125,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
         <PageHeader
           title="Vérification des documents"
           icon={CalendarClock}
-          description="Campagne annuelle : le dépôt ouvre/ferme automatiquement selon les dates ; les emails d'erreur et la mise en attente partent automatiquement quand la vérification est terminée, sinon vous êtes alerté et lancez l'étape ci-dessous."
+          description="Calendrier annuel du dépôt, de la vérification et de la mise en attente des dossiers."
         />
       )}
 
@@ -170,7 +177,10 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-1.5">
               <RequiredLabel required>Année scoute</RequiredLabel>
-              <Input value={form.scoutYear} onChange={(e) => setForm(f => f && ({ ...f, scoutYear: e.target.value }))} placeholder="2026-2027" />
+              <Select value={form.scoutYear} onValueChange={(v) => setForm(f => f && ({ ...f, scoutYear: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -198,7 +208,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
         <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" />Avancement par unité</CardTitle></CardHeader>
         <CardContent>
           {data.units.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Toutes les unités sont à jour (aucun document en attente, aucun dossier incomplet).</p>
+            <EmptyState icon={CheckCircle2} title="Toutes les unités sont à jour" description="Aucun document en attente, aucun dossier incomplet." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -238,7 +248,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
                 <div key={m.memberId} className="flex items-center justify-between gap-3 p-3">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{m.name}</p>
-                    <p className="text-xs text-muted-foreground">{m.unitName ?? '—'}{m.onHoldAt ? ` · depuis le ${frDate(m.onHoldAt)}` : ''}</p>
+                    <p className="text-xs text-muted-foreground">{m.unitName ?? '—'}{m.onHoldAt ? ` · depuis le ${formatDateLong(m.onHoldAt)}` : ''}</p>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => doReactivate(m.memberId, m.name)} disabled={reactivate.isPending}>
                     <RotateCcw className="mr-1.5 h-4 w-4" />Réactiver
@@ -251,11 +261,11 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
       </Card>
 
       <ConfirmDialog open={confirmErrors} onOpenChange={setConfirmErrors}
-        title="Envoyer les emails d'erreur"
+        title="Envoyer les emails d'erreur ?"
         description={`Un email listant les documents manquants / à corriger / à renouveler sera envoyé à chaque membre dont le dossier est incomplet (${data.incompleteCount} membre(s)). Continuer ?`}
         confirmLabel="Envoyer" loading={sendErrors.isPending} onConfirm={doSendErrors} />
       <ConfirmDialog open={confirmHold} onOpenChange={setConfirmHold}
-        title="Mettre les dossiers incomplets en attente" variant="destructive"
+        title="Mettre les dossiers incomplets en attente ?" variant="destructive"
         description={`Chaque membre dont le dossier est encore incomplet (${data.incompleteCount} membre(s)) sera mis « en attente » : le dépôt de documents lui sera désactivé et un email l'informera de contacter la maîtrise de groupe. Vous pourrez les réactiver individuellement. Continuer ?`}
         confirmLabel="Mettre en attente" loading={applyHold.isPending} onConfirm={doApplyHold} />
     </Page>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 import { parseApiError } from '@/lib/error-utils'
 import { Palette, Save, RotateCcw } from 'lucide-react'
 
@@ -52,7 +53,7 @@ export default function AppearancePage({ embedded = false }: { embedded?: boolea
   const save = async () => {
     try {
       await update.mutateAsync({ key: 'ui.role_colors', value: JSON.stringify(colors) })
-      toast.success('Couleurs enregistrées. Rechargez la page pour les voir partout.')
+      toast.success('Couleurs enregistrées — rechargez la page pour les voir partout')
     } catch (e) {
       toast.error(parseApiError(e))
     }
@@ -66,7 +67,7 @@ export default function AppearancePage({ embedded = false }: { embedded?: boolea
       <Button variant="outline" onClick={() => setColors(DEFAULT_ROLE_COLORS)} disabled={update.isPending}>
         <RotateCcw className="mr-1.5 h-4 w-4" />Réinitialiser
       </Button>
-      <Button onClick={save} disabled={update.isPending || !allValid}><Save className="mr-1.5 h-4 w-4" />Enregistrer</Button>
+      <Button onClick={save} disabled={update.isPending || !allValid}><Save className="mr-1.5 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
     </>
   )
 
@@ -75,7 +76,10 @@ export default function AppearancePage({ embedded = false }: { embedded?: boolea
       {embedded ? (
         <div className="flex flex-wrap justify-end gap-2">{actions}</div>
       ) : (
-        <PageHeader title="Apparence" icon={Palette} description="Couleur du bandeau (en-tête / menu) selon le rôle de l'utilisateur connecté." actions={actions} />
+        <>
+          <BackToSettings />
+          <PageHeader title="Apparence" icon={Palette} description="Couleur du bandeau (en-tête / menu) selon le rôle de l'utilisateur connecté." actions={actions} />
+        </>
       )}
 
       {isLoading ? (

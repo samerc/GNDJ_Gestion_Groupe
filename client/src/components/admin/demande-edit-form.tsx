@@ -10,6 +10,8 @@ import { useSettingArray, useCities, matchSchool } from '@/services/settings-ser
 import { useUnits } from '@/services/unit-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Tip } from '@/components/ui/tooltip'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchableSelect } from '@/components/shared/searchable-select'
@@ -102,7 +104,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
 
   const save = async () => {
     if (!firstName.trim() || !lastName.trim()) {
-      toast.error('Le prénom et le nom de l’enfant sont requis.')
+      toast.error('Le prénom et le nom de l’enfant sont requis')
       return
     }
     const child: DemandeInput = {
@@ -136,7 +138,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
     }
     try {
       await edit.mutateAsync({ id: d.id, child, household })
-      toast.success('Demande mise à jour.')
+      toast.success('Demande enregistrée')
       onSaved()
     } catch (err) {
       toast.error(parseApiError(err))
@@ -245,9 +247,11 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
                     <SelectTrigger className="w-40"><SelectValue placeholder="Lien" /></SelectTrigger>
                     <SelectContent>{G_REL.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setGuardians((arr) => arr.filter((_, j) => j !== i))}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Tip content="Retirer le parent">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Retirer le parent" onClick={() => setGuardians((arr) => arr.filter((_, j) => j !== i))}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </Tip>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Prénom"><Input value={g.firstName} onChange={(e) => setG(i, { firstName: e.target.value })} /></Field>
@@ -282,9 +286,11 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
                     <SelectTrigger className="w-56"><SelectValue placeholder="Situation" /></SelectTrigger>
                     <SelectContent>{R_STATUS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setRelations((arr) => arr.filter((_, j) => j !== i))}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Tip content="Retirer le proche">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Retirer le proche" onClick={() => setRelations((arr) => arr.filter((_, j) => j !== i))}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </Tip>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Prénom"><Input value={r.firstName ?? ''} onChange={(e) => setR(i, { firstName: e.target.value })} /></Field>
@@ -342,14 +348,14 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
         </SectionCard>
 
         <SectionCard icon={MessageSquare} title="Note des parents">
-          <textarea className="min-h-20 w-full rounded-md border bg-background p-2 text-sm" value={parentNotes} onChange={(e) => setParentNotes(e.target.value)} />
+          <Textarea className="min-h-20" value={parentNotes} onChange={(e) => setParentNotes(e.target.value)} />
         </SectionCard>
       </div>
 
       {/* Footer */}
       <div className="flex gap-2 border-t bg-background p-5">
         <Button className="flex-1" onClick={save} disabled={edit.isPending}>
-          <Save className="mr-1 h-4 w-4" />Enregistrer
+          <Save className="mr-1 h-4 w-4" />{edit.isPending ? 'Enregistrement…' : 'Enregistrer'}
         </Button>
         <Button variant="outline" onClick={onCancel} disabled={edit.isPending}>
           <X className="mr-1 h-4 w-4" />Annuler

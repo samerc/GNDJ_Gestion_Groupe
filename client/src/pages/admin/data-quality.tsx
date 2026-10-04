@@ -19,7 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { parseApiError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { Tip } from '@/components/ui/tooltip'
 
 function Section({ s }: { s: DataQualitySection }) {
   const [open, setOpen] = useState(false)
@@ -30,18 +30,21 @@ function Section({ s }: { s: DataQualitySection }) {
   const reactivate = async (id: string) => {
     try {
       await clear.mutateAsync(id)
-      toast.success('Adresse réactivée : les emails lui seront de nouveau envoyés.')
+      toast.success('Adresse réactivée : les emails lui seront de nouveau envoyés')
     } catch (e) { toast.error(parseApiError(e)) }
   }
 
   return (
     <Card>
       <CardContent className="p-0">
+        {/* Header row: the toggle button and the "Doublons" link are siblings (never nest a link in a button). */}
+        <div className="flex items-center gap-3 pr-4">
         <button
           type="button"
           disabled={(ok && !s.confirmed?.length) || isDuplicates}
           onClick={() => setOpen((o) => !o)}
-          className="flex w-full items-center gap-3 p-4 text-left disabled:cursor-default"
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-3 p-4 text-left disabled:cursor-default"
         >
           {ok ? <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
             : isDuplicates ? <span className="w-5" />
@@ -49,18 +52,19 @@ function Section({ s }: { s: DataQualitySection }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 font-medium">
               {s.title}
-              <Badge variant={ok ? 'success' : 'secondary'} className={cn(!ok && 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300')}>
+              <Badge variant={ok ? 'success' : 'warning'}>
                 {s.total}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">{s.hint}</p>
           </div>
+        </button>
           {isDuplicates && s.total > 0 && (
-            <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+            <Button asChild variant="outline" size="sm" className="shrink-0">
               <Link to="/admin/siblings?tab=duplicates"><ExternalLink className="mr-1 h-4 w-4" />Doublons</Link>
             </Button>
           )}
-        </button>
+        </div>
 
         {open && s.key === 'multi-post' && <MultiPostList s={s} />}
 
@@ -121,16 +125,16 @@ function MultiPostList({ s }: { s: DataQualitySection }) {
   const confirmed = s.confirmed ?? []
 
   const confirm = async (it: DataQualityItem) => {
-    try { await ack.mutateAsync({ checkKey: s.key, memberId: it.memberId! }); toast.success('Confirmé : ce cas ne sera plus signalé tant que ses postes ne changent pas.') }
+    try { await ack.mutateAsync({ checkKey: s.key, memberId: it.memberId! }); toast.success('Cas confirmé : il ne sera plus signalé tant que ses postes ne changent pas') }
     catch (e) { toast.error(parseApiError(e)) }
   }
   const undo = async (it: DataQualityItem) => {
-    try { await unack.mutateAsync({ checkKey: s.key, memberId: it.memberId! }); toast.success('Confirmation annulée.') }
+    try { await unack.mutateAsync({ checkKey: s.key, memberId: it.memberId! }); toast.success('Confirmation annulée') }
     catch (e) { toast.error(parseApiError(e)) }
   }
   const close = async () => {
     if (!closing) return
-    try { await endPost.mutateAsync({ id: closing.assignmentId, endDate: todayIso() }); toast.success('Poste clôturé.'); setClosing(null) }
+    try { await endPost.mutateAsync({ id: closing.assignmentId, endDate: todayIso() }); toast.success('Poste clôturé'); setClosing(null) }
     catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -145,8 +149,10 @@ function MultiPostList({ s }: { s: DataQualitySection }) {
           <span key={p.assignmentId} className="inline-flex items-center gap-1 rounded-md border bg-card py-0.5 pl-2 pr-0.5 text-xs">
             {p.isMaitrise && <Crown className="h-3 w-3 text-amber-500" />}{p.label}
             {!isConfirmed && (
-              <button type="button" title="Clôturer ce poste aujourd'hui" className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                onClick={() => setClosing({ item: it, assignmentId: p.assignmentId, label: p.label })}><X className="h-3.5 w-3.5" /></button>
+              <Tip content="Clôturer ce poste aujourd'hui">
+                <button type="button" aria-label={`Clôturer le poste ${p.label}`} className="rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setClosing({ item: it, assignmentId: p.assignmentId, label: p.label })}><X className="h-3.5 w-3.5" /></button>
+              </Tip>
             )}
           </span>
         ))}
@@ -173,7 +179,7 @@ function MultiPostList({ s }: { s: DataQualitySection }) {
       <ConfirmDialog
         open={!!closing}
         onOpenChange={o => { if (!o) setClosing(null) }}
-        title="Clôturer ce poste"
+        title="Clôturer le poste ?"
         description={closing ? `Le poste « ${closing.label} » de ${closing.item.name} sera clôturé aujourd'hui. Ses autres postes restent actifs.` : ''}
         confirmLabel="Clôturer"
         variant="destructive"
@@ -194,10 +200,10 @@ export default function DataQualityPage() {
         title="Qualité des données"
         icon={ShieldCheck}
         description={data
-          ? `${data.activeMembers} membres actifs vérifiés · ${issues} point(s) à corriger. Cliquez sur une ligne pour voir le détail, puis sur un nom pour ouvrir la fiche.`
+          ? `${data.activeMembers} membres actifs vérifiés · ${issues} point(s) à corriger — ouvrez une ligne pour le détail.`
           : 'Ce qui doit être corrigé dans les fiches des membres actifs.'}
       />
-      {isLoading ? <LoadingSpinner variant="table" />
+      {isLoading ? <LoadingSpinner />
         : isError || !data ? <EmptyState icon={ShieldCheck} title="Impossible de charger le rapport" />
         : (
           <div className="space-y-3">

@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { Callout } from '@/components/shared/callout'
+import { RequiredLabel } from '@/components/shared/required-label'
 import { cn } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Award, Star, GripVertical } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
@@ -201,14 +202,14 @@ export function StagesLadder({ unitTypeId }: { unitTypeId: string | null }) {
         onClose={() => { setAdding(false); setEditing(null) }}
       />
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
-        title={(deleting?.progressionCount ?? 0) > 0 ? "Désactiver l'étape" : "Supprimer l'étape"}
+        title={(deleting?.progressionCount ?? 0) > 0 ? "Désactiver l'étape ?" : "Supprimer l'étape ?"}
         description={(deleting?.progressionCount ?? 0) > 0
           ? `« ${deleting?.name} » est utilisée par ${deleting?.progressionCount} membre(s) : elle sera désactivée (masquée des listes mais conservée sur les membres) plutôt que supprimée.`
           : `Supprimer « ${deleting?.name} » ?`}
         confirmLabel={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver' : 'Supprimer'} variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
-      <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection"
+      <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection ?"
         description={`${selected.size} étape(s) sélectionnée(s). Celles utilisées par des membres seront désactivées (conservées sur les membres), les autres supprimées.`}
-        confirmLabel="Supprimer / désactiver" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
+        confirmLabel="Supprimer / archiver" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
     </div>
   )
 }
@@ -223,7 +224,7 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn('flex items-center gap-3 rounded-lg border bg-card p-3', isDragging && 'shadow-lg', !stage.isActive && 'opacity-55')}>
       <input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${stage.name}`} checked={checked} onChange={onCheck} />
-      <Tip content="Glisser pour réordonner"><button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button></Tip>
+      <Tip content="Glisser pour réordonner"><button {...attributes} {...listeners} aria-label="Glisser pour réordonner" className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button></Tip>
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{index + 1}</div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -234,8 +235,8 @@ function StageCard({ stage, index, busy, checked, onCheck, onEdit, onDelete, onT
       </div>
       {stage.progressionCount > 0 && <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">{stage.progressionCount} membre{stage.progressionCount > 1 ? 's' : ''}</span>}
       <Tip content={stage.isActive ? 'Désactiver' : 'Activer'}><Switch checked={stage.isActive} onCheckedChange={onToggle} disabled={busy} /></Tip>
-      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
-      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={onDelete}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
+      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier" onClick={onEdit}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Supprimer" onClick={onDelete}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
     </li>
   )
 }
@@ -270,7 +271,7 @@ function StageFormDialog({ open, stage, unitTypeId, nextOrder, createMutation, u
     try {
       if (stage) {
         await updateMutation.mutateAsync({ id: stage.id, unitTypeId: stage.unitTypeId, displayOrder: stage.displayOrder, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, isActive: form.isActive, isBadgeStage: form.isBadgeStage })
-        toast.success('Étape modifiée')
+        toast.success('Étape enregistrée')
       } else {
         await createMutation.mutateAsync({ unitTypeId, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, displayOrder: nextOrder, isActive: form.isActive, isBadgeStage: form.isBadgeStage })
         toast.success('Étape ajoutée')
@@ -284,15 +285,15 @@ function StageFormDialog({ open, stage, unitTypeId, nextOrder, createMutation, u
       <DialogContent>
         <DialogHeader><DialogTitle>{stage ? "Modifier l'étape" : 'Nouvelle étape'}</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          <div className="space-y-2"><label className="text-sm font-medium">Nom</label><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex : 1ère étoile" autoFocus /></div>
-          <div className="space-y-2"><label className="text-sm font-medium">Description</label><Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+          {error && <Callout tone="danger">{error}</Callout>}
+          <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex. : 1ère étoile" autoFocus /></div>
+          <div className="space-y-2"><RequiredLabel>Description</RequiredLabel><Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
           <div className="space-y-2"><label className="text-xs text-muted-foreground">Code (avancé)</label><Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} className="font-mono text-sm" placeholder="Laissé vide = généré automatiquement" /></div>
           <label className="flex items-center gap-3 text-sm"><Switch checked={form.isActive} onCheckedChange={(v) => setForm(f => ({ ...f, isActive: v }))} />Active</label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSave} disabled={saving}>{stage ? 'Enregistrer' : 'Ajouter'}</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? 'Enregistrement…' : stage ? 'Enregistrer' : 'Créer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -369,8 +370,8 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string | null }) {
               <Tip content={b.isActive ? 'Désactiver' : 'Activer'}><Switch checked={b.isActive} onCheckedChange={() => toggleActive(b)} disabled={updateMutation.isPending} /></Tip>
               {/* Visible by default on touch (no hover); mouse users get the hover-reveal. */}
               <div className="flex gap-0.5 opacity-100 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100">
-                <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(b)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
-                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(b)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
+                <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier" onClick={() => setEditing(b)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Supprimer" onClick={() => setDeleting(b)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
               </div>
             </div>
           ))}
@@ -387,14 +388,14 @@ export function BadgesGrid({ unitTypeId }: { unitTypeId: string | null }) {
         onClose={() => { setAdding(false); setEditing(null) }}
       />
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
-        title={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver le badge' : 'Supprimer le badge'}
+        title={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver le badge ?' : 'Supprimer le badge ?'}
         description={(deleting?.progressionCount ?? 0) > 0
           ? `« ${deleting?.name} » a été obtenu par ${deleting?.progressionCount} membre(s) : il sera désactivé (masqué des listes mais conservé sur les membres) plutôt que supprimé.`
           : `Supprimer « ${deleting?.name} » ?`}
         confirmLabel={(deleting?.progressionCount ?? 0) > 0 ? 'Désactiver' : 'Supprimer'} variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
-      <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection"
+      <ConfirmDialog open={bulkConfirm} onOpenChange={() => setBulkConfirm(false)} title="Supprimer la sélection ?"
         description={`${selected.size} badge(s) sélectionné(s). Ceux obtenus par des membres seront désactivés (conservés sur les membres), les autres supprimés.`}
-        confirmLabel="Supprimer / désactiver" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
+        confirmLabel="Supprimer / archiver" variant="destructive" loading={bulkBusy} onConfirm={handleBulkDelete} />
     </div>
   )
 }
@@ -429,7 +430,7 @@ function BadgeFormDialog({ open, badge, unitTypeId, nextOrder, createMutation, u
     try {
       if (badge) {
         await updateMutation.mutateAsync({ id: badge.id, unitTypeId: badge.unitTypeId, displayOrder: badge.displayOrder, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, isActive: form.isActive })
-        toast.success('Badge modifié')
+        toast.success('Badge enregistré')
       } else {
         await createMutation.mutateAsync({ unitTypeId, code: form.code.trim(), name: form.name.trim(), description: form.description.trim() || null, displayOrder: nextOrder, isActive: form.isActive })
         toast.success('Badge ajouté')
@@ -443,15 +444,15 @@ function BadgeFormDialog({ open, badge, unitTypeId, nextOrder, createMutation, u
       <DialogContent>
         <DialogHeader><DialogTitle>{badge ? 'Modifier le badge' : 'Nouveau badge'}</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          <div className="space-y-2"><label className="text-sm font-medium">Nom</label><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex : Nageur" autoFocus /></div>
-          <div className="space-y-2"><label className="text-sm font-medium">Description</label><Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+          {error && <Callout tone="danger">{error}</Callout>}
+          <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex. : Nageur" autoFocus /></div>
+          <div className="space-y-2"><RequiredLabel>Description</RequiredLabel><Input value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} /></div>
           <div className="space-y-2"><label className="text-xs text-muted-foreground">Code (avancé)</label><Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} className="font-mono text-sm" placeholder="Laissé vide = généré automatiquement" /></div>
           <label className="flex items-center gap-3 text-sm"><Switch checked={form.isActive} onCheckedChange={(v) => setForm(f => ({ ...f, isActive: v }))} />Actif</label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSave} disabled={saving}>{badge ? 'Enregistrer' : 'Ajouter'}</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? 'Enregistrement…' : badge ? 'Enregistrer' : 'Créer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

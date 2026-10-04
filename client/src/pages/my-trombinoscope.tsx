@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useMyTrombinoscopes, viewMyTrombinoscope, type MyTrombinoscopeYear } from '@/services/my-profile-service'
-import { parseApiError } from '@/lib/error-utils'
+import { parseBlobError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -21,17 +21,17 @@ export default function MyTrombinoscopePage() {
     const key = `${t.scoutYear}|${t.unitId}`
     setBusy(key)
     try { await viewMyTrombinoscope(t.unitId, t.scoutYear) }
-    catch (err) { toast.error(parseApiError(err)) }
+    catch (err) { toast.error(await parseBlobError(err)) }
     finally { setBusy(null) }
   }
-
-  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <Page size="narrow">
       <PageHeader title="Trombinoscope" icon={Users} description="La photo de votre unité, année par année." />
 
-      {!years || years.length === 0 ? (
+      {isLoading ? (
+        <LoadingSpinner variant="cards" />
+      ) : !years || years.length === 0 ? (
         <EmptyState icon={Users} title="Aucun trombinoscope" description="Votre trombinoscope apparaîtra ici une fois que vous serez affecté à une unité." />
       ) : (
         <div className="space-y-3">

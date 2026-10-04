@@ -31,7 +31,7 @@ export function ApplicantProtectedRoute() {
             <Link to="/guide/guide-inscription" target="_blank"><BookOpen className="mr-2 h-4 w-4" />Aide</Link>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/inscription/login') }}>
-            <LogOut className="mr-2 h-4 w-4" />Déconnexion
+            <LogOut className="mr-2 h-4 w-4" />Se déconnecter
           </Button>
         </div>
       </header>

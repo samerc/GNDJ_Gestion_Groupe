@@ -18,9 +18,13 @@ import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SearchInput } from '@/components/shared/search-input'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Plus, Pencil, Trash2, Shield, ArchiveRestore, Star, GripVertical, Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Shield, ArchiveRestore, Star, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, X } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -226,8 +230,8 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
     if (!validate({ name: !form.name, code: !form.code, securityProfileId: !form.securityProfileId })) return
     try {
       const payload = { ...form, unitTypeId: form.unitTypeId || null, description: form.description || null }
-      if (editing) await updateMutation.mutateAsync({ id: editing.id, ...payload })
-      else await createMutation.mutateAsync(payload)
+      if (editing) { await updateMutation.mutateAsync({ id: editing.id, ...payload }); toast.success('Fonction enregistrée') }
+      else { await createMutation.mutateAsync(payload); toast.success('Fonction ajoutée') }
       setFormOpen(false)
     } catch (err) {
       setError(parseApiError(err))
@@ -251,19 +255,28 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
   const RowActions = ({ role }: { role: FunctionalRoleDto }) => (
     <div className="flex gap-1">
       {role.isArchived ? (
-        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" title="Réactiver" onClick={() => handleUnarchive(role)} disabled={unarchiveMutation.isPending}>
-          <ArchiveRestore className="h-3.5 w-3.5 text-primary" />
-        </Button>
+        <Tip content="Réactiver">
+          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Réactiver" onClick={() => handleUnarchive(role)} disabled={unarchiveMutation.isPending}>
+            <ArchiveRestore className="h-3.5 w-3.5 text-primary" />
+          </Button>
+        </Tip>
       ) : sortable && (
-        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" title={role.isDefaultForNewMembers ? 'Fonction par défaut des nouveaux membres' : 'Définir comme fonction par défaut des nouveaux membres'}
-          onClick={() => handleSetDefault(role)} disabled={setDefaultMutation.isPending}>
-          <Star className={cn('h-3.5 w-3.5', role.isDefaultForNewMembers ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />
-        </Button>
+        <Tip content={role.isDefaultForNewMembers ? 'Fonction par défaut des nouveaux membres' : 'Définir comme fonction par défaut des nouveaux membres'}>
+          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7"
+            aria-label={role.isDefaultForNewMembers ? 'Fonction par défaut des nouveaux membres' : 'Définir comme fonction par défaut des nouveaux membres'}
+            onClick={() => handleSetDefault(role)} disabled={setDefaultMutation.isPending}>
+            <Star className={cn('h-3.5 w-3.5', role.isDefaultForNewMembers ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />
+          </Button>
+        </Tip>
       )}
-      <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(role)}><Pencil className="h-3.5 w-3.5" /></Button>
-      <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" title={role.usedByMembers ? 'Archiver' : 'Supprimer'} onClick={() => setDeleting(role)}>
-        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-      </Button>
+      <Tip content="Modifier">
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier" onClick={() => openEdit(role)}><Pencil className="h-3.5 w-3.5" /></Button>
+      </Tip>
+      <Tip content={role.usedByMembers ? 'Archiver' : 'Supprimer'}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label={role.usedByMembers ? 'Archiver' : 'Supprimer'} onClick={() => setDeleting(role)}>
+          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+        </Button>
+      </Tip>
     </div>
   )
 
@@ -288,7 +301,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
           </div>
         </CardHeader>
         <CardContent>
-          {error && <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && <Callout tone="danger" className="mb-3">{error}</Callout>}
 
           {sortable ? (
             // ── Drag-to-rank view (unit-type page) ──
@@ -297,12 +310,12 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
                 Glissez pour classer (haut = fonction la plus élevée). L'étoile <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" /> marque la fonction attribuée automatiquement aux nouveaux membres admis.
               </p>
               {typeActive.length > 0 && !typeActive.some(r => r.isDefaultForNewMembers) && (
-                <p className="rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                  Aucune fonction par défaut — les nouveaux membres n'auront pas de fonction attribuée. Cliquez sur l'étoile <Star className="inline h-3 w-3" /> d'une fonction pour la définir.
-                </p>
+                <Callout tone="warning" icon={AlertTriangle} title="Aucune fonction par défaut">
+                  Les nouveaux membres n'auront pas de fonction attribuée. Cliquez sur l'étoile <Star className="inline h-3 w-3" /> d'une fonction pour la définir.
+                </Callout>
               )}
               {typeActive.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune fonction pour ce type d'unité.</p>
+                <EmptyState icon={Shield} title="Aucune fonction pour ce type d'unité" />
               ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={typeActive.map(r => r.id)} strategy={verticalListSortingStrategy}>
@@ -341,17 +354,13 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
               )}
             </div>
           ) : !roles || roles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune fonction définie.</p>
+            <EmptyState icon={Shield} title="Aucune fonction définie" />
           ) : (
             // ── Table view (all-types admin page) ──
             <div className="space-y-3">
               {/* Search + filters (all-types view). Controls stack full-width on mobile. */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input className="h-9 w-full pl-8 pr-7" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une fonction…" />
-                  {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')} aria-label="Effacer"><X className="h-3.5 w-3.5" /></button>}
-                </div>
+                <SearchInput value={search} onChange={setSearch} placeholder="Rechercher une fonction…" className="w-full sm:w-64" />
                 {showUnitTypeColumn && (
                   <Select value={unitTypeFilter || 'all'} onValueChange={(v) => { setUnitTypeFilter(v === 'all' ? '' : v); setSelected(new Set()) }}>
                     <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue /></SelectTrigger>
@@ -400,7 +409,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
               )}
 
               {visibleRoles.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune fonction pour ce filtre.</p>
+                <EmptyState icon={Shield} title="Aucune fonction pour ce filtre" />
               ) : (
                 <>
                   {/* Desktop: table */}
@@ -492,7 +501,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
             <DialogTitle>{editing ? 'Modifier la fonction' : 'Nouvelle fonction'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <FormFieldErrors show={hasErrors} />
             <div className="space-y-2">
               <RequiredLabel required>Nom</RequiredLabel>
@@ -553,7 +562,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title={deleting?.usedByMembers ? 'Archiver la fonction' : 'Supprimer la fonction'}
+        title={deleting?.usedByMembers ? 'Archiver la fonction ?' : 'Supprimer la fonction ?'}
         description={deleting?.usedByMembers
           ? `« ${deleting?.name} » est utilisée par des membres : elle sera archivée (masquée des listes mais conservée sur les membres qui la portent) plutôt que supprimée.`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?`}
@@ -583,9 +592,9 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
       <ConfirmDialog
         open={bulkConfirm}
         onOpenChange={() => setBulkConfirm(false)}
-        title="Supprimer la sélection"
+        title="Supprimer la sélection ?"
         description={`${selectedCount} fonction(s) sélectionnée(s). Celles utilisées par des membres seront archivées (conservées sur les membres), les autres supprimées définitivement.`}
-        confirmLabel="Confirmer"
+        confirmLabel="Supprimer / archiver"
         variant="destructive"
         loading={bulkBusy}
         onConfirm={handleBulkDelete}
@@ -600,7 +609,7 @@ function SortableRoleCard({ role, checked, onCheck, actions }: { role: Functiona
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn('flex items-center gap-3 rounded-lg border bg-card p-3', isDragging && 'shadow-lg')}>
       <input type="checkbox" className="h-4 w-4 shrink-0 accent-primary" aria-label={`Sélectionner ${role.name}`} checked={checked} onChange={onCheck} />
-      <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button>
+      <button {...attributes} {...listeners} aria-label="Glisser pour réordonner" className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing"><GripVertical className="h-4 w-4" /></button>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{role.name}</span>

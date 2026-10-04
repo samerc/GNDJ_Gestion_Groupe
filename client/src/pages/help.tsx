@@ -2,7 +2,7 @@
 // contents and a print/PDF view. /aide lists them; /aide/:slug opens one (a #anchor scrolls to a section).
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { BookOpen, ChevronLeft, Printer, Search, X } from 'lucide-react'
+import { BookOpen, Printer, Search } from 'lucide-react'
 import {
   AUDIENCE_LABELS, headingId, useHelpDoc, useHelpList, useHelpSearch, type HelpAudience, type HelpDocSummary,
 } from '@/services/help-service'
@@ -13,7 +13,8 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/shared/search-input'
+import { BackLink } from '@/components/shared/back-link'
 import { useDebounce } from '@/hooks/use-debounce'
 import apiClient from '@/lib/api-client'
 import { cn } from '@/lib/utils'
@@ -48,7 +49,7 @@ function GuideList({ docs, active }: { docs: HelpDocSummary[]; active?: string }
 function SearchResults({ q }: { q: string }) {
   const { data, isFetching } = useHelpSearch(q)
   if (isFetching && !data) return <LoadingSpinner />
-  if (!data || data.length === 0) return <p className="text-sm text-muted-foreground">Aucun résultat pour « {q} ».</p>
+  if (!data || data.length === 0) return <EmptyState icon={Search} title={`Aucun résultat pour « ${q} »`} />
   return (
     <ul className="space-y-2">
       {data.map((h, i) => (
@@ -84,14 +85,14 @@ function GuideView({ slug }: { slug: string }) {
     <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
       <article className="min-w-0 flex-1">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="xl:hidden"><Link to="/aide"><ChevronLeft className="mr-1 h-4 w-4" />Tous les guides</Link></Button>
+          <span className="xl:hidden"><BackLink to="/aide" label="Tous les guides" /></span>
           <div className="flex-1" />
           <Button variant="outline" size="sm" onClick={() => window.open(`/aide/imprimer/${slug}`, '_blank')}>
             <Printer className="mr-1 h-4 w-4" />Imprimer / PDF
           </Button>
         </div>
         <Card><CardContent className="p-5 sm:p-8">
-          <h1 className="mb-2 text-2xl font-bold tracking-tight sm:text-3xl">{data.title}</h1>
+          <h2 className="mb-2 text-2xl font-bold tracking-tight sm:text-3xl">{data.title}</h2>
           {data.summary && <p className="mb-6 text-muted-foreground">{data.summary}</p>}
           <MarkdownView markdown={data.markdown} client={apiClient} onReady={() => setReady(true)} />
         </CardContent></Card>
@@ -126,22 +127,14 @@ export default function HelpPage() {
   return (
     <Page>
       <PageHeader title="Aide" icon={BookOpen} description="Les guides d'utilisation de la plateforme, selon votre rôle." />
-      {isLoading ? <LoadingSpinner variant="table" /> : !docs || docs.length === 0 ? (
+      {isLoading ? <LoadingSpinner variant="cards" /> : !docs || docs.length === 0 ? (
         <EmptyState icon={BookOpen} title="Aucun guide disponible" />
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           {/* Left: search + guide list (on a phone it is shown only on /aide, not inside a guide). */}
           {/* Hidden inside a guide when it's the only one (nothing to choose; the article gets the room). */}
           <aside className={cn('w-full shrink-0 space-y-4 lg:sticky lg:top-20 lg:w-64', slug && 'hidden lg:block', slug && docs.length === 1 && 'lg:hidden')}>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher dans l'aide…" className="pl-8 pr-8" />
-              {query && (
-                <button type="button" aria-label="Effacer" onClick={() => setQuery('')} className="absolute right-2 top-2.5 text-muted-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <SearchInput value={query} onChange={setQuery} placeholder="Rechercher dans l'aide…" />
             <GuideList docs={docs} active={slug} />
           </aside>
 

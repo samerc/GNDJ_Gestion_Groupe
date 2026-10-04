@@ -16,11 +16,12 @@ export default function MyDocumentsPage() {
   const memberId = user?.memberId ?? ''
 
   // No memberId yet (user not hydrated / account without a linked member) → wait rather than render empty.
-  if (!memberId) return <LoadingSpinner variant="page" />
+  const header = <PageHeader title="Mes documents" icon={FolderOpen} description="Vos documents et cotisations" />
+  if (!memberId) return <Page size="narrow">{header}<LoadingSpinner variant="page" /></Page>
 
   return (
     <Page size="narrow">
-      <PageHeader title="Mes documents" icon={FolderOpen} description="Vos documents et cotisations" />
+      {header}
 
       <Card>
         <CardHeader>

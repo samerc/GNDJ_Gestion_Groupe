@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { Callout } from '@/components/shared/callout'
+import { DateInput } from '@/components/shared/date-input'
 import { Printer, CloudRain, RefreshCw, Save, AlertTriangle, MapPin } from 'lucide-react'
 
 const dayLabel = (date: string) => new Date(date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -35,7 +37,7 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
   const [prev, setPrev] = useState(data)
   if (data !== prev) { setPrev(data); setSlots(data?.slots ?? []) }
 
-  if (isLoading || !data) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
+  if (isLoading || !data) return <LoadingSpinner variant="form" />
 
   // The grid to generate = the camp's current famille count (not the one already generated).
   const games = Math.floor(data.famillesCount / 2)
@@ -48,11 +50,11 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
   const dayInputs = (
     <div className="flex flex-wrap items-end gap-3">
       <label className="space-y-1 text-sm"><span className="block font-medium">1er jour (étapes 1–{split})</span>
-        <Input type="date" value={days.first} onChange={e => setDays(d => ({ ...d, first: e.target.value, second: d.second || nextDay(e.target.value) }))} className="w-44" /></label>
+        <DateInput value={days.first} onChange={v => setDays(d => ({ ...d, first: v ?? '', second: d.second || nextDay(v ?? '') }))} className="w-44" /></label>
       <label className="space-y-1 text-sm"><span className="block font-medium">Étapes le 1er jour</span>
         <Input type="number" min={1} max={games} value={split} onChange={e => setFirstDaySlots(Number(e.target.value) || 1)} className="w-24" /></label>
       <label className="space-y-1 text-sm"><span className="block font-medium">2ème jour {split < games ? `(étapes ${split + 1}–${games})` : '(aucune étape)'}</span>
-        <Input type="date" value={days.second} onChange={e => setDays(d => ({ ...d, second: e.target.value }))} className="w-44" /></label>
+        <DateInput value={days.second} onChange={v => setDays(d => ({ ...d, second: v ?? '' }))} className="w-44" /></label>
     </div>
   )
 
@@ -66,7 +68,7 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
           du premier jour — des horaires sont proposés et restent modifiables.
         </p>
       </div>
-      {data.gridProblem ? <p className="flex gap-1.5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{data.gridProblem} Changez le nombre de familles dans l'onglet Paramètres.</p>
+      {data.gridProblem ? <Callout tone="warning" icon={AlertTriangle}>{data.gridProblem} Changez le nombre de familles dans l'onglet Paramètres.</Callout>
       : readOnly ? <p className="text-sm text-muted-foreground">La rotation n'a pas encore été générée.</p> : <>
         {dayInputs}
         <Button onClick={runGenerate} disabled={generate.isPending}><RefreshCw className="mr-1 h-4 w-4" />{generate.isPending ? 'Génération…' : 'Générer la rotation'}</Button>
@@ -84,11 +86,11 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
     <div className="space-y-5">
       {/* Warnings that break the lookup / printouts. */}
       {(countChanged || data.existingFamilles !== data.generatedFamilles || missingGames.length > 0) && (
-        <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-          {countChanged && <p className="flex gap-1.5"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />La rotation a été générée pour {data.generatedFamilles} familles, mais le camp en prévoit maintenant {data.famillesCount}.{data.scoredCount === 0 ? ' Cliquez sur « Régénérer » pour refaire la grille.' : ' Des scores sont déjà saisis : la grille ne peut plus être refaite.'}</p>}
-          {!countChanged && data.existingFamilles !== data.generatedFamilles && <p className="flex gap-1.5"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />La grille prévoit {data.generatedFamilles} familles ; ce camp en a {data.existingFamilles} pour l'instant (faites le tirage). Les numéros manquants laissent leur adversaire sans match.</p>}
-          {missingGames.length > 0 && <p className="flex gap-1.5"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />Aucun jeu n'a encore le numéro {missingGames.join(', ')} — donnez-leur un numéro dans l'onglet Jeux (sinon le lieu n'apparaît pas).</p>}
-        </div>
+        <Callout tone="warning" icon={AlertTriangle}>
+          {countChanged && <p>La rotation a été générée pour {data.generatedFamilles} familles, mais le camp en prévoit maintenant {data.famillesCount}.{data.scoredCount === 0 ? ' Cliquez sur « Régénérer » pour refaire la grille.' : ' Des scores sont déjà saisis : la grille ne peut plus être refaite.'}</p>}
+          {!countChanged && data.existingFamilles !== data.generatedFamilles && <p>La grille prévoit {data.generatedFamilles} familles ; ce camp en a {data.existingFamilles} pour l'instant (faites le tirage). Les numéros manquants laissent leur adversaire sans match.</p>}
+          {missingGames.length > 0 && <p>Aucun jeu n'a encore le numéro {missingGames.join(', ')} — donnez-leur un numéro dans l'onglet Jeux (sinon le lieu n'apparaît pas).</p>}
+        </Callout>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -110,7 +112,7 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
             <h3 className="font-semibold">Horaires des étapes</h3>
             {!readOnly && dirty && <Button size="sm" disabled={saveSlots.isPending}
               onClick={async () => { try { await saveSlots.mutateAsync(slots); toast.success('Horaires enregistrés') } catch (e) { toast.error(parseApiError(e)) } }}>
-              <Save className="mr-1 h-4 w-4" />Enregistrer</Button>}
+              <Save className="mr-1 h-4 w-4" />{saveSlots.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>}
           </div>
           {byDay.map(d => (
             <div key={d} className="rounded-lg border">
@@ -119,10 +121,10 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
                 {slots.filter(s => s.date === d).map(s => (
                   <div key={s.number} className="flex flex-wrap items-center gap-2 px-3 py-1.5 text-sm">
                     <span className="w-16 text-muted-foreground">Étape {s.number}</span>
-                    <Input type="time" value={s.startTime.slice(0, 5)} disabled={readOnly} className="h-8 w-28" onChange={e => setSlot(s.number, { startTime: e.target.value + ':00' })} />
+                    <Input type="time" aria-label={`Début de l'étape ${s.number}`} value={s.startTime.slice(0, 5)} disabled={readOnly} className="h-8 w-28" onChange={e => setSlot(s.number, { startTime: e.target.value + ':00' })} />
                     <span>–</span>
-                    <Input type="time" value={s.endTime.slice(0, 5)} disabled={readOnly} className="h-8 w-28" onChange={e => setSlot(s.number, { endTime: e.target.value + ':00' })} />
-                    {!readOnly && <select className="h-8 rounded border bg-background px-1 text-xs" value={s.date} onChange={e => setSlot(s.number, { date: e.target.value })}>
+                    <Input type="time" aria-label={`Fin de l'étape ${s.number}`} value={s.endTime.slice(0, 5)} disabled={readOnly} className="h-8 w-28" onChange={e => setSlot(s.number, { endTime: e.target.value + ':00' })} />
+                    {!readOnly && <select aria-label={`Jour de l'étape ${s.number}`} className="h-8 rounded border bg-background px-1 text-xs" value={s.date} onChange={e => setSlot(s.number, { date: e.target.value })}>
                       {byDay.map(x => <option key={x} value={x}>{dayLabel(x)}</option>)}
                     </select>}
                   </div>
@@ -151,7 +153,7 @@ export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly
         </div>
       </div>
 
-      <ConfirmDialog open={confirmRegen} onOpenChange={setConfirmRegen} title="Régénérer la rotation" confirmLabel="Régénérer"
+      <ConfirmDialog open={confirmRegen} onOpenChange={setConfirmRegen} title="Régénérer la rotation ?" confirmLabel="Régénérer"
         description={`La rotation est recréée pour ${data.famillesCount} familles (${games} jeux) et ces deux jours, avec les horaires proposés (les horaires modifiés sont perdus). Possible tant qu'aucun score n'a été saisi.`}
         loading={generate.isPending} onConfirm={runGenerate}>{dayInputs}</ConfirmDialog>
     </div>

@@ -21,6 +21,10 @@ import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
+import { Callout } from '@/components/shared/callout'
+import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
+import { formatDateTime } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
@@ -47,11 +51,11 @@ export default function ContactMessagesPage() {
   const open = (m: ContactMessageDto) => {
     setSelected(m)
     setReplyOpen(false)
-    if (!m.isRead) markRead.mutate({ id: m.id, read: true })
+    if (!m.isRead) markRead.mutate({ id: m.id, read: true }, { onError: (e) => toast.error(parseApiError(e)) })
   }
 
   return (
-    <Page className="mx-auto max-w-4xl">
+    <Page size="wide">
       <PageHeader
         title="Messages de contact"
         icon={MessageSquare}
@@ -74,9 +78,9 @@ export default function ContactMessagesPage() {
           Non lus uniquement
         </label>
         {typeof data?.unreadCount === 'number' && (
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+          <Badge variant="info">
             {data.unreadCount} non lu{data.unreadCount > 1 ? 's' : ''}
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -102,21 +106,21 @@ export default function ContactMessagesPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                   <span className={`truncate ${m.isRead ? 'font-medium' : 'font-semibold'}`}>{m.senderName}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{fmt(m.createdAt)}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(m.createdAt)}</span>
                 </div>
                 <p className={`truncate text-sm ${m.isRead ? 'text-foreground' : 'font-medium text-foreground'}`}>{m.subject}</p>
                 <p className="truncate text-xs text-muted-foreground">{m.message}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">{m.senderEmail}</span>
                   {m.claimedByName && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                    <Badge variant="warning" className="gap-1">
                       <UserCheck className="h-3 w-3" /> {m.claimedByName}
-                    </span>
+                    </Badge>
                   )}
                   {m.repliedAt && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                    <Badge variant="success" className="gap-1">
                       <CornerUpLeft className="h-3 w-3" /> Répondu
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -140,7 +144,10 @@ export default function ContactMessagesPage() {
         replyOpen={replyOpen}
         onClose={() => setSelected(null)}
         onReplyToggle={setReplyOpen}
-        onMarkUnread={() => selected && markRead.mutate({ id: selected.id, read: false }, { onSuccess: () => setSelected(null) })}
+        onMarkUnread={() => selected && markRead.mutate({ id: selected.id, read: false }, {
+          onSuccess: () => { toast.success('Message marqué comme non lu'); setSelected(null) },
+          onError: (e) => toast.error(parseApiError(e)),
+        })}
         onDelete={() => { if (selected) { setDeleting(selected); setSelected(null) } }}
       />
 
@@ -208,6 +215,12 @@ function MessageDialog({
   const emailMismatch = !!replyTo && replyTo.trim().toLowerCase() !== message.senderEmail.trim().toLowerCase()
   const noReplyEmail = !replyTo
 
+  // "Je m'en occupe" / "Libérer" — who is handling the message.
+  const setClaim = (on: boolean) => claim.mutate({ id: message.id, claim: on }, {
+    onSuccess: () => toast.success(on ? 'Message attribué' : 'Message libéré'),
+    onError: (e) => toast.error(parseApiError(e)),
+  })
+
   const send = () => {
     reply.mutate({ id: message.id, subject, body }, {
       onSuccess: () => { emailToast("Réponse mise en file d'envoi pour " + (replyTo ?? message.senderEmail)); onClose() },
@@ -230,17 +243,18 @@ function MessageDialog({
               <a href={`mailto:${replyTo ?? message.senderEmail}`} className="text-primary hover:underline">{message.senderEmail}</a>
               {emailMismatch && <span className="ml-1 text-xs text-muted-foreground">(→ {replyTo})</span>}
             </div>
-            <span className="text-xs text-muted-foreground">{fmt(message.createdAt)}</span>
+            <span className="text-xs text-muted-foreground">{formatDateTime(message.createdAt)}</span>
           </div>
 
           {/* Claim banner — who's handling this message. */}
           {message.claimedByName && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-              <UserCheck className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1">En cours de traitement par <span className="font-medium">{message.claimedByName}</span></span>
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" disabled={claim.isPending}
-                onClick={() => claim.mutate({ id: message.id, claim: false })}>Libérer</Button>
-            </div>
+            <Callout tone="warning" icon={UserCheck}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>En cours de traitement par <span className="font-medium">{message.claimedByName}</span></span>
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={claim.isPending}
+                  onClick={() => setClaim(false)}>{claim.isPending ? 'Enregistrement…' : 'Libérer'}</Button>
+              </div>
+            </Callout>
           )}
 
           {/* Message body */}
@@ -248,15 +262,13 @@ function MessageDialog({
 
           {/* Every reply already sent (oldest first) — a new reply is added, it never replaces an earlier one. */}
           {(message.replies ?? []).map((r) => (
-            <div key={r.id} className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30 p-3 text-sm">
-              <p className="mb-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                <CornerUpLeft className="h-3.5 w-3.5" /> Réponse du {fmt(r.createdAt)}
-                {r.repliedByName && <span className="font-normal">par {r.repliedByName}</span>}
-                <span className="font-normal text-muted-foreground">→ {r.sentTo}</span>
-              </p>
+            <Callout key={r.id} tone="success" icon={CornerUpLeft}
+              title={<>Réponse du {formatDateTime(r.createdAt)}
+                {r.repliedByName && <span className="font-normal"> par {r.repliedByName}</span>}
+                <span className="font-normal text-muted-foreground"> → {r.sentTo}</span></>}>
               <p className="font-medium">{r.subject}</p>
               <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{r.body}</p>
-            </div>
+            </Callout>
           ))}
 
           {/* Reply composer */}
@@ -265,9 +277,9 @@ function MessageDialog({
               {(message.replies?.length ?? 0) > 0 && (() => {
                 const last = message.replies[message.replies.length - 1]
                 return (
-                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Une réponse a déjà été envoyée le {fmt(last.createdAt)}{last.repliedByName ? ` par ${last.repliedByName}` : ''}. Celle-ci sera envoyée en plus et gardée dans l'historique.
-                  </p>
+                  <Callout tone="warning">
+                    Une réponse a déjà été envoyée le {formatDateTime(last.createdAt)}{last.repliedByName ? ` par ${last.repliedByName}` : ''}. Celle-ci sera envoyée en plus et gardée dans l'historique.
+                  </Callout>
                 )
               })()}
               <div className="space-y-1.5">
@@ -276,27 +288,27 @@ function MessageDialog({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="reply-body">Message</Label>
-                <textarea
+                <Textarea
                   id="reply-body"
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={6}
                   maxLength={10000}
                   placeholder={`Bonjour ${message.senderName},\n\n…`}
-                  className="flex min-h-[8rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="min-h-[8rem]"
                 />
               </div>
               {noReplyEmail ? (
-                <p className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-2 text-xs text-amber-800 dark:text-amber-300">
+                <Callout tone="warning">
                   Impossible de répondre par email : l'expéditeur a saisi son identifiant de connexion
                   ({message.senderEmail}) et aucune adresse email réelle n'est enregistrée sur sa fiche. Ajoutez
                   une adresse à sa fiche, puis réessayez.
-                </p>
+                </Callout>
               ) : emailMismatch ? (
-                <p className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-2 text-xs text-amber-800 dark:text-amber-300">
+                <Callout tone="warning">
                   L'expéditeur a saisi son identifiant de connexion ({message.senderEmail}). La réponse sera
                   envoyée à son adresse réelle : <span className="font-medium">{replyTo}</span>.
-                </p>
+                </Callout>
               ) : (
                 <p className="text-xs text-muted-foreground">La réponse sera envoyée par email à {replyTo}.</p>
               )}
@@ -308,7 +320,7 @@ function MessageDialog({
           <div className="flex flex-wrap gap-2">
             {!message.claimedByName && (
               <Button variant="outline" size="sm" disabled={claim.isPending}
-                onClick={() => claim.mutate({ id: message.id, claim: true })}>
+                onClick={() => setClaim(true)}>
                 <UserCheck className="mr-1.5 h-4 w-4" />Je m'en occupe
               </Button>
             )}
@@ -335,9 +347,3 @@ function MessageDialog({
   )
 }
 
-// Short French date-time (browser locale-independent formatting via explicit parts).
-function fmt(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) +
-    ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-}

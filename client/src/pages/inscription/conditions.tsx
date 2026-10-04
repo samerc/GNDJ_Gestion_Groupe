@@ -18,7 +18,7 @@ export default function ApplicantConditionsPage() {
   const accept = useAcceptTerms()
   const [checked, setChecked] = useState(false)
 
-  if (loadingConfig || loadingProfile) return <div className="py-10"><LoadingSpinner /></div>
+  if (loadingConfig || loadingProfile) return <LoadingSpinner />
 
   const terms = config?.terms?.trim() ?? ''
   // Nothing to accept (no terms configured) or already accepted → straight to the portal.
@@ -53,7 +53,7 @@ export default function ApplicantConditionsPage() {
             {terms}
           </div>
           <label className="flex cursor-pointer items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-0.5 shrink-0" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+            <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 rounded border-input accent-primary" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
             <span>J'ai lu et j'accepte les conditions d'inscription.</span>
           </label>
           <div className="flex flex-col gap-2 sm:flex-row-reverse">

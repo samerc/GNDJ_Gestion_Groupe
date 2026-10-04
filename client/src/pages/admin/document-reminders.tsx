@@ -11,6 +11,7 @@ import {
   type UnitReminderSummary, type SendRemindersResult,
 } from '@/services/document-service'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -25,11 +26,12 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
-// Reason key → French label + chip colour. missing = manquant, rejected = à corriger, expired = à renouveler.
-const REASON: Record<string, { label: string; cls: string }> = {
-  missing: { label: 'Manquant', cls: 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300' },
-  rejected: { label: 'À corriger', cls: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300' },
-  expired: { label: 'À renouveler', cls: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300' },
+// Reason key → French label + badge variant. missing = manquant, rejected = à corriger, expired = à renouveler.
+type ReasonVariant = 'danger' | 'warning' | 'info' | 'secondary'
+const REASON: Record<string, { label: string; variant: ReasonVariant }> = {
+  missing: { label: 'Manquant', variant: 'danger' },
+  rejected: { label: 'À corriger', variant: 'warning' },
+  expired: { label: 'À renouveler', variant: 'info' },
 }
 
 // `embedded` = rendered as a tab inside the merged "Suivi des documents" page; suppress the page's own header.
@@ -78,7 +80,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
         <PageHeader
           title="Relance documents"
           icon={FileWarning}
-          description="Choisissez une unité, puis relancez-la en un clic (documents manquants ou à corriger) ou relancez un membre en particulier. À utiliser après la période de dépôt et de vérification."
+          description="Relancez les familles dont le dossier est incomplet, par unité ou membre par membre."
         />
       )}
       <EmailDeliveryWarning />
@@ -134,7 +136,7 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
             <span className="font-medium uppercase tracking-wide">Documents :</span>
             {Object.values(REASON).map(r => (
               <span key={r.label} className="inline-flex items-center gap-1.5">
-                <span className={`rounded px-1.5 py-0.5 ${r.cls}`}>CODE</span>{r.label}
+                <Badge variant={r.variant}>CODE</Badge>{r.label}
               </span>
             ))}
           </div>
@@ -164,19 +166,19 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                       <td className="p-2">
                         <div className="flex flex-wrap gap-1">
                           {c.gaps.map((g, i) => {
-                            const r = REASON[g.reason] ?? { label: g.reason, cls: 'bg-muted text-foreground' }
+                            const r = REASON[g.reason] ?? { label: g.reason, variant: 'secondary' as const }
                             return (
                               <Tip key={i} content={`${g.docTypeName} — ${r.label}`}>
-                                <span className={`inline-flex cursor-help items-center rounded px-1.5 py-0.5 text-xs font-medium ${r.cls}`}>
+                                <Badge variant={r.variant} className="cursor-help">
                                   {g.docTypeCode || g.docTypeName}
-                                </span>
+                                </Badge>
                               </Tip>
                             )
                           })}
                         </div>
                       </td>
                       <td className="p-2 text-muted-foreground">
-                        {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />aucun</span>}
+                        {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-warning"><AlertTriangle className="h-3.5 w-3.5" />aucun</span>}
                       </td>
                       <td className="p-2 text-right">
                         <Button size="sm" variant="outline" disabled={!c.hasEmail || send.isPending} onClick={() => sendMember(c.memberId)}>
@@ -205,16 +207,16 @@ export default function DocumentRemindersPage({ embedded = false }: { embedded?:
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {c.gaps.map((g, i) => {
-                      const r = REASON[g.reason] ?? { label: g.reason, cls: 'bg-muted text-foreground' }
+                      const r = REASON[g.reason] ?? { label: g.reason, variant: 'secondary' as const }
                       return (
-                        <span key={i} className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${r.cls}`}>
+                        <Badge key={i} variant={r.variant}>
                           {g.docTypeCode || g.docTypeName} · {r.label}
-                        </span>
+                        </Badge>
                       )
                     })}
                   </div>
                   <div className="mt-1.5 text-xs text-muted-foreground">
-                    {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3.5 w-3.5" />aucun email</span>}
+                    {c.contactEmail ?? <span className="inline-flex items-center gap-1 text-warning"><AlertTriangle className="h-3.5 w-3.5" />aucun email</span>}
                   </div>
                 </div>
               ))}

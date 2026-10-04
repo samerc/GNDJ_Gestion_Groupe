@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Library, Search, FileText, ArrowRight } from 'lucide-react'
+import { Library, FileText, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicResources, categoryLabel, RESOURCE_CATEGORIES, type PublicResourceItem } from '@/services/resources-service'
 import { Seo } from '@/components/public/seo'
+import { SearchInput } from '@/components/shared/search-input'
+import { PublicPagination } from '@/components/public/pagination'
+import { EmptyState } from '@/components/shared/empty-state'
 
 // One resource card — cover (or a category-tinted placeholder) + title + category + tags.
 function ResourceCard({ r }: { r: PublicResourceItem }) {
@@ -65,38 +68,33 @@ export default function PublicResourcesPage() {
         </div>
 
         {/* Search */}
-        <div className="relative mb-10 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Rechercher une ressource…"
-            className="w-full rounded-full border border-border bg-card py-2 pl-10 pr-4 text-sm outline-none focus:border-primary" />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1) }}
+          placeholder="Rechercher une ressource…"
+          className="mb-10 max-w-md"
+        />
 
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-64 animate-pulse rounded-2xl border border-border bg-card" />)}
           </div>
         ) : isError ? (
-          <p className="text-muted-foreground">Impossible de charger les ressources pour le moment.</p>
+          <EmptyState icon={Library} title="Impossible de charger les ressources" description="Veuillez réessayer dans un instant." />
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <Library className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">
-              {category === null && !debouncedSearch ? 'Les ressources arrivent bientôt — revenez nous voir !' : 'Aucune ressource pour cette sélection.'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Library}
+            title="Aucune ressource"
+            description={category === null && !debouncedSearch ? 'Les ressources arrivent bientôt — revenez nous voir !' : 'Aucune ressource pour cette sélection.'}
+          />
         ) : (
           <>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((r) => <ResourceCard key={r.slug} r={r} />)}
             </div>
-            {data && data.totalPages > 1 && (
-              <div className="mt-10 flex items-center justify-center gap-3">
-                <button disabled={!data.hasPreviousPage} onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Précédent</button>
-                <span className="text-sm text-muted-foreground">Page {data.page} / {data.totalPages}</span>
-                <button disabled={!data.hasNextPage} onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Suivant</button>
-              </div>
+            {data && (
+              <PublicPagination page={data.page} totalPages={data.totalPages} hasPreviousPage={data.hasPreviousPage}
+                hasNextPage={data.hasNextPage} onPageChange={setPage} />
             )}
           </>
         )}

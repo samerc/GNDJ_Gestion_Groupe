@@ -2,6 +2,8 @@
 // reference lands here) so an incident can be diagnosed in-app, without depending on the alert email. Read-only.
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { parseApiError } from '@/lib/error-utils'
+import { formatDateTime } from '@/lib/utils'
 import { useErrorLogs, useClearErrorLogs, type ErrorLogEntry } from '@/services/log-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,6 +26,12 @@ function levelVariant(level: string): 'danger' | 'warning' | 'secondary' {
   return 'secondary'
 }
 
+// French label for a raw Serilog level (filter options + badges).
+const LEVEL_LABELS: Record<string, string> = {
+  error: 'Erreur', fatal: 'Critique', warning: 'Avertissement', information: 'Information',
+}
+const levelLabel = (level: string) => LEVEL_LABELS[level.toLowerCase()] ?? level
+
 function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {
   const [open, setOpen] = useState(false)
   const hasDetail = !!entry.exception
@@ -31,9 +39,9 @@ function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {
     <>
       <tr className={`border-b align-top ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
         <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-          {new Date(entry.timestamp).toLocaleString('fr-FR')}
+          {formatDateTime(entry.timestamp)}
         </td>
-        <td className="px-3 py-2"><Badge variant={levelVariant(entry.level)}>{entry.level}</Badge></td>
+        <td className="px-3 py-2"><Badge variant={levelVariant(entry.level)}>{levelLabel(entry.level)}</Badge></td>
         <td className="px-3 py-2">
           <div className="flex items-start gap-1.5">
             {hasDetail ? (
@@ -72,7 +80,7 @@ export default function ErrorLogPage() {
   const handleClear = () => {
     clearLogs.mutate(undefined, {
       onSuccess: (r) => { setConfirmClear(false); setPage(1); toast.success(`Journal vidé (${r.deleted} entrée${r.deleted > 1 ? 's' : ''} supprimée${r.deleted > 1 ? 's' : ''})`) },
-      onError: () => toast.error('Impossible de vider le journal'),
+      onError: (e) => toast.error(parseApiError(e)),
     })
   }
 
@@ -89,20 +97,20 @@ export default function ErrorLogPage() {
           <div className="flex flex-wrap items-center gap-3">
             <CardTitle className="mr-auto flex items-center gap-2 text-base">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              {data ? `${data.total} entrée${data.total > 1 ? 's' : ''}` : 'Chargement…'}
+              {data && `${data.total} entrée${data.total > 1 ? 's' : ''}`}
             </CardTitle>
             <Select value={level} onValueChange={(v) => { setLevel(v); setPage(1) }}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les niveaux</SelectItem>
-                <SelectItem value="Error">Error</SelectItem>
-                <SelectItem value="Fatal">Fatal</SelectItem>
-                <SelectItem value="Warning">Warning</SelectItem>
+                <SelectItem value="Error">Erreur</SelectItem>
+                <SelectItem value="Fatal">Critique</SelectItem>
+                <SelectItem value="Warning">Avertissement</SelectItem>
                 <SelectItem value="Information">Information</SelectItem>
               </SelectContent>
             </Select>
             <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Rechercher (message, réf.)" className="w-full sm:w-56" />
-            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive/80"
+            <Button variant="outline" size="sm" className="text-destructive"
               disabled={!data || data.total === 0 || clearLogs.isPending} onClick={() => setConfirmClear(true)}>
               <Trash2 className="mr-1.5 h-4 w-4" /> Vider le journal
             </Button>

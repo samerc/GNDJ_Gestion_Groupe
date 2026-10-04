@@ -5,6 +5,9 @@ import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { formatDate } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
@@ -12,7 +15,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { CheckCircle2, XCircle, Star, ArrowRightLeft, ClipboardList } from 'lucide-react'
 
-// CU/CG review of member-proposed changes (progression + fonctions). Approve applies the change (creates
+// Chef d'unité / CG review of member-proposed changes (progression + fonctions). Approve applies the change (creates
 // the real progression/assignment); reject discards it with an optional reason. Scoped server-side to the
 // members the caller manages. Reached via the sidebar ("Demandes de modification", perm members.edit).
 export default function ChangeRequestsPage() {
@@ -31,8 +34,6 @@ export default function ChangeRequestsPage() {
     catch (err) { toast.error(parseApiError(err)) }
   }
 
-  if (isLoading) return <LoadingSpinner variant="table" />
-
   return (
     <Page>
       <PageHeader
@@ -41,7 +42,9 @@ export default function ChangeRequestsPage() {
         description="Progression et fonctions proposées par les membres, en attente de votre validation."
       />
 
-      {!requests || requests.length === 0 ? (
+      {isLoading ? (
+        <LoadingSpinner variant="cards" />
+      ) : !requests || requests.length === 0 ? (
         <EmptyState icon={ClipboardList} title="Aucune proposition en attente" description="Les propositions de vos membres (progression, fonction) apparaîtront ici." />
       ) : (
         <div className="space-y-3">
@@ -60,7 +63,7 @@ export default function ChangeRequestsPage() {
                       <Badge variant="outline">{r.kind === 'Progression' ? 'Progression' : 'Fonction'}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{r.summary}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Proposée le {new Date(r.createdAt).toLocaleDateString('fr-FR')}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Proposée le {formatDate(r.createdAt)}</p>
                   </div>
                 </div>
                 {/* Full-width buttons on mobile (each grows), compact on sm+. */}
@@ -68,7 +71,7 @@ export default function ChangeRequestsPage() {
                   <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => { setRejecting(r); setReason('') }} disabled={reviewMutation.isPending}>
                     <XCircle className="mr-1.5 h-4 w-4 text-destructive" />Refuser
                   </Button>
-                  <Button size="sm" className="flex-1 sm:flex-none" onClick={() => approve(r)} disabled={reviewMutation.isPending}>
+                  <Button variant="success" size="sm" className="flex-1 sm:flex-none" onClick={() => approve(r)} disabled={reviewMutation.isPending}>
                     <CheckCircle2 className="mr-1.5 h-4 w-4" />Accepter
                   </Button>
                 </div>
@@ -85,8 +88,8 @@ export default function ChangeRequestsPage() {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{rejecting?.summary}</p>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Motif (optionnel)</label>
-              <textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Raison du refus…" />
+              <Label htmlFor="reject-reason">Motif (optionnel)</Label>
+              <Textarea id="reject-reason" className="min-h-20" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Raison du refus…" />
             </div>
           </div>
           <DialogFooter>

@@ -29,7 +29,8 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, ListPlus, GripVertical, Users, Eye } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
-import { BackLink } from '@/components/shared/back-link'
+import { BackToSettings } from '@/components/shared/back-to-settings'
+import { Callout } from '@/components/shared/callout'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -147,7 +148,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, displayOrder: editing.displayOrder, ...payload })
-        toast.success('Champ personnalisé modifié')
+        toast.success('Champ personnalisé enregistré')
       } else {
         // Append new fields to the end (drag-and-drop then reorders); displayOrder just seeds the position.
         await createMutation.mutateAsync({ displayOrder: items.length, ...payload })
@@ -198,8 +199,8 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
         <div className="flex justify-end">{newFieldButton}</div>
       ) : (
         <>
-          <BackLink to="/admin/settings" label="Retour aux paramètres" />
-          <PageHeader title="Champs personnalisés" icon={ListPlus} actions={newFieldButton} />
+          <BackToSettings />
+          <PageHeader title="Champs personnalisés" icon={ListPlus} description="Informations supplémentaires sur les fiches des membres." actions={newFieldButton} />
         </>
       )}
 
@@ -233,7 +234,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
             <DialogTitle>{editing ? 'Modifier le champ personnalisé' : 'Nouveau champ personnalisé'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             {hasErrors && <FormFieldErrors show={hasErrors} />}
             <div className="space-y-2">
               <RequiredLabel htmlFor="cf-name" required>Nom</RequiredLabel>
@@ -363,7 +364,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
                   <input type="checkbox" checked={form.showOnCard} onChange={(e) => setForm(f => ({ ...f, showOnCard: e.target.checked }))} />
                   Afficher sur la carte membre
                 </label>
-                <p className="text-xs text-muted-foreground ml-6">Ce champ apparaitra sur la carte PDF du membre</p>
+                <p className="text-xs text-muted-foreground ml-6">Ce champ apparaîtra sur la carte PDF du membre</p>
               </div>
             </div>
             <DialogFooter>
@@ -377,14 +378,15 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le champ personnalisé"
+        title="Supprimer le champ personnalisé ?"
         description={(deleting?.valueCount ?? 0) > 0
-          ? `« ${deleting?.name} » est renseigné pour ${deleting?.valueCount} membre(s). Vous ne pouvez pas le supprimer — désactivez-le plutôt (décochez « Actif »).`
+          ? `« ${deleting?.name} » est renseigné pour ${deleting?.valueCount} membre(s) : il ne peut pas être supprimé. Désactivez-le plutôt (bouton Modifier, puis décochez « Actif »).`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
-        confirmLabel={(deleting?.valueCount ?? 0) > 0 ? 'Désactiver…' : 'Supprimer'}
+        hideConfirm={(deleting?.valueCount ?? 0) > 0}
+        confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}
-        onConfirm={(deleting?.valueCount ?? 0) > 0 ? () => { const d = deleting; setDeleting(null); if (d) openEdit(d) } : handleDelete}
+        onConfirm={handleDelete}
       />
     </Page>
   )
@@ -426,8 +428,8 @@ function SortableFieldRow({ item, canReorder, onEdit, onDelete }: { item: Custom
         </div>
       </div>
       <div className="flex gap-1">
-        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
-        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+        <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+        <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
       </div>
     </li>
   )

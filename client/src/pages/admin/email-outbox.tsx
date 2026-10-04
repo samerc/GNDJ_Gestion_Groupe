@@ -4,6 +4,9 @@
 // Shows pending/failed/sent counts, lets an admin inspect the last error and requeue failed mail. associations.manage.
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { parseApiError } from '@/lib/error-utils'
+import { confirmAsync } from '@/lib/confirm'
+import { formatDateTime } from '@/lib/utils'
 import {
   useOutboxEmails, useRetryOutboxEmail, useRetryFailedOutboxEmails, useDeleteOutboxEmail,
   usePurgeSentOutboxEmails, type OutboxEmail,
@@ -39,14 +42,14 @@ function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
     <>
       <tr className={`border-b align-top ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}>
         {/* Date + Modèle unified to the Destinataire column style (text-sm, not muted) — Statut + erreur kept as-is. */}
-        <td className="px-3 py-2 whitespace-nowrap text-sm">{new Date(entry.createdAt).toLocaleString('fr-FR')}</td>
+        <td className="px-3 py-2 whitespace-nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
         <td className="px-3 py-2 text-sm break-all">{entry.toEmail}</td>
         <td className="px-3 py-2 text-sm break-all">{entry.templateCode}</td>
         <td className="px-3 py-2">{statusBadge(entry.status)}</td>
         <td className="px-3 py-2 text-center text-sm tabular-nums">{entry.attempts}</td>
         <td className="px-3 py-2">
           {hasError ? (
-            <button onClick={() => setOpen((o) => !o)} className="flex items-start gap-1 text-left text-xs text-red-600 hover:underline">
+            <button onClick={() => setOpen((o) => !o)} className="flex items-start gap-1 text-left text-xs text-destructive hover:underline">
               {open ? <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
               <span className="line-clamp-1 max-w-[240px]">{entry.lastError}</span>
             </button>
@@ -62,7 +65,7 @@ function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
               </Tip>
             )}
             <Tip content="Supprimer de la file">
-              <Button variant="ghost" size="sm" disabled={busy} aria-label="Supprimer" className="text-red-600 hover:text-red-700" onClick={() => onDelete(entry.id)}>
+              <Button variant="ghost" size="sm" disabled={busy} aria-label="Supprimer" className="text-destructive hover:text-destructive" onClick={() => onDelete(entry.id)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </Tip>
@@ -90,12 +93,12 @@ function OutboxCard({ entry, onRetry, onDelete, busy }: {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="break-all text-sm font-medium">{entry.toEmail}</p>
-          <p className="text-xs text-muted-foreground">{entry.templateCode} · {new Date(entry.createdAt).toLocaleString('fr-FR')}</p>
+          <p className="text-xs text-muted-foreground">{entry.templateCode} · {formatDateTime(entry.createdAt)}</p>
         </div>
         <div className="shrink-0">{statusBadge(entry.status)}</div>
       </div>
       {entry.lastError && (
-        <button onClick={() => setOpen((o) => !o)} className="mt-2 w-full text-left text-xs text-red-600">
+        <button onClick={() => setOpen((o) => !o)} className="mt-2 w-full text-left text-xs text-destructive">
           <span className={open ? 'whitespace-pre-wrap break-words' : 'line-clamp-2'}>{entry.lastError}</span>
         </button>
       )}
@@ -107,7 +110,7 @@ function OutboxCard({ entry, onRetry, onDelete, busy }: {
               <RotateCw className="mr-1 h-3.5 w-3.5" />Réessayer
             </Button>
           )}
-          <Button variant="outline" size="sm" disabled={busy} className="text-red-600" aria-label="Supprimer" onClick={() => onDelete(entry.id)}>
+          <Button variant="outline" size="sm" disabled={busy} className="text-destructive" aria-label="Supprimer" onClick={() => onDelete(entry.id)}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -153,35 +156,41 @@ export default function EmailOutboxPage() {
     setBusyId(id)
     retry.mutate(id, {
       onSuccess: () => toast.success("Email remis en file d'attente"),
-      onError: () => toast.error("Impossible de remettre l'email en file d'attente"),
+      onError: (e) => toast.error(parseApiError(e)),
       onSettled: () => setBusyId(null),
     })
   }
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!(await confirmAsync({
+      title: "Supprimer l'email de la file ?",
+      description: "Cet email ne sera pas envoyé (ou ne pourra plus être renvoyé). Cette action est irréversible.",
+      confirmLabel: 'Supprimer',
+      destructive: true,
+    }))) return
     setBusyId(id)
     del.mutate(id, {
       onSuccess: () => toast.success('Email supprimé de la file'),
-      onError: () => toast.error('Impossible de supprimer'),
+      onError: (e) => toast.error(parseApiError(e)),
       onSettled: () => setBusyId(null),
     })
   }
   const handleRetryAll = () =>
     retryFailed.mutate(undefined, {
       onSuccess: (r) => { setConfirmRetryAll(false); toast.success(`${r.count} email(s) remis en file d'attente`) },
-      onError: () => toast.error('Échec de la remise en file'),
+      onError: (e) => toast.error(parseApiError(e)),
     })
   const handlePurge = () =>
     purge.mutate(undefined, {
       onSuccess: (r) => { setConfirmPurge(false); toast.success(`${r.count} email(s) envoyé(s) supprimé(s)`) },
-      onError: () => toast.error('Échec de la purge'),
+      onError: (e) => toast.error(parseApiError(e)),
     })
 
   const s = data?.summary
 
   return (
     <Page>
-      <PageHeader title="Emails — file d'attente / échecs" icon={Mail}
-        description={<>File d'envoi durable des emails. Un email « envoyé » depuis l'application est d'abord <strong>mis en file d'attente</strong> ; s'il échoue (SMTP mal configuré, adresse invalide…) il apparaît ici en <strong>Échec</strong>. Vous pouvez inspecter l'erreur et le <strong>remettre en file d'attente</strong>.</>} />
+      <PageHeader title="File d'emails" icon={Mail}
+        description="Emails en attente, envoyés ou en échec — inspectez une erreur et renvoyez un email." />
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <StatCard icon={Clock} label="En attente" value={s?.pending ?? 0} tone="bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400" />
@@ -194,7 +203,7 @@ export default function EmailOutboxPage() {
           <div className="flex flex-wrap items-center gap-3">
             <CardTitle className="mr-auto flex items-center gap-2 text-base">
               <Mail className="h-4 w-4 text-primary" />
-              {data ? `${data.total} email${data.total > 1 ? 's' : ''}` : 'Chargement…'}
+              {data && `${data.total} email${data.total > 1 ? 's' : ''}`}
             </CardTitle>
             <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1) }}>
               <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
@@ -210,7 +219,7 @@ export default function EmailOutboxPage() {
             <Button size="sm" disabled={!s || s.failed === 0 || retryFailed.isPending} onClick={() => setConfirmRetryAll(true)}>
               <RotateCw className="mr-1.5 h-4 w-4" /> Réessayer les échecs
             </Button>
-            <Button variant="destructive" size="sm" disabled={!s || s.sent === 0 || purge.isPending} onClick={() => setConfirmPurge(true)}>
+            <Button variant="outline" size="sm" className="text-destructive" disabled={!s || s.sent === 0 || purge.isPending} onClick={() => setConfirmPurge(true)}>
               <Trash2 className="mr-1.5 h-4 w-4" /> Vider les envoyés
             </Button>
           </div>

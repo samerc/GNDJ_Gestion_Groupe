@@ -17,6 +17,9 @@ import { PageHeader } from '@/components/shared/page-header'
 import { useUpcomingBirthdays } from '@/services/member-service'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { parseApiError } from '@/lib/error-utils'
+import { Callout } from '@/components/shared/callout'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { DEFAULT_LAYOUT, WIDGET_META, WIDTH_COLSPAN, mergeLayout, serializeLayout, type WidgetConfig, type WidgetId, type WidgetWidth } from '@/lib/dashboard-layout'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -75,12 +78,7 @@ function ActionHub({ o }: { o: DashboardOverviewDto }) {
 
   if (items.length === 0) {
     return (
-      <Card className="border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30">
-        <CardContent className="flex items-center gap-3 py-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
-          <p className="text-sm font-medium text-green-800 dark:text-green-300">Tout est à jour — rien en attente de votre part.</p>
-        </CardContent>
-      </Card>
+      <Callout tone="success" icon={CheckCircle2} title="Tout est à jour — rien en attente de votre part." />
     )
   }
 
@@ -363,18 +361,17 @@ function DashboardEditor({ layout, setLayout, onDone, onCancel, onReset, saving 
   const update = (id: WidgetId, patch: Partial<WidgetConfig>) => setLayout(layout.map(w => w.id === id ? { ...w, ...patch } : w))
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Personnaliser le tableau de bord</h1>
-          <p className="text-sm text-muted-foreground">Glissez pour réorganiser · affichez/masquez · choisissez la largeur.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+    <Page>
+      <PageHeader
+        title="Personnaliser l'accueil"
+        icon={SlidersHorizontal}
+        description="Glissez pour réorganiser · affichez/masquez · choisissez la largeur."
+        actions={<>
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={onReset}><RotateCcw className="h-4 w-4" />Réinitialiser</Button>
           <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>Annuler</Button>
           <Button size="sm" className="gap-1.5" onClick={onDone} disabled={saving}><Check className="h-4 w-4" />{saving ? 'Enregistrement…' : 'Terminé'}</Button>
-        </div>
-      </div>
+        </>}
+      />
       <Card>
         <CardContent className="space-y-2 pt-6">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -386,7 +383,7 @@ function DashboardEditor({ layout, setLayout, onDone, onCancel, onReset, saving 
           </DndContext>
         </CardContent>
       </Card>
-    </div>
+    </Page>
   )
 }
 
@@ -428,12 +425,13 @@ function AdminDashboard() {
     return list.includes(scoutYear) ? list : [scoutYear, ...list]
   }, [currentScoutYear, scoutYear])
 
-  if (isLoading) return <LoadingSpinner variant="page" />
-  if (!data) return (
-    <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
-      <p className="text-lg font-medium">Impossible de charger le tableau de bord</p>
-      <p className="text-sm">Veuillez réessayer ultérieurement.</p>
-    </div>
+  if (isLoading || !data) return (
+    <Page>
+      <PageHeader title="Accueil" icon={LayoutDashboard} description="Vue d'ensemble du groupe" />
+      {isLoading
+        ? <LoadingSpinner variant="page" />
+        : <EmptyState icon={LayoutDashboard} title="Impossible de charger l'accueil" description="Veuillez réessayer ultérieurement." />}
+    </Page>
   )
 
   // ── Customize mode ──
@@ -446,8 +444,8 @@ function AdminDashboard() {
         onReset={() => setLayout(DEFAULT_LAYOUT.map(w => ({ ...w })))}
         onCancel={() => { setLayout(mergeLayout(savedLayout)); setEditing(false) }}
         onDone={() => saveLayout.mutate(serializeLayout(layout), {
-          onSuccess: () => { toast.success('Tableau de bord enregistré'); setEditing(false) },
-          onError: () => toast.error("Échec de l'enregistrement"),
+          onSuccess: () => { toast.success("Disposition de l'accueil enregistrée"); setEditing(false) },
+          onError: (e) => toast.error(parseApiError(e)),
         })}
       />
     )
@@ -487,7 +485,7 @@ function AdminDashboard() {
           <EmptyState
             icon={LayoutDashboard}
             title="Aucune carte affichée"
-            description="Personnalisez votre tableau de bord pour afficher des cartes."
+            description="Personnalisez votre accueil pour afficher des cartes."
             action={<Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}><SlidersHorizontal className="h-4 w-4" />Personnaliser</Button>}
           />
         </CardContent></Card>
@@ -565,10 +563,11 @@ export default function DashboardPage() {
     // Both a group leader AND a unit leader → toggle between the group overview and their own unit(s).
     content = (
       <div className="space-y-4">
-        <div className="inline-flex rounded-lg border bg-muted/40 p-0.5 text-sm">
-          <button onClick={() => setView('groupe')} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${view === 'groupe' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Groupe</button>
-          <button onClick={() => setView('unite')} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${view === 'unite' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Mon unité</button>
-        </div>
+        <SegmentedToggle
+          options={[{ value: 'groupe', label: 'Groupe' }, { value: 'unite', label: 'Mon unité' }]}
+          value={view}
+          onChange={setView}
+        />
         {view === 'groupe' ? <AdminDashboard /> : <UnitRoster units={myLeaderUnits} selectedUnit={selectedUnit} setSelectedUnit={setSelectedUnit} />}
       </div>
     )

@@ -54,3 +54,6 @@ export const PERMISSIONS = {
   CAMP_COMMISSION: 'camp.commission', // not assignable: granted while on an active camp's Commission BP
   ATTENDANCE_MANAGE: 'attendance.manage',
 } as const
+
+// The group's official name, as shown to people (login screens, public site footer, logos' alt text).
+export const GROUP_NAME = 'Groupe Notre-Dame de Jamhour'

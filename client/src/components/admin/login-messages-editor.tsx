@@ -2,8 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { Plus, Trash2, Megaphone, CalendarClock, Pencil, Check } from 'lucide-react'
 import { useSetting, useUpdateSetting } from '@/services/settings-service'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Tip } from '@/components/ui/tooltip'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { DateInput } from '@/components/shared/date-input'
+import { confirmAsync } from '@/lib/confirm'
+import { formatDate } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
@@ -55,7 +61,14 @@ export function LoginMessagesEditor({ settingKey }: { settingKey: string }) {
   const addRow = () => { setEditing(rows.length); setRows((r) => [...r, { text: '', start: '', end: '' }]); setDirty(true) }
   // Finishing a message saves it right away and collapses to the summary card.
   const commitRow = () => { setEditing(null); void persist(rows) }
-  const removeRow = (i: number) => {
+  const removeRow = async (i: number) => {
+    // A saved message asks first; a blank row that was just added goes away without a prompt.
+    if (rows[i]?.text.trim() && !(await confirmAsync({
+      title: 'Supprimer le message ?',
+      description: "Il ne s'affichera plus sur l'écran de connexion.",
+      confirmLabel: 'Supprimer',
+      destructive: true,
+    }))) return
     const next = rows.filter((_, j) => j !== i)
     setRows(next); setDirty(true)
     // Keep the "currently editing" pointer valid as indices shift.
@@ -68,15 +81,12 @@ export function LoginMessagesEditor({ settingKey }: { settingKey: string }) {
   return (
     <div className="space-y-4">
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center">
-          <Megaphone className="h-6 w-6 text-muted-foreground/60" />
-          <p className="text-sm text-muted-foreground">Aucun message programmé pour le moment.</p>
-        </div>
+        <EmptyState icon={Megaphone} title="Aucun message programmé" description="Ajoutez un message pour l'afficher sur l'écran de connexion." />
       ) : (
         <div className="space-y-3">
           {rows.map((m, i) => (editing === i
-            ? <EditRow key={i} m={m} saving={update.isPending} onChange={(p) => edit(i, p)} onRemove={() => removeRow(i)} onDone={commitRow} />
-            : <ViewRow key={i} m={m} onEdit={() => setEditing(i)} onRemove={() => removeRow(i)} />
+            ? <EditRow key={i} m={m} saving={update.isPending} onChange={(p) => edit(i, p)} onRemove={() => void removeRow(i)} onDone={commitRow} />
+            : <ViewRow key={i} m={m} onEdit={() => setEditing(i)} onRemove={() => void removeRow(i)} />
           ))}
         </div>
       )}
@@ -107,16 +117,20 @@ function ViewRow({ m, onEdit, onRemove }: { m: Msg; onEdit: () => void; onRemove
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <CalendarClock className="h-3.5 w-3.5" />{scheduleLabel(m)}
           </span>
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span>
+          <Badge variant={st.variant}>{st.label}</Badge>
         </div>
       </div>
       <div className="flex shrink-0 gap-0.5">
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit} title="Modifier" aria-label="Modifier ce message">
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={onRemove} title="Supprimer" aria-label="Supprimer ce message">
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <Tip content="Modifier le message">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit} aria-label="Modifier le message">
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </Tip>
+        <Tip content="Supprimer le message">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={onRemove} aria-label="Supprimer le message">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </Tip>
       </div>
     </div>
   )
@@ -130,30 +144,32 @@ function EditRow({ m, saving, onChange, onRemove, onDone }: { m: Msg; saving: bo
     <div className="space-y-3 rounded-lg border border-primary/40 bg-primary/5 p-4 shadow-2xs">
       <div className="flex items-start gap-3">
         <Megaphone className="mt-2 h-4 w-4 shrink-0 text-primary" />
-        <textarea
+        <Textarea
           autoFocus
           value={m.text}
           onChange={(e) => onChange({ text: e.target.value })}
           placeholder="Texte du message affiché sur l'écran de connexion…"
           rows={2}
-          className="flex min-h-[3.5rem] w-full flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-[3.5rem] flex-1"
         />
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={onRemove} title="Supprimer" aria-label="Supprimer ce message">
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <Tip content="Supprimer le message">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={onRemove} aria-label="Supprimer le message">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </Tip>
       </div>
       <div className="flex flex-wrap items-end gap-4 pl-7">
         <label className="text-xs text-muted-foreground">
           <span className="mb-1 block font-medium">Début <span className="font-normal text-muted-foreground/70">(optionnel)</span></span>
-          <Input type="date" value={m.start} onChange={(e) => onChange({ start: e.target.value })} className="h-9 max-w-[10rem]" />
+          <DateInput value={m.start} onChange={(v) => onChange({ start: v ?? '' })} className="h-9 max-w-[10rem]" />
         </label>
         <label className="text-xs text-muted-foreground">
           <span className="mb-1 block font-medium">Fin <span className="font-normal text-muted-foreground/70">(optionnel)</span></span>
-          <Input type="date" value={m.end} onChange={(e) => onChange({ end: e.target.value })} className="h-9 max-w-[10rem]" />
+          <DateInput value={m.end} onChange={(v) => onChange({ end: v ?? '' })} className="h-9 max-w-[10rem]" />
         </label>
-        <span className={`inline-flex items-center gap-1 self-center rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>
+        <Badge variant={st.variant} className="gap-1 self-center">
           <CalendarClock className="h-3 w-3" />{st.label}
-        </span>
+        </Badge>
       </div>
       <div className="pl-7">
         <Button type="button" size="sm" onClick={onDone} disabled={saving}>
@@ -176,7 +192,7 @@ function parse(raw: string): Msg[] {
   } catch { return [] }
 }
 
-const fr = (d: string) => { const [y, m, day] = d.split('-'); return day && m && y ? `${day}/${m}/${y}` : d }
+const fr = (d: string) => formatDate(d)
 
 // A plain-French summary of the display window shown on the read-only card.
 function scheduleLabel(m: Msg): string {
@@ -187,9 +203,9 @@ function scheduleLabel(m: Msg): string {
 }
 
 // Live status chip — mirrors the server's inclusive [start, end] window (browser date; the server is authoritative).
-function status(m: Msg): { label: string; cls: string } {
+function status(m: Msg): { label: string; variant: 'secondary' | 'warning' | 'success' } {
   const today = new Date().toISOString().slice(0, 10)
-  if (m.end && m.end < today) return { label: 'Expiré', cls: 'bg-muted text-muted-foreground' }
-  if (m.start && m.start > today) return { label: 'Programmé', cls: 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300' }
-  return { label: 'Actif', cls: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300' }
+  if (m.end && m.end < today) return { label: 'Expiré', variant: 'secondary' }
+  if (m.start && m.start > today) return { label: 'Programmé', variant: 'warning' }
+  return { label: 'Actif', variant: 'success' }
 }

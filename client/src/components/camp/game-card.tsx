@@ -8,6 +8,7 @@ import { CloudRain, MapPin, Package, Pencil, Printer, Trash2, Users } from 'luci
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
+import { Callout } from '@/components/shared/callout'
 import { RichContent } from '@/components/public/rich-content'
 import { GameMaterials } from '@/components/camp/game-materials'
 import type { CampGameDto } from '@/services/camp-service'
@@ -45,10 +46,10 @@ export function GameCard({ campId, game: g, readOnly, onEdit, onEtapistes, onDel
           </div>
         </div>
         <div className="flex shrink-0 items-center">
-          <Tip content="Imprimer la fiche du jeu (PDF)"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onPrint}><Printer className="h-4 w-4" /></Button></Tip>
+          <Tip content="Imprimer la fiche du jeu (PDF)"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="Imprimer la fiche du jeu" onClick={onPrint}><Printer className="h-4 w-4" /></Button></Tip>
           {!readOnly && <>
-            <Tip content="Modifier le jeu"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
-            <Tip content="Supprimer le jeu"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button></Tip>
+            <Tip content="Modifier le jeu"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="Modifier le jeu" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+            <Tip content="Supprimer le jeu"><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label="Supprimer le jeu" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button></Tip>
           </>}
         </div>
       </div>
@@ -74,9 +75,7 @@ export function GameCard({ campId, game: g, readOnly, onEdit, onEtapistes, onDel
           </section>
 
           {g.backupGameName && (
-            <p className="flex items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1.5 text-sm text-sky-800 dark:bg-sky-950/40 dark:text-sky-300">
-              <CloudRain className="h-4 w-4 shrink-0" />Plan B : on joue <b>{g.backupGameName}</b>
-            </p>
+            <Callout tone="info" icon={CloudRain} className="p-2.5">Plan B : on joue <b>{g.backupGameName}</b></Callout>
           )}
 
           <section>

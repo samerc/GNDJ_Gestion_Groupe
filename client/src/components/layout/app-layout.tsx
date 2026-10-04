@@ -109,7 +109,7 @@ export function AppLayout() {
           <Header />
           <OfflineBanner />
           {inMaintenance && !impersonating && (
-            <div className="bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950">
+            <div className="border-b border-warning-border bg-warning-subtle px-4 py-1.5 text-center text-xs font-medium text-warning">
               Mode maintenance actif ({maint?.site ? 'tout le site' : 'espace membres'}) — seuls les super-administrateurs ont accès. Désactivez-le dans Paramètres.
             </div>
           )}

@@ -14,13 +14,13 @@ import { DateInput } from '@/components/shared/date-input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
+import { RequiredLabel } from '@/components/shared/required-label'
+import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
+import { formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import { CalendarClock, Trash2, Pencil, CheckCircle2 } from 'lucide-react'
-
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 export default function ZeroDayAssignmentsPage() {
   const { data, isLoading } = useZeroDayAssignments()
@@ -50,7 +50,7 @@ export default function ZeroDayAssignmentsPage() {
         teamId: editing.teamId, functionalRoleId: editing.roleId,
         startDate: editStart, endDate: editEnd, notes: null,
       })
-      toast.success('Dates mises à jour')
+      toast.success('Dates enregistrées')
       setEditing(null)
       setSelected(s => { const n = new Set(s); n.delete(editing.id); return n })
     } catch (e) { toast.error(parseApiError(e)) }
@@ -85,13 +85,15 @@ export default function ZeroDayAssignmentsPage() {
       <PageHeader
         title="Affectations à dater"
         icon={CalendarClock}
-        description={<>
-          Ces affectations ont une date de début égale à la date de fin (marqueurs d'un seul jour issus de la
-          migration) : le membre est bien passé par cette unité/fonction, mais la durée réelle est inconnue. Pour
-          chacune, vous pouvez <strong>corriger les dates</strong> (si vous les connaissez) ou la
-          <strong> supprimer</strong> si elle est erronée ou en double. Les fiches des membres ne sont pas touchées.
-        </>}
+        description="Affectations d'un seul jour issues de la migration : datez-les ou supprimez-les."
       />
+
+      <Callout tone="muted">
+        Ces affectations ont une date de début égale à la date de fin : le membre est bien passé par cette
+        unité/fonction, mais la durée réelle est inconnue. Pour chacune, vous pouvez <strong>corriger les dates</strong> (si
+        vous les connaissez) ou la <strong>supprimer</strong> si elle est erronée ou en double. Les fiches des membres ne
+        sont pas touchées.
+      </Callout>
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -112,7 +114,7 @@ export default function ZeroDayAssignmentsPage() {
             <table className="w-full text-sm min-w-[720px]">
               <thead>
                 <tr className="border-b bg-muted/40 text-left">
-                  <th className="px-3 py-2 w-10"><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>
+                  <th className="px-3 py-2 w-10"><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Tout sélectionner" /></th>
                   <th className="px-3 py-2 font-medium">Membre</th>
                   <th className="px-3 py-2 font-medium">Unité</th>
                   <th className="px-3 py-2 font-medium">Fonction</th>
@@ -125,7 +127,7 @@ export default function ZeroDayAssignmentsPage() {
               <tbody>
                 {rows.map((a, i) => (
                   <tr key={a.id} className={`border-b hover:bg-muted/20 ${i % 2 === 1 ? 'bg-muted/10' : ''}`}>
-                    <td className="px-3 py-2"><input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} /></td>
+                    <td className="px-3 py-2"><input type="checkbox" checked={selected.has(a.id)} onChange={() => toggle(a.id)} aria-label={`Sélectionner ${a.memberName}`} /></td>
                     <td className="px-3 py-2">
                       <Link to={`/members/${a.memberId}?tab=unites`}
                         state={{ from: '/admin/zero-day-assignments', fromLabel: 'Affectations à dater' }}
@@ -135,7 +137,7 @@ export default function ZeroDayAssignmentsPage() {
                     <td className="px-3 py-2">{a.unitCode}</td>
                     <td className="px-3 py-2">{a.roleName}</td>
                     <td className="px-3 py-2">{a.teamName ?? '-'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">{fmt(a.date)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{formatDate(a.date)}</td>
                     <td className="px-3 py-2">
                       {a.memberHasActiveAssignment
                         ? <Badge variant="success">Membre actif</Badge>
@@ -146,9 +148,11 @@ export default function ZeroDayAssignmentsPage() {
                         <Button size="sm" variant="outline" className="h-8" onClick={() => openEdit(a)}>
                           <Pencil className="mr-1 h-3.5 w-3.5" />Dater
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Supprimer" onClick={() => setDeleteOne(a)}>
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
+                        <Tip content="Supprimer l'affectation">
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" aria-label="Supprimer l'affectation" onClick={() => setDeleteOne(a)}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </Tip>
                       </div>
                     </td>
                   </tr>
@@ -170,11 +174,11 @@ export default function ZeroDayAssignmentsPage() {
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Date de début</label>
+                <RequiredLabel required>Date de début</RequiredLabel>
                 <DateInput value={editStart} onChange={setEditStart} />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Date de fin</label>
+                <RequiredLabel required>Date de fin</RequiredLabel>
                 <DateInput value={editEnd} onChange={setEditEnd} />
               </div>
             </div>
@@ -188,10 +192,10 @@ export default function ZeroDayAssignmentsPage() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleteOne} onOpenChange={o => !o && setDeleteOne(null)} title="Supprimer l'affectation"
+      <ConfirmDialog open={!!deleteOne} onOpenChange={o => !o && setDeleteOne(null)} title="Supprimer l'affectation ?"
         description={deleteOne ? `Supprimer l'affectation ${deleteOne.unitCode} · ${deleteOne.roleName} de ${deleteOne.memberName} ? Cette action retire cette ligne d'historique.` : ''}
         confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={doDelete} />
-      <ConfirmDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen} title="Supprimer les affectations sélectionnées"
+      <ConfirmDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen} title="Supprimer les affectations sélectionnées ?"
         description={`Supprimer ${selected.size} affectation(s) d'un seul jour ? Cette action retire ces lignes d'historique.`}
         confirmLabel="Supprimer" variant="destructive" loading={bulkBusy} onConfirm={doBulkDelete} />
     </Page>

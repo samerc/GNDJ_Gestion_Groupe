@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { BackToSettings } from '@/components/shared/back-to-settings'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { ConfigIssuesBanner } from '@/components/shared/config-issues-banner'
 import { useEmailTemplateCheck } from '@/services/system-service'
 import { Page } from '@/components/shared/page'
@@ -41,8 +42,8 @@ import { EMAIL_CATEGORIES, templateInfo } from '@/lib/email-template-catalog'
 const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
   auth: [
     { key: 'memberName', label: 'Nom du membre' },
-    { key: 'resetLink', label: 'Lien de reinitialisation' },
-    { key: 'expiryHours', label: 'Duree de validite' },
+    { key: 'resetLink', label: 'Lien de réinitialisation' },
+    { key: 'expiryHours', label: 'Durée de validité' },
   ],
   documents: [
     { key: 'memberName', label: 'Nom du membre' },
@@ -56,8 +57,8 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
   ],
   passage: [
     { key: 'memberName', label: 'Nom du membre' },
-    { key: 'fromUnit', label: 'Unite actuelle' },
-    { key: 'toUnit', label: 'Nouvelle unite' },
+    { key: 'fromUnit', label: 'Unité actuelle' },
+    { key: 'toUnit', label: 'Nouvelle unité' },
   ],
   demande: [
     { key: 'contactName', label: 'Nom du parent / contact' },
@@ -117,7 +118,7 @@ export default function EmailTemplatesPage({ embedded = false }: { embedded?: bo
       {!embedded && (
         <>
           <BackToSettings />
-          <PageHeader title="Modèles d'email" icon={Mail} />
+          <PageHeader title="Modèles d'email" icon={Mail} description="Textes des emails envoyés par l'application." />
         </>
       )}
       {/* Templates whose {{variables}} would reach recipients unfilled (unknown variable, broken braces). */}
@@ -198,10 +199,10 @@ function TemplatesTab() {
       }
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
-        toast.success('Modèle modifié')
+        toast.success("Modèle d'email enregistré")
       } else {
         await createMutation.mutateAsync(payload)
-        toast.success('Modèle créé')
+        toast.success("Modèle d'email créé")
       }
       setFormOpen(false)
     } catch (err) {
@@ -213,7 +214,7 @@ function TemplatesTab() {
     if (!deleting) return
     try {
       await deleteMutation.mutateAsync(deleting.id)
-      toast.success('Modèle supprimé')
+      toast.success("Modèle d'email supprimé")
       setDeleting(null)
     } catch (err) {
       toast.error(parseApiError(err))
@@ -233,7 +234,7 @@ function TemplatesTab() {
   // Variables for the selected module — fed to both the reference chips and the editor insert dropdown.
   const currentVariables = MODULE_VARIABLES[form.module] ?? []
 
-  if (isLoading) return <LoadingSpinner variant="form" />
+  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <div className="space-y-4">
@@ -285,8 +286,8 @@ function TemplatesTab() {
                           <TableCell>{tpl.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
-                              {isAdmin && <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>}
+                              <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
+                              {isAdmin && <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -307,7 +308,7 @@ function TemplatesTab() {
             <DialogTitle>{editing ? 'Modifier le modèle' : 'Nouveau modèle d\'email'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Nom</RequiredLabel>
@@ -367,7 +368,7 @@ function TemplatesTab() {
                 content={form.bodyHtml}
                 onChange={(html) => setForm(f => ({ ...f, bodyHtml: html }))}
                 variables={currentVariables}
-                placeholder="Redigez votre email…"
+                placeholder="Rédigez votre email…"
               />
             </div>
             {/* Attachments — files added to every email sent from this template (e.g. an official letter). */}
@@ -381,10 +382,12 @@ function TemplatesTab() {
                   {form.attachments.map((a, i) => (
                     <li key={i} className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-1.5 text-sm">
                       <a href={a.url} target="_blank" rel="noreferrer" className="truncate hover:underline">{a.name}</a>
-                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0"
-                        onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))}>
-                        <X className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      <Tip content="Retirer la pièce jointe">
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label="Retirer la pièce jointe"
+                          onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))}>
+                          <X className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </Tip>
                     </li>
                   ))}
                 </ul>
@@ -415,7 +418,7 @@ function TemplatesTab() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le modèle"
+        title="Supprimer le modèle d'email ?"
         description={deleting && templateInfo(deleting.code).auto
           ? `« ${deleting.name} » est envoyé automatiquement par l'application : s'il est supprimé, cet email ne partira plus. Pour l'arrêter temporairement, désactivez-le plutôt (case « Actif »).`
           : `Supprimer le modèle « ${deleting?.name} » ?`}

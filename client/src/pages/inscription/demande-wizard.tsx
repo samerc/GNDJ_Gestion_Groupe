@@ -18,10 +18,13 @@ import { DateInput } from '@/components/shared/date-input'
 import { NATIONALITY_OPTIONS } from '@/lib/options'
 import { SchoolSelect } from '@/components/shared/school-select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { cn, formatDateLong } from '@/lib/utils'
+import { cn, formatDate, formatDateLong } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil, FileText } from 'lucide-react'
+import { Callout } from '@/components/shared/callout'
+import { PageHeader } from '@/components/shared/page-header'
+import { Tip } from '@/components/ui/tooltip'
 
 // 4-step demande (enrollment request) wizard — the core of the applicant portal.
 // Steps: 0 Enfant (per-child) → 1 Parents + adresse → 2 Proches scouts → 3 Récapitulatif/submit.
@@ -51,7 +54,7 @@ type Errors = Record<string, string> // field-key → message; guardian errors a
 // Labelled form-field wrapper: label (+ red * when required) above the control, error text below.
 function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label>{label}{required && <span className="text-destructive"> *</span>}</Label>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -362,32 +365,44 @@ export default function DemandeWizardPage() {
   if (demandeId === 'new' && readonly) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Nouvelle demande</h1>
-          <Button variant="outline" size="sm" className="shrink-0" onClick={handleBack}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
-        </div>
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+        {/* Styled like BackLink, but a button: leaving goes through handleBack (same behaviour as before). */}
+        <button
+          type="button"
+          onClick={handleBack}
+          disabled={saving}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+        >
+          <ArrowLeft className="h-4 w-4" />Mes demandes
+        </button>
+        <PageHeader icon={FileText} title="Nouvelle demande" />
+        <Callout tone="warning">
           {deadlinePassed
             ? `La date limite de soumission était le ${formatDateLong(config?.submissionDeadline)}. Il n'est plus possible de créer une demande.`
             : 'Les inscriptions sont fermées : il n\'est pas possible de créer une demande pour le moment.'}
-        </div>
+        </Callout>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="min-w-0 text-xl font-bold tracking-tight sm:text-2xl">
-          {readonly ? 'Demande' : demandeId === 'new' ? 'Nouvelle demande' : 'Modifier la demande'}
-          {/* Phone: the child's name on its own line instead of wrapping around the Retour button. */}
-          {child.firstName && <span className="block text-base font-semibold text-muted-foreground sm:inline sm:text-2xl sm:font-bold sm:text-foreground"><span className="hidden sm:inline"> — </span>{child.firstName} {child.lastName}</span>}
-        </h1>
-        <Button variant="outline" size="sm" className="shrink-0" onClick={handleBack} disabled={saving}><ChevronLeft className="mr-1 h-4 w-4" />Retour</Button>
-      </div>
+      {/* Styled like BackLink, but a button: leaving saves a draft first (handleBack). */}
+      <button
+        type="button"
+        onClick={handleBack}
+        disabled={saving}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+      >
+        <ArrowLeft className="h-4 w-4" />Mes demandes
+      </button>
+      <PageHeader
+        icon={FileText}
+        title={readonly ? 'Demande' : demandeId === 'new' ? 'Nouvelle demande' : 'Modifier la demande'}
+        description={child.firstName ? `${child.firstName} ${child.lastName}` : undefined}
+      />
 
       {readonly && (
-        <div className={`rounded-lg border p-3 text-sm ${deadlinePassed && !existing?.responseSentAt ? 'border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300' : 'bg-muted/40 text-muted-foreground'}`}>
+        <Callout tone={deadlinePassed && !existing?.responseSentAt ? 'warning' : 'muted'}>
           {existing?.responseSentAt
             ? 'Cette demande a été traitée — consultation uniquement.'
             : existing?.status === 'Submitted'
@@ -395,7 +410,7 @@ export default function DemandeWizardPage() {
             : deadlinePassed
               ? `La date limite de soumission était le ${formatDateLong(config?.submissionDeadline)}. Le délai est dépassé : vous ne pouvez plus soumettre cette demande (consultation uniquement).`
               : 'Les inscriptions sont fermées — consultation uniquement.'}
-        </div>
+        </Callout>
       )}
 
       {/* Stepper — explicit "Étape N sur M" + a progress bar so a stressed parent always knows where they are
@@ -564,7 +579,7 @@ export default function DemandeWizardPage() {
                       <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                       <SelectContent>{G_REL.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                     </Select>
-                    {guardians.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setGuardians((arr) => arr.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>}
+                    {guardians.length > 1 && <Tip content="Retirer ce parent"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Retirer ce parent" onClick={() => setGuardians((arr) => arr.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button></Tip>}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Prénom" required error={errors[`g_${i}_first`]}>
@@ -658,8 +673,8 @@ export default function DemandeWizardPage() {
                           <td className="hidden px-3 py-2 text-muted-foreground sm:table-cell">{r.relationship ?? '—'}</td>
                           <td className="px-3 py-2">
                             <div className="flex justify-end gap-1">
-                              {!readonly && <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelEdit(i)}><Pencil className="h-4 w-4" /></Button>}
-                              {!readonly && <Button type="button" variant="outline" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setRelations((arr) => arr.filter((_, j) => j !== i)); setRelEdit((cur) => cur === i ? null : (cur != null && cur > i ? cur - 1 : cur)) }}><Trash2 className="h-4 w-4" /></Button>}
+                              {!readonly && <Tip content="Modifier ce proche"><Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="Modifier ce proche" onClick={() => setRelEdit(i)}><Pencil className="h-4 w-4" /></Button></Tip>}
+                              {!readonly && <Tip content="Retirer ce proche"><Button type="button" variant="outline" size="icon" className="h-8 w-8 text-destructive" aria-label="Retirer ce proche" onClick={() => { setRelations((arr) => arr.filter((_, j) => j !== i)); setRelEdit((cur) => cur === i ? null : (cur != null && cur > i ? cur - 1 : cur)) }}><Trash2 className="h-4 w-4" /></Button></Tip>}
                             </div>
                           </td>
                         </tr>
@@ -700,7 +715,7 @@ export default function DemandeWizardPage() {
                   <span className="font-semibold">Enfant</span>
                   {!readonly && <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setStep(0)}>Modifier</Button>}
                 </div>
-                <p>{child.firstName} {child.lastName} · {child.dateOfBirth ? new Date(child.dateOfBirth).toLocaleDateString('fr-FR') : '—'} · {child.gender}</p>
+                <p>{child.firstName} {child.lastName} · {child.dateOfBirth ? formatDate(child.dateOfBirth) : '—'} · {child.gender}</p>
                 <p className="text-muted-foreground">{child.school} · {child.classe} · {child.nationality}</p>
                 {child.parentNotes && <p className="mt-2 rounded bg-muted/40 p-2 text-muted-foreground">{child.parentNotes}</p>}
               </div>
@@ -730,7 +745,7 @@ export default function DemandeWizardPage() {
                 <p className="text-muted-foreground">En soumettant, votre demande sera transmise au chef de groupe pour étude.</p>
               )}
               {!readonly && existing?.status === 'Submitted' && !existing.responseSentAt && (
-                <div className="rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 p-3 text-blue-700 dark:text-blue-300">Demande déjà soumise. Vous pouvez encore la modifier tant que les inscriptions sont ouvertes.</div>
+                <Callout tone="info">Demande déjà soumise. Vous pouvez encore la modifier tant que les inscriptions sont ouvertes.</Callout>
               )}
             </div>
           )}

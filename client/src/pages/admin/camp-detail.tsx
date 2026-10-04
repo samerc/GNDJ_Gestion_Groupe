@@ -10,7 +10,7 @@
 //  - SettingsTab: edit camp metadata + the Note formula coefficients (the per-branch multiplier is read-only,
 //    sourced from each unit type's NumberOfYears).
 import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router'
+import { useParams, useNavigate } from 'react-router'
 import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSetLeaders, useLeaderCandidates,
@@ -29,11 +29,18 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { BackLink } from '@/components/shared/back-link'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SearchInput } from '@/components/shared/search-input'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { Badge } from '@/components/ui/badge'
 import { rotationProblem } from '@/lib/camp-rotation'
 import { GameCard } from '@/components/camp/game-card'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, ArrowLeft, Shuffle, Save, Trash2, Crown, Plus, Printer, Pencil, Archive, Wand2, CheckCircle2, FileSpreadsheet } from 'lucide-react'
+import { Tent, Shuffle, Save, Trash2, Crown, Plus, Printer, Pencil, Archive, Wand2, CheckCircle2, FileSpreadsheet, Users, Lock, Gamepad2, SearchX } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSetting } from '@/services/settings-service'
@@ -55,8 +62,22 @@ export default function CampDetailPage() {
   const navigate = useNavigate()
   const hasActive = !!camps?.some(c => !c.isArchived)
 
-  if (isLoading) return <LoadingSpinner variant="detail" />
-  if (!camp) return <p className="p-8 text-center text-sm text-muted-foreground">Camp introuvable.</p>
+  // With no active camp, the list page offers "Nouveau camp" — keep a way back to it.
+  const backLink = !hasActive && <BackLink to="/admin/camps" label="Tous les camps" />
+  if (isLoading) return (
+    <Page>
+      {backLink}
+      <PageHeader icon={Tent} title="Camp BP" />
+      <LoadingSpinner variant="detail" />
+    </Page>
+  )
+  if (!camp) return (
+    <Page>
+      {backLink}
+      <PageHeader icon={Tent} title="Camp BP" />
+      <EmptyState icon={SearchX} title="Camp introuvable." />
+    </Page>
+  )
 
   // Tabs this user may open (areas at "view" or "edit"; Commission for admins + commission members).
   const access = camp.myAccess
@@ -74,39 +95,34 @@ export default function CampDetailPage() {
 
   return (
     <Page>
-      <div className="border-b border-border/60 pb-4">
-        {/* With no active camp, the list page offers "Nouveau camp" — keep a way back to it. */}
-        {!hasActive && <Link to="/admin/camps" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3 w-3" />Tous les camps</Link>}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-              <Tent className="h-6 w-6 text-primary" />{camp.name}
-              {camp.isArchived && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Archivé</span>}
-            </h1>
-            {camp.theme && <p className="mt-0.5 text-sm italic">Thème : « {camp.theme} »</p>}
-            <p className="mt-0.5 text-sm text-muted-foreground">{camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} dans une famille · <span title={`${camp.pereCount} Père(s) et ${camp.mereCount} Mère(s) choisis`}>Père/Mère : {camp.leadersCompleteCount}/{camp.famillesCount}</span></p>
+      {backLink}
+      <PageHeader
+        icon={Tent}
+        title={<span className="inline-flex flex-wrap items-center gap-2">{camp.name}{camp.isArchived && <Badge variant="secondary">Archivé</Badge>}</span>}
+        description={<>
+          {camp.theme && <span className="italic text-foreground">Thème : « {camp.theme} » · </span>}
+          {camp.scoutYear} · {camp.participantCount} membres · {camp.gradedCount} notés · {camp.assignedCount} dans une famille ·{' '}
+          <Tip content={`${camp.pereCount} Père(s) et ${camp.mereCount} Mère(s) choisis`}><span>Père/Mère : {camp.leadersCompleteCount}/{camp.famillesCount}</span></Tip>
+        </>}
+        actions={(camps ?? []).length > 1 && (
+          // Switch to another camp (the active one first, then the old ones) — like the dashboard year picker.
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Camp</span>
+            <Select value={id} onValueChange={v => navigate(`/admin/camps/${v}`)}>
+              <SelectTrigger className="w-80 max-w-[70vw]" aria-label="Changer de camp"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {camps!.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name} · {c.scoutYear}{c.isArchived ? '' : ' — en cours'}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          {/* Switch to another camp (the active one first, then the old ones) — like the dashboard year picker. */}
-          {(camps ?? []).length > 1 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Camp</span>
-              <Select value={id} onValueChange={v => navigate(`/admin/camps/${v}`)}>
-                <SelectTrigger className="w-80 max-w-[70vw]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {camps!.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} · {c.scoutYear}{c.isArchived ? '' : ' — en cours'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-      </div>
+        )}
+      />
 
       {tabs.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Vous n'avez accès à aucune partie de ce camp. Les chefs de commission choisissent ce que chaque membre peut voir.
-        </p>
+        <EmptyState icon={Lock} title="Vous n'avez accès à aucune partie de ce camp."
+          description="Les chefs de commission choisissent ce que chaque membre peut voir." />
       ) : (
         <Tabs defaultValue={tabs[0]}>
           <TabsList>
@@ -136,6 +152,7 @@ export default function CampDetailPage() {
 // ─── Paramètres (formula) ────────────────────────────────────────────────────
 function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const { data: camp } = useCamp(campId)
+  const navigate = useNavigate()
   const update = useUpdateCamp(campId)
   const archive = useArchiveCamp()
   const del = useDeleteCamp()
@@ -162,7 +179,7 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
 
   return (
     <div className="max-w-2xl space-y-5">
-      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les paramètres.</p>}
+      {readOnly && <Callout tone="muted">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les paramètres.</Callout>}
       <fieldset disabled={readOnly} className="space-y-5">
       {/* Name + scout year are fixed at creation (Camp BP <year>); only the theme and the count are edited. */}
       <div className="grid gap-3 sm:grid-cols-3">
@@ -222,14 +239,14 @@ function SettingsTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         </div>
       )}
 
-      <ConfirmDialog open={archiving} onOpenChange={setArchiving} title="Archiver le camp" variant="destructive"
+      <ConfirmDialog open={archiving} onOpenChange={setArchiving} title="Archiver le camp ?" variant="destructive"
         description={`Archiver « ${camp.name} » ? Le camp sera clôturé et ne pourra plus être réouvert. Il restera consultable dans la liste des anciens camps, et vous pourrez ensuite créer un nouveau camp.`}
         confirmLabel="Archiver" loading={archive.isPending}
         onConfirm={async () => { try { await archive.mutateAsync({ id: campId, archive: true }); toast.success('Camp archivé'); setArchiving(false) } catch (e) { toast.error(parseApiError(e)) } }} />
 
-      <ConfirmDialog open={deleting} onOpenChange={setDeleting} title="Supprimer le camp" variant="destructive"
-        description={`Supprimer « ${camp.name} » et toutes ses données (familles, notes, jeux) ? Irréversible.`} confirmLabel="Supprimer"
-        onConfirm={async () => { try { await del.mutateAsync(campId); toast.success('Camp supprimé'); window.location.href = '/admin/camps' } catch (e) { toast.error(parseApiError(e)) } }} />
+      <ConfirmDialog open={deleting} onOpenChange={setDeleting} title="Supprimer le camp ?" variant="destructive"
+        description={`Supprimer « ${camp.name} » et toutes ses données (familles, notes, jeux) ? Irréversible.`} confirmLabel="Supprimer" loading={del.isPending}
+        onConfirm={async () => { try { await del.mutateAsync(campId); toast.success('Camp supprimé'); navigate('/admin/camps') } catch (e) { toast.error(parseApiError(e)) } }} />
     </div>
   )
 }
@@ -284,11 +301,12 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
     }
   }
 
-  if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
+  if (isLoading) return <LoadingSpinner variant="cards" />
   if ((familles ?? []).length === 0) return (
     <div className="space-y-3">
-      {!readOnly && <div className="flex justify-end"><Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />Lancer le tirage</Button></div>}
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{readOnly ? "Aucune famille pour l'instant." : 'Aucune famille. Lancez le tirage pour les créer et répartir les membres.'}</p>
+      {!readOnly && <div className="flex justify-end"><Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button></div>}
+      <EmptyState icon={Users} title={readOnly ? "Aucune famille pour l'instant." : 'Aucune famille.'}
+        description={readOnly ? undefined : 'Lancez le tirage pour les créer et répartir les membres.'} />
       <ConfirmDialog open={confirmDraft} onOpenChange={setConfirmDraft} title="Lancer le tirage" confirmLabel="Lancer"
         description="Répartit tous les membres notés dans les familles (équilibre note/effectif/branche/genre)."
         loading={draft.isPending} onConfirm={runDraft}>{leadersBox}</ConfirmDialog>
@@ -325,7 +343,7 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
     const o = e.over?.data.current as ({ type: string; familleId: string; participantId?: string }) | undefined
     if (!a || !o || o.familleId === a.familleId) return
     try {
-      await move.mutateAsync({ participantId: a.participantId, familleId: o.familleId }); toast.success('Déplacé')
+      await move.mutateAsync({ participantId: a.participantId, familleId: o.familleId }); toast.success('Membre déplacé')
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -419,7 +437,7 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }
           <div>
             <h3 className="flex items-center gap-1 font-semibold">
               Famille {f.number}{f.name && <span className="font-normal text-muted-foreground"> · {f.name}</span>}
-              {!readOnly && <Tip content="Nom, description, superfamille"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEditInfo}><Pencil className="h-3.5 w-3.5" /></Button></Tip>}
+              {!readOnly && <Tip content="Nom, description, superfamille"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEditInfo} aria-label="Modifier la famille"><Pencil className="h-3.5 w-3.5" /></Button></Tip>}
             </h3>
             {f.superFamilleName && <p className="text-xs text-muted-foreground">{f.superFamilleName}</p>}
             <p className="text-sm text-muted-foreground">{f.size} membres · total {Math.round(f.noteSum * 10) / 10} (moy. {f.avgNote}) · {f.boys}♂ {f.girls}♀</p>
@@ -431,7 +449,7 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }
             <span className="text-muted-foreground">P:</span> <b>{f.pereName ?? '—'}</b>
             <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
           </button>
-          <Tip content="Imprimer la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" onClick={() => printFamille(campId, f.number).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="h-3.5 w-3.5" /></Button></Tip>
+          <Tip content="Imprimer la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" aria-label="Imprimer la famille" onClick={() => printFamille(campId, f.number).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="h-3.5 w-3.5" /></Button></Tip>
         </div>
       </div>
       <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">
@@ -470,7 +488,7 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
   const filtered = (candidates ?? []).filter(c => `${c.firstName} ${c.lastName}`.toLowerCase().includes(search.toLowerCase()))
   const nameOf = (id: string) => { const c = (candidates ?? []).find(x => x.memberId === id); return c ? `${c.firstName} ${c.lastName}` : null }
   const save = async () => {
-    try { await setLeaders.mutateAsync({ familleId: famille.id, pereMemberId: pere, mereMemberId: mere }); toast.success('Enregistré'); onClose() }
+    try { await setLeaders.mutateAsync({ familleId: famille.id, pereMemberId: pere, mereMemberId: mere }); toast.success('Père / Mère enregistrés'); onClose() }
     catch (e) { toast.error(parseApiError(e)) }
   }
 
@@ -484,7 +502,7 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
             <span className="rounded bg-muted px-2 py-1">Mère : <b>{mere ? (nameOf(mere) ?? '✓') : '—'}</b></span>
             {(pere || mere) && <Button variant="ghost" size="sm" onClick={() => { setPere(null); setMere(null) }}>Effacer</Button>}
           </div>
-          <Input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" />
           <div className="max-h-[40vh] space-y-1 overflow-y-auto">
             {filtered.map(c => {
               // Père = male only, Mère = female only — show just the gender-appropriate button (backend also enforces).
@@ -500,7 +518,7 @@ function LeaderDialog({ campId, famille, onClose }: { campId: string; famille: C
             {filtered.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Aucun candidat.</p>}
           </div>
         </div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={setLeaders.isPending}>Enregistrer</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={setLeaders.isPending}>{setLeaders.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -524,10 +542,10 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
     catch (e) { toast.error(parseApiError(e)) }
   }
 
-  if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
+  if (isLoading) return <LoadingSpinner variant="cards" />
   return (
     <div className="max-w-4xl space-y-3">
-      {readOnly && <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les jeux.</p>}
+      {readOnly && <Callout tone="muted">Lecture seule : les chefs de commission ne vous ont pas donné le droit de modifier les jeux.</Callout>}
       {!readOnly && (
         <div className="space-y-1">
           <div className="flex gap-2">
@@ -535,7 +553,7 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
               className={cn(nameError && 'border-destructive focus-visible:ring-destructive/30')}
               onChange={e => { setName(e.target.value); if (nameError) setNameError(false) }}
               onKeyDown={e => { if (e.key === 'Enter') add() }} placeholder="Nom du jeu / étape…" />
-            <Tip content="Ajouter"><Button onClick={add} disabled={create.isPending}><Plus className="h-4 w-4" /></Button></Tip>
+            <Tip content="Ajouter le jeu"><Button onClick={add} disabled={create.isPending} aria-label="Ajouter le jeu"><Plus className="h-4 w-4" /></Button></Tip>
           </div>
           {nameError && <p className="text-xs text-destructive">Saisissez un nom pour le jeu.</p>}
         </div>
@@ -545,17 +563,20 @@ function GamesTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
           <Button variant="outline" size="sm" onClick={() => setAutoOpen(true)}><Wand2 className="mr-1.5 h-4 w-4" />Attribuer les lieux</Button>
         </div>
       )}
-      {(games ?? []).length === 0 ? <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Aucun jeu.</p> :
+      {(games ?? []).length === 0 ? (
+        <EmptyState icon={Gamepad2} title="Aucun jeu."
+          action={!readOnly ? <Button onClick={add} disabled={create.isPending}><Plus className="mr-1.5 h-4 w-4" />Ajouter un jeu</Button> : undefined} />
+      ) :
         <div className="space-y-3">{games!.map(g => (
           <GameCard key={g.id} campId={campId} game={g} readOnly={readOnly}
             onEdit={() => setEditingGame(g)} onEtapistes={() => setEtapisteFor(g)} onDelete={() => setDeletingGame(g)}
-            onPrint={() => printGame(g.id, g.name).catch(e => toast.error(parseApiError(e)))} />
+            onPrint={() => printGame(g.id, g.name).catch(async e => toast.error(await parseBlobError(e)))} />
         ))}</div>}
       {editingGame && <GameEditDialog campId={campId} game={editingGame} taken={(games ?? []).filter(x => x.id !== editingGame.id && x.number != null).map(x => x.number!)} onClose={() => setEditingGame(null)} />}
       {etapisteFor && <EtapisteDialog campId={campId} game={etapisteFor} onClose={() => setEtapisteFor(null)} />}
       {autoOpen && <AutoPlacesDialog campId={campId} onClose={() => setAutoOpen(false)} />}
 
-      <ConfirmDialog open={!!deletingGame} onOpenChange={() => setDeletingGame(null)} title="Supprimer le jeu" variant="destructive"
+      <ConfirmDialog open={!!deletingGame} onOpenChange={() => setDeletingGame(null)} title="Supprimer le jeu ?" variant="destructive"
         description={`Supprimer « ${deletingGame?.name} » et ses étapistes ?`} confirmLabel="Supprimer" loading={del.isPending}
         onConfirm={async () => { if (!deletingGame) return; try { await del.mutateAsync(deletingGame.id); toast.success('Jeu supprimé'); setDeletingGame(null) } catch (e) { toast.error(parseApiError(e)) } }} />
     </div>
@@ -660,7 +681,7 @@ function GameEditDialog({ campId, game, taken, onClose }: { campId: string; game
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={save} disabled={update.isPending}><Save className="mr-1.5 h-4 w-4" />Enregistrer</Button>
+          <Button onClick={save} disabled={update.isPending}><Save className="mr-1.5 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -678,7 +699,7 @@ function AutoPlacesDialog({ campId, onClose }: { campId: string; onClose: () => 
     try { setResult(await run.mutateAsync({ main: side !== 'backup', backup: side !== 'main', replace })) }
     catch (e) { toast.error(parseApiError(e)) }
   }
-  const SIDES = [{ v: 'main', l: 'Lieu A' }, { v: 'backup', l: 'Lieu B' }, { v: 'both', l: 'Les deux' }] as const
+  const SIDES: { value: 'main' | 'backup' | 'both'; label: string }[] = [{ value: 'main', label: 'Lieu A' }, { value: 'backup', label: 'Lieu B' }, { value: 'both', label: 'Les deux' }]
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose() }}>
       <DialogContent className="max-w-md">
@@ -686,11 +707,7 @@ function AutoPlacesDialog({ campId, onClose }: { campId: string; onClose: () => 
         {!result ? (
           <div className="space-y-3 text-sm">
             <p className="text-muted-foreground">Dans l'ordre des numéros, chaque jeu reçoit le premier lieu de la liste (Paramètres → Camp BP) qui a encore de la place.</p>
-            <div className="flex gap-2">
-              {SIDES.map(o => (
-                <Button key={o.v} type="button" size="sm" variant={side === o.v ? 'default' : 'outline'} onClick={() => setSide(o.v)}>{o.l}</Button>
-              ))}
-            </div>
+            <SegmentedToggle options={SIDES} value={side} onChange={setSide} />
             <label className="flex items-start gap-2">
               <input type="checkbox" className="mt-0.5 h-4 w-4" checked={replace} onChange={e => setReplace(e.target.checked)} />
               <span>Remplacer les lieux déjà choisis<span className="block text-xs text-muted-foreground">Sinon, seuls les jeux sans lieu en reçoivent un.</span></span>
@@ -701,17 +718,16 @@ function AutoPlacesDialog({ campId, onClose }: { campId: string; onClose: () => 
             <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />
               {side !== 'backup' && `${result.assignedMain} lieu(x) A`}{side === 'both' && ' · '}{side !== 'main' && `${result.assignedBackup} lieu(x) B`} attribué(s).</p>
             {result.noPlace.length > 0 && (
-              <div className="rounded-md border border-red-300 bg-red-50 p-2 dark:border-red-900 dark:bg-red-950/40">
-                <p className="font-medium text-red-800 dark:text-red-300">Plus aucun lieu libre pour :</p>
-                <ul className="list-disc pl-5 text-xs text-red-800 dark:text-red-300">{result.noPlace.map(t => <li key={t}>{t}</li>)}</ul>
-                <p className="mt-1 text-xs text-red-800 dark:text-red-300">Ajoutez des lieux ou augmentez le nombre de jeux qu'un lieu accueille (Paramètres → Camp BP).</p>
-              </div>
+              <Callout tone="danger" title="Plus aucun lieu libre pour :">
+                <ul className="list-disc pl-5 text-xs">{result.noPlace.map(t => <li key={t}>{t}</li>)}</ul>
+                <p className="mt-1 text-xs">Ajoutez des lieux ou augmentez le nombre de jeux qu'un lieu accueille (Paramètres → Camp BP).</p>
+              </Callout>
             )}
           </div>
         )}
         <DialogFooter>
           {!result
-            ? <><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={go} disabled={run.isPending}>{run.isPending ? 'Patientez…' : 'Attribuer'}</Button></>
+            ? <><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={go} disabled={run.isPending}>{run.isPending ? 'Attribution…' : 'Attribuer'}</Button></>
             : <Button onClick={onClose}>Fermer</Button>}
         </DialogFooter>
       </DialogContent>
@@ -752,7 +768,7 @@ function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampG
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Étapistes — {game.name}</DialogTitle></DialogHeader>
-        <Input placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" />
         <div className="max-h-[50vh] space-y-3 overflow-y-auto">
           {/* Maîtrise first; the older youth (routiers / caravelles / JEM, only when the setting allows them) in their
               own section, each with an amber branch badge so they can't be mistaken for a chef. */}
@@ -770,7 +786,7 @@ function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampG
                     <span className="block truncate">{c.firstName} {c.lastName}</span>
                     {c.roleName && <span className="block truncate text-xs text-muted-foreground">{c.roleName}</span>}
                   </span>
-                  {c.isAine && <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">{c.branch}</span>}
+                  {c.isAine && <Badge variant="warning" className="shrink-0">{c.branch}</Badge>}
                   <span className="shrink-0 text-xs text-muted-foreground">{c.unitCode}</span>
                 </label>
               ))}
@@ -778,7 +794,7 @@ function EtapisteDialog({ campId, game, onClose }: { campId: string; game: CampG
           ))}
           {filtered.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">Aucun membre trouvé.</p>}
         </div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={setEtapistes.isPending}>Enregistrer</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Annuler</Button><Button onClick={save} disabled={setEtapistes.isPending}>{setEtapistes.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )

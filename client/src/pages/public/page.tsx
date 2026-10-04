@@ -1,5 +1,8 @@
 import { Link, useParams } from 'react-router'
+import { FileText } from 'lucide-react'
 import { PageHero } from '@/components/public/page-hero'
+import { PublicBackLink } from '@/components/public/public-back-link'
+import { EmptyState } from '@/components/shared/empty-state'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicPage, usePublicPages, type PublicPageNav } from '@/services/page-service'
 import { Seo } from '@/components/public/seo'
@@ -23,7 +26,7 @@ export default function PublicStandalonePage() {
     return (<><PageHero title="Chargement…" /><section className="mx-auto max-w-3xl px-4 py-16 sm:px-6"><div className="h-64 animate-pulse rounded-2xl border border-border bg-card" /></section></>)
   }
   if (isError || !page) {
-    return (<><PageHero title="Page introuvable" /><section className="mx-auto max-w-3xl px-4 py-16 sm:px-6"><p className="text-muted-foreground">Cette page n'existe pas ou n'est pas publiée.</p><Link to="/" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">Retour à l'accueil</Link></section></>)
+    return (<><PageHero title="Page introuvable" /><section className="mx-auto max-w-3xl px-4 py-16 sm:px-6"><EmptyState icon={FileText} title="Page introuvable" description="Cette page n'existe pas ou n'est pas publiée." action={<PublicBackLink to="/" label="Retour à l'accueil" />} /></section></>)
   }
 
   return (

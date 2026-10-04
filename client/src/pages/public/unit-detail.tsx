@@ -1,5 +1,7 @@
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, Users, Shield, Phone } from 'lucide-react'
+import { Users, Shield, Phone, Tent } from 'lucide-react'
+import { PublicBackLink } from '@/components/public/public-back-link'
+import { EmptyState } from '@/components/shared/empty-state'
 import { PageHero } from '@/components/public/page-hero'
 import { foulardColors } from '@/components/public/foulard'
 import { FoulardGlyph } from '@/components/public/foulard-glyph'
@@ -102,10 +104,8 @@ export default function PublicUnitDetailPage() {
       <>
         <PageHero title="Unité introuvable" />
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <p className="text-muted-foreground">Cette unité n'existe pas ou n'est pas publiée.</p>
-          <Link to="/unites" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-            <ArrowLeft className="h-4 w-4" /> Retour aux unités
-          </Link>
+          <EmptyState icon={Tent} title="Unité introuvable" description="Cette unité n'existe pas ou n'est pas publiée."
+            action={<PublicBackLink to="/unites" label="Toutes les unités" />} />
         </section>
       </>
     )
@@ -122,9 +122,7 @@ export default function PublicUnitDetailPage() {
       <UnitHero name={unit.name} subtitle={[unit.unitTypeName, age].filter(Boolean).join(' · ')} colors={foulard} />
 
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <Link to="/unites" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Toutes les unités
-        </Link>
+        <PublicBackLink to="/unites" label="Toutes les unités" />
 
         <div className="mt-8 grid gap-12 lg:grid-cols-3">
           <div className="lg:col-span-2">

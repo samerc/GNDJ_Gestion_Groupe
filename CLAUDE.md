@@ -6396,3 +6396,29 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   le texte du modèle" link to the CG. Live-tested: CG list/read/update 200 (code/module/SMTP unchanged), create/delete/
   SMTP 403, CU 403.
 
+### UI consistency pass (2026-10-04, DEV until deploy)
+Full-app audit (4 reviewers) → fixes by area. Conventions written down in the session (kit usage, wording, dates):
+- **Shared kit, always:** Page + PageHeader (icon + one-line description, header shown while loading/empty), BackLink /
+  BackToSettings, Callout (every tinted notice and every error box), EmptyState, LoadingSpinner (matching variant),
+  SearchInput, SegmentedToggle (now `disabled`), `ui/textarea` (new), DateInput (never type=date), CopyButton, Badge
+  variants, Button `variant="success"` (new) for positive actions, Tip + aria-label on icon-only buttons.
+- **Confirmations:** `confirmAsync({title, description, confirmLabel, destructive})` from `lib/confirm.ts` (promise-based,
+  rendered by `ConfirmHostGate` in main.tsx, lazy) replaces every native confirm; ConfirmDialog for the rest.
+- **One `<Toaster>` in main.tsx** (removed from AppLayout / PublicLayout / applicant shells — the forced-password screen
+  had none). Mutations: success toast + `toast.error(parseApiError(e))`; blob downloads `parseBlobError`.
+- **Dates (`lib/utils`):** formatDate (04/10/2026), formatDateLong (4 octobre 2026), formatDateTime, formatMonthShort,
+  parseDay (yyyy-MM-dd as a local day). Page-local helpers removed (fixed the public agenda "avri/octo" months).
+- **Wording:** "Email" (no "courriel", backend messages too), "Identifiant" (login name; login error "Identifiant ou mot
+  de passe incorrect."), "Espace membres", "chef d'unité" (no "CU" in UI), "…" single character, "Fermer" in dialogs.
+  `GROUP_NAME` constant (lib/constants). Menu labels = page titles ("Documents & cotisations", "Modèles de rapports",
+  "Validation des passages", "Suivi des documents", "Réunions & absences", "Archives des demandes", "Parcours scouts",
+  "File d'emails", "Emails aux chefs"); nav arrays moved to `components/layout/nav-items.ts` (sidebar + command palette).
+- New: `MemberAuthShell` (forgot/reset/login share the /login look), `components/public/pagination.tsx`,
+  `public-back-link.tsx`. DateInput no longer wipes a half-edited pre-filled date.
+- Behaviour changes: member create form validates DOB/sexe/nationalité/école (server already required them); new
+  confirms (document page delete, custom-field clear, passage open/close, notification send, commission removal,
+  login-message delete, email-queue delete, guardian phone/email delete); demande quota no longer saves 0 on blur.
+- Verified: tsc + eslint + build clean, smoke suite 60/60 API + 20/20 browser, bundle budget OK (entry unchanged).
+  NOTE: port 5173 on this box can be taken by ANOTHER project's Vite (title "Vessel Compliance") — run the browser
+  checks with `GNDJ_APP=http://localhost:<port>` against GNDJ's own Vite.
+

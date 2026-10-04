@@ -32,8 +32,16 @@ import { MemberImportDialog } from '@/components/admin/member-import-dialog'
 import { GENDER_OPTIONS, BLOOD_TYPE_OPTIONS, NATIONALITY_OPTIONS } from '@/lib/options'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
-import { cn } from '@/lib/utils'
-import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, FileSpreadsheet, User, CheckCircle2, AlertTriangle, CalendarCheck, ChevronDown, SlidersHorizontal, Upload } from 'lucide-react'
+import { cn, formatDate } from '@/lib/utils'
+import { Plus, Search, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Copy, X, FileSpreadsheet, User, Users, CheckCircle2, AlertTriangle, CalendarCheck, ChevronDown, SlidersHorizontal, Upload } from 'lucide-react'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Callout } from '@/components/shared/callout'
+import { CopyButton } from '@/components/shared/copy-button'
+import { DateInput } from '@/components/shared/date-input'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { MemberDetailPanel } from '@/components/members/member-detail-panel'
 import { credentialsMessage } from '@/lib/credentials'
@@ -59,9 +67,9 @@ function AlphaRail({ letter, onPick }: { letter: string; onPick: (l: string) => 
       active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')
   return (
     <div className="hidden md:flex w-5 shrink-0 select-none flex-col items-center border-l bg-muted/20 py-1">
-      <button type="button" title="Tous les noms" onClick={() => onPick('')} className={cls(letter === '')}>•</button>
+      <button type="button" aria-label="Tous les noms" onClick={() => onPick('')} className={cls(letter === '')}>•</button>
       {ALPHABET.map((l) => (
-        <button key={l} type="button" title={`Noms commençant par ${l}`}
+        <button key={l} type="button" aria-label={`Noms commençant par ${l}`}
           onClick={() => onPick(letter === l ? '' : l)} className={cls(letter === l)}>{l}</button>
       ))}
     </div>
@@ -197,7 +205,7 @@ export default function MembersPage() {
   // Situation toggle (create): 'student' = Classe/Section, 'working' = Domaine/Profession.
   const [situation, setSituation] = useState<'student' | 'working'>('student')
   const [error, setError] = useState('')
-  const { validate, clearField, clearAll, fieldClass, hasErrors } = useFormValidation()
+  const { validate, clearField, clearAll, fieldClass, hasError, hasErrors } = useFormValidation()
 
   const handleDrag = useCallback((deltaX: number) => {
     setLeftWidth(w => Math.max(300, Math.min(600, w + deltaX)))
@@ -278,7 +286,11 @@ export default function MembersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!validate({ firstName: !form.firstName, lastName: !form.lastName })) return
+    // Same required set as the server's CreateMemberCommand validator.
+    if (!validate({
+      firstName: !form.firstName, lastName: !form.lastName, dateOfBirth: !form.dateOfBirth,
+      gender: !form.gender, nationality: !form.nationality, school: !form.school,
+    })) return
     try {
       const payload = { ...form, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, bloodType: form.bloodType || null, nationality: form.nationality || null, school: form.school || null,
         // Mutually exclusive by situation (student keeps classe/section, working keeps domaine/profession).
@@ -299,9 +311,11 @@ export default function MembersPage() {
       {/* Top bar — all list chrome (title, actions, filters, A–Z). Hidden on mobile while a member's fiche is
           open so the detail panel gets the full screen (the fiche has its own "Retour à la liste" back button). */}
       <div className={cn('shrink-0 space-y-3 pb-3', selectedMemberId && 'max-md:hidden')}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-bold">Membres</h1>
-          <div className="flex flex-wrap items-center gap-2">
+        <PageHeader
+          title="Membres"
+          icon={Users}
+          description="Fiches des membres, unités et dossiers"
+          actions={<>
             {/* Span wrapper so the tooltip still fires when the button is disabled (Radix skips disabled triggers). */}
             <Tip content={isSpecialFilter ? 'Sélectionnez une unité pour exporter' : "Exporter l'unité en Excel ou CSV"}>
               <span className="inline-flex">
@@ -313,21 +327,16 @@ export default function MembersPage() {
             </Tip>
             {canCreate && <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}><Upload className="mr-1 h-4 w-4" />Importer</Button>}
             {canCreate && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" />Nouveau membre</Button>}
-          </div>
-        </div>
+          </>}
+        />
         <div className="flex flex-wrap items-center gap-2">
           {/* Search — full width on mobile, flexible beside the filters on ≥sm */}
-          <div className="relative w-full sm:flex-1 sm:min-w-[10rem] sm:max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher par nom, prénom ou carte…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
-            {search && (
-              <Tip content="Effacer la recherche">
-                <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}>
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </Tip>
-            )}
-          </div>
+          <SearchInput
+            className="w-full sm:flex-1 sm:min-w-[10rem] sm:max-w-sm"
+            placeholder="Rechercher par nom, prénom ou carte…"
+            value={search}
+            onChange={(v) => { setSearch(v); setPage(1) }}
+          />
           {/* Unit filter — full width on mobile so it doesn't crowd the search */}
           <Select value={unitFilter} onValueChange={(v) => { setUnitFilter(v); setPage(1) }}>
             <SelectTrigger className="w-full sm:w-52 h-8 text-sm"><SelectValue /></SelectTrigger>
@@ -341,18 +350,13 @@ export default function MembersPage() {
             </SelectContent>
           </Select>
           {/* Actifs / Anciens / Tous toggle. "Tous" searches across active + former members at once. */}
-          <div className="flex h-8 shrink-0 items-center rounded-md border p-0.5 text-xs">
-            {([['active', 'Actifs'], ['alumni', 'Anciens'], ['all', 'Tous']] as const).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                className={cn('h-full rounded px-2.5 font-medium transition-colors', viewMode === mode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}
-                onClick={() => { setViewMode(mode); setPage(1) }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedToggle
+            size="sm"
+            className="shrink-0"
+            options={[{ value: 'active', label: 'Actifs' }, { value: 'alumni', label: 'Anciens' }, { value: 'all', label: 'Tous' }]}
+            value={viewMode}
+            onChange={(mode) => { setViewMode(mode); setPage(1) }}
+          />
           {/* Secondary filters (names-per-page + PWA app filter) live in a collapsible row to keep the header
               slim, on every screen size. A dot marks an active secondary filter. */}
           <button
@@ -447,10 +451,10 @@ export default function MembersPage() {
             )}
             {isLoading ? <div className="flex items-center justify-center h-full"><LoadingSpinner /></div> :
              !data || data.items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
-                {debouncedSearch ? <Search className="h-8 w-8 opacity-40" /> : <User className="h-8 w-8 opacity-40" />}
-                <p className="text-sm">{debouncedSearch ? `Aucun résultat pour « ${debouncedSearch} »` : letter ? `Aucun nom commençant par « ${letter} »` : 'Aucun membre trouvé'}</p>
-              </div>
+              <EmptyState
+                icon={debouncedSearch ? Search : User}
+                title={debouncedSearch ? `Aucun résultat pour « ${debouncedSearch} »` : letter ? `Aucun nom commençant par « ${letter} »` : 'Aucun membre trouvé'}
+              />
             ) : (
               <>
                 {data.items.map(m => (
@@ -467,23 +471,23 @@ export default function MembersPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{m.lastName} {m.firstName}</p>
-                      {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}</p>}
+                      {m.dateOfBirth && <p className="text-[11px] text-muted-foreground">{formatDate(m.dateOfBirth)}</p>}
                     </div>
                     {absenceCounts.get(m.id) ? (
                       <Tip content="Absences aux réunions cette année">
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                        <Badge variant="warning" className="shrink-0 gap-0.5 px-1.5 text-[10px]">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.id)}
-                        </span>
+                        </Badge>
                       </Tip>
                     ) : null}
                     <div className="shrink-0"><ComplianceDot docsComplete={m.docsComplete} cotisationOk={m.cotisationOk} /></div>
                     <div className="w-12 shrink-0 text-[11px] text-muted-foreground text-center">{m.unitName ?? '—'}</div>
                   </div>
                 ))}
-                {/* Pagination — Préc./Suiv. + a page picker to jump directly to any page. */}
+                {/* Pagination — Précédent/Suivant + a page picker to jump directly to any page. */}
                 {data.totalPages > 1 && (
                   <div className="flex items-center justify-center gap-1.5 p-2 border-t bg-muted/30">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>Préc.</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasPreviousPage} onClick={() => setPage(p => p - 1)}>Précédent</Button>
                     <Select value={String(data.page)} onValueChange={(v) => setPage(Number(v))}>
                       <SelectTrigger className="h-7 w-auto gap-1 px-2 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent className="max-h-72">
@@ -493,7 +497,7 @@ export default function MembersPage() {
                       </SelectContent>
                     </Select>
                     <span className="text-xs text-muted-foreground">/ {data.totalPages}</span>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>Suiv.</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={!data.hasNextPage} onClick={() => setPage(p => p + 1)}>Suivant</Button>
                   </div>
                 )}
               </>
@@ -549,7 +553,7 @@ export default function MembersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Nouveau membre</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <FormFieldErrors show={hasErrors} />
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -564,12 +568,12 @@ export default function MembersPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel htmlFor="dateOfBirth" required>Date de naissance</RequiredLabel>
-                <Input id="dateOfBirth" type="date" value={form.dateOfBirth ?? ''} onChange={(e) => setForm(f => ({ ...f, dateOfBirth: e.target.value || null }))} />
+                <DateInput className={fieldClass('dateOfBirth')} value={form.dateOfBirth ?? ''} onChange={(iso) => { setForm(f => ({ ...f, dateOfBirth: iso })); clearField('dateOfBirth') }} />
               </div>
               <div className="space-y-2">
                 <RequiredLabel required>Sexe</RequiredLabel>
-                <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v === '__clear__' ? '' : v || null }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+                <Select value={form.gender ?? ''} onValueChange={(v) => { setForm(f => ({ ...f, gender: v === '__clear__' ? '' : v || null })); clearField('gender') }}>
+                  <SelectTrigger className={fieldClass('gender')}><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__clear__">-- Aucun --</SelectItem>
                     {GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -581,8 +585,8 @@ export default function MembersPage() {
               <div className="space-y-2">
                 <RequiredLabel required>Nationalité</RequiredLabel>
                 <div className="flex items-center gap-1">
-                  <div className="flex-1">
-                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité…" />
+                  <div className={cn('flex-1', hasError('nationality') && 'rounded-md ring-1 ring-destructive')}>
+                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => { setForm(f => ({ ...f, nationality: v || null })); clearField('nationality') }} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité…" />
                   </div>
                   {form.nationality && (
                     <Tip content="Effacer la nationalité">
@@ -608,22 +612,21 @@ export default function MembersPage() {
               <div className="space-y-2">
                 <RequiredLabel required>École</RequiredLabel>
                 {/* Searchable dropdown + "Autre…" free-text (snaps typed variants onto the canonical school). */}
-                <SchoolSelect value={form.school || ''} onChange={(v) => setForm(f => ({ ...f, school: v }))} schools={schools} />
+                <div className={cn(hasError('school') && 'rounded-md ring-1 ring-destructive')}>
+                  <SchoolSelect value={form.school || ''} onChange={(v) => { setForm(f => ({ ...f, school: v })); clearField('school') }} schools={schools} />
+                </div>
               </div>
               {/* Situation toggle — hidden when a youth-branch unit is selected (Meute/Ronde/Compagnie/Troupe →
                   Classe/Section only). For older branches or no unit, the CG chooses. */}
               {!createIsYouthUnit && (
                 <div className="space-y-2 sm:col-span-2">
                   <RequiredLabel>Situation</RequiredLabel>
-                  <div className="inline-flex h-9 items-center rounded-md border p-0.5">
-                    <button type="button" onClick={() => setSituation('student')}
-                      className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                      Scolarisé(e)
-                    </button>
-                    <button type="button" onClick={() => setSituation('working')}
-                      className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                      En activité
-                    </button>
+                  <div>
+                    <SegmentedToggle
+                      options={[{ value: 'student', label: 'Scolarisé(e)' }, { value: 'working', label: 'En activité' }]}
+                      value={situation}
+                      onChange={setSituation}
+                    />
                   </div>
                 </div>
               )}
@@ -641,7 +644,7 @@ export default function MembersPage() {
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Section</RequiredLabel>
-                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE…" maxLength={5} />
+                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex. : SV, SE…" maxLength={5} />
                   </div>
                 </>
               ) : (
@@ -658,7 +661,7 @@ export default function MembersPage() {
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Profession</RequiredLabel>
-                    <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin…" maxLength={150} />
+                    <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex. : Ingénieur, Médecin…" maxLength={150} />
                   </div>
                 </>
               )}
@@ -735,22 +738,14 @@ export default function MembersPage() {
                 <span className="text-muted-foreground">Identifiant :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.username}</code>
-                  <Tip content="Copier l'identifiant">
-                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.username ?? ''); toast.success('Copié !') }}>
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                  </Tip>
+                  <CopyButton value={credentialsDialog?.username} label="Copier l'identifiant" className="px-2" />
                 </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Mot de passe :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.password}</code>
-                  <Tip content="Copier le mot de passe">
-                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.password ?? ''); toast.success('Copié !') }}>
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                  </Tip>
+                  <CopyButton value={credentialsDialog?.password} label="Copier le mot de passe" className="px-2" />
                 </div>
               </div>
             </div>

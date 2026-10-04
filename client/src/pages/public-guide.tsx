@@ -6,6 +6,7 @@ import { ArrowLeft, BookOpen, Printer } from 'lucide-react'
 import { useHelpDoc } from '@/services/help-service'
 import { MarkdownView } from '@/components/help/markdown-view'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import { Button } from '@/components/ui/button'
 import publicApi from '@/lib/public-api-client'
 
@@ -25,7 +26,7 @@ export default function PublicGuidePage() {
       </header>
       <main className="mx-auto max-w-4xl px-4 py-6">
         {isLoading ? <LoadingSpinner /> : isError || !data ? (
-          <p className="text-muted-foreground">Guide introuvable.</p>
+          <EmptyState icon={BookOpen} title="Guide introuvable" description="Ce guide n'existe pas ou n'est pas public." />
         ) : (
           <div className="rounded-xl border bg-card p-5 shadow-card sm:p-8">
             <div className="mb-4 flex items-start gap-3">

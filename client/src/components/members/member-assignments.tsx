@@ -8,7 +8,6 @@ import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useProposeAssignment, useMyChangeRequests, useProposableUnits, useDismissChangeRequest } from '@/services/change-request-service'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,6 +18,10 @@ import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, StopCircle, Building2, X, ArrowRightLeft } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
+import { formatDate } from '@/lib/utils'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { DateInput } from '@/components/shared/date-input'
 
 // "Affectations" tab of the member detail page (also reused read-only on Ma fiche for youth).
 // Shows the member's current posts (unit / team / functional role) + a year-grouped history
@@ -32,10 +35,6 @@ interface MemberAssignmentsProps {
   memberName: string
   readOnly?: boolean
   selfPropose?: boolean
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function getYear(d: string) {
@@ -179,32 +178,30 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger">{error}</Callout>}
             <FormFieldErrors show={hasErrors} />
 
       {/* A member's pending fonction proposals (awaiting CU/CG approval). */}
       {canPropose && pendingAssignments.length > 0 && (
-        <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
-          <p className="font-medium text-amber-800 dark:text-amber-300">En attente d'acceptation</p>
-          <ul className="mt-1 space-y-0.5 text-amber-800 dark:text-amber-300">
+        <Callout tone="warning" title="En attente d'acceptation">
+          <ul className="space-y-0.5">
             {pendingAssignments.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>
-        </div>
+        </Callout>
       )}
 
       {/* A member's REJECTED fonction proposals — shows the decision + reason so they aren't left guessing. */}
       {canPropose && rejectedAssignments.length > 0 && (
-        <div className="rounded-md border border-red-300 dark:border-red-800 bg-red-50/70 dark:bg-red-950/30 p-3 text-sm">
-          <p className="font-medium text-red-800 dark:text-red-300">Proposition refusée</p>
-          <ul className="mt-1 space-y-1.5">
+        <Callout tone="danger" title="Proposition refusée">
+          <ul className="space-y-1.5">
             {rejectedAssignments.map(r => (
-              <li key={r.id} className="flex items-start justify-between gap-2 text-red-800 dark:text-red-300">
+              <li key={r.id} className="flex items-start justify-between gap-2">
                 <span>
                   • {r.summary}
-                  {r.decisionNotes && <span className="mt-0.5 block text-red-700/90 dark:text-red-300/90">Motif : {r.decisionNotes}</span>}
+                  {r.decisionNotes && <span className="mt-0.5 block text-muted-foreground">Motif : {r.decisionNotes}</span>}
                 </span>
-                <Tip content="Effacer">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" disabled={dismissMutation.isPending}
+                <Tip content="Masquer ce message">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label="Masquer ce message" disabled={dismissMutation.isPending}
                     onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Message masqué')).catch(err => toast.error(parseApiError(err)))}>
                     <X className="h-4 w-4" />
                   </Button>
@@ -212,7 +209,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
               </li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
 
       {/* Active */}
@@ -230,7 +227,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
         </CardHeader>
         <CardContent>
           {activeAssignments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun poste actuel.</p>
+            <EmptyState icon={Building2} title="Aucun poste actuel" />
           ) : (
             <div className="space-y-3">
               {activeAssignments.map(a => {
@@ -243,15 +240,15 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                     </Button></Tip>
                     {/* Correct a WRONG placement: repoint to the right unit in place (no history for the wrong unit). CG only. */}
                     {canCorrect && (
-                      <Tip content="Corriger l'unité (mauvaise affectation)"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openCorrect(a)}>
+                      <Tip content="Corriger l'unité (mauvaise affectation)"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Corriger l'unité" onClick={() => openCorrect(a)}>
                         <ArrowRightLeft className="h-4 w-4 text-blue-600" />
                       </Button></Tip>
                     )}
                     {/* One-click "end today": closes the post with endDate = today (moves it to history). */}
-                    <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" disabled={endMutation.isPending} onClick={() => setEnding(a)}>
+                    <Tip content="Terminer aujourd'hui"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Terminer le poste aujourd'hui" disabled={endMutation.isPending} onClick={() => setEnding(a)}>
                       <StopCircle className="h-4 w-4 text-orange-500" />
                     </Button></Tip>
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => setDeleting(a)}>
+                    <Tip content="Supprimer le poste"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Supprimer le poste" onClick={() => setDeleting(a)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button></Tip>
                   </div>
@@ -318,10 +315,10 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                         {!readOnly && (
                           // Visible by default on touch (no hover); mouse users get the hover-reveal.
                           <div className="flex gap-1 shrink-0 opacity-100 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100">
-                            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(a)}>
+                            <Tip content="Modifier le poste"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier le poste" onClick={() => openEdit(a)}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button></Tip>
-                            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDeleting(a)}>
+                            <Tip content="Supprimer le poste"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer le poste" onClick={() => setDeleting(a)}>
                               <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </Button></Tip>
                           </div>
@@ -341,7 +338,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editing ? 'Modifier le poste' : canPropose ? 'Proposer une fonction' : `Ajouter un poste pour ${memberName}`}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <FormFieldErrors show={hasErrors} />
             {/* Unité / Équipe / Fonction — editable in BOTH create and edit. Editing an existing post lets a
                 manager (CG/CU) correct the unit, team or fonction directly (e.g. a wrong role). Changing the unit
@@ -374,14 +371,13 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel required>Date de début</RequiredLabel>
-                <Input type="date" value={form.startDate} onChange={(e) => { setForm(f => ({ ...f, startDate: e.target.value })); clearField('startDate') }} className={fieldClass('startDate')} required />
+                <DateInput value={form.startDate} onChange={(iso) => { setForm(f => ({ ...f, startDate: iso ?? '' })); clearField('startDate') }} className={fieldClass('startDate')} />
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Date de fin</RequiredLabel>
-                <Input
-                  type="date"
+                <DateInput
                   value={form.endDate ?? ''}
-                  onChange={(e) => setForm(f => ({ ...f, endDate: e.target.value || null }))}
+                  onChange={(iso) => setForm(f => ({ ...f, endDate: iso }))}
                 />
               </div>
             </div>
@@ -462,7 +458,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer"
+        title="Supprimer le poste ?"
         description={`Supprimer le poste de ${deleting?.functionalRoleName} dans ${deleting?.unitName} ?`}
         confirmLabel="Supprimer"
         variant="destructive"
@@ -472,7 +468,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       <ConfirmDialog
         open={!!ending}
         onOpenChange={(o) => { if (!o) setEnding(null) }}
-        title="Terminer le poste"
+        title="Terminer le poste ?"
         description={`Terminer aujourd'hui le poste de ${ending?.functionalRoleName} dans ${ending?.unitName} ? S'il s'agit de son seul poste, le membre n'apparaîtra plus dans l'unité (il passera dans les anciens).`}
         confirmLabel="Terminer"
         variant="destructive"

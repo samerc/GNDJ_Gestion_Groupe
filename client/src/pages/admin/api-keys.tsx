@@ -22,6 +22,10 @@ import { FormFieldErrors } from '@/components/shared/form-field-errors'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { Plus, Trash2, Key, Copy, ToggleLeft, ToggleRight } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
+import { BackToSettings } from '@/components/shared/back-to-settings'
+import { SearchableSelect } from '@/components/shared/searchable-select'
+import { DateInput } from '@/components/shared/date-input'
+import { formatDateTime, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 
 // Whitelisted scopes the backend recognizes; *-own scopes require a bound member.
@@ -43,7 +47,7 @@ interface CreateForm {
 
 const defaultForm: CreateForm = { name: '', scopes: [], memberId: '', expiresAt: '' }
 
-export default function ApiKeysPage() {
+export default function ApiKeysPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<ApiKeyDto | null>(null)
   const [form, setForm] = useState<CreateForm>(defaultForm)
@@ -100,7 +104,7 @@ export default function ApiKeysPage() {
   const handleToggle = async (id: string) => {
     try {
       await toggleMutation.mutateAsync(id)
-      toast.success('Statut modifié')
+      toast.success('Statut de la clé enregistré')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -125,23 +129,23 @@ export default function ApiKeysPage() {
     }
   }
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return null
-    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-  }
+  const newButton = (
+    <Button onClick={openCreate}>
+      <Plus className="mr-1.5 h-4 w-4" />
+      Nouvelle clé
+    </Button>
+  )
 
   return (
     <Page>
-      <PageHeader
-        title="Clés API"
-        icon={Key}
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            Nouvelle clé
-          </Button>
-        }
-      />
+      {embedded ? (
+        <div className="flex justify-end">{newButton}</div>
+      ) : (
+        <>
+          <BackToSettings />
+          <PageHeader title="Clés API" icon={Key} description="Accès des applications externes à l'API du groupe." actions={newButton} />
+        </>
+      )}
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -159,7 +163,7 @@ export default function ApiKeysPage() {
               <TableRow>
                 <TableHead>Nom</TableHead>
                 <TableHead>Préfixe</TableHead>
-                <TableHead>Scopes</TableHead>
+                <TableHead>Autorisations</TableHead>
                 <TableHead>Membre lié</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Dernière utilisation</TableHead>
@@ -171,7 +175,7 @@ export default function ApiKeysPage() {
               {apiKeys.map((item) => (
                 <TableRow key={item.id} className="even:bg-muted/30">
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>{item.keyPrefix}...</TableCell>
+                  <TableCell>{item.keyPrefix}…</TableCell>
                   <TableCell>{item.scopes.split(',').map((s) => s.trim()).join(', ')}</TableCell>
                   <TableCell className="text-muted-foreground">{item.memberName ?? '\u2014'}</TableCell>
                   <TableCell>
@@ -180,12 +184,12 @@ export default function ApiKeysPage() {
                       : <Badge variant="secondary">Inactive</Badge>
                     }
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{item.lastUsedAt ? formatDate(item.lastUsedAt) : 'Jamais'}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.lastUsedAt ? formatDateTime(item.lastUsedAt) : 'Jamais'}</TableCell>
                   <TableCell className="text-muted-foreground">{item.expiresAt ? formatDate(item.expiresAt) : 'Aucune'}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Tip content={item.isActive ? 'Désactiver' : 'Activer'}>
-                        <Button variant="ghost" size="icon" onClick={() => handleToggle(item.id)}>
+                        <Button variant="ghost" size="icon" aria-label={item.isActive ? 'Désactiver' : 'Activer'} onClick={() => handleToggle(item.id)}>
                           {item.isActive
                             ? <ToggleRight className="h-4 w-4 text-success" />
                             : <ToggleLeft className="h-4 w-4 text-muted-foreground" />
@@ -193,7 +197,7 @@ export default function ApiKeysPage() {
                         </Button>
                       </Tip>
                       <Tip content="Supprimer">
-                        <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
+                        <Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(item)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </Tip>
@@ -213,14 +217,14 @@ export default function ApiKeysPage() {
             <DialogTitle>Nouvelle clé API</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             {hasErrors && <FormFieldErrors show={hasErrors} />}
             <div className="space-y-2">
               <RequiredLabel htmlFor="name" required>Nom</RequiredLabel>
               <Input id="name" className={fieldClass('name')} value={form.name} onChange={(e) => { setForm(f => ({ ...f, name: e.target.value })); clearField('name') }} required />
             </div>
             <div className="space-y-2">
-              <RequiredLabel required>Scopes</RequiredLabel>
+              <RequiredLabel required>Autorisations</RequiredLabel>
               <div className={`space-y-2 rounded-md border p-3 ${fieldClass('scopes')}`}>
                 {AVAILABLE_SCOPES.map((scope) => (
                   <label key={scope.value} className="flex items-center gap-2 text-sm">
@@ -237,21 +241,19 @@ export default function ApiKeysPage() {
             </div>
             <div className="space-y-2">
               <RequiredLabel htmlFor="memberId">Membre lié (optionnel)</RequiredLabel>
-              <select
-                id="memberId"
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              <SearchableSelect
                 value={form.memberId}
-                onChange={(e) => setForm(f => ({ ...f, memberId: e.target.value }))}
-              >
-                <option value="">-- Aucun --</option>
-                {membersData?.items.map((m) => (
-                  <option key={m.id} value={m.id}>{m.firstName} {m.lastName}{m.cardNumber ? ` (${m.cardNumber})` : ''}</option>
-                ))}
-              </select>
+                onValueChange={(v) => setForm(f => ({ ...f, memberId: v }))}
+                options={(membersData?.items ?? []).map((m) => ({ value: m.id, label: `${m.firstName} ${m.lastName}${m.cardNumber ? ` (${m.cardNumber})` : ''}` }))}
+                placeholder="Aucun"
+                searchPlaceholder="Rechercher un membre…"
+                emptyMessage="Aucun membre trouvé."
+                clearable
+              />
             </div>
             <div className="space-y-2">
               <RequiredLabel htmlFor="expiresAt">Expiration (optionnel)</RequiredLabel>
-              <Input id="expiresAt" type="datetime-local" value={form.expiresAt} onChange={(e) => setForm(f => ({ ...f, expiresAt: e.target.value }))} />
+              <DateInput value={form.expiresAt} onChange={(iso) => setForm(f => ({ ...f, expiresAt: iso ?? '' }))} />
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
@@ -275,7 +277,7 @@ export default function ApiKeysPage() {
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded-md bg-muted p-3 text-sm font-mono break-all select-all">{createdKey}</code>
               <Tip content="Copier la clé">
-                <Button variant="outline" size="icon" onClick={handleCopyKey}>
+                <Button variant="outline" size="icon" aria-label="Copier la clé" onClick={handleCopyKey}>
                   <Copy className="h-4 w-4" />
                 </Button>
               </Tip>
@@ -295,7 +297,7 @@ export default function ApiKeysPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer la cl\u00e9 API"
+        title="Supprimer la cl\u00e9 API ?"
         description={`\u00cates-vous s\u00fbr de vouloir supprimer la cl\u00e9 \u00ab ${deleting?.name} \u00bb ? Cette action est irr\u00e9versible.`}
         confirmLabel="Supprimer"
         variant="destructive"

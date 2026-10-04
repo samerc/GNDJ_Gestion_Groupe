@@ -17,12 +17,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
+import { PageHeader } from '@/components/shared/page-header'
+import { BackLink } from '@/components/shared/back-link'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { useFormValidation } from '@/hooks/use-form-validation'
 import { useCreateUnitType, useUpdateUnitType, type UnitTypeFormData } from '@/services/unit-type-service'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { ArrowLeft, Shield, Star, Award, Pencil, ChevronDown, ChevronRight, Info as InfoIcon } from 'lucide-react'
+import { FolderTree, Shield, Star, Award, Pencil, ChevronDown, ChevronRight, Info as InfoIcon } from 'lucide-react'
 
 interface UnitTypeDetail {
   id: string; name: string; code: string; description: string | null
@@ -89,7 +94,7 @@ export default function UnitTypeDetailPage() {
         navigate(`/admin/unit-types/${res.id}`, { replace: true })
       } else {
         await updateMutation.mutateAsync({ id: id!, ...form })
-        toast.success("Type d'unité modifié")
+        toast.success("Type d'unité enregistré")
         setEditing(false)
       }
     } catch (err) {
@@ -99,26 +104,34 @@ export default function UnitTypeDetailPage() {
 
   const isSaving = createMutation.isPending || updateMutation.isPending
 
-  if (!isNew && isLoading) return <LoadingSpinner variant="detail" />
-  if (!isNew && !unitType) return <div className="py-12 text-center text-muted-foreground">Type d'unité introuvable.</div>
+  const backLink = <BackLink to="/admin/unit-types" label="Types d'unité" />
+
+  if (!isNew && isLoading) return (
+    <Page>
+      {backLink}
+      <PageHeader title="Type d'unité" icon={FolderTree} />
+      <LoadingSpinner variant="detail" />
+    </Page>
+  )
+  if (!isNew && !unitType) return (
+    <Page>
+      {backLink}
+      <PageHeader title="Type d'unité" icon={FolderTree} />
+      <EmptyState icon={FolderTree} title="Type d'unité introuvable"
+        action={<Button variant="outline" onClick={() => navigate('/admin/unit-types')}>Retour aux types d'unité</Button>} />
+    </Page>
+  )
 
   return (
     <Page>
-      {/* Header */}
-      <div className="flex items-center gap-4 border-b border-border/60 pb-4">
-        <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/admin/unit-types')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">
-            {isNew ? "Nouveau type d'unité" : unitType!.name}
-          </h1>
-          {!isNew && !editing && (
-            <p className="text-sm text-muted-foreground">
-              Code : {unitType!.code}
-              {unitType!.numberOfYears ? ` — ${unitType!.numberOfYears} an${unitType!.numberOfYears > 1 ? 's' : ''}` : ''}
-            </p>
-          )}
-        </div>
-      </div>
+      {backLink}
+      <PageHeader
+        title={isNew ? "Nouveau type d'unité" : unitType!.name}
+        icon={FolderTree}
+        description={isNew
+          ? "Créez une branche (Meute, Troupe…) avec ses fonctions, étapes et badges."
+          : `Code : ${unitType!.code}${unitType!.numberOfYears ? ` — ${unitType!.numberOfYears} an${unitType!.numberOfYears > 1 ? 's' : ''}` : ''}`}
+      />
 
       {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form */}
       <Card>
@@ -133,7 +146,7 @@ export default function UnitTypeDetailPage() {
         <CardContent>
           {editing ? (
             <form onSubmit={handleSave} className="space-y-4">
-              {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              {error && <Callout tone="danger">{error}</Callout>}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <RequiredLabel htmlFor="name" required>Nom</RequiredLabel>
@@ -185,15 +198,14 @@ export default function UnitTypeDetailPage() {
                 <p className="text-xs text-muted-foreground">Chaque type doit avoir une couleur unique.</p>
               </div>
               <div className="space-y-2">
-                <label htmlFor="publicDescription" className="text-sm font-medium">Description publique (site)</label>
-                <textarea
+                <RequiredLabel htmlFor="publicDescription">Description publique (site)</RequiredLabel>
+                <Textarea
                   id="publicDescription"
                   value={form.publicDescription ?? ''}
                   onChange={(e) => setForm(f => ({ ...f, publicDescription: e.target.value }))}
                   rows={4}
                   maxLength={4000}
                   placeholder="Présentation de cette branche affichée sur le site public (partagée par toutes les unités de ce type)…"
-                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
               <div className="flex justify-end gap-2">

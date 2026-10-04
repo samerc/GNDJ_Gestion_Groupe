@@ -16,6 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { DateInput } from '@/components/shared/date-input'
+import { Textarea } from '@/components/ui/textarea'
+import { formatDate } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Star, Award, MapPin, Calendar, X } from 'lucide-react'
 
 // Sentinel for the "Général (hors unité)" option in the unit picker — a global-stage progression (no unit).
@@ -170,31 +175,29 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger">{error}</Callout>}
 
       {/* A member's pending progression proposals (awaiting CU/CG approval). */}
       {selfPropose && pendingProgressions.length > 0 && (
-        <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-3 text-sm">
-          <p className="font-medium text-amber-800 dark:text-amber-300">En attente d'acceptation</p>
-          <ul className="mt-1 space-y-0.5 text-amber-800 dark:text-amber-300">
+        <Callout tone="warning" title="En attente d'acceptation">
+          <ul className="space-y-0.5">
             {pendingProgressions.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>
-        </div>
+        </Callout>
       )}
 
       {/* A member's REJECTED progression proposals — shows the decision + reason so they aren't left guessing. */}
       {selfPropose && rejectedProgressions.length > 0 && (
-        <div className="rounded-md border border-red-300 dark:border-red-800 bg-red-50/70 dark:bg-red-950/30 p-3 text-sm">
-          <p className="font-medium text-red-800 dark:text-red-300">Proposition refusée</p>
-          <ul className="mt-1 space-y-1.5">
+        <Callout tone="danger" title="Proposition refusée">
+          <ul className="space-y-1.5">
             {rejectedProgressions.map(r => (
-              <li key={r.id} className="flex items-start justify-between gap-2 text-red-800 dark:text-red-300">
+              <li key={r.id} className="flex items-start justify-between gap-2">
                 <span>
                   • {r.summary}
-                  {r.decisionNotes && <span className="mt-0.5 block text-red-700/90 dark:text-red-300/90">Motif : {r.decisionNotes}</span>}
+                  {r.decisionNotes && <span className="mt-0.5 block text-muted-foreground">Motif : {r.decisionNotes}</span>}
                 </span>
-                <Tip content="Effacer">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" disabled={dismissMutation.isPending}
+                <Tip content="Masquer ce message">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label="Masquer ce message" disabled={dismissMutation.isPending}
                     onClick={() => dismissMutation.mutateAsync(r.id).then(() => toast.success('Message masqué')).catch(err => toast.error(parseApiError(err)))}>
                     <X className="h-4 w-4" />
                   </Button>
@@ -202,7 +205,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
               </li>
             ))}
           </ul>
-        </div>
+        </Callout>
       )}
 
       <Card>
@@ -216,7 +219,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
         </CardHeader>
         <CardContent>
           {!progressions || progressions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune progression enregistrée.</p>
+            <EmptyState icon={Star} title="Aucune progression enregistrée" />
           ) : (
             <div className="space-y-3">
               {progressions.map(p => (
@@ -232,7 +235,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                       {p.badgeName && <Badge variant="outline" className="gap-1"><Award className="h-3 w-3" />{p.badgeName}</Badge>}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(p.date).toLocaleDateString('fr-FR')}</span>
+                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(p.date)}</span>
                       {p.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{p.location}</span>}
                       <span>{p.unitName ?? 'Général'}</span>
                     </div>
@@ -240,10 +243,10 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
                   </div>
                   {canManage && (
                     <div className="flex shrink-0 gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(p)}>
+                      <Tip content="Modifier la progression"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier la progression" onClick={() => openEdit(p)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDeleting(p)}>
+                      <Tip content="Supprimer la progression"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer la progression" onClick={() => setDeleting(p)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button></Tip>
                     </div>
@@ -260,7 +263,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? 'Modifier la progression' : canManage ? 'Nouvelle progression' : 'Proposer une progression'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
 
             {/* Unit picker — record against the member's current unit OR a previous one (a stage/badge earned
                 before the member moved units). Changing the unit reloads that unit type's stages/badges. */}
@@ -303,7 +306,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel required>Date</RequiredLabel>
-                <Input type="date" value={form.date} onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))} required />
+                <DateInput value={form.date} onChange={(iso) => setForm(f => ({ ...f, date: iso ?? '' }))} />
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Lieu</RequiredLabel>
@@ -313,18 +316,18 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
             <div className="space-y-2">
               <RequiredLabel>Remarques</RequiredLabel>
-              <textarea className="flex min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
+              <Textarea className="min-h-16" value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>{canManage ? 'Enregistrer' : 'Proposer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>{createMutation.isPending || updateMutation.isPending || proposeMutation.isPending ? 'Enregistrement…' : canManage ? 'Enregistrer' : 'Proposer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer" description={`Supprimer cette progression ?`} confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
+      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la progression ?" description="Cette progression sera supprimée de la fiche du membre." confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete} />
     </div>
   )
 }

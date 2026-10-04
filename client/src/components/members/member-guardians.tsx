@@ -20,6 +20,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
+import { Callout } from '@/components/shared/callout'
+import { confirmAsync } from '@/lib/confirm'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SearchInput } from '@/components/shared/search-input'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { Plus, Pencil, Trash2, Phone, Mail, Search, UserPlus, Link, Users } from 'lucide-react'
 
 const RELATIONSHIP_OPTIONS = [
@@ -133,7 +138,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
       // Save the shared guardian fields and the per-member link separately (two endpoints).
       await updateMutation.mutateAsync({ id: editForm.id, firstName: editForm.firstName, lastName: editForm.lastName, profession: editForm.profession || null, professionDomain: editForm.professionDomain || null, isDeceased: editForm.isDeceased, notes: editForm.notes || null })
       await updateLinkMutation.mutateAsync({ linkId: editForm.linkId, relationshipType: editForm.relationshipType, isPrimaryContact: editForm.isPrimaryContact, isEmergencyContact: editForm.isEmergencyContact })
-      toast.success('Tuteur modifié')
+      toast.success('Parent enregistré')
       setEditDialogOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
@@ -219,10 +224,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
         {!readOnly && <Button size="sm" variant="outline" onClick={openAdd}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
       </CardHeader>
       <CardContent className="space-y-3">
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+        {error && <Callout tone="danger">{error}</Callout>}
 
         {!guardians || guardians.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">Aucun parent ou tuteur enregistré.</p>
+          <EmptyState icon={Users} title="Aucun parent ou tuteur enregistré" />
         ) : (
           guardians.map(gl => (
             <div key={gl.linkId} className="overflow-hidden rounded-md border">
@@ -250,10 +255,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                   </div>
                 </div>
                 {!readOnly && <div className="flex shrink-0 gap-1">
-                  <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(gl)}>
+                  <Tip content="Modifier le parent"><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Modifier le parent" onClick={() => openEdit(gl)}>
                     <Pencil className="h-4 w-4" />
                   </Button></Tip>
-                  <Tip content="Retirer le lien"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setUnlinking(gl)}>
+                  <Tip content="Retirer le lien"><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Retirer le lien" onClick={() => setUnlinking(gl)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button></Tip>
                 </div>}
@@ -286,10 +291,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                         {/* Copy + WhatsApp shortcuts — leaders only (hidden on the member's own Ma fiche). */}
                         {!selfService && <CopyButton value={formatPhoneDisplay(p.countryCode, p.number)} label="Copier le numéro" />}
                         {!selfService && <WhatsappLink countryCode={p.countryCode} number={p.number} />}
-                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditPhone({ id: p.id, countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary })}>
+                        <Tip content="Modifier le téléphone"><Button variant="ghost" size="icon" aria-label="Modifier le téléphone" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditPhone({ id: p.id, countryCode: p.countryCode, number: p.number, type: p.type, isPrimary: p.isPrimary })}>
                           <Pencil className="h-3 w-3" />
                         </Button></Tip>
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={() => deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer le téléphone"><Button variant="ghost" size="icon" aria-label="Supprimer le téléphone" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deletePhoneMutation.isPending} onClick={async () => (await confirmAsync({ title: 'Supprimer le téléphone ?', description: formatPhoneDisplay(p.countryCode, p.number), confirmLabel: 'Supprimer', destructive: true })) && deletePhoneMutation.mutateAsync(p.id).then(() => toast.success('Téléphone supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -320,10 +325,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                         </div>
                         {em.isPrimary && <Badge variant="outline" className="h-5 shrink-0 text-xs">Principal</Badge>}
                         {!selfService && <CopyButton value={em.address} label="Copier l'email" />}
-                        <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditEmail({ id: em.id, address: em.address, type: em.type, isPrimary: em.isPrimary })}>
+                        <Tip content="Modifier l'email"><Button variant="ghost" size="icon" aria-label="Modifier l'email" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditEmail({ id: em.id, address: em.address, type: em.type, isPrimary: em.isPrimary })}>
                           <Pencil className="h-3 w-3" />
                         </Button></Tip>
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Email supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer l'email"><Button variant="ghost" size="icon" aria-label="Supprimer l'email" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={async () => (await confirmAsync({ title: "Supprimer l'email ?", description: em.address, confirmLabel: 'Supprimer', destructive: true })) && deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Email supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -343,21 +348,19 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
           <DialogHeader><DialogTitle>Ajouter un parent ou tuteur</DialogTitle></DialogHeader>
           {/* The search/link-existing mode is leader-only; a member (selfService) only creates new. */}
           {!selfService && (
-            <div className="flex gap-2 mb-4">
-              <Button variant={mode === 'search' ? 'default' : 'outline'} size="sm" onClick={() => setMode('search')}>
-                <Search className="mr-1 h-3 w-3" />Rechercher
-              </Button>
-              <Button variant={mode === 'create' ? 'default' : 'outline'} size="sm" onClick={() => setMode('create')}>
-                <UserPlus className="mr-1 h-3 w-3" />Nouveau
-              </Button>
-            </div>
+            <SegmentedToggle
+              className="mb-4"
+              options={[{ value: 'search', label: 'Rechercher', icon: Search }, { value: 'create', label: 'Nouveau', icon: UserPlus }]}
+              value={mode}
+              onChange={setMode}
+            />
           )}
 
           {mode === 'search' && !selfService ? (
             <div className="space-y-4">
               <div className="space-y-2">
                 <RequiredLabel>Rechercher un parent existant</RequiredLabel>
-                <Input placeholder="Tapez un nom…" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+                <SearchInput placeholder="Tapez un nom…" value={searchText} onChange={setSearchText} />
               </div>
               {searchResults && searchResults.length > 0 && (
                 <div className="space-y-2 max-h-60 overflow-auto">
@@ -385,14 +388,16 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                 </div>
               )}
               {debouncedSearch.length >= 2 && (!searchResults || searchResults.length === 0) && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Aucun parent trouvé. <button type="button" className="text-primary underline" onClick={() => { setMode('create'); setForm(f => ({ ...f, lastName: searchText })) }}>Créer un nouveau</button>
-                </p>
+                <EmptyState
+                  icon={Search}
+                  title="Aucun parent trouvé"
+                  action={<Button type="button" size="sm" variant="outline" onClick={() => { setMode('create'); setForm(f => ({ ...f, lastName: searchText })) }}><UserPlus className="mr-1 h-3 w-3" />Créer un nouveau</Button>}
+                />
               )}
             </div>
           ) : (
             <form onSubmit={handleCreate} className="space-y-4">
-              {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              {error && <Callout tone="danger">{error}</Callout>}
               <FormFieldErrors show={hasErrors} />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -547,7 +552,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Modifier le parent</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>Prénom</RequiredLabel>
@@ -610,7 +615,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
       <ConfirmDialog
         open={!!unlinking}
         onOpenChange={() => setUnlinking(null)}
-        title="Retirer le lien"
+        title="Retirer le lien ?"
         description={`Retirer ${unlinking?.guardian.firstName} ${unlinking?.guardian.lastName} de cette famille ?`}
         confirmLabel="Retirer"
         variant="destructive"

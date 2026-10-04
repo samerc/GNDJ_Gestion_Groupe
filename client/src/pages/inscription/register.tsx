@@ -8,6 +8,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
+import { Callout } from '@/components/shared/callout'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { parseApiError } from '@/lib/error-utils'
@@ -59,7 +60,7 @@ export default function ApplicantRegisterPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <HoneypotField value={website} onChange={setWebsite} />
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <Label htmlFor="contactName">Votre nom (parent / responsable)</Label>
               <Input id="contactName" value={contactName} onChange={(e) => setContactName(e.target.value)} autoComplete="name" />
@@ -90,7 +91,7 @@ export default function ApplicantRegisterPage() {
               {loading ? 'Création…' : 'Créer mon compte'}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
-              Déjà un compte ?{' '}
+              Vous avez déjà un compte&nbsp;?{' '}
               <Link to="/inscription/login" className="text-primary hover:underline font-medium">Se connecter</Link>
             </p>
           </form>

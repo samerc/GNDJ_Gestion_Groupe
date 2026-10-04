@@ -120,7 +120,7 @@ export function DemandeGrid({ rows, units, reasons, classes, schools, onClose }:
     })
     await qc.invalidateQueries({ queryKey: ['demandes'] })
     setSaving(false)
-    if (errors.length === 0) toast.success(`${done.length} demande(s) enregistrée(s).`)
+    if (errors.length === 0) toast.success(`${done.length} demande(s) enregistrée(s)`)
     else toast.error(`${errors.length} erreur(s) — ${errors.slice(0, 3).join(' · ')}${errors.length > 3 ? '…' : ''}`, { duration: 10000 })
   }
 
@@ -135,11 +135,11 @@ export function DemandeGrid({ rows, units, reasons, classes, schools, onClose }:
   }
 
   const cell = 'h-8 w-full rounded border border-transparent bg-transparent px-1.5 text-sm hover:border-input focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60'
-  const changedCls = 'bg-amber-100 dark:bg-amber-900/40'
+  const changedCls = 'bg-warning-subtle'
 
   return (
     <div>
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b bg-amber-50 px-4 py-2 dark:bg-amber-950/40">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b bg-warning-subtle px-4 py-2">
         <span className="text-sm font-medium">Mode tableur</span>
         <span className="text-xs text-muted-foreground">
           Modifiez directement les cellules (Entrée = ligne suivante). Les cellules modifiées sont en jaune ; rien n'est enregistré avant « Enregistrer ».

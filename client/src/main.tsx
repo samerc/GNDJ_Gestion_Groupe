@@ -10,7 +10,7 @@ import { ErrorBoundary } from '@/components/shared/error-boundary'
 import { reportClientError, isBenignError } from '@/lib/error-report'
 import { queryClient } from '@/lib/query-client'
 import { initPwa } from '@/lib/pwa'
-import { ConfirmHost } from '@/components/shared/confirm-host'
+import { ConfirmHostGate } from '@/components/shared/confirm-host-gate'
 import { Toaster } from 'sonner'
 
 // PWA: capture the install prompt, listen for install, register the service worker (installability).
@@ -34,7 +34,7 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <App />
-        <ConfirmHost />
+        <ConfirmHostGate />
         {/* The ONE toast area for every page (app, portal, public site, sign-in pages). */}
         <Toaster richColors position="top-center" />
       </QueryClientProvider>

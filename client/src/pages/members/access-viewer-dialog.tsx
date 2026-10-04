@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
 import { useMemberEffectiveAccess, type MemberEffectiveAccess, type AccessDomain } from '@/services/member-service'
 import { cn } from '@/lib/utils'
 import { Crown, MapPin, TriangleAlert, ChevronRight } from 'lucide-react'
@@ -71,10 +72,9 @@ export function AccessViewerDialog({ memberId, memberName, open, onOpenChange }:
         </DialogHeader>
 
         {isLoading || !data ? <LoadingSpinner variant="form" /> : data.isSuperAdmin ? (
-          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40">
-            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
-            <p className="text-sm"><span className="font-medium">Super-administrateur</span> — accès total à toutes les fonctionnalités et toutes les unités.</p>
-          </div>
+          <Callout tone="warning" icon={Crown}>
+            <span className="font-medium">Super-administrateur</span> — accès total à toutes les fonctionnalités et toutes les unités.
+          </Callout>
         ) : (
           <div className="space-y-3">
             {/* Scope */}
@@ -88,10 +88,9 @@ export function AccessViewerDialog({ memberId, memberName, open, onOpenChange }:
 
             {/* maitrise.manage master-key note (honest until the coupling is removed in a later step) */}
             {data.maitriseManageBypass && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs dark:border-amber-900 dark:bg-amber-950/40">
-                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
-                <span>Détient <span className="font-medium">maîtrise.manage</span> : accès à toutes les fiches membres, quel que soit le niveau « Membres » réglé par domaine.</span>
-              </div>
+              <Callout tone="warning" icon={TriangleAlert}>
+                Détient <span className="font-medium">maîtrise.manage</span> : accès à toutes les fiches membres, quel que soit le niveau « Membres » réglé par domaine.
+              </Callout>
             )}
 
             {data.domains.length === 0 ? (

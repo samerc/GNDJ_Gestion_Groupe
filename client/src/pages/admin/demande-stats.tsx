@@ -54,7 +54,7 @@ function BarList({ items, labelOf, max = 8 }: { items: CountItem[]; labelOf?: (l
         ([label, count]) => ({ label, count }),
       ).sort((a, b) => b.count - a.count)
     : items.map((i) => ({ label: i.label, count: i.count }))
-  if (!rows.length) return <p className="text-sm text-muted-foreground">Aucune donnée.</p>
+  if (!rows.length) return <EmptyState icon={BarChart3} title="Aucune donnée" />
   // Bound very long lists (école/ville can have many values): keep the top `max`, roll the rest into "Autres".
   if (rows.length > max) {
     const head = rows.slice(0, max)
@@ -109,12 +109,9 @@ export default function DemandeStatsPage() {
   })
   const changeTab = (v: string) => { setTab(v); try { localStorage.setItem('demandeStats.tab', v) } catch { /* private mode */ } }
 
-  if (isLoading) return <LoadingSpinner variant="page" />
-  if (!stats) return null
-
   // Acceptance rate is over DECIDED demandes (not total) so pending ones don't drag it down; null until any decided.
-  const acceptanceRate = stats.decided > 0 ? Math.round((stats.approved / stats.decided) * 100) : null
-  const decidedPct = stats.total > 0 ? Math.round((stats.decided / stats.total) * 100) : 0
+  const acceptanceRate = stats && stats.decided > 0 ? Math.round((stats.approved / stats.decided) * 100) : null
+  const decidedPct = stats && stats.total > 0 ? Math.round((stats.decided / stats.total) * 100) : 0
   const occList = (occupancy ?? []).slice().sort((a, b) => a.unitCode.localeCompare(b.unitCode))
 
   return (
@@ -130,7 +127,9 @@ export default function DemandeStatsPage() {
         }
       />
 
-      {stats.total === 0 ? (
+      {isLoading ? (
+        <LoadingSpinner variant="page" />
+      ) : !stats ? null : stats.total === 0 ? (
         <EmptyState icon={Inbox} title="Aucune demande soumise" description={`Aucune demande pour l'année ${scoutYear} pour l'instant.`} />
       ) : (
         <Tabs value={tab} onValueChange={changeTab} className="space-y-5">
@@ -223,7 +222,7 @@ export default function DemandeStatsPage() {
                 <CardTitle className="flex items-center gap-2 text-base"><Users2 className="h-4 w-4" />Capacité (projetée après passage)</CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto">
-                {occList.length === 0 ? <p className="text-sm text-muted-foreground">Aucune unité.</p> : (
+                {occList.length === 0 ? <EmptyState icon={Users2} title="Aucune unité" /> : (
                   <table className="w-full min-w-[640px] text-sm">
                     <thead><tr className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <th className="px-3 py-2 text-left">Unité</th><th className="px-3 py-2">Actuels</th>

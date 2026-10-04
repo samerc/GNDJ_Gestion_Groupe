@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { formatDateTime } from '@/lib/utils'
 import { SearchInput } from '@/components/shared/search-input'
 import { ScrollText, Eye, Trash2, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -101,8 +103,8 @@ export default function AuditLogsPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Journal d'audit" icon={ScrollText} actions={headerActions} />
+    <Page>
+      <PageHeader title="Journal d'audit" icon={ScrollText} description="Historique des modifications faites dans l'application." actions={headerActions} />
 
       {/* Free-text search — matches user, IP, action, entity and the before/after snapshots (accent-insensitive),
           so a member/unit name finds every action touching it. */}
@@ -175,7 +177,7 @@ export default function AuditLogsPage() {
                   <div className="flex items-center justify-between gap-2">
                     <Badge variant="secondary" className={info.color}>{info.label}</Badge>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(log.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTime(log.timestamp)}
                     </span>
                   </div>
                   <p className="mt-1.5 text-sm">
@@ -206,7 +208,7 @@ export default function AuditLogsPage() {
                   return (
                     <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50 even:bg-muted/30" onClick={() => setDetail(log)}>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(log.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {formatDateTime(log.timestamp)}
                       </TableCell>
                       <TableCell className="text-sm">{log.userEmail ?? '—'}</TableCell>
                       <TableCell>
@@ -258,7 +260,7 @@ export default function AuditLogsPage() {
           {detail && (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-                <Field label="Date">{new Date(detail.timestamp).toLocaleString('fr-FR')}</Field>
+                <Field label="Date">{formatDateTime(detail.timestamp)}</Field>
                 <Field label="Utilisateur">{detail.userEmail ?? '—'}</Field>
                 <Field label="Action">{actionMeta(detail.action).label}</Field>
                 <Field label="Entité">{entityLabel(detail.entityType)}{(() => { const s = entitySummary(detail); return s ? ` — ${s}` : '' })()}</Field>
@@ -291,6 +293,6 @@ export default function AuditLogsPage() {
         loading={clearLogs.isPending}
         onConfirm={handleClear}
       />
-    </div>
+    </Page>
   )
 }

@@ -5,14 +5,10 @@ import { usePublicNews } from '@/services/news-service'
 import { usePublicEvents } from '@/services/events-service'
 import { formatDateLong as formatDate } from '@/lib/utils'
 import { Seo } from '@/components/public/seo'
+import { GROUP_NAME } from '@/lib/constants'
 
 // Icons paired positionally with the CMS-defined home.values entries (1st value → Heart, etc.).
 const VALUE_ICONS = [Heart, Tent, Users]
-
-// Event start/end dates are DateOnly (yyyy-MM-dd) — parse the parts directly (like the agenda page) instead
-// of `new Date()`, which would apply the browser timezone and can shift the displayed day by one.
-const EVENT_MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-function formatEventDate(iso: string) { const [y, m, d] = iso.split('-').map(Number); return `${d} ${EVENT_MONTHS[m - 1]} ${y}` }
 
 // Public landing page at `/` — the anonymous visitor's first screen. Mixes CMS-editable copy
 // (hero / values / stats / CTA, all from the `site.content` setting) with LIVE data sections
@@ -66,7 +62,7 @@ export default function PublicHomePage() {
               </span>
             )}
             <h1 className="mt-6 text-balance text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
-              {home?.heroTitle ?? 'Groupe Notre-Dame Jamhour'}
+              {home?.heroTitle ?? GROUP_NAME}
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-lg leading-relaxed text-white/85">{home?.heroSubtitle}</p>
             {/* Hero actions — the ONLY place (with the footer) that surfaces Demande / Espace membres, now that
@@ -102,7 +98,7 @@ export default function PublicHomePage() {
               <div className="relative">
                 <img
                   src={heroImage}
-                  alt="Le Groupe Notre-Dame de Jamhour"
+                  alt={`Le ${GROUP_NAME}`}
                   className="aspect-[4/3] w-full rounded-2xl object-cover shadow-elevated ring-1 ring-white/25"
                 />
               </div>
@@ -161,7 +157,7 @@ export default function PublicHomePage() {
                 <div>
                   <div className="mb-5 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-semibold"><Newspaper className="h-5 w-5 text-primary/70" /> Dernières nouvelles</h3>
-                    <Link to="/actualites" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Toutes <ArrowRight className="h-4 w-4" /></Link>
+                    <Link to="/actualites" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Toutes les actualités <ArrowRight className="h-4 w-4" /></Link>
                   </div>
                   <div className="space-y-3">
                     {latestNews.map((post) => (
@@ -187,13 +183,13 @@ export default function PublicHomePage() {
                 <div>
                   <div className="mb-5 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-semibold"><CalendarDays className="h-5 w-5 text-primary/70" /> Prochains rendez-vous</h3>
-                    <Link to="/agenda" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Agenda <ArrowRight className="h-4 w-4" /></Link>
+                    <Link to="/agenda" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Tout l'agenda <ArrowRight className="h-4 w-4" /></Link>
                   </div>
                   <div className="space-y-3">
                     {upcomingEvents.map((ev) => (
                       <Link key={ev.slug} to={`/agenda/${ev.slug}`} className="group flex flex-col rounded-2xl border border-border bg-background p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                          <CalendarDays className="h-3.5 w-3.5" /> {formatEventDate(ev.startDate)}{ev.endDate ? ` → ${formatEventDate(ev.endDate)}` : ''}
+                          <CalendarDays className="h-3.5 w-3.5" /> {ev.endDate ? `Du ${formatDate(ev.startDate)} au ${formatDate(ev.endDate)}` : formatDate(ev.startDate)}
                         </span>
                         <h4 className="mt-1 font-semibold leading-snug line-clamp-2">{ev.title}</h4>
                         {(ev.timeLabel || ev.location) && (

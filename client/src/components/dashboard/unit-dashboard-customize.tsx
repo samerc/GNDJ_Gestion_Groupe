@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { useUpdateUnitDashboardPrefs } from '@/services/dashboard-service'
@@ -104,15 +105,11 @@ function CustomizeBody({ prefs, cardsEnabled, onClose }: { prefs: UnitDashboardP
         {/* Grouping */}
         <section>
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Regroupement</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {([['team', 'Par équipe'], ['alpha', 'Liste alphabétique']] as [RosterGrouping, string][]).map(([v, label]) => (
-              <button key={v} type="button" onClick={() => setDraft(d => ({ ...d, grouping: v }))}
-                className={cn('rounded-lg border px-3 py-2 text-sm transition-colors',
-                  draft.grouping === v ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted')}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedToggle<RosterGrouping>
+            options={[{ value: 'team', label: 'Par équipe' }, { value: 'alpha', label: 'Liste alphabétique' }]}
+            value={draft.grouping}
+            onChange={(v) => setDraft(d => ({ ...d, grouping: v }))}
+          />
         </section>
       </div>
 

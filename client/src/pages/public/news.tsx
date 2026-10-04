@@ -6,6 +6,8 @@ import { PageHero } from '@/components/public/page-hero'
 import { usePublicNews, type NewsFilter, type PublicNewsItem } from '@/services/news-service'
 import { usePublicUnits } from '@/services/public-service'
 import { Seo } from '@/components/public/seo'
+import { PublicPagination } from '@/components/public/pagination'
+import { EmptyState } from '@/components/shared/empty-state'
 
 // Cover area for a card: the post's image when set, else the branded gradient + icon placeholder.
 function Cover({ post, className }: { post: PublicNewsItem; className?: string }) {
@@ -33,7 +35,7 @@ function NewsCard({ post }: { post: PublicNewsItem }) {
         <h3 className="mt-1.5 font-semibold leading-snug">{post.title}</h3>
         {post.excerpt && <p className="mt-2 flex-1 text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>}
         <span className="mt-3 inline-flex items-center text-sm font-medium text-primary">
-          Lire <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          Lire l'article <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>
     </Link>
@@ -104,14 +106,13 @@ export default function PublicNewsPage() {
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-72 animate-pulse rounded-2xl border border-border bg-card" />)}
           </div>
         ) : isError ? (
-          <p className="text-muted-foreground">Impossible de charger les actualités pour le moment.</p>
+          <EmptyState icon={Newspaper} title="Impossible de charger les actualités" description="Veuillez réessayer dans un instant." />
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <Newspaper className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">
-              {isActive({}) ? 'Aucune actualité pour le moment. Les premières nouvelles arrivent bientôt !' : 'Aucune actualité pour cette sélection.'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Newspaper}
+            title="Aucune actualité"
+            description={isActive({}) ? 'Les premières nouvelles arrivent bientôt !' : 'Aucune actualité pour cette sélection.'}
+          />
         ) : (
           <>
             {featured && <FeaturedCard post={featured} />}
@@ -121,14 +122,9 @@ export default function PublicNewsPage() {
               </div>
             )}
 
-            {data && data.totalPages > 1 && (
-              <div className="mt-10 flex items-center justify-center gap-3">
-                <button disabled={!data.hasPreviousPage} onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Précédent</button>
-                <span className="text-sm text-muted-foreground">Page {data.page} / {data.totalPages}</span>
-                <button disabled={!data.hasNextPage} onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Suivant</button>
-              </div>
+            {data && (
+              <PublicPagination page={data.page} totalPages={data.totalPages} hasPreviousPage={data.hasPreviousPage}
+                hasNextPage={data.hasNextPage} onPageChange={setPage} />
             )}
           </>
         )}

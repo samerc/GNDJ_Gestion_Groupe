@@ -22,10 +22,13 @@ import { cn } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { SearchInput } from '@/components/shared/search-input'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { NATIONALITY_OPTIONS, PHONE_COUNTRY_CODES, COUNTRY_OPTIONS } from '@/lib/options'
-import { Save, X, Settings2, Search, Plus, Trash2, Star, ChevronRight, ArrowLeft, Users, Home, FileText, Coins, ArrowRightLeft, Tent, Inbox, LogIn, Mail, ShieldCheck, Wrench, SlidersHorizontal, Globe, List, Building2, TextCursorInput, CreditCard, Server, MailOpen, Palette, KeyRound, type LucideIcon } from 'lucide-react'
+import { Save, Settings2, Plus, Trash2, Star, ChevronRight, ArrowLeft, Users, Home, FileText, Coins, ArrowRightLeft, Tent, Inbox, LogIn, Mail, ShieldCheck, Wrench, SlidersHorizontal, Globe, List, Building2, TextCursorInput, CreditCard, Server, MailOpen, Palette, KeyRound, type LucideIcon } from 'lucide-react'
 import { useMobileDetail } from '@/hooks/use-mobile-detail'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -336,7 +339,7 @@ function CurrenciesEditor({ defaultCurrency, ratesJson, symbolsJson }: { default
 
   return (
     <div className="space-y-2">
-      {err && <p className="text-sm text-destructive">{err}</p>}
+      {err && <Callout tone="danger">{err}</Callout>}
       <div className="hidden items-center gap-2 px-1 text-xs text-muted-foreground sm:flex">
         <span className="w-9 shrink-0" /><span className="w-24">Devise</span><span className="w-5" /><span className="w-40">Taux de change</span><span className="w-28">Symbole</span>
       </div>
@@ -402,13 +405,13 @@ function AssociationAmountsEditor({ value, onChange }: { value: string; onChange
   }
 
   if (associations.length === 0)
-    return <p className="text-sm text-muted-foreground">Aucune association. Créez-en d'abord dans Paramètres → Associations.</p>
+    return <EmptyState icon={Building2} title="Aucune association" description="Créez-en d'abord dans Paramètres → Associations." />
 
   return (
     <div className="space-y-2">
       {associations.map(a => (
-        <div key={a.id} className="flex items-center gap-2">
-          <span className="w-48 shrink-0 truncate text-sm" title={a.name}>{a.name}</span>
+        <div key={a.id} className="flex flex-wrap items-center gap-2">
+          <span className="w-full truncate text-sm sm:w-48 sm:shrink-0" title={a.name}>{a.name}</span>
           <AmountInput className="w-40" placeholder="Montant"
             value={amounts[a.id] ?? ''} onValueChange={(n) => commit({ ...amounts, [a.id]: n > 0 ? String(n) : '' })} />
           <span className="text-sm text-muted-foreground">{defaultCurrency}</span>
@@ -454,11 +457,7 @@ function ArrayTableEditor({ items, options, onChange }: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-muted-foreground">{items.length} valeur{items.length > 1 ? 's' : ''}</span>
         {items.length > 8 && (
-          <div className="relative w-full max-w-[16rem]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Filtrer la liste…" value={filter} onChange={(e) => setFilter(e.target.value)} className="pl-9 pr-8" />
-            {filter && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setFilter('')}><X className="h-3.5 w-3.5" /></button>}
-          </div>
+          <SearchInput value={filter} onChange={setFilter} placeholder="Filtrer la liste…" className="w-full max-w-[16rem]" />
         )}
       </div>
 
@@ -498,19 +497,10 @@ function LoginSettingsTabs({ settings, onSave }: { settings: SettingDto[]; onSav
   const applicant = settings.find(s => s.key === 'login.applicant_messages')
   const [tab, setTab] = useState<'member' | 'applicant'>('member')
   const active = tab === 'member' ? member : applicant
-  const tabBtn = (v: 'member' | 'applicant', label: string) => (
-    <button type="button" onClick={() => setTab(v)}
-      className={cn('rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
-        tab === v ? 'bg-background text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}>
-      {label}
-    </button>
-  )
   return (
     <div>
-      <div className="mb-5 inline-flex rounded-lg border border-border bg-muted/40 p-1">
-        {tabBtn('member', 'Membres')}
-        {tabBtn('applicant', 'Inscription')}
-      </div>
+      <SegmentedToggle className="mb-5" value={tab} onChange={setTab}
+        options={[{ value: 'member', label: 'Membres' }, { value: 'applicant', label: 'Inscription' }]} />
       {active && <SettingEditor setting={active} onSave={onSave} />}
     </div>
   )
@@ -571,6 +561,8 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
       await onSave(setting.key, raw)
       toast.success('Paramètre enregistré')
       setSaved(true); setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      toast.error(parseApiError(e))
     } finally { setSaving(false) }
   }
 
@@ -784,6 +776,7 @@ export default function SettingsPage() {
         <PageHeader
           title="Paramètres"
           icon={Settings2}
+          description="Réglages du groupe et pages de configuration."
           actions={<SearchInput value={query} onChange={setQuery} placeholder="Rechercher un paramètre…" className="w-full sm:max-w-xs" />}
         />
       </div>
@@ -805,7 +798,7 @@ export default function SettingsPage() {
         <ConfigIssuesBanner issues={settingsCheck} onOpenTab={(t) => { setQuery(''); selectSection(t) }} />
       </div>
 
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger">{error}</Callout>}
 
       {q ? (
         <div className="rounded-xl border border-border bg-card p-5 shadow-card">

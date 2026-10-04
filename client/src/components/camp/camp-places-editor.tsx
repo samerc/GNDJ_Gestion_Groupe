@@ -1,9 +1,11 @@
 // Editor for the camp.places setting (Paramètres → Camp BP): one row per place — name, usable as lieu A and/or
 // lieu B, and how many games it hosts at the same time. Staged: the settings row's Enregistrer button saves.
 import { useMemo, useState } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Tip } from '@/components/ui/tooltip'
+import { SearchInput } from '@/components/shared/search-input'
 import { parsePlaces, type CampPlace } from '@/lib/camp-places'
 
 export function CampPlacesEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
@@ -24,10 +26,7 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filtrer…" className="pl-8" />
-        </div>
+        <SearchInput value={filter} onChange={setFilter} placeholder="Filtrer les lieux…" className="w-full max-w-xs" />
         <span className="text-xs text-muted-foreground">{places.length} lieux · {countA} lieux A · {countB} lieux B</span>
       </div>
       <div className="max-h-[60vh] overflow-auto rounded-lg border">
@@ -52,9 +51,11 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
                     onChange={e => patch(i, { capacity: Math.min(25, Math.max(1, Number(e.target.value) || 1)) })} />
                 </td>
                 <td className="px-1 py-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => set(places.filter((_, j) => j !== i))} aria-label={`Supprimer ${p.name}`}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Tip content="Supprimer le lieu">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => set(places.filter((_, j) => j !== i))} aria-label={`Supprimer ${p.name}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </Tip>
                 </td>
               </tr>
             ))}

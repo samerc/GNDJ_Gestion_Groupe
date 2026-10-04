@@ -2,7 +2,8 @@ import { useRef, useState } from 'react'
 import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import { saveBlob } from '@/lib/download'
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { Callout } from '@/components/shared/callout'
 import {
   usePreviewMemberImport, useCommitMemberImport, type MemberImportPreview, type MemberImportResult,
 } from '@/services/member-service'
@@ -25,7 +26,7 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
   const downloadTemplate = () => {
     apiClient.get('/members/import/template', { responseType: 'blob' })
       .then(r => saveBlob(r.data, 'modele-import-membres.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'))
-      .catch(e => toast.error(parseApiError(e)))
+      .catch(async e => toast.error(await parseBlobError(e)))
   }
 
   const onPick = (f: File | null) => {
@@ -73,9 +74,9 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
 
             {/* File-level errors */}
             {preview?.fileErrors && preview.fileErrors.length > 0 && (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <Callout tone="danger">
                 {preview.fileErrors.map((e, i) => <p key={i}>{e}</p>)}
-              </div>
+              </Callout>
             )}
 
             {/* Preview table */}
@@ -120,9 +121,9 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
               <span><span className="font-semibold">{result.created}</span> membre(s) importé(s){result.failed > 0 && <>, <span className="font-semibold text-amber-600 dark:text-amber-400">{result.failed}</span> en échec</>}.</span>
             </div>
             {result.errors.length > 0 && (
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-300">
+              <Callout tone="warning" className="max-h-64 overflow-y-auto text-xs">
                 {result.errors.map((e, i) => <p key={i}>{e}</p>)}
-              </div>
+              </Callout>
             )}
           </div>
         )}

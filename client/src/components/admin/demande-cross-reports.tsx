@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { saveBlob } from '@/lib/download'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { Table2, Download, ArrowRightLeft, Percent, Hash } from 'lucide-react'
 
 // A pivot dimension: how to bucket a demande + an optional preferred label order (labels not listed sort by count).
@@ -214,16 +215,15 @@ export function DemandeCrossReports({ rows, branches, schoolCode }: {
               </Select>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <div className="flex overflow-hidden rounded-md border">
-                <button type="button" onClick={() => setMode('count')}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 text-xs ${mode === 'count' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
-                  <Hash className="h-3.5 w-3.5" />Nombre
-                </button>
-                <button type="button" onClick={() => setMode('pct')}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 text-xs ${mode === 'pct' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
-                  <Percent className="h-3.5 w-3.5" />%
-                </button>
-              </div>
+              <SegmentedToggle
+                size="sm"
+                value={mode}
+                onChange={setMode}
+                options={[
+                  { value: 'count', label: 'Nombre', icon: Hash },
+                  { value: 'pct', label: '%', icon: Percent },
+                ]}
+              />
               <Button variant="outline" size="sm" onClick={() => exportPivotCsv(custom, rowDim.label, colDim.label, `demandes-${rowDim.key}-${colDim.key}.csv`)}>
                 <Download className="mr-1.5 h-3.5 w-3.5" />CSV
               </Button>

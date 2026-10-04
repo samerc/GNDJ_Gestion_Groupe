@@ -19,12 +19,17 @@ import { defaultPaymentLine, amountOnCurrencyChange, currencyLabel, fullAmountFo
 import { useCurrencies } from '@/hooks/use-currencies'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useQueryClient } from '@tanstack/react-query'
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { confirmAsync } from '@/lib/confirm'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
-import { formatMoney, cn } from '@/lib/utils'
+import { formatMoney, formatDate, cn } from '@/lib/utils'
 import { SearchInput } from '@/components/shared/search-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { DateInput } from '@/components/shared/date-input'
+import { RequiredLabel } from '@/components/shared/required-label'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { AmountInput } from '@/components/ui/amount-input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -129,13 +134,14 @@ export default function CotisationDashboardPage() {
     try {
       const res = await downloadReceipt(m.cotisationId)
       saveBlob(res.data, `Recu_${m.receiptNumber || m.memberName}.pdf`, 'application/pdf')
-    } catch {
-      toast.error('Impossible de télécharger le reçu.')
+    } catch (err) {
+      toast.error(await parseBlobError(err))
     }
   }
 
   const submitPayment = async () => {
     if (!payFor) return
+    if (!payDate) { toast.error('Indiquez la date du paiement.'); return }
     const payments = payLines.map(l => ({ amount: parseFloat(l.amount), currency: l.currency, paymentMethod: l.paymentMethod }))
     if (payments.length === 0 || payments.some(p => !(p.amount > 0))) {
       toast.error('Chaque ligne doit avoir un montant supérieur à 0.'); return
@@ -174,6 +180,12 @@ export default function CotisationDashboardPage() {
 
   // Remove an exemption straight from the "Exemptés" list (member goes back to "à relancer").
   const removeExempt = async (m: ExemptCotisationDto) => {
+    if (!(await confirmAsync({
+      title: "Retirer l'exemption ?",
+      description: `${m.memberName} ne sera plus marqué(e) « ne paiera pas » pour ${scoutYear} et reviendra dans la liste « À relancer ».`,
+      confirmLabel: "Retirer l'exemption",
+      destructive: true,
+    }))) return
     try {
       await setExempt.mutateAsync({ memberId: m.memberId, scoutYear, willNotPay: false })
       toast.success(`Exemption retirée — ${m.memberName}`)
@@ -264,8 +276,6 @@ export default function CotisationDashboardPage() {
     saveBlob(csv, `impayes_cotisations_${scoutYear}.csv`, 'text/csv;charset=utf-8')
   }
 
-  if (isLoading) return <LoadingSpinner variant="page" />
-
   const paidPercentage = summary && summary.totalActiveMembers > 0
     ? Math.round((summary.membersWithPayment / summary.totalActiveMembers) * 100)
     : 0
@@ -276,8 +286,9 @@ export default function CotisationDashboardPage() {
   return (
     <Page>
       <PageHeader
-        title="Tableau de bord — Cotisations"
+        title="Cotisations"
         icon={Receipt}
+        description="Suivi des paiements par unité et montants dus aux associations."
         actions={<div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Année scoute :</span>
           <Select value={scoutYear} onValueChange={setScoutYear}>
@@ -286,6 +297,8 @@ export default function CotisationDashboardPage() {
           </Select>
         </div>}
       />
+
+      {isLoading && <LoadingSpinner variant="page" />}
 
       {summary && (
         <>
@@ -404,7 +417,7 @@ export default function CotisationDashboardPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               {summary.byUnit.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune donnée.</p>
+                <EmptyState icon={Receipt} title="Aucune donnée pour cette année" />
               ) : (
                 <>
                   {/* Phone: one compact unit picker instead of the tiles (18 tiles would fill several screens). */}
@@ -447,19 +460,19 @@ export default function CotisationDashboardPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold">{selUnit === 'all' ? 'Toutes les unités' : selUnit}</span>
-                        <div className="inline-flex rounded-md border bg-background no-print">
-                          {([
+                        <SegmentedToggle
+                          className="no-print"
+                          value={listTab}
+                          onChange={setListTab}
+                          options={([
                             ['relance', 'À relancer', lists.relance.length],
                             ['paid', 'Ont payé', lists.paid.length],
                             ['exempt', 'Exemptés', lists.exempt.length],
-                          ] as const).map(([k, label, n], i) => (
-                            <button key={k} type="button" onClick={() => setListTab(k)}
-                              className={cn('px-3 py-1.5 text-sm transition-colors', i > 0 && 'border-l',
-                                listTab === k ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}>
-                              {label} <span className={cn('ml-1 text-xs', listTab === k ? 'opacity-90' : 'text-muted-foreground')}>{n}</span>
-                            </button>
-                          ))}
-                        </div>
+                          ] as const).map(([k, label, n]) => ({
+                            value: k,
+                            label: <>{label} <span className="text-xs text-muted-foreground">{n}</span></>,
+                          }))}
+                        />
                       </div>
                       <SearchInput value={memberSearch} onChange={setMemberSearch} placeholder="Rechercher un membre…" className="w-full sm:w-60 no-print" />
                     </div>
@@ -467,7 +480,7 @@ export default function CotisationDashboardPage() {
                     {/* Own scroll area so a long list (all units = 1000+ members) never buries the tiles; full on paper. */}
                     <div className="max-h-[65vh] divide-y overflow-y-auto print:max-h-none print:overflow-visible">
                       {listTab === 'relance' && (lists.relance.length === 0
-                        ? <p className="p-6 text-center text-sm text-muted-foreground">{memberSearch ? 'Aucun membre trouvé.' : 'Personne à relancer. 🎉'}</p>
+                        ? <EmptyState icon={memberSearch ? Users : CheckCircle} title={memberSearch ? 'Aucun membre trouvé' : 'Personne à relancer'} />
                         : lists.relance.map(m => (
                           <div key={m.memberId} className="grid gap-2 px-3 py-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto] md:items-center">
                             <MemberCell name={m.memberName} unit={selUnit === 'all' ? m.unitName : null} onOpen={() => navigate(`/members/${m.memberId}`)} sub={m.parentName ? `Père : ${m.parentName}` : null} />
@@ -502,12 +515,12 @@ export default function CotisationDashboardPage() {
                               {m.status === 'Partial' ? (
                                 // A partial payer already has a cotisation row — the inline create would reject a
                                 // duplicate, so the CG completes it from the member file.
-                                <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => navigate(`/members/${m.memberId}`)}>
+                                <Button size="sm" variant="success" className="h-8" onClick={() => navigate(`/members/${m.memberId}`)}>
                                   <Receipt className="mr-1 h-3.5 w-3.5" /> Compléter
                                 </Button>
                               ) : (
                                 <>
-                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500" onClick={() => openPayDialog(m)}>
+                                  <Button size="sm" variant="success" className="h-8" onClick={() => openPayDialog(m)}>
                                     <Receipt className="mr-1 h-3.5 w-3.5" /> Paiement
                                   </Button>
                                   <Button size="sm" variant="outline" className="h-8" onClick={() => openExemptDialog(m)} disabled={setExempt.isPending}>
@@ -520,11 +533,11 @@ export default function CotisationDashboardPage() {
                         )))}
 
                       {listTab === 'paid' && (lists.paid.length === 0
-                        ? <p className="p-6 text-center text-sm text-muted-foreground">{memberSearch ? 'Aucun membre trouvé.' : 'Aucun paiement enregistré.'}</p>
+                        ? <EmptyState icon={memberSearch ? Users : Receipt} title={memberSearch ? 'Aucun membre trouvé' : 'Aucun paiement enregistré'} />
                         : lists.paid.map(m => (
                           <div key={m.memberId} className="grid gap-2 px-3 py-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.5fr)_auto] md:items-center">
                             <MemberCell name={m.memberName} unit={selUnit === 'all' ? m.unitName : null} onOpen={() => navigate(`/members/${m.memberId}`)}
-                              sub={`Payé le ${new Date(m.paymentDate).toLocaleDateString('fr-FR')}`} />
+                              sub={`Payé le ${formatDate(m.paymentDate)}`} />
                             <div className="flex flex-col gap-0.5 text-sm">
                               {m.totals.length > 0 ? m.totals.map(t => <span key={t.currency} className="font-medium">{formatMoney(t.total, t.currency)}</span>) : <span className="text-muted-foreground">—</span>}
                               {m.totals.length > 1 && m.equivalentReference > 0 && (
@@ -550,7 +563,7 @@ export default function CotisationDashboardPage() {
                         )))}
 
                       {listTab === 'exempt' && (lists.exempt.length === 0
-                        ? <p className="p-6 text-center text-sm text-muted-foreground">{memberSearch ? 'Aucun membre trouvé.' : 'Aucun membre exempté.'}</p>
+                        ? <EmptyState icon={memberSearch ? Users : Ban} title={memberSearch ? 'Aucun membre trouvé' : 'Aucun membre exempté'} />
                         : lists.exempt.map(m => (
                           <div key={m.memberId} className="grid gap-2 px-3 py-2.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,2.5fr)_auto] md:items-center">
                             <MemberCell name={m.memberName} unit={selUnit === 'all' ? m.unitName : null} onOpen={() => navigate(`/members/${m.memberId}`)} />
@@ -581,12 +594,15 @@ export default function CotisationDashboardPage() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Dû aux associations</CardTitle>
               {/* Segmented toggle: base the amount owed on everyone, or only on those who paid. */}
-              <div className="inline-flex rounded-md border no-print">
-                <Button variant={duesMode === 'all' ? 'default' : 'ghost'} size="sm" className="rounded-r-none"
-                  onClick={() => setDuesMode('all')}>Tous les membres</Button>
-                <Button variant={duesMode === 'paid' ? 'default' : 'ghost'} size="sm" className="rounded-l-none border-l"
-                  onClick={() => setDuesMode('paid')}>Membres ayant payé</Button>
-              </div>
+              <SegmentedToggle
+                className="no-print"
+                value={duesMode}
+                onChange={setDuesMode}
+                options={[
+                  { value: 'all', label: 'Tous les membres' },
+                  { value: 'paid', label: 'Membres ayant payé' },
+                ]}
+              />
             </div>
           </CardHeader>
           <CardContent>
@@ -615,7 +631,7 @@ export default function CotisationDashboardPage() {
                         <td className="px-3 py-2 text-right">
                           {a.amountPerMember > 0
                             ? formatMoney(a.amountPerMember, dues.currency)
-                            : <span className="text-orange-600 dark:text-orange-400" title="Aucun montant configuré pour cette association">— à définir</span>}
+                            : <span className="text-warning">— à définir</span>}
                         </td>
                         <td className="px-3 py-2 text-center">{members}</td>
                         <td className="px-3 py-2 text-right font-semibold">{formatMoney(total, dues.currency)}</td>
@@ -659,12 +675,12 @@ export default function CotisationDashboardPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Date</label>
-              <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="w-full sm:w-48" />
+              <RequiredLabel required>Date</RequiredLabel>
+              <DateInput value={payDate} onChange={iso => setPayDate(iso ?? '')} className="w-full sm:w-48" />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Lignes de paiement</label>
+              <RequiredLabel required>Lignes de paiement</RequiredLabel>
               {fullPriceHint && <p className="text-xs text-muted-foreground">Cotisation pleine : {fullPriceHint}</p>}
               {payLines.map((line, i) => (
                 // Mobile: amount on its own line, then devise + méthode + supprimer in a row below (so the fixed
@@ -736,9 +752,9 @@ export default function CotisationDashboardPage() {
               Ce membre sera marqué « ne paiera pas » pour {scoutYear} et retiré de la liste des impayés.
             </p>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Raison <span className="font-normal text-muted-foreground">(optionnel)</span></label>
-              <textarea
-                className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <RequiredLabel>Raison</RequiredLabel>
+              <Textarea
+                className="min-h-20"
                 value={exemptReason}
                 onChange={e => setExemptReason(e.target.value)}
                 placeholder="Ex. : difficultés financières, bourse, cas particulier…"

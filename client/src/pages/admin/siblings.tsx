@@ -31,8 +31,12 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
+import { Callout } from '@/components/shared/callout'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
-import { computeAge } from '@/lib/utils'
+import { computeAge, formatDate, formatDateLong } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
 import { toast } from 'sonner'
 
@@ -53,7 +57,7 @@ export default function SiblingsPage() {
       <PageHeader
         title="Fratries"
         icon={Users}
-        description="Identifier et confirmer les frères et sœurs. Approuver une fratrie regroupe les membres et harmonise les informations de la famille (parents, adresse, contacts)."
+        description="Identifier et confirmer les frères et sœurs, puis harmoniser les informations de la famille."
       />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
@@ -196,7 +200,7 @@ function SuggestionRow({ suggestion, onReview, onReject }: { suggestion: Sibling
                   </span>
                   <span className="font-medium">{m.firstName} {m.lastName}</span>
                   <span className="text-xs text-muted-foreground">{m.unitCode ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}</span>
-                  {m.siblingGroupId && <span className="text-xs text-emerald-600 dark:text-emerald-400">(déjà en fratrie)</span>}
+                  {m.siblingGroupId && <Badge variant="success" className="px-1.5 py-0 text-[10px] font-medium">déjà en fratrie</Badge>}
                 </span>
               )
             })}
@@ -244,17 +248,21 @@ function ConfirmedTab() {
                       <span key={m.memberId} className="flex items-center gap-1 rounded-full border bg-muted/40 py-1 pl-3 pr-1 text-sm">
                         <Link {...memberLink(m.memberId, 'confirmed')} className="font-medium hover:underline">{m.firstName} {m.lastName}</Link>
                         <span className="text-xs text-muted-foreground">· {m.unitCode ?? 'Sans unité'}</span>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                          onClick={() => setUnlinkTarget({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}
-                          title="Retirer de la fratrie" aria-label="Retirer de la fratrie">
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tip content="Retirer de la fratrie">
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => setUnlinkTarget({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}
+                            aria-label={`Retirer ${m.firstName} ${m.lastName} de la fratrie`}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </Tip>
                       </span>
                     ))}
-                    <Link {...memberLink(g.members[0]?.memberId, 'confirmed')}
-                      className="ml-auto text-muted-foreground hover:text-foreground" title="Ouvrir">
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
+                    <Tip content="Ouvrir la fiche">
+                      <Link {...memberLink(g.members[0]?.memberId, 'confirmed')}
+                        className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Ouvrir la fiche">
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Tip>
                   </CardContent>
                 </Card>
               ))}
@@ -289,7 +297,7 @@ function ReportsTabLabel() {
   return (
     <span className="flex items-center gap-1.5">
       Signalements
-      {n > 0 && <Badge className="h-5 min-w-5 justify-center bg-amber-500 px-1 text-[11px] text-white">{n}</Badge>}
+      {n > 0 && <Badge variant="warning" className="h-5 min-w-5 justify-center px-1 text-[11px]">{n}</Badge>}
     </span>
   )
 }
@@ -347,11 +355,11 @@ function ReportsTab() {
                       </div>
                       {r.note && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{r.note}</p>}
                       {r.replyMessage && (
-                        <p className="mt-1.5 whitespace-pre-line rounded-md border-l-2 border-primary/40 bg-muted/40 px-2 py-1 text-sm">
-                          <span className="font-medium text-primary">Votre réponse : </span>{r.replyMessage}
-                        </p>
+                        <Callout tone="muted" className="mt-1.5 p-2.5">
+                          <p className="whitespace-pre-line"><span className="font-medium text-primary">Votre réponse : </span>{r.replyMessage}</p>
+                        </Callout>
                       )}
-                      <p className="mt-1 text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDateLong(r.createdAt)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col gap-1.5">
                       <Button size="sm" variant="outline" onClick={() => { setReplyTarget(r); setReplyText(r.replyMessage ?? '') }}>
@@ -374,20 +382,24 @@ function ReportsTab() {
             Votre message sera envoyé à {replyTarget?.reporterName || 'ce membre'} (notification dans l'application, et sur son téléphone s'il a activé les notifications). Le signalement sera marqué résolu.
           </p>
           {replyTarget?.note && (
-            <p className="whitespace-pre-line rounded-md bg-muted/40 p-2 text-sm text-muted-foreground">« {replyTarget.note} »</p>
+            <Callout tone="muted"><p className="whitespace-pre-line">« {replyTarget.note} »</p></Callout>
           )}
-          <textarea
-            className="min-h-24 w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="Votre réponse au membre…"
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            maxLength={2000}
-            autoFocus
-          />
+          <div className="space-y-1.5">
+            <Label htmlFor="sibling-report-reply">Votre réponse</Label>
+            <Textarea
+              id="sibling-report-reply"
+              className="min-h-24"
+              placeholder="Votre réponse au membre…"
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              maxLength={2000}
+              autoFocus
+            />
+          </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setReplyTarget(null); setReplyText('') }}>Annuler</Button>
+            <Button variant="outline" onClick={() => { setReplyTarget(null); setReplyText('') }}>Annuler</Button>
             <Button onClick={doReply} disabled={reply.isPending || !replyText.trim()}>
-              <Mail className="mr-1 h-4 w-4" />Envoyer
+              <Mail className="mr-1 h-4 w-4" />{reply.isPending ? 'Envoi…' : 'Envoyer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -442,7 +454,7 @@ function DuplicatesTab() {
           </label>
         ))}
       </div>
-      {keys.length === 0 && <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">Cochez au moins un critère (sinon les critères par défaut nom + prénom + date de naissance sont utilisés).</p>}
+      {keys.length === 0 && <p className="mt-1.5 text-xs text-warning">Cochez au moins un critère (sinon les critères par défaut nom + prénom + date de naissance sont utilisés).</p>}
     </div>
   )
 
@@ -467,12 +479,12 @@ function DuplicatesTab() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
                   {val ? <p className="truncate text-sm font-medium">{val.name}</p> : <p className="text-sm text-muted-foreground">Aucun membre choisi</p>}
                 </div>
-                {val && <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={clear} aria-label="Retirer"><X className="h-4 w-4" /></Button>}
+                {val && <Tip content="Retirer"><Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={clear} aria-label={`Retirer ${val.name}`}><X className="h-4 w-4" /></Button></Tip>}
                 <Button size="sm" variant="outline" className="shrink-0" onClick={pick}>{val ? 'Changer' : 'Choisir'}</Button>
               </div>
             ))}
           </div>
-          {sameMember && <p className="text-xs text-amber-600 dark:text-amber-400">Choisissez deux membres différents.</p>}
+          {sameMember && <p className="text-xs text-warning">Choisissez deux membres différents.</p>}
           <Button size="sm" disabled={!canManualMerge} onClick={openManualMerge}><GitMerge className="mr-1 h-4 w-4" />Fusionner ces deux membres</Button>
         </CardContent>
       </Card>
@@ -528,7 +540,7 @@ function DuplicatesTab() {
                 {g.members.map((m) => {
                   const age = computeAge(m.dateOfBirth)
                   const bits = [
-                    m.dateOfBirth ? `${new Date(m.dateOfBirth).toLocaleDateString('fr-FR')}${age != null ? ` (${age} ans)` : ''}` : 'Naissance ?',
+                    m.dateOfBirth ? `${formatDate(m.dateOfBirth)}${age != null ? ` (${age} ans)` : ''}` : 'Naissance ?',
                     m.gender ? m.gender[0] : null,
                     m.cardNumber ? `Mat. ${m.cardNumber}` : null,
                     m.externalCardNumber ? `N° ${m.externalCardNumber}` : null,
@@ -637,7 +649,7 @@ function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () =>
     }
     try {
       const r = await merge.mutateAsync({ keeperId, loserIds: members.filter((m) => m.memberId !== keeperId).map((m) => m.memberId), fields })
-      toast.success(`Fusion effectuée — ${r.merged} doublon(s) placé(s) dans la Corbeille.`)
+      toast.success(`Fusion effectuée — ${r.merged} doublon(s) placé(s) dans la Corbeille`)
       onClose()
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -699,15 +711,15 @@ function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () =>
               </div>
             </section>
           ) : (
-            <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Les fiches sont identiques — rien à choisir, la fusion transfère simplement les données.</p>
+            <Callout tone="muted">Les fiches sont identiques — rien à choisir, la fusion transfère simplement les données.</Callout>
           )}
 
-          <p className="rounded-md bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <Callout tone="warning">
             Toutes les coordonnées (téléphones, emails, adresses) et les liens parents des fiches sont
             <span className="font-semibold"> conservés et fusionnés</span> (les doublons exacts sont supprimés) — rien n'est perdu.
             Les affectations, documents, cotisations et progressions sont également transférés vers le membre conservé,
             puis les doublons sont placés dans la Corbeille (restaurables).
-          </p>
+          </Callout>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>

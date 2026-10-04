@@ -9,11 +9,12 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { Tag, GitCommit, Calendar, History } from 'lucide-react'
+import { formatDateLong } from '@/lib/utils'
 
 function formatDate(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
+  return isNaN(d.getTime()) ? iso : formatDateLong(iso)
 }
 
 // Short "13 sept." for the per-entry date chip; falls back to the raw value if unparseable.

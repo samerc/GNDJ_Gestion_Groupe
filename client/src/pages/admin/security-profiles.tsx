@@ -20,8 +20,12 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PermissionGroups, AreaLevels } from '@/components/admin/permission-editor'
-import { Shield, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
+import { Shield, Users, ChevronRight, Save, Plus, Trash2, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMobileDetail } from '@/hooks/use-mobile-detail'
 import { ArrowLeft } from 'lucide-react'
@@ -136,7 +140,7 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Nouveau profil de sécurité</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && <Callout tone="danger">{error}</Callout>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2"><RequiredLabel required>Nom</RequiredLabel><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex : Aumônier" /></div>
             <div className="space-y-2"><RequiredLabel>Description</RequiredLabel><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optionnel" /></div>
@@ -253,7 +257,7 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
                 <>
                   <Button variant="outline" size="sm" onClick={handleReset}>Annuler</Button>
                   <Button size="sm" onClick={requestSave} disabled={saving}>
-                    <Save className="mr-1 h-4 w-4" />{saving ? '...' : 'Enregistrer'}
+                    <Save className="mr-1 h-4 w-4" />{saving ? 'Enregistrement…' : 'Enregistrer'}
                   </Button>
                 </>
               )}
@@ -272,21 +276,15 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
           )}
         </div>
         {/* Tabs: permissions (editable users) + members */}
-        <div className="flex gap-1 border-b mt-3 -mb-px">
-          {showPermsTab && (
-            <button onClick={() => setTab('perms')}
-              className={`px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'perms' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-              Permissions
-            </button>
-          )}
-          <button onClick={() => setTab('members')}
-            className={`px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-            Membres
-          </button>
-        </div>
+        <Tabs value={activeTab} onValueChange={(v) => setTab(v as 'perms' | 'members')} className="mt-3">
+          <TabsList>
+            {showPermsTab && <TabsTrigger value="perms">Permissions</TabsTrigger>}
+            <TabsTrigger value="members">Membres</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </CardHeader>
       <CardContent>
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive mb-4">{error}</div>}
+        {error && <Callout tone="danger" className="mb-4">{error}</Callout>}
 
         {activeTab === 'members' && <ProfileMembersList profileId={profileId} />}
 
@@ -294,12 +292,8 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
           <>
             {/* Simple (domaine) ⇄ Avancé (raw) toggle — avancé only for a super-admin. */}
             {canRaw && (
-              <div className="mb-3 inline-flex rounded-md border p-0.5 text-xs">
-                <button onClick={() => switchMode('simple')}
-                  className={`rounded px-2.5 py-1 font-medium ${effectiveMode === 'simple' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Par domaine</button>
-                <button onClick={() => switchMode('avance')}
-                  className={`rounded px-2.5 py-1 font-medium ${effectiveMode === 'avance' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Avancé</button>
-              </div>
+              <SegmentedToggle size="sm" className="mb-3" value={effectiveMode} onChange={switchMode}
+                options={[{ value: 'simple', label: 'Par domaine' }, { value: 'avance', label: 'Avancé' }]} />
             )}
             {effectiveMode === 'avance'
               ? <PermissionGroups value={currentPerms} onChange={(next) => { setEditedPerms(next); setSaved(false) }} />
@@ -329,7 +323,7 @@ function PermissionEditor({ profileId, canManage, canGroupEdit, onDeleted }: { p
     <ConfirmDialog
       open={deleteOpen}
       onOpenChange={setDeleteOpen}
-      title="Supprimer le profil"
+      title="Supprimer le profil ?"
       description={profile.roleCount > 0
         ? `Impossible de supprimer « ${profile.name} » : ${profile.roleCount} fonction${profile.roleCount > 1 ? 's l\'utilisent' : ' l\'utilise'}. Utilisez « Fusionner » pour les passer sur un autre profil.`
         : `Supprimer le profil « ${profile.name} » ? Cette action est définitive.`}
@@ -362,7 +356,7 @@ function MergeProfileDialog({ open, onOpenChange, sourceId, sourceName, roleCoun
     try {
       const r = await mergeMutation.mutateAsync({ sourceId, targetId })
       const target = targets.find(t => t.id === targetId)
-      toast.success(`« ${sourceName} » fusionné dans « ${target?.name ?? '?'} »${r.rolesRepointed > 0 ? ` (${r.rolesRepointed} fonction${r.rolesRepointed > 1 ? 's' : ''} déplacée${r.rolesRepointed > 1 ? 's' : ''})` : ''}.`)
+      toast.success(`« ${sourceName} » fusionné dans « ${target?.name ?? '?'} »${r.rolesRepointed > 0 ? ` (${r.rolesRepointed} fonction${r.rolesRepointed > 1 ? 's' : ''} déplacée${r.rolesRepointed > 1 ? 's' : ''})` : ''}`)
       onMerged()
     } catch (err) { toast.error(parseApiError(err)) }
   }
@@ -405,7 +399,7 @@ function MergeProfileDialog({ open, onOpenChange, sourceId, sourceName, roleCoun
 function ProfileMembersList({ profileId }: { profileId: string }) {
   const { data: members, isLoading } = useSecurityProfileMembers(profileId)
   if (isLoading) return <LoadingSpinner />
-  if (!members?.length) return <p className="py-8 text-center text-sm text-muted-foreground">Aucun membre n'a ce profil actuellement.</p>
+  if (!members?.length) return <EmptyState icon={Users} title="Aucun membre n'a ce profil actuellement" />
   return (
     <div className="divide-y">
       {members.map((m, i) => (

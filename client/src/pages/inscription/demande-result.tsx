@@ -6,7 +6,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { CheckCircle2, XCircle, ArrowLeft, LogIn, Mail, KeyRound, UploadCloud, UserCheck } from 'lucide-react'
+import { CheckCircle2, XCircle, LogIn, Mail, KeyRound, UploadCloud, UserCheck } from 'lucide-react'
+import { BackLink } from '@/components/shared/back-link'
+import { PageHeader } from '@/components/shared/page-header'
 
 // Result page for a demande whose response has been SENT. Replaces the (now-useless) read-only wizard once
 // a decision is posted:
@@ -44,27 +46,25 @@ export default function DemandeResultPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate('/inscription/portail')}>
-        <ArrowLeft className="mr-1 h-4 w-4" />Retour à mes demandes
-      </Button>
+      <BackLink to="/inscription/portail" label="Mes demandes" />
 
-      {demande.serialNumber && (
-        <p className="text-sm text-muted-foreground">
-          Demande N° <span className="font-mono font-semibold text-foreground">{demande.serialNumber}</span>
-        </p>
-      )}
+      {/* One header for the three outcomes (declined / member already active / accepted). */}
+      <PageHeader
+        icon={!accepted ? XCircle : demande.memberHasLoggedIn ? UserCheck : CheckCircle2}
+        title={!accepted ? 'Demande non retenue' : demande.memberHasLoggedIn ? 'Compte membre actif' : 'Demande acceptée'}
+        description={
+          <>
+            {childName}
+            {accepted && demande.decidedUnitName ? ` · ${demande.decidedUnitName}` : ''}
+            {demande.serialNumber && <> · Demande N° <span className="font-mono font-semibold text-foreground">{demande.serialNumber}</span></>}
+          </>
+        }
+      />
 
       {/* ── DECLINED ────────────────────────────────────────────────────────────── */}
       {!accepted && (
         <Card className="border-l-4 border-l-red-500">
           <CardContent className="space-y-4 p-6">
-            <div className="flex items-center gap-3">
-              <XCircle className="h-8 w-8 shrink-0 text-red-500" />
-              <div>
-                <h1 className="text-xl font-bold">Demande non retenue</h1>
-                <p className="text-sm text-muted-foreground">{childName}</p>
-              </div>
-            </div>
             <p className="whitespace-pre-line text-sm">
               {config?.resultTextDeclined ||
                 "Nous sommes au regret de ne pas pouvoir donner une suite favorable à votre demande d'inscription cette année. Nous vous remercions de votre intérêt et restons à votre disposition."}
@@ -83,13 +83,6 @@ export default function DemandeResultPage() {
       {accepted && demande.memberHasLoggedIn && (
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="space-y-4 p-6">
-            <div className="flex items-center gap-3">
-              <UserCheck className="h-8 w-8 shrink-0 text-green-600" />
-              <div>
-                <h1 className="text-xl font-bold">Compte membre actif</h1>
-                <p className="text-sm text-muted-foreground">{childName}{demande.decidedUnitName ? ` · ${demande.decidedUnitName}` : ''}</p>
-              </div>
-            </div>
             <p className="text-sm">Le compte de <strong>{childName}</strong> est actif. Connectez-vous à l'espace membres pour gérer le dossier et téléverser les documents.</p>
             <Button onClick={() => navigate('/login')}><LogIn className="mr-2 h-4 w-4" />Aller à l'espace membres</Button>
           </CardContent>
@@ -100,16 +93,9 @@ export default function DemandeResultPage() {
       {accepted && !demande.memberHasLoggedIn && (
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="space-y-5 p-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-8 w-8 shrink-0 text-green-600" />
-              <div>
-                <h1 className="text-xl font-bold">Demande acceptée 🎉</h1>
-                <p className="text-sm text-muted-foreground">
-                  {childName} a été accepté(e){demande.decidedUnitName ? <> dans <strong className="text-foreground">{demande.decidedUnitName}</strong></> : ''}.
-                </p>
-              </div>
-            </div>
-
+            <p className="text-sm">
+              {childName} a été accepté(e){demande.decidedUnitName ? <> dans <strong>{demande.decidedUnitName}</strong></> : ''}.
+            </p>
             <p className="whitespace-pre-line text-sm">{config?.resultTextAccepted || "Un compte a été créé pour le nouveau membre. Voici les étapes pour accéder à l'espace membres et téléverser les documents. Ces mêmes informations vous ont été envoyées par email."}</p>
 
             {/* Username the parent will use to log in. */}

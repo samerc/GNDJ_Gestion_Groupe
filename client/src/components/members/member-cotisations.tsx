@@ -6,7 +6,10 @@ import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDele
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
-import { formatMoney } from '@/lib/utils'
+import { formatMoney, formatDate } from '@/lib/utils'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { DateInput } from '@/components/shared/date-input'
 import { defaultPaymentLine, amountOnCurrencyChange, currencyLabel, fullAmountFor } from '@/lib/cotisation'
 import { useCurrencies } from '@/hooks/use-currencies'
 import { useAuthStore } from '@/stores/auth-store'
@@ -159,6 +162,11 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    // The date is required (DateInput emits '' while incomplete).
+    if (!paymentDate) {
+      setError('La date de paiement est requise.')
+      return
+    }
     if (payments.length === 0 || payments.some(p => p.amount <= 0)) {
       setError('Au moins un paiement avec un montant valide est requis.')
       return
@@ -230,20 +238,15 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
             // Current-year status (members see it read-only on their own dossier): paid-in-full → partial → exempt (ne paiera pas) → expected.
             // A payment supersedes the exempt/expected states, so when paid we hide the exempt toggle.
             isPartialThisYear ? (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="h-4 w-4" />
-                  Cotisation partielle pour {year} — {partialPercent}% payé
-                  {partialRemaining > 0 && <> · reste ≈ {formatMoney(partialRemaining, partialRefCurrency)}</>}
-                </span>
-              </div>
+              <Callout tone="warning" icon={AlertTriangle} className="mb-3">
+                Cotisation partielle pour {year} — {partialPercent} % payé
+                {partialRemaining > 0 && <> · reste ≈ {formatMoney(partialRemaining, partialRefCurrency)}</>}
+              </Callout>
             ) : isPaidThisYear ? (
-              <div className="mb-3 flex items-center justify-between rounded-md border border-green-200 dark:border-green-900 bg-green-50/60 dark:bg-green-950/30 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
-                  <CheckCircle2 className="h-4 w-4" />Cotisation payée pour {year}
-                  {overpaidExcess > 0 && <span className="text-amber-600 dark:text-amber-400">· trop-perçu ≈ {formatMoney(overpaidExcess, partialRefCurrency)}</span>}
-                </span>
-              </div>
+              <Callout tone="success" icon={CheckCircle2} className="mb-3">
+                Cotisation payée pour {year}
+                {overpaidExcess > 0 && <span className="text-warning"> · trop-perçu ≈ {formatMoney(overpaidExcess, partialRefCurrency)}</span>}
+              </Callout>
             ) : hideMaitriseExpected ? null : (
               <div className="mb-3 rounded-md border bg-muted/30 px-3 py-2">
                 {/* Stack on mobile (text full-width, then a full-width button) so the label isn't squeezed to
@@ -275,7 +278,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
             return realCotisations.length === 0 ? (
             // When the member is exempt ("ne paiera pas") — or a maîtrise member the year the maîtrise doesn't
             // pay — don't show the "no cotisation recorded" line (it reads as a contradiction / a nag).
-            (isExempt || hideMaitriseExpected) ? null : <p className="text-sm text-muted-foreground">Aucune cotisation enregistrée.</p>
+            (isExempt || hideMaitriseExpected) ? null : <EmptyState icon={Receipt} title="Aucune cotisation enregistrée" />
           ) : (
             <div className="space-y-3">
               {realCotisations.map(c => (
@@ -295,21 +298,21 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                       ))}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {new Date(c.paymentDate).toLocaleDateString('fr-FR')}
+                      {formatDate(c.paymentDate)}
                     </div>
                     {c.notes && <p className="mt-1 text-xs text-muted-foreground">{c.notes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Tip content="Télécharger le reçu"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => handleDownloadReceipt(c)}>
+                    <Tip content="Télécharger le reçu"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Télécharger le reçu" onClick={() => handleDownloadReceipt(c)}>
                       <Download className="h-3.5 w-3.5" />
                     </Button></Tip>
                     {hasPermission(PERMISSIONS.COTISATIONS_EDIT) && (
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => openEdit(c)}>
+                      <Tip content="Modifier la cotisation"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier la cotisation" onClick={() => openEdit(c)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button></Tip>
                     )}
                     {hasPermission(PERMISSIONS.COTISATIONS_DELETE) && (
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDeleting(c)}>
+                      <Tip content="Supprimer la cotisation"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer la cotisation" onClick={() => setDeleting(c)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button></Tip>
                     )}
@@ -324,7 +327,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
   return (
     <div className="space-y-4">
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger">{error}</Callout>}
 
       {bare ? (
         // Bare: no self-card/title — the parent page supplies the section header.
@@ -352,7 +355,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
             <DialogTitle>{editing ? 'Modifier la cotisation' : 'Nouvelle cotisation'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -361,7 +364,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
               </div>
               <div className="space-y-2">
                 <RequiredLabel required>Date de paiement</RequiredLabel>
-                <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required />
+                <DateInput value={paymentDate} onChange={(iso) => setPaymentDate(iso ?? '')} />
               </div>
             </div>
 
@@ -400,7 +403,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
                       </Select>
                     </div>
                     {payments.length > 1 && (
-                      <Tip content="Supprimer la ligne"><Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removePaymentLine(idx)}>
+                      <Tip content="Retirer la ligne de paiement"><Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Retirer la ligne de paiement" onClick={() => removePaymentLine(idx)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button></Tip>
                     )}
@@ -459,7 +462,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer la cotisation"
+        title="Supprimer la cotisation ?"
         description={`Êtes-vous sûr de vouloir supprimer la cotisation ${deleting?.receiptNumber} ? Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"

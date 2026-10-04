@@ -1,13 +1,12 @@
-import { Link, useParams } from 'react-router'
-import { ArrowLeft, CalendarDays, Clock, MapPin } from 'lucide-react'
+import { useParams } from 'react-router'
+import { CalendarDays, Clock, MapPin } from 'lucide-react'
+import { PublicBackLink } from '@/components/public/public-back-link'
+import { EmptyState } from '@/components/shared/empty-state'
 import { PageHero } from '@/components/public/page-hero'
 import { RichContent } from '@/components/public/rich-content'
 import { usePublicEvent } from '@/services/events-service'
 import { Seo } from '@/components/public/seo'
-import { metaFromHtml } from '@/lib/utils'
-
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-function longDate(iso: string) { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]} ${y}` }
+import { formatDateLong as longDate, metaFromHtml } from '@/lib/utils'
 
 // Public single-event page at `/agenda/:slug` — anonymous. Fetches one published event by slug;
 // shows loading/not-found fallbacks, then the schedule (date/time/location) and the CMS body.
@@ -31,10 +30,8 @@ export default function PublicEventPage() {
       <>
         <PageHero title="Événement introuvable" />
         <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-          <p className="text-muted-foreground">Cet événement n'existe pas ou n'est pas publié.</p>
-          <Link to="/agenda" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-            <ArrowLeft className="h-4 w-4" /> Retour à l'agenda
-          </Link>
+          <EmptyState icon={CalendarDays} title="Événement introuvable" description="Cet événement n'existe pas ou n'est pas publié."
+            action={<PublicBackLink to="/agenda" label="Tout l'agenda" />} />
         </section>
       </>
     )
@@ -46,9 +43,7 @@ export default function PublicEventPage() {
       <PageHero title={ev.title} />
       <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Link to="/agenda" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Tout l'agenda
-          </Link>
+          <PublicBackLink to="/agenda" label="Tout l'agenda" />
           <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">{ev.tagLabel}</span>
         </div>
 

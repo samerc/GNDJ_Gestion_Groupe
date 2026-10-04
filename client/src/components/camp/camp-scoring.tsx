@@ -18,25 +18,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
-import { Printer, Trophy, Pencil, CheckCircle2, FileText, Wifi } from 'lucide-react'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Badge } from '@/components/ui/badge'
+import { Tip } from '@/components/ui/tooltip'
+import { Printer, Trophy, Pencil, CheckCircle2, FileText, Wifi, ListChecks, RefreshCw } from 'lucide-react'
 
 const famLabel = (n: number, name: string | null) => (name ? `F${n} · ${name}` : `F${n}`)
-
-// Small segmented control (a row of buttons, one selected).
-export function Segmented<T extends string | number>({ value, onChange, options, disabled }: {
-  value: T | null; onChange: (v: T) => void; options: { value: T; label: string }[]; disabled?: boolean
-}) {
-  return (
-    <div className="inline-flex flex-wrap overflow-hidden rounded-md border">
-      {options.map(o => (
-        <button key={String(o.value)} type="button" disabled={disabled} onClick={() => onChange(o.value)}
-          className={cn('border-r px-2.5 py-1.5 text-sm last:border-r-0', value === o.value ? 'bg-primary text-primary-foreground' : 'hover:bg-muted disabled:opacity-50')}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
   campId: string; match: CampMatchDto; defaultSource: 'online' | 'paper'; onClose: () => void
@@ -63,7 +51,7 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
     <div className="space-y-1">
       <p className="text-sm font-medium">Manche {n}{stake != null && <span className="font-normal text-muted-foreground"> · sur {stake} points</span>}</p>
       {stake != null
-        ? <Segmented value={value} onChange={set} options={sideOptions} />
+        ? <SegmentedToggle className="flex-wrap" value={(value ?? '') as CampSide} onChange={set} options={sideOptions} />
         : <p className="text-sm text-muted-foreground">
             {n === 1 && plan.fixedA + plan.fixedB > 0 && plan.manche2 != null
               ? `Non jouée : 50 points à ${plan.fixedA > 0 ? A : B} (arrivée à l'heure).`
@@ -89,22 +77,22 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1"><p className="text-sm font-medium">Arrivée de {A}</p><Segmented value={retardA} onChange={setRetardA} options={lateOptions} /></div>
-            <div className="space-y-1"><p className="text-sm font-medium">Arrivée de {B}</p><Segmented value={retardB} onChange={setRetardB} options={lateOptions} /></div>
+            <div className="space-y-1"><p className="text-sm font-medium">Arrivée de {A}</p><SegmentedToggle className="flex-wrap" value={retardA} onChange={setRetardA} options={lateOptions} /></div>
+            <div className="space-y-1"><p className="text-sm font-medium">Arrivée de {B}</p><SegmentedToggle className="flex-wrap" value={retardB} onChange={setRetardB} options={lateOptions} /></div>
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">À l'heure : 0–3 min · Retard A : 3–7 min · Retard B : 7–10 min.</p>
           {round(1, plan.manche1, manche1, setManche1)}
           {round(2, plan.manche2, manche2, setManche2)}
           <div className="space-y-1">
             <p className="text-sm font-medium">Points d'esprit (5 à partager)</p>
-            <Segmented value={espritA} onChange={setEspritA}
-              options={[5, 4, 3, 2, 1, 0].map(v => ({ value: v, label: `${v} – ${5 - v}` }))} />
+            <SegmentedToggle className="flex-wrap" value={espritA == null ? '' : String(espritA)} onChange={v => setEspritA(Number(v))}
+              options={[5, 4, 3, 2, 1, 0].map(v => ({ value: String(v), label: `${v} – ${5 - v}` }))} />
             <p className="text-xs text-muted-foreground">{A} à gauche, {B} à droite.</p>
           </div>
           {p.needsFirstArrived && p.pointsA === p.pointsB && (
             <div className="space-y-1">
               <p className="text-sm font-medium">Égalité : quelle famille est arrivée en premier au complet ? (pour l'énigme)</p>
-              <Segmented value={firstArrived} onChange={setFirstArrived} options={[{ value: 'A' as const, label: A }, { value: 'B' as const, label: B }]} />
+              <SegmentedToggle value={(firstArrived ?? '') as 'A' | 'B'} onChange={setFirstArrived} options={[{ value: 'A' as const, label: A }, { value: 'B' as const, label: B }]} />
             </div>
           )}
           <div className="rounded-lg border bg-muted/40 p-3 text-sm">
@@ -118,7 +106,7 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium">Saisie</p>
-            <Segmented value={source} onChange={setSource} options={[{ value: 'online', label: 'Sur place' }, { value: 'paper', label: 'Depuis la feuille papier' }]} />
+            <SegmentedToggle className="flex-wrap" value={source} onChange={setSource} options={[{ value: 'online' as const, label: 'Sur place' }, { value: 'paper' as const, label: 'Depuis la feuille papier' }]} />
           </div>
         </div>
         <DialogFooter className="gap-2">
@@ -126,7 +114,7 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
           <Button variant="outline" onClick={onClose}>Annuler</Button>
           <Button onClick={submit} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </DialogFooter>
-        <ConfirmDialog open={confirmClear} onOpenChange={setConfirmClear} title="Effacer le score" variant="destructive" confirmLabel="Effacer" loading={clear.isPending}
+        <ConfirmDialog open={confirmClear} onOpenChange={setConfirmClear} title="Effacer le score ?" variant="destructive" confirmLabel="Effacer" loading={clear.isPending}
           description="Ce match repassera en « À saisir »."
           onConfirm={async () => { try { await clear.mutateAsync(match.id); toast.success('Score effacé'); onClose() } catch (e) { toast.error(parseApiError(e)) } }} />
       </DialogContent>
@@ -137,7 +125,7 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
 // One line per match. showGame = show the game (when listing a time slot), else the time.
 export function MatchList({ campId, matches, showGame, defaultSource }: { campId: string; matches: CampMatchDto[]; showGame?: boolean; defaultSource: 'online' | 'paper' }) {
   const [editing, setEditing] = useState<CampMatchDto | null>(null)
-  if (matches.length === 0) return <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Aucun match.</p>
+  if (matches.length === 0) return <EmptyState icon={ListChecks} title="Aucun match." />
   return (
     <div className="divide-y rounded-lg border">
       {matches.map((m, i) => {
@@ -158,7 +146,7 @@ export function MatchList({ campId, matches, showGame, defaultSource }: { campId
                   ? <span className="tabular-nums">{m.pointsA}<span className="text-muted-foreground">+{m.espritA}</span> – {m.pointsB}<span className="text-muted-foreground">+{m.espritB}</span></span>
                   : <span className="text-muted-foreground">contre</span>}
                 <span className={cn('font-semibold', bWins && 'text-emerald-700 dark:text-emerald-400')}>F{m.familleB}</span>
-                {scored && m.enigme && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">énigme F{m.enigme === 'A' ? m.familleA : m.familleB}</span>}
+                {scored && m.enigme && <Badge variant="warning">énigme F{m.enigme === 'A' ? m.familleA : m.familleB}</Badge>}
               </span>
               {scored
                 ? <span className="flex items-center gap-1 text-xs text-muted-foreground" title={m.scoredByName ?? ''}>
@@ -166,9 +154,9 @@ export function MatchList({ campId, matches, showGame, defaultSource }: { campId
                   </span>
                 : <span className="text-xs font-medium text-amber-700 dark:text-amber-400">À saisir</span>}
               {m.canEdit && (
-                <Button size="sm" variant={scored ? 'ghost' : 'outline'} className="h-8" onClick={() => setEditing(m)}>
-                  {scored ? <Pencil className="h-3.5 w-3.5" /> : 'Saisir'}
-                </Button>
+                scored
+                  ? <Tip content="Modifier le score"><Button size="sm" variant="ghost" className="h-8" aria-label="Modifier le score" onClick={() => setEditing(m)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+                  : <Button size="sm" variant="outline" className="h-8" onClick={() => setEditing(m)}>Saisir</Button>
               )}
             </div>
           </div>
@@ -187,8 +175,8 @@ export function CampScoringTab({ campId }: { campId: string }) {
   const [slot, setSlot] = useState(1)
   const { data: matches, isLoading: loadingMatches } = useCampMatches(campId, mode === 'game' ? { game } : { slot }, mode !== 'ranking' && !!rotation?.generated)
 
-  if (isLoading) return <div className="flex h-40 items-center justify-center"><LoadingSpinner /></div>
-  if (!rotation?.generated) return <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Générez d'abord la rotation (onglet Rotation).</p>
+  if (isLoading) return <LoadingSpinner variant="table" />
+  if (!rotation?.generated) return <EmptyState icon={RefreshCw} title="Aucune rotation." description="Générez d'abord la rotation (onglet Rotation)." />
   const pct = rotation.matchCount ? Math.round((rotation.scoredCount / rotation.matchCount) * 100) : 0
 
   return (
@@ -204,7 +192,7 @@ export function CampScoringTab({ campId }: { campId: string }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented value={mode} onChange={setMode} options={[{ value: 'game', label: 'Par jeu' }, { value: 'slot', label: 'Par étape' }, { value: 'ranking', label: 'Classement' }]} />
+        <SegmentedToggle value={mode} onChange={setMode} options={[{ value: 'game' as const, label: 'Par jeu' }, { value: 'slot' as const, label: 'Par étape' }, { value: 'ranking' as const, label: 'Classement' }]} />
         {mode === 'game' && (
           <Select value={String(game)} onValueChange={v => setGame(Number(v))}>
             <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>

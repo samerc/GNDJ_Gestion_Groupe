@@ -14,6 +14,9 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
+import { Badge } from '@/components/ui/badge'
+import { Tip } from '@/components/ui/tooltip'
 import { rotationProblem } from '@/lib/camp-rotation'
 import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
@@ -65,9 +68,9 @@ export default function CampsAdminPage() {
        ) :
        <div className="space-y-2">
          {isCg && yearTaken && (
-           <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+           <Callout tone="muted">
              Le camp de l'année {scoutYear} est clôturé. Le prochain camp pourra être créé lors de la prochaine année scoute.
-           </p>
+           </Callout>
          )}
          <p className="text-sm text-muted-foreground">Aucun camp n'est en cours. Camps précédents :</p>
          {camps!.map(c => <CampCard key={c.id} camp={c} />)}
@@ -78,12 +81,10 @@ export default function CampsAdminPage() {
           <DialogHeader><DialogTitle>Nouveau camp</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {/* Name + year are automatic (current scout year) and can't be changed. */}
-            <div className="rounded-lg border bg-muted/40 px-3 py-2">
-              {scoutYear
-                ? <><p className="font-medium">{campName}</p><p className="text-xs text-muted-foreground">Année scoute {scoutYear} — nom et année sont fixés automatiquement.</p></>
-                : <p className="text-sm text-destructive">L'année scoute n'est pas définie (Paramètres → Passage).</p>}
-            </div>
-            {yearTaken && <p className="text-sm text-destructive">Il existe déjà un camp pour l'année {scoutYear}.</p>}
+            {scoutYear
+              ? <Callout tone="muted" title={campName}><p className="text-xs text-muted-foreground">Année scoute {scoutYear} — nom et année sont fixés automatiquement.</p></Callout>
+              : <Callout tone="danger">L'année scoute n'est pas définie (Paramètres → Passage).</Callout>}
+            {yearTaken && <Callout tone="danger">Il existe déjà un camp pour l'année {scoutYear}.</Callout>}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1 sm:col-span-2"><RequiredLabel>Thème</RequiredLabel><Input value={form.theme} maxLength={200} onChange={e => setForm(f => ({ ...f, theme: e.target.value }))} placeholder="Le thème du camp" /></div>
               <div className="space-y-1"><RequiredLabel>Nb familles</RequiredLabel><Input type="number" min={1} value={form.famillesCount} onChange={e => setForm(f => ({ ...f, famillesCount: e.target.value }))} placeholder="défaut" />
@@ -97,7 +98,7 @@ export default function CampsAdminPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={submit} disabled={create.isPending || !scoutYear || yearTaken}>Créer</Button>
+            <Button onClick={submit} disabled={create.isPending || !scoutYear || yearTaken}>{create.isPending ? 'Création…' : 'Créer'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -109,13 +110,13 @@ function CampCard({ camp }: { camp: CampListDto }) {
   return (
     <Link to={`/admin/camps/${camp.id}`} className={cn('flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/40', camp.isArchived && 'opacity-60')}>
       <div className="flex-1">
-        <p className="font-medium">{camp.name} {camp.isArchived && <span className="text-xs text-muted-foreground">(archivé)</span>}</p>
+        <p className="font-medium">{camp.name} {camp.isArchived && <Badge variant="secondary">Archivé</Badge>}</p>
         {camp.theme && <p className="text-sm italic text-muted-foreground">« {camp.theme} »</p>}
         <p className="text-sm text-muted-foreground">{camp.scoutYear} · {camp.famillesCount} familles · <span className="font-medium">{STATUS_LABEL[camp.status] ?? camp.status}</span></p>
       </div>
       <div className="hidden text-right text-sm text-muted-foreground sm:block">
         <p>{camp.participantCount} membres · {camp.gradedCount} notés</p>
-        <p>{camp.assignedCount} dans une famille · <span title={`${camp.pereCount} Père(s) et ${camp.mereCount} Mère(s) choisis`}>Père/Mère : {camp.leadersCompleteCount}/{camp.famillesCount}</span></p>
+        <p>{camp.assignedCount} dans une famille · <Tip content={`${camp.pereCount} Père(s) et ${camp.mereCount} Mère(s) choisis`}><span>Père/Mère : {camp.leadersCompleteCount}/{camp.famillesCount}</span></Tip></p>
       </div>
       <ChevronRight className="h-5 w-5 text-muted-foreground" />
     </Link>

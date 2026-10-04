@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Callout } from '@/components/shared/callout'
 
 // Branch order of the parcours scout, so the unit picker reads like the group (Meute → … → Groupe).
 const BRANCH_ORDER = ['MEU', 'RON', 'TRO', 'COM', 'CLAN', 'NOY', 'JEM', 'FEU', 'CAR', 'GRP']
@@ -111,7 +112,7 @@ export function BulkChangeDialog({ open, onOpenChange, passages, onDone }: {
           <DialogDescription>{shown}{more}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && <Callout tone="danger">{error}</Callout>}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Destination</label>

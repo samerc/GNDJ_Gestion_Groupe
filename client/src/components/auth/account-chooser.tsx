@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { X, UserPlus, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
+import { Callout } from '@/components/shared/callout'
 import { getDeviceAccounts, removeDeviceAccount, type DeviceAccount } from '@/lib/device-accounts'
 
 // Google-style « Choisir un compte »: lists the accounts previously used on THIS device (from
@@ -41,7 +42,7 @@ export function AccountChooser({ onUseAnother, onNeedAuth }: {
 
   return (
     <div className="space-y-1">
-      {error && <div className="mb-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger" className="mb-2">{error}</Callout>}
       {list.map((a) => (
         // A DIV row with two sibling buttons (choose / remove) — never a button inside a button.
         <div key={a.memberId} className="group flex items-center gap-1 rounded-lg transition-colors hover:bg-muted">

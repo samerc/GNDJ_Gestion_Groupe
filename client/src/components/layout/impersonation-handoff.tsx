@@ -24,7 +24,7 @@ export default function ImpersonationHandoff() {
       if (!h) return
       done = true
       if (!h.ok || !h.accessToken || !h.memberId) {
-        setError(h.error || "Impossible d'ouvrir la vue « Voir comme ».")
+        setError(h.error || '')
         return
       }
       // Adopt the impersonation token in THIS tab, then hydrate as the member.
@@ -43,10 +43,12 @@ export default function ImpersonationHandoff() {
     return () => { done = true; window.removeEventListener('storage', onStorage); clearInterval(timer) }
   }, [navigate])
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="max-w-md text-sm text-muted-foreground">Impossible d'ouvrir la vue « Voir comme » : {error} Réessayez depuis la fiche du membre.</p>
+        {/* One sentence for the failure, then the server's reason (if any) — no repeated wording. */}
+        <p className="font-medium">Impossible d'ouvrir la vue « Voir comme »</p>
+        <p className="max-w-md text-sm text-muted-foreground">{error ? `${error} ` : ''}Réessayez depuis la fiche du membre.</p>
         <Button variant="outline" onClick={() => window.close()}>Fermer cet onglet</Button>
       </div>
     )

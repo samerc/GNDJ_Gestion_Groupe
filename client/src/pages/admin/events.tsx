@@ -24,9 +24,10 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
-import { formatDateLong } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { Plus, Pencil, Trash2, CalendarDays, ImagePlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { confirmAsync } from '@/lib/confirm'
@@ -90,7 +91,7 @@ export default function AdminEventsPage() {
     if (form.tagType === 'UnitType' && !form.tagUnitTypeId) { setError('Choisissez une branche.'); return }
     if (form.tagType === 'Unit' && !form.tagUnitId) { setError('Choisissez une unité.'); return }
     try {
-      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Événement modifié') }
+      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Événement enregistré') }
       else { await createMutation.mutateAsync(form); toast.success('Événement créé') }
       setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
@@ -106,7 +107,7 @@ export default function AdminEventsPage() {
 
   return (
     <Page>
-      <PageHeader title="Agenda" icon={CalendarDays}
+      <PageHeader title="Agenda" description="Événements affichés dans l'agenda du site public." icon={CalendarDays}
         actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvel événement</Button>} />
 
       {isLoading ? (
@@ -131,14 +132,14 @@ export default function AdminEventsPage() {
                 <TableRow key={ev.id}>
                   <TableCell className="font-medium">{ev.title}</TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {formatDateLong(ev.startDate)}{ev.endDate ? ` → ${formatDateLong(ev.endDate)}` : ''}
+                    {formatDate(ev.startDate)}{ev.endDate ? ` → ${formatDate(ev.endDate)}` : ''}
                   </TableCell>
                   <TableCell>{ev.tagLabel}</TableCell>
                   <TableCell><Badge variant={ev.isPublished ? 'default' : 'secondary'}>{ev.isPublished ? 'Publié' : 'Brouillon'}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(ev)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(ev)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(ev)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(ev)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -153,7 +154,7 @@ export default function AdminEventsPage() {
           <DialogHeader><DialogTitle>{editingId ? "Modifier l'événement" : 'Nouvel événement'}</DialogTitle></DialogHeader>
           {/* onChange on the form marks the draft dirty for native inputs (title/dates/time/location/checkbox). */}
           <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <RequiredLabel required>Titre</RequiredLabel>
               <Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} required />
@@ -165,22 +166,22 @@ export default function AdminEventsPage() {
                 <DateInput value={form.startDate || null} onChange={(iso) => { setForm(f => ({ ...f, startDate: iso ?? '' })); setDirty(true) }} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Date de fin (optionnel)</label>
+                <RequiredLabel>Date de fin (optionnel)</RequiredLabel>
                 <DateInput value={form.endDate} onChange={(iso) => { setForm(f => ({ ...f, endDate: iso })); setDirty(true) }} />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Horaire (optionnel)</label>
+                <RequiredLabel>Horaire (optionnel)</RequiredLabel>
                 <Input value={form.timeLabel ?? ''} onChange={(e) => setForm(f => ({ ...f, timeLabel: e.target.value || null }))} placeholder="14h00, 9h–17h, toute la journée…" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Lieu (optionnel)</label>
+                <RequiredLabel>Lieu (optionnel)</RequiredLabel>
                 <Input value={form.location ?? ''} onChange={(e) => setForm(f => ({ ...f, location: e.target.value || null }))} placeholder="Local du groupe, Faraya…" />
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Concerne</label>
+                <RequiredLabel>Concerne</RequiredLabel>
                 <Select value={form.tagType} onValueChange={(v) => { setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -211,7 +212,7 @@ export default function AdminEventsPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Image de couverture</label>
+              <RequiredLabel>Image de couverture</RequiredLabel>
               {form.coverImagePath ? (
                 <div className="relative overflow-hidden rounded-lg border">
                   <img src={form.coverImagePath} alt="" className="h-44 w-full object-cover" />
@@ -233,11 +234,11 @@ export default function AdminEventsPage() {
 
             <div className="flex items-center gap-2">
               <input type="checkbox" id="isPublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
-              <label htmlFor="isPublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
+              <RequiredLabel htmlFor="isPublished">Publier (visible sur le site public)</RequiredLabel>
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || coverUploading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || coverUploading}>{isSaving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -246,7 +247,7 @@ export default function AdminEventsPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer l'événement"
+        title="Supprimer l'événement ?"
         description={`Supprimer « ${deleting?.title} » ? Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"

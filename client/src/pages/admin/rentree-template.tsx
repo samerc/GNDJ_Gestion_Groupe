@@ -10,8 +10,7 @@ import {
   useRentreeTemplates, useSaveRentreeTemplate, useDeleteRentreeTemplate, useReorderRentreeTemplates,
   type RentreeTemplate,
 } from '@/services/rentree-service'
-import { useMembers } from '@/services/member-service'
-import { useDebounce } from '@/hooks/use-debounce'
+import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -24,7 +23,7 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, Zap, CalendarClock, Activity, Link2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ArrowLeft, X, Users, UserPlus, Zap, CalendarClock, Activity, Link2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { RENTREE_ACTION_OPTIONS, getRentreeAction } from '@/lib/rentree-actions'
 import { RENTREE_ANCHOR_OPTIONS, anchorLabel } from '@/lib/rentree-anchors'
@@ -59,9 +58,7 @@ export default function RentreeTemplatePage() {
 
   const [form, setForm] = useState<Form | null>(null)
   const [deleting, setDeleting] = useState<RentreeTemplate | null>(null)
-  const [memberSearch, setMemberSearch] = useState('')
-  const debounced = useDebounce(memberSearch) // member picker (assigneeType === 'members')
-  const { data: memberResults } = useMembers({ search: debounced || undefined, pageSize: 8 })
+  const [pickerOpen, setPickerOpen] = useState(false) // member picker (assigneeType === 'members')
 
   const phases = [...new Set((templates ?? []).map(t => t.phase))] // existing phases → datalist suggestions
 
@@ -88,7 +85,7 @@ export default function RentreeTemplatePage() {
         actionKey: form.actionKey || null,
         deadlineAnchor: form.deadlineAnchor || null, progressKey: form.progressKey || null,
       })
-      toast.success('Modèle enregistré'); setForm(null)
+      toast.success('Tâche enregistrée'); setForm(null)
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -104,8 +101,6 @@ export default function RentreeTemplatePage() {
 
   const selectedAction = getRentreeAction(form?.actionKey) // for the dynamic "what this action does" hint
 
-  if (isLoading) return <LoadingSpinner variant="page" />
-
   return (
     <Page>
       <PageHeader
@@ -120,6 +115,7 @@ export default function RentreeTemplatePage() {
 
       {/* Ordered task list, grouped under a header per phase (phases are contiguous in the order). The up/down
           arrows still reorder across the whole list; a task moved past a phase boundary changes phase group. */}
+      {isLoading ? <LoadingSpinner variant="cards" /> : (
       <div className="space-y-1">
         {(templates ?? []).map((t, idx) => {
           const showPhase = idx === 0 || templates![idx - 1].phase !== t.phase
@@ -130,8 +126,8 @@ export default function RentreeTemplatePage() {
               )}
               <div className="flex items-center gap-2 rounded-lg border p-2.5">
                 <div className="flex flex-col">
-                  <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === 0} onClick={() => move(idx, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
-                  <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === (templates!.length - 1)} onClick={() => move(idx, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
+                  <Tip content="Monter"><button aria-label="Monter" className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === 0} onClick={() => move(idx, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+                  <Tip content="Descendre"><button aria-label="Descendre" className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={idx === (templates!.length - 1)} onClick={() => move(idx, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{t.title}</p>
@@ -143,14 +139,15 @@ export default function RentreeTemplatePage() {
                     {t.dependsOnTemplateIds.length > 0 && <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" />{t.dependsOnTemplateIds.length} préalable(s)</span>}
                   </div>
                 </div>
-                <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
-                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5" /></Button></Tip>
+                <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+                <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Supprimer" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5" /></Button></Tip>
               </div>
             </div>
           )
         })}
         {(templates ?? []).length === 0 && <EmptyState icon={CalendarClock} title="Aucune tâche dans le modèle" description="Ajoutez une tâche pour construire la liste de rentrée." />}
       </div>
+      )}
 
       {/* Add/Edit dialog */}
       <Dialog open={!!form} onOpenChange={() => setForm(null)}>
@@ -194,21 +191,13 @@ export default function RentreeTemplatePage() {
                       {form.assigneeMemberIds.map((id, i) => (
                         <span key={id} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs">
                           {form.assigneeMemberNames[i] ?? '?'}
-                          <Tip content="Retirer"><button onClick={() => setForm({ ...form, assigneeMemberIds: form.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: form.assigneeMemberNames.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></button></Tip>
+                          <Tip content="Retirer"><button type="button" aria-label="Retirer" onClick={() => setForm({ ...form, assigneeMemberIds: form.assigneeMemberIds.filter(x => x !== id), assigneeMemberNames: form.assigneeMemberNames.filter((_, j) => j !== i) })}><X className="h-3 w-3" /></button></Tip>
                         </span>
                       ))}
                     </div>
-                    <Input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Rechercher un membre…" />
-                    {debounced && memberResults && (
-                      <div className="max-h-40 overflow-y-auto rounded-md border text-sm">
-                        {memberResults.items.filter(m => !form.assigneeMemberIds.includes(m.id)).map(m => (
-                          <button key={m.id} className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted"
-                            onClick={() => { setForm({ ...form, assigneeMemberIds: [...form.assigneeMemberIds, m.id], assigneeMemberNames: [...form.assigneeMemberNames, `${m.firstName} ${m.lastName}`] }); setMemberSearch('') }}>
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" />{m.lastName} {m.firstName}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+                      <UserPlus className="mr-1.5 h-4 w-4" />Ajouter un membre
+                    </Button>
                   </div>
                 )}
               </div>
@@ -283,14 +272,24 @@ export default function RentreeTemplatePage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setForm(null)}>Annuler</Button>
-            <Button onClick={submit} disabled={save.isPending}>Enregistrer</Button>
+            <Button onClick={submit} disabled={save.isPending || !form?.title.trim() || !form?.phase.trim()}>
+              {save.isPending ? 'Enregistrement…' : form?.id ? 'Enregistrer' : 'Créer'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la tâche du modèle"
+      <MemberPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} title="Ajouter un responsable"
+        onPick={(m) => {
+          setPickerOpen(false)
+          if (!form || form.assigneeMemberIds.includes(m.id)) return
+          setForm({ ...form, assigneeMemberIds: [...form.assigneeMemberIds, m.id], assigneeMemberNames: [...form.assigneeMemberNames, m.name] })
+        }} />
+
+      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la tâche du modèle ?"
         description={`Supprimer « ${deleting?.title} » ? (n'affecte pas les listes déjà générées)`} confirmLabel="Supprimer" variant="destructive"
-        onConfirm={async () => { if (deleting) { try { await del.mutateAsync(deleting.id); toast.success('Supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)) } } }} />
+        loading={del.isPending}
+        onConfirm={async () => { if (deleting) { try { await del.mutateAsync(deleting.id); toast.success('Tâche supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)) } } }} />
     </Page>
   )
 }

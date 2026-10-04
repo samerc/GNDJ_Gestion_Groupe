@@ -8,6 +8,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
+import { Callout } from '@/components/shared/callout'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 
@@ -34,7 +35,7 @@ export default function ApplicantResetPasswordPage() {
       return
     }
     if (!passwordMeetsPolicy(newPassword, policy)) {
-      setError('Le mot de passe ne respecte pas les exigences ci-dessous.')
+      setError('Le mot de passe ne respecte pas toutes les exigences.')
       return
     }
     try {
@@ -51,9 +52,7 @@ export default function ApplicantResetPasswordPage() {
       <ApplicantAuthShell subtitle="Réinitialiser le mot de passe de votre demande">
         <Card className="shadow-elevated">
           <CardContent className="pt-6">
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              Lien de réinitialisation invalide ou expiré.
-            </div>
+            <Callout tone="danger">Lien de réinitialisation invalide ou expiré.</Callout>
             <Link to="/inscription/login" className="mt-4 block text-center text-sm text-primary hover:underline">
               Retour à la connexion
             </Link>
@@ -73,9 +72,7 @@ export default function ApplicantResetPasswordPage() {
         <CardContent>
           {success ? (
             <div className="space-y-4">
-              <div className="rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800 dark:text-green-300">
-                Votre mot de passe a été réinitialisé avec succès.
-              </div>
+              <Callout tone="success">Votre mot de passe a été réinitialisé avec succès.</Callout>
               <Link to="/inscription/login" className="block text-center text-sm text-primary hover:underline">
                 Se connecter
               </Link>
@@ -83,7 +80,7 @@ export default function ApplicantResetPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <HoneypotField value={website} onChange={setWebsite} />
-              {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              {error && <Callout tone="danger">{error}</Callout>}
               <div className="space-y-2">
                 <Label htmlFor="newPassword">Nouveau mot de passe</Label>
                 <PasswordInput id="newPassword" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required autoFocus autoComplete="new-password" />

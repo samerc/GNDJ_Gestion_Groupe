@@ -98,6 +98,7 @@ export default function UnitTypesPage() {
       <PageHeader
         title="Types d'unité"
         icon={FolderTree}
+        description="Branches du groupe (Meute, Troupe…) avec leurs fonctions, étapes et badges."
         actions={
           <Button onClick={openCreate}>
             <Plus className="mr-1.5 h-4 w-4" />
@@ -215,7 +216,7 @@ export default function UnitTypesPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le type d'unité"
+        title="Supprimer le type d'unité ?"
         description={deleting?.unitCount
           ? `Impossible de supprimer « ${deleting.name} » : ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's sont' : ' est'} de ce type. Changez d'abord leur type ou supprimez-les.`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}

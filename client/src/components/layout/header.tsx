@@ -4,6 +4,7 @@ import { useSidebarStore } from '@/stores/sidebar-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import { Menu } from 'lucide-react'
+import { Tip } from '@/components/ui/tooltip'
 import { useIsManager, useRoleTheme } from '@/lib/use-is-manager'
 import { AdminNav, BrandMark } from './sidebar'
 import { UserMenu } from './user-menu'
@@ -34,19 +35,25 @@ export function Header() {
       className="sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top))] items-center gap-3 border-b border-white/10 px-4 pt-[env(safe-area-inset-top)] text-white shadow-sm sm:px-6"
     >
       {/* Mobile: hamburger + wordmark (drawer nav lives in MobileSidebar) */}
-      <Button variant="ghost" size="icon" className="shrink-0 text-white/80 hover:bg-white/10 hover:text-white lg:hidden" onClick={() => setMobileOpen(true)}>
-        <Menu className="h-5 w-5" />
-      </Button>
+      <Tip content="Ouvrir le menu">
+        <Button variant="ghost" size="icon" aria-label="Ouvrir le menu" className="shrink-0 text-white/80 hover:bg-white/10 hover:text-white lg:hidden" onClick={() => setMobileOpen(true)}>
+          <Menu className="h-5 w-5" />
+        </Button>
+      </Tip>
       {/* Mobile: the wordmark is the home link (→ role-aware /dashboard = "Accueil"). */}
-      <HomeLink title="Accueil" className="text-lg font-bold tracking-tight text-white lg:hidden">GNDJ Scout</HomeLink>
+      <Tip content="Accueil">
+        <HomeLink className="text-lg font-bold tracking-tight text-white lg:hidden">GNDJ Scout</HomeLink>
+      </Tip>
 
       {/* Desktop managers: brand + horizontal nav (no left sidebar for them). The brand is the "Accueil" home
           link — clicking the logo opens the group dashboard, so it needs no dedicated menu button. */}
       {isManager && (
-        <HomeLink title="Accueil" className="hidden shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/10 lg:flex">
-          <BrandMark className="h-8 w-8" />
-          <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
-        </HomeLink>
+        <Tip content="Accueil">
+          <HomeLink className="hidden shrink-0 items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/10 lg:flex">
+            <BrandMark className="h-8 w-8" />
+            <span className="text-[15px] font-bold tracking-tight text-white">GNDJ Scout</span>
+          </HomeLink>
+        </Tip>
       )}
       {isManager && <AdminNav />}
 
@@ -55,13 +62,14 @@ export function Header() {
         {/* Global quick-search (Ctrl/⌘-K) — leaders only; self-gates + returns null otherwise. */}
         <CommandPalette />
         {isManager && isSuperAdmin && (
-          <Link
-            to="/admin/changelog"
-            title={`build ${BUILD_COMMIT}${BUILD_DATE ? ` · ${BUILD_DATE}` : ''}`}
-            className="hidden px-2 text-[11px] font-medium text-white/50 transition-colors hover:text-white lg:inline"
-          >
-            v{APP_VERSION}
-          </Link>
+          <Tip content={`build ${BUILD_COMMIT}${BUILD_DATE ? ` · ${BUILD_DATE}` : ''}`}>
+            <Link
+              to="/admin/changelog"
+              className="hidden px-2 text-[11px] font-medium text-white/50 transition-colors hover:text-white lg:inline"
+            >
+              v{APP_VERSION}
+            </Link>
+          </Tip>
         )}
         <NotificationBell />
         <UserMenu />

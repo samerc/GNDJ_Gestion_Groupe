@@ -20,7 +20,6 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { useUnits } from '@/services/unit-service'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { AmountInput } from '@/components/ui/amount-input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +29,13 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { ScrollToTop } from '@/components/shared/scroll-to-top'
-import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown, FolderCheck, Users, ClipboardCheck, Search, SkipForward, X } from 'lucide-react'
+import { Callout } from '@/components/shared/callout'
+import { SearchInput } from '@/components/shared/search-input'
+import { DateInput } from '@/components/shared/date-input'
+import { Textarea } from '@/components/ui/textarea'
+import { Tip } from '@/components/ui/tooltip'
+import { formatDate, formatMoney } from '@/lib/utils'
+import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown, FolderCheck, Users, ClipboardCheck, Search, SkipForward } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 // ─── Cell rendering helpers ────────────────────────────────
@@ -493,6 +498,11 @@ export default function UnitDocumentsPage() {
     e.preventDefault()
     if (!cotisationMember) return
     setError('')
+    // The date field is required (DateInput emits '' while incomplete).
+    if (!cotPaymentDate) {
+      setError('La date de paiement est requise.')
+      return
+    }
     if (cotPayments.length === 0 || cotPayments.some(p => !(p.amount > 0))) {
       setError('Chaque ligne de paiement doit avoir un montant supérieur à 0.')
       return
@@ -578,7 +588,7 @@ export default function UnitDocumentsPage() {
         }
       />
 
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger">{error}</Callout>}
 
       {!unitId ? (
         <EmptyState icon={FolderCheck} title="Sélectionnez une unité" description="Sélectionnez une unité pour afficher ses documents." />
@@ -612,7 +622,7 @@ export default function UnitDocumentsPage() {
               <span className="ml-auto flex flex-wrap items-center gap-x-3 font-medium">
                 Total encaissé :
                 {Object.entries(cotisationStats.totals).map(([cur, amt]) => (
-                  <span key={cur} className="text-foreground">{amt.toLocaleString('fr-FR')} {cur}</span>
+                  <span key={cur} className="text-foreground">{formatMoney(amt, cur)}</span>
                 ))}
               </span>
             )}
@@ -625,16 +635,7 @@ export default function UnitDocumentsPage() {
                 <ClipboardCheck className="mr-2 h-4 w-4" />Vérifier les documents en attente ({pendingQueue.length})
               </Button>
             )}
-            <div className="relative sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Rechercher un membre…" className="pl-9 pr-9" />
-              {memberSearch && (
-                <button type="button" aria-label="Effacer la recherche" onClick={() => setMemberSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <SearchInput className="sm:max-w-xs" value={memberSearch} onChange={setMemberSearch} placeholder="Rechercher un membre…" />
             <div className="flex flex-wrap gap-1.5">
               {([
                 ['all', 'Tous', 'border-border'],
@@ -652,7 +653,7 @@ export default function UnitDocumentsPage() {
           </div>
 
           {visibleMembers.length === 0 && (
-            <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">Aucun membre ne correspond.</p>
+            <EmptyState icon={Search} title="Aucun membre ne correspond" description="Modifiez la recherche ou le filtre." />
           )}
 
           {/* Phone: one card per member (grouped by équipe) with a labelled tile per document + the cotisation,
@@ -763,22 +764,28 @@ export default function UnitDocumentsPage() {
                             {cell.documentId && (
                               <div className="absolute -top-1 -right-1 hidden group-hover:flex group-focus-within:flex gap-0.5">
                                 {cell.status !== 'Approved' && (
-                                  <button
-                                    className="flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-white shadow hover:bg-green-700"
-                                    onClick={(e) => handleQuickApprove(e, cell)}
-                                    title="Accepter"
-                                  >
-                                    <CheckCircle className="h-2.5 w-2.5" />
-                                  </button>
+                                  <Tip content="Accepter">
+                                    <button
+                                      type="button"
+                                      aria-label="Accepter le document"
+                                      className="flex h-4 w-4 items-center justify-center rounded-full bg-success text-success-foreground shadow hover:bg-success/90"
+                                      onClick={(e) => handleQuickApprove(e, cell)}
+                                    >
+                                      <CheckCircle className="h-2.5 w-2.5" />
+                                    </button>
+                                  </Tip>
                                 )}
                                 {cell.status !== 'Rejected' && (
-                                  <button
-                                    className="flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-white shadow hover:bg-red-700"
-                                    onClick={(e) => { e.stopPropagation(); openPreview(member, cell, docType) }}
-                                    title="Refuser (avec un motif)"
-                                  >
-                                    <XCircle className="h-2.5 w-2.5" />
-                                  </button>
+                                  <Tip content="Refuser (avec un motif)">
+                                    <button
+                                      type="button"
+                                      aria-label="Refuser le document"
+                                      className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow hover:bg-destructive/90"
+                                      onClick={(e) => { e.stopPropagation(); openPreview(member, cell, docType) }}
+                                    >
+                                      <XCircle className="h-2.5 w-2.5" />
+                                    </button>
+                                  </Tip>
                                 )}
                               </div>
                             )}
@@ -831,8 +838,7 @@ export default function UnitDocumentsPage() {
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-muted-foreground">{currentFileName}</span>
                 {previewCell.cell.status && (
-                  <Badge variant={previewCell.cell.status === 'Approved' ? 'default' : previewCell.cell.status === 'Rejected' ? 'destructive' : 'secondary'}
-                    className={previewCell.cell.status === 'Approved' ? 'bg-green-600' : ''}>
+                  <Badge variant={previewCell.cell.status === 'Approved' ? 'success' : previewCell.cell.status === 'Rejected' ? 'danger' : 'warning'}>
                     {docStatusLabel(previewCell.cell)}
                   </Badge>
                 )}
@@ -841,13 +847,17 @@ export default function UnitDocumentsPage() {
               {/* Pager — a multi-file document (e.g. an ID recto + verso) can be paged through here. */}
               {previewPages.length > 1 && (
                 <div className="flex items-center justify-center gap-3 text-sm">
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={previewIndex === 0} onClick={() => goToPage(previewIndex - 1)}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
+                  <Tip content="Page précédente">
+                    <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Page précédente" disabled={previewIndex === 0} onClick={() => goToPage(previewIndex - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </Tip>
                   <span className="font-medium">Page {previewIndex + 1} / {previewPages.length}</span>
-                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={previewIndex === previewPages.length - 1} onClick={() => goToPage(previewIndex + 1)}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  <Tip content="Page suivante">
+                    <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Page suivante" disabled={previewIndex === previewPages.length - 1} onClick={() => goToPage(previewIndex + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Tip>
                 </div>
               )}
 
@@ -860,7 +870,7 @@ export default function UnitDocumentsPage() {
                   <iframe src={previewBlobUrl} className="w-full" style={{ height: 440 }} title="PDF" />
                 )}
                 {!previewBlobUrl && !previewError && (
-                  <div className="py-12 text-sm text-muted-foreground">Chargement…</div>
+                  <LoadingSpinner />
                 )}
                 {previewError && (
                   <div className="py-12 text-sm text-destructive">Impossible de charger l'aperçu du fichier.</div>
@@ -871,16 +881,16 @@ export default function UnitDocumentsPage() {
               </div>
 
               {previewCell.cell.reviewNotes && (
-                <div className="rounded-md bg-orange-50 dark:bg-orange-950/30 p-2 text-sm text-orange-700 dark:text-orange-300">Note : {previewCell.cell.reviewNotes}</div>
+                <Callout tone="warning">Note : {previewCell.cell.reviewNotes}</Callout>
               )}
 
               <div className="space-y-2">
                 <RequiredLabel>Motif en cas de refus (optionnel, visible par le membre)</RequiredLabel>
-                <textarea
-                  className="flex min-h-14 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                <Textarea
+                  className="min-h-14"
                   value={reviewNotes}
                   onChange={(e) => setReviewNotes(e.target.value)}
-                  placeholder="Ex. document illisible, signature manquante…"
+                  placeholder="Ex. : document illisible, signature manquante…"
                 />
               </div>
 
@@ -903,7 +913,7 @@ export default function UnitDocumentsPage() {
                   <XCircle className="mr-1 h-4 w-4" />Refuser
                 </Button>
                 {previewCell.cell.status !== 'Approved' && (
-                  <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
+                  <Button size="sm" variant="success" onClick={() => handleReview('Approved')} disabled={reviewMutation.isPending}>
                     <CheckCircle className="mr-1 h-4 w-4" />Accepter
                   </Button>
                 )}
@@ -929,14 +939,13 @@ export default function UnitDocumentsPage() {
 
           {cotisationMember?.cotisation.cotisationId && cotisationMember.cotisation.status === 'Paid' ? (
             <div className="space-y-4">
-              <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-700 dark:text-green-300">
-                Cotisation enregistrée :
+              <Callout tone="success" title="Cotisation enregistrée">
                 {cotisationMember.cotisation.payments.map((p, i) => (
-                  <div key={i}><strong>{p.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} {p.currency}</strong> ({PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod})</div>
+                  <div key={i}><strong>{formatMoney(p.amount, p.currency)}</strong> ({PAYMENT_METHOD_OPTIONS.find(o => o.value === p.paymentMethod)?.label ?? p.paymentMethod})</div>
                 ))}
-                <br />Reçu : {cotisationMember.cotisation.receiptNumber}
-                {cotisationMember.cotisation.paymentDate && <><br />Date : {new Date(cotisationMember.cotisation.paymentDate).toLocaleDateString('fr-FR')}</>}
-              </div>
+                <div className="mt-2">Reçu : {cotisationMember.cotisation.receiptNumber}</div>
+                {cotisationMember.cotisation.paymentDate && <div>Date : {formatDate(cotisationMember.cotisation.paymentDate)}</div>}
+              </Callout>
               <DialogFooter className="sm:justify-between">
                 {canDeleteCotisation ? (
                   <Button variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteCot(true)}>
@@ -948,12 +957,12 @@ export default function UnitDocumentsPage() {
             </div>
           ) : (
             <form onSubmit={handleCotisationSubmit} className="space-y-4">
-              {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              {error && <Callout tone="danger">{error}</Callout>}
               <p className="text-sm text-muted-foreground">Année scoute : {currentScoutYear}</p>
               {cotisationMember?.cotisation.status === 'Partial' && (
-                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-800 dark:text-amber-300">
-                  Paiement partiel ({cotisationMember.cotisation.percent} %). Ajoutez une ligne pour compléter la cotisation.
-                </div>
+                <Callout tone="warning" title={`Paiement partiel (${cotisationMember.cotisation.percent} %)`}>
+                  Ajoutez une ligne pour compléter la cotisation.
+                </Callout>
               )}
 
               {cotisationMember?.cotisation.willNotPay ? (
@@ -973,7 +982,7 @@ export default function UnitDocumentsPage() {
 
               <div className="space-y-2">
                 <RequiredLabel required>Date de paiement</RequiredLabel>
-                <Input type="date" value={cotPaymentDate} onChange={(e) => setCotPaymentDate(e.target.value)} required />
+                <DateInput value={cotPaymentDate} onChange={(iso) => setCotPaymentDate(iso ?? '')} />
               </div>
 
               <div className="space-y-2">
@@ -984,26 +993,29 @@ export default function UnitDocumentsPage() {
                   </Button>
                 </div>
                 {cotPayments.map((p, idx) => (
-                  <div key={idx} className="flex gap-2 items-end">
-                    <div className="flex-1">
+                  // Phone: amount on its own full-width row, then devise + mode (+ remove); one row from sm up.
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 sm:flex sm:items-end">
+                    <div className="col-span-3 sm:flex-1">
                       <AmountInput placeholder="Montant" value={p.amount} onValueChange={(n) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, amount: n } : pp))} required />
                     </div>
                     <Select value={p.currency} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, currency: v, amount: amountOnCurrencyChange(fullAmountsRaw, pp.currency, v, pp.amount) } : pp))}>
-                      <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full sm:w-28"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {currencies.map(c => <SelectItem key={c.code} value={c.code}>{currencyLabel(c.code)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Select value={p.paymentMethod} onValueChange={(v) => setCotPayments(prev => prev.map((pp, i) => i === idx ? { ...pp, paymentMethod: v } : pp))}>
-                      <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {PAYMENT_METHOD_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     {cotPayments.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => setCotPayments(prev => prev.filter((_, i) => i !== idx))}>
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                      <Tip content="Retirer la ligne de paiement">
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" aria-label="Retirer la ligne de paiement" onClick={() => setCotPayments(prev => prev.filter((_, i) => i !== idx))}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </Tip>
                     )}
                   </div>
                 ))}
@@ -1053,7 +1065,7 @@ export default function UnitDocumentsPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <RequiredLabel required>Date d'expiration</RequiredLabel>
-              <Input type="date" value={uploadExpiry} onChange={(e) => setUploadExpiry(e.target.value)} />
+              <DateInput value={uploadExpiry} onChange={(iso) => setUploadExpiry(iso ?? '')} />
               <p className="text-xs text-muted-foreground">Ce document a une date d'expiration. Indiquez-la avant de choisir le fichier.</p>
             </div>
             <p className="text-xs text-muted-foreground">Formats : {formatsLabel} — Max {maxSizeMb} Mo. Plusieurs fichiers = un document à plusieurs pages.</p>

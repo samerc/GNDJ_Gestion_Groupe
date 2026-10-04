@@ -25,12 +25,16 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
+import { BackLink } from '@/components/shared/back-link'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
 import { useMembers } from '@/services/member-service'
-import { ArrowLeft, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp, ChevronRight, Info as InfoIcon, Building2 } from 'lucide-react'
+import { Users, Plus, Pencil, Trash2, UsersRound, ChevronDown, ChevronUp, ChevronRight, Info as InfoIcon, Building2 } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { toast } from 'sonner'
+import { DateInput } from '@/components/shared/date-input'
 
 interface UnitDetail {
   id: string; name: string; code: string; description: string | null; isActive: boolean
@@ -190,29 +194,31 @@ export default function UnitDetailPage() {
         updateTeam.mutateAsync({ id: sorted[idx].id, name: sorted[idx].name, unitId: id!, displayOrder: sorted[swapIdx].displayOrder }),
         updateTeam.mutateAsync({ id: sorted[swapIdx].id, name: sorted[swapIdx].name, unitId: id!, displayOrder: sorted[idx].displayOrder }),
       ])
-    } catch { toast.error('Impossible de réordonner les équipes') /* refresh will show correct order */ }
+    } catch (err) { toast.error(parseApiError(err)) /* refresh will show correct order */ }
   }
 
   const isSaving = createTeam.isPending || updateTeam.isPending
 
   if (!isNew && isLoading) return <LoadingSpinner variant="detail" />
-  if (!isNew && !unit) return <div className="py-12 text-center text-muted-foreground">Unité introuvable.</div>
+  if (!isNew && !unit) return (
+    <Page>
+      <BackLink to="/units" label="Unités" />
+      <EmptyState icon={Building2} title="Unité introuvable" description="Cette unité n'existe pas ou a été supprimée." />
+    </Page>
+  )
 
   return (
     <Page>
-      {/* Header — back button + standard page header (title, meta, status badge). */}
-      <div className="flex items-center gap-3">
-        <Tip content="Retour"><Button variant="ghost" size="icon" onClick={() => navigate('/units')}><ArrowLeft className="h-5 w-5" /></Button></Tip>
-        <PageHeader
-          className="flex-1 border-b-0 pb-0"
-          icon={Building2}
-          title={isNew ? 'Nouvelle unité' : unit!.name}
-          description={!isNew && !unitEditing ? `${unit!.associationName ?? 'Inter-associations'} — ${unit!.unitTypeName} — Code : ${unit!.code}` : undefined}
-          actions={!isNew && !unitEditing
-            ? <Badge variant={unit!.isActive ? 'success' : 'secondary'}>{unit!.isActive ? 'Active' : 'Inactive'}</Badge>
-            : undefined}
-        />
-      </div>
+      {/* Header — back link + standard page header (title, meta, status badge). */}
+      <BackLink to="/units" label="Unités" />
+      <PageHeader
+        icon={Building2}
+        title={isNew ? 'Nouvelle unité' : unit!.name}
+        description={isNew ? 'Créer une unité du groupe' : `${unit!.associationName ?? 'Inter-associations'} — ${unit!.unitTypeName} — Code : ${unit!.code}`}
+        actions={!isNew && !unitEditing
+          ? <Badge variant={unit!.isActive ? 'success' : 'secondary'}>{unit!.isActive ? 'Active' : 'Inactive'}</Badge>
+          : undefined}
+      />
 
       {/* Informations — collapsible; read-only card with "Modifier", or the inline edit form.
           Hidden entirely for anyone without units.edit (e.g. a CU, who only manages teams below). */}
@@ -229,7 +235,7 @@ export default function UnitDetailPage() {
         <CardContent>
           {unitEditing ? (
             <form onSubmit={saveUnit} className="space-y-4">
-              {unitError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{unitError}</div>}
+              {unitError && <Callout tone="danger">{unitError}</Callout>}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <RequiredLabel htmlFor="uname" required>Nom</RequiredLabel>
@@ -286,8 +292,8 @@ export default function UnitDetailPage() {
                   <p className="text-xs text-muted-foreground">Adresse : /unites/{unitForm.slug || '…'}</p>
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="ufounded" className="text-sm font-medium">Date de fondation</label>
-                  <Input id="ufounded" type="date" value={unitForm.foundedDate ?? ''} onChange={(e) => setUnitForm(f => ({ ...f, foundedDate: e.target.value || null }))} className="w-48" />
+                  <RequiredLabel>Date de fondation</RequiredLabel>
+                  <DateInput value={unitForm.foundedDate ?? ''} onChange={(iso) => setUnitForm(f => ({ ...f, foundedDate: iso }))} className="w-48" />
                   <p className="text-xs text-muted-foreground">Date réelle de création de l'unité (affichée sur le site public).</p>
                 </div>
                 <p className="text-xs text-muted-foreground">La description publique se définit sur le <strong>type d'unité</strong> (partagée par toutes les unités de la même branche).</p>
@@ -338,9 +344,13 @@ export default function UnitDetailPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {error && <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              {error && <Callout tone="danger" className="mb-3">{error}</Callout>}
               {!teams || teams.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune équipe dans cette unité.</p>
+                <EmptyState
+                  icon={UsersRound}
+                  title="Aucune équipe dans cette unité"
+                  action={<Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Nouvelle équipe</Button>}
+                />
               ) : (
                 <div className="space-y-3">
                   {[...teams.items].sort((a, b) => {
@@ -356,8 +366,8 @@ export default function UnitDetailPage() {
                       >
                         {!team.isMaitrise && (
                           <div className="flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                            <Tip content="Monter"><button className="text-muted-foreground hover:text-foreground p-1.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
-                            <Tip content="Descendre"><button className="text-muted-foreground hover:text-foreground p-1.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
+                            <Tip content="Monter"><button type="button" aria-label="Monter l'équipe" className="text-muted-foreground hover:text-foreground p-1.5" onClick={() => handleMoveTeam(team.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></button></Tip>
+                            <Tip content="Descendre"><button type="button" aria-label="Descendre l'équipe" className="text-muted-foreground hover:text-foreground p-1.5" onClick={() => handleMoveTeam(team.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></button></Tip>
                           </div>
                         )}
                         <div className="flex items-center gap-2">
@@ -373,17 +383,17 @@ export default function UnitDetailPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold">{team.name}</span>
-                            {team.isMaitrise && <Badge className="bg-amber-600 text-xs">Maîtrise</Badge>}
+                            {team.isMaitrise && <Badge variant="warning">Maîtrise</Badge>}
                             {team.totem && team.totem !== team.name && <span className="text-sm text-muted-foreground">({team.totem}{team.adjective ? ` ${team.adjective}` : ''})</span>}
                           </div>
                           <span className="text-xs text-muted-foreground">{team.memberCount} membre{team.memberCount > 1 ? 's' : ''}</span>
                         </div>
                         <div className="flex gap-1 items-center">
                           {expandedTeam === team.id ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
+                          <Tip content="Modifier l'équipe"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Modifier l'équipe" onClick={(e) => { e.stopPropagation(); openEdit(team) }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button></Tip>
-                          <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
+                          <Tip content="Supprimer l'équipe"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Supprimer l'équipe" onClick={(e) => { e.stopPropagation(); setDeleting(team) }}>
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button></Tip>
                         </div>
@@ -456,7 +466,7 @@ export default function UnitDetailPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer l'équipe"
+        title="Supprimer l'équipe ?"
         description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?${deleting?.memberCount ? ` L'affectation de ${deleting.memberCount} membre${deleting.memberCount > 1 ? 's' : ''} sera concernée.` : ''}`}
         confirmLabel="Supprimer"
         variant="destructive"
@@ -479,7 +489,7 @@ function Info({ label, value, className }: { label: string; value: string; class
 function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
   const { data, isLoading } = useMembers({ unitId, teamId, pageSize: 100 })
 
-  if (isLoading) return <div className="px-4 pb-3 text-sm text-muted-foreground">Chargement…</div>
+  if (isLoading) return <LoadingSpinner className="py-4" />
 
   // Sort by role rank (most senior first), then alphabetically.
   const members = [...(data?.items ?? [])].sort((a, b) => {
@@ -487,7 +497,7 @@ function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
     if (ra !== rb) return rb - ra
     return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`)
   })
-  if (members.length === 0) return <div className="px-4 pb-3 text-sm text-muted-foreground">Aucun membre dans cette équipe.</div>
+  if (members.length === 0) return <EmptyState icon={Users} title="Aucun membre dans cette équipe" />
 
   return (
     <div className="border-t px-4 pb-3 pt-2 overflow-x-auto">

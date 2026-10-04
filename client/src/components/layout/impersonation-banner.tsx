@@ -16,14 +16,15 @@ export function ImpersonationBanner() {
     setTimeout(() => { void stop() }, 120)
   }
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-500 px-4 py-1.5 text-center text-xs font-semibold text-amber-950 dark:bg-amber-600 dark:text-amber-50">
+    <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-warning-border bg-warning-subtle px-4 py-1.5 text-center text-xs font-semibold text-warning">
       <span className="flex items-center gap-1.5">
         <Eye className="h-4 w-4 shrink-0" />
         Vous consultez en tant que <strong>{memberName}</strong> — lecture seule
       </span>
       <button
         onClick={quit}
-        className="rounded bg-amber-950/15 px-2 py-0.5 font-semibold hover:bg-amber-950/25 dark:bg-amber-50/20 dark:hover:bg-amber-50/30"
+        type="button"
+        className="rounded border border-warning-border bg-background px-2 py-0.5 font-semibold hover:bg-muted"
       >
         Quitter
       </button>

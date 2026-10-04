@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
+import { formatDateTime } from '@/lib/utils'
+import { Callout } from '@/components/shared/callout'
 import { useAuthStore } from '@/stores/auth-store'
 import { useDocumentTypeList } from '@/services/document-type-service'
 import { useSettingArray, useSettingValue, useUpdateSetting } from '@/services/settings-service'
@@ -23,7 +25,6 @@ function formatBytes(n: number | null | undefined) {
   if (!n) return '0 Mo'
   return n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} Go` : `${Math.max(1, Math.round(n / 1024 ** 2))} Mo`
 }
-const frDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '')
 
 export function NewYearCleanupPanel() {
   const qc = useQueryClient()
@@ -54,7 +55,7 @@ export function NewYearCleanupPanel() {
     try {
       await start.mutateAsync()
       setConfirmOpen(false); setUnderstood(false)
-      toast.success('Nettoyage lancé — vous pouvez suivre son avancement ici.')
+      toast.success('Nettoyage lancé — vous pouvez suivre son avancement ici')
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -114,22 +115,22 @@ export function NewYearCleanupPanel() {
 
       {/* Status of the last / current run */}
       {running && last && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          En cours : {last.phase ?? '…'}{last.exported != null && ` — ${last.exported} fichiers exportés`}
-        </div>
+        <Callout tone="info">
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-info" />
+            En cours : {last.phase ?? '…'}{last.exported != null && ` — ${last.exported} fichiers exportés`}
+          </span>
+        </Callout>
       )}
       {!running && last?.state === 'failed' && last.scoutYear === p.scoutYear && (
-        <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Le nettoyage a échoué ({last.error}). Rien n'a été modifié dans la base ; vous pouvez le relancer.</span>
-        </div>
+        <Callout tone="danger" icon={AlertTriangle} title="Le nettoyage a échoué">
+          {last.error} — rien n'a été modifié dans la base ; vous pouvez le relancer.
+        </Callout>
       )}
       {done && last?.state === 'done' && (
-        <div className="space-y-2 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
-          <p className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-300">
-            <CheckCircle2 className="h-4 w-4" />Nettoyage fait pour {last.scoutYear} le {frDateTime(last.finishedAt)}{last.startedBy ? ` par ${last.startedBy}` : ''}
-          </p>
+        <Callout tone="success" icon={CheckCircle2}
+          title={`Nettoyage fait pour ${last.scoutYear} le ${formatDateTime(last.finishedAt)}${last.startedBy ? ` par ${last.startedBy}` : ''}`}>
+          <div className="space-y-2">
           <p className="text-muted-foreground">
             {last.exported} fichiers exportés{last.missingFiles ? ` (${last.missingFiles} introuvables sur le serveur)` : ''} ·
             {' '}{last.deleted} documents supprimés · {last.approvalsReset} validations remises · {last.sectionsCleared} sections vidées ·
@@ -137,12 +138,13 @@ export function NewYearCleanupPanel() {
           </p>
           {last.archiveFile && (
             isSuperAdmin ? (
-              <Button variant="outline" size="sm" onClick={() => downloadNewYearArchive(last.archiveFile!).catch((e) => toast.error(parseApiError(e)))}>
+              <Button variant="outline" size="sm" onClick={() => downloadNewYearArchive(last.archiveFile!).catch(async (e) => toast.error(await parseBlobError(e)))}>
                 <Download className="mr-1.5 h-4 w-4" />Télécharger l'archive ({formatBytes(last.archiveBytes)})
               </Button>
             ) : <p className="text-xs text-muted-foreground">Archive : {last.archiveFile} ({formatBytes(last.archiveBytes)}) — téléchargeable par le super-administrateur.</p>
           )}
-        </div>
+          </div>
+        </Callout>
       )}
 
       {!done && (

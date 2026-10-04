@@ -6,6 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { parseApiError } from '@/lib/error-utils'
+import { Tip } from '@/components/ui/tooltip'
+import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import {
   useUnreadNotificationCount, useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead,
   useDeleteNotification, useClearReadNotifications, useNotificationPreferences, useUpdateNotificationPreferences,
@@ -61,31 +65,35 @@ export function NotificationBell() {
   return (
     <>
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative shrink-0 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Notifications">
-          <Bell className="h-5 w-5" />
-          {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
-              {unread > 99 ? '99+' : unread}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
+      <Tip content="Notifications">
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="relative shrink-0 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Notifications">
+            <Bell className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                {unread > 99 ? '99+' : unread}
+              </span>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+      </Tip>
       <DropdownMenuContent align="end" className="w-80 p-0 sm:w-96">
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
           <div className="flex items-center gap-3">
-            <button type="button" title="Préférences de notifications" aria-label="Préférences de notifications"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => { setOpen(false); setPrefsOpen(true) }}>
-              <Settings2 className="h-3.5 w-3.5" />
-            </button>
+            <Tip content="Préférences de notifications">
+              <button type="button" aria-label="Préférences de notifications"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => { setOpen(false); setPrefsOpen(true) }}>
+                <Settings2 className="h-3.5 w-3.5" />
+              </button>
+            </Tip>
             {unread > 0 && (
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
                 disabled={markAll.isPending}
-                onClick={() => markAll.mutate()}
+                onClick={() => markAll.mutate(undefined, { onError: (e) => toast.error(parseApiError(e)) })}
               >
                 <Check className="h-3.5 w-3.5" />Tout marquer comme lu
               </button>
@@ -95,9 +103,9 @@ export function NotificationBell() {
                 type="button"
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive disabled:opacity-50"
                 disabled={clearRead.isPending}
-                onClick={() => clearRead.mutate()}
+                onClick={() => clearRead.mutate(undefined, { onSuccess: () => toast.success('Notifications lues supprimées'), onError: (e) => toast.error(parseApiError(e)) })}
               >
-                <Trash2 className="h-3.5 w-3.5" />Effacer les lues
+                <Trash2 className="h-3.5 w-3.5" />Supprimer les lues
               </button>
             )}
           </div>
@@ -105,12 +113,9 @@ export function NotificationBell() {
 
         <div className="max-h-[70vh] overflow-y-auto sm:max-h-96">
           {isLoading ? (
-            <p className="px-3 py-8 text-center text-sm text-muted-foreground">Chargement…</p>
+            <LoadingSpinner />
           ) : items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-3 py-10 text-center text-muted-foreground">
-              <Bell className="h-8 w-8 opacity-40" />
-              <p className="text-sm">Aucune notification</p>
-            </div>
+            <EmptyState icon={Bell} title="Aucune notification" />
           ) : (
             items.map((n) => {
               const meta = META[n.type] ?? META.info
@@ -139,15 +144,17 @@ export function NotificationBell() {
                   </button>
                   {/* Delete this notification: visible by default (incl. touch, which has no hover); a mouse
                       (pointer-fine) gets the hover-reveal so the row stays clean on desktop. */}
-                  <button
-                    type="button"
-                    aria-label="Supprimer cette notification"
-                    disabled={removeOne.isPending}
-                    onClick={() => removeOne.mutate(n.id)}
-                    className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground/50 opacity-100 transition-opacity hover:bg-muted hover:text-destructive focus:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover/notif:opacity-100"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <Tip content="Supprimer cette notification">
+                    <button
+                      type="button"
+                      aria-label="Supprimer cette notification"
+                      disabled={removeOne.isPending}
+                      onClick={() => removeOne.mutate(n.id, { onError: (e) => toast.error(parseApiError(e)) })}
+                      className="mt-0.5 shrink-0 rounded p-1 text-muted-foreground/50 opacity-100 transition-opacity hover:bg-muted hover:text-destructive focus:opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover/notif:opacity-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </Tip>
                 </div>
               )
             })
@@ -185,8 +192,8 @@ function NotificationPreferencesDialog({ open, onOpenChange }: { open: boolean; 
 
   const save = () => {
     update.mutate(mutedSet, {
-      onSuccess: () => { toast.success('Préférences enregistrées'); onOpenChange(false) },
-      onError: () => toast.error('Échec de l\'enregistrement'),
+      onSuccess: () => { toast.success('Préférences de notifications enregistrées'); onOpenChange(false) },
+      onError: (e) => toast.error(parseApiError(e)),
     })
   }
 

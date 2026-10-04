@@ -32,7 +32,7 @@ import { BulkChangeDialog } from '@/components/passage/bulk-change-dialog'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
-import { parseApiError } from '@/lib/error-utils'
+import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import apiClient from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -46,6 +46,8 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { Callout } from '@/components/shared/callout'
+import { RequiredLabel } from '@/components/shared/required-label'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { Tip } from '@/components/ui/tooltip'
 import {
   ArrowRightLeft,
@@ -56,6 +58,7 @@ import {
   ToggleRight,
   FileText,
   Send,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
@@ -118,6 +121,8 @@ export default function PassageValidationPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editDialog, setEditDialog] = useState<PassageDto | null>(null)
   const [finalizeDialog, setFinalizeDialog] = useState(false)
+  // Opening/closing the passage changes what every chef d'unité can do, so it asks for confirmation first.
+  const [toggleDialog, setToggleDialog] = useState(false)
   // "Changer la sélection": same decision for every selected line.
   const [bulkChangeOpen, setBulkChangeOpen] = useState(false)
   // By default the CG only sees members actually changing unit (or leaving) — the real passages to review.
@@ -179,6 +184,8 @@ export default function PassageValidationPage() {
       toast.success(newEnabled ? 'Passage ouvert' : 'Passage fermé')
     } catch (err) {
       toast.error(parseApiError(err))
+    } finally {
+      setToggleDialog(false)
     }
   }
 
@@ -268,7 +275,7 @@ export default function PassageValidationPage() {
         finalIsLeaving: editLeaving,
         cgNotes: editCgNotes || null,
       })
-      toast.success('Ligne enregistrée')
+      toast.success('Ligne de passage enregistrée')
       setEditDialog(null)
     } catch (err) {
       setEditError(parseApiError(err))
@@ -349,7 +356,7 @@ export default function PassageValidationPage() {
       const { blob, fileName } = await downloadPassageNewcomersDoc(scoutYear, associationId)
       saveBlob(blob, fileName)
     } catch (err) {
-      toast.error(parseApiError(err))
+      toast.error(await parseBlobError(err))
     }
   }
 
@@ -360,11 +367,11 @@ export default function PassageValidationPage() {
     if (p.cgModified) return (
       <div className="flex flex-col items-start gap-0.5">
         <Badge variant="success">Validé</Badge>
-        <span className="text-[11px] text-amber-700 dark:text-amber-400">modifié par le CG</span>
+        <span className="text-[11px] text-warning">modifié par le CG</span>
       </div>
     )
     if (p.status === 'Approved') return <Badge variant="success">Validé</Badge>
-    return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-300">À valider</Badge>
+    return <Badge variant="warning">À valider</Badge>
   }
 
   // Mobile card colours, matching the status badge.
@@ -375,13 +382,12 @@ export default function PassageValidationPage() {
     return { border: 'border-l-yellow-400', header: 'bg-yellow-50 dark:bg-yellow-950/30' }
   }
 
-  if (isLoading) return <LoadingSpinner variant="table" />
-
   return (
     <Page>
       <PageHeader
         title={`Validation des passages — ${scoutYear}`}
         icon={ArrowRightLeft}
+        description="Validez les propositions des chefs d'unité puis publiez le passage."
         actions={<>
           <Select value={scoutYear} onValueChange={setScoutYear}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -397,8 +403,8 @@ export default function PassageValidationPage() {
           </Badge>
           <Button
             variant={passageStatus?.isOpen ? 'destructive' : 'default'}
-            onClick={handleToggle}
-            disabled={toggleMutation.isPending}
+            onClick={() => setToggleDialog(true)}
+            disabled={toggleMutation.isPending || isLoading}
           >
             {passageStatus?.isOpen ? (
               <><ToggleRight className="mr-1.5 h-4 w-4" />Fermer le passage</>
@@ -409,6 +415,7 @@ export default function PassageValidationPage() {
         </>}
       />
 
+      {isLoading ? <LoadingSpinner variant="table" /> : (<>
       {/* Why publishing is blocked — shown first so it's the first thing the CG reads. */}
       {finalizedCount === 0 && (missingTotal > 0 || unitsNotSubmitted > 0) && (
         <div className="space-y-2">
@@ -478,7 +485,7 @@ export default function PassageValidationPage() {
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           {showUnitMembers ? "Membres de l'unité" : 'Lignes de passage'}
           {unitFilter !== '_all' && <Badge variant="outline">{units.find(u => u.id === unitFilter)?.code ?? ''}</Badge>}
-          {passagesFetching && <span className="text-xs font-normal text-muted-foreground">Chargement…</span>}
+          {passagesFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Chargement" />}
         </h2>
         <p className="text-sm text-muted-foreground">{showUnitMembers
           ? "Tous les membres de l'unité, avec ou sans ligne de passage. Vous avez les mêmes choix que le chef d'unité, même si l'unité est terminée."
@@ -495,10 +502,14 @@ export default function PassageValidationPage() {
           </SelectContent>
         </Select>
         {unitFilter !== '_all' && (
-          <div className="inline-flex rounded-md border">
-            <Button size="sm" variant={unitView === 'members' ? 'default' : 'ghost'} className="rounded-r-none" onClick={() => setUnitView('members')}>Tous les membres</Button>
-            <Button size="sm" variant={unitView === 'lines' ? 'default' : 'ghost'} className="rounded-l-none border-l" onClick={() => setUnitView('lines')}>Lignes de passage</Button>
-          </div>
+          <SegmentedToggle
+            value={unitView}
+            onChange={setUnitView}
+            options={[
+              { value: 'members', label: 'Tous les membres' },
+              { value: 'lines', label: 'Lignes de passage' },
+            ]}
+          />
         )}
         {!showUnitMembers && (<>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -529,10 +540,10 @@ export default function PassageValidationPage() {
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-2 py-3">
             <span className="text-sm font-medium"><span className="md:hidden">Pour la sélection : </span>{selected.size} passage(s) sélectionné(s)</span>
             <div className="flex gap-2 sm:ml-auto">
-              <Button size="sm" className="flex-1 bg-green-600 text-white hover:bg-green-700 sm:flex-none" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
+              <Button size="sm" variant="success" className="flex-1 sm:flex-none" onClick={handleBulkApprove} disabled={bulkReviewMutation.isPending}>
                 <Check className="mr-1 h-4 w-4" />Accepter<span className="hidden sm:inline">&nbsp;la sélection</span>
               </Button>
-              <Button size="sm" className="flex-1 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none" onClick={() => setBulkChangeOpen(true)}>
+              <Button size="sm" className="flex-1 max-md:ring-1 max-md:ring-primary-foreground/50 sm:flex-none" onClick={() => setBulkChangeOpen(true)}>
                 <Pencil className="mr-1 h-4 w-4" />Changer<span className="hidden sm:inline">&nbsp;la sélection</span>
               </Button>
             </div>
@@ -570,7 +581,7 @@ export default function PassageValidationPage() {
                 <th className="px-3 py-2 text-left font-medium">Proposition</th>
                 <th className="px-3 py-2 text-left font-medium">Équipe</th>
                 <th className="px-3 py-2 text-left font-medium">Fonction</th>
-                <th className="px-3 py-2 text-left font-medium">Notes CU</th>
+                <th className="px-3 py-2 text-left font-medium">Notes du chef d'unité</th>
                 <th className="px-3 py-2 text-left font-medium">Décision CG / raison</th>
                 <th className="px-3 py-2 text-left font-medium">Statut</th>
                 <th className="w-28" />
@@ -610,8 +621,8 @@ export default function PassageValidationPage() {
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-[120px] truncate" title={p.cuNotes ?? ''}>{p.cuNotes ?? ''}</td>
                   <td className="px-3 py-2 text-xs">
                     {p.cgModified ? (
-                      <div className="inline-flex flex-wrap items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 dark:bg-amber-950/30">
-                        <ArrowRight className="h-3 w-3 text-amber-700 dark:text-amber-400" />
+                      <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-warning-border bg-warning-subtle px-1.5 py-0.5">
+                        <ArrowRight className="h-3 w-3 text-warning" />
                         {(p.finalIsLeaving ?? p.isLeaving)
                           ? <span className="font-semibold">Quitte le groupe</span>
                           : <>
@@ -636,8 +647,9 @@ export default function PassageValidationPage() {
                           className="h-7 w-7"
                           onClick={() => quickApprove(p)}
                           disabled={pendingId === p.id}
+                          aria-label={`Accepter le passage de ${p.memberName}`}
                         >
-                          <Check className="h-3.5 w-3.5 text-green-600" />
+                          <Check className="h-3.5 w-3.5 text-success" />
                         </Button>
                       </Tip>}
                       <Tip content="Changer (unité, équipe, fonction) avec une raison">
@@ -646,6 +658,7 @@ export default function PassageValidationPage() {
                           size="icon"
                           className="h-7 w-7"
                           onClick={() => openEditDialog(p)}
+                          aria-label={`Changer le passage de ${p.memberName}`}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -697,11 +710,11 @@ export default function PassageValidationPage() {
                     </div>
                   )}
                   {p.cgModified && (
-                    <p className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                      Modifié par le CG — proposition du CU : {p.isLeaving ? 'Quitte le groupe' : `${p.proposedUnitCode}${p.proposedTeamName ? ` / ${p.proposedTeamName}` : ''} · ${p.proposedRoleName ?? ''}`}
-                    </p>
+                    <Callout tone="warning" className="p-2 text-xs">
+                      Modifié par le CG — proposition du chef d'unité : {p.isLeaving ? 'Quitte le groupe' : `${p.proposedUnitCode}${p.proposedTeamName ? ` / ${p.proposedTeamName}` : ''} · ${p.proposedRoleName ?? ''}`}
+                    </Callout>
                   )}
-                  {p.cuNotes && <p className="text-xs text-muted-foreground"><span className="font-medium">Notes CU :</span> {p.cuNotes}</p>}
+                  {p.cuNotes && <p className="text-xs text-muted-foreground"><span className="font-medium">Notes du chef d'unité :</span> {p.cuNotes}</p>}
                   {p.cgNotes && <p className="text-xs italic text-muted-foreground"><span className="font-medium not-italic">Raison :</span> {p.cgNotes}</p>}
                 </div>
 
@@ -709,11 +722,11 @@ export default function PassageValidationPage() {
                 {p.status !== 'Finalized' && (
                   <div className="flex gap-2 border-t bg-muted/30 px-3 py-2.5">
                     {p.status === 'Pending' && (
-                      <Button size="sm" className="flex-1 bg-green-600 text-white hover:bg-green-700" onClick={() => quickApprove(p)} disabled={pendingId === p.id}>
+                      <Button size="sm" variant="success" className="flex-1" onClick={() => quickApprove(p)} disabled={pendingId === p.id}>
                         <Check className="mr-1 h-4 w-4" />Accepter
                       </Button>
                     )}
-                    <Button size="sm" className="flex-1 bg-blue-600 text-white hover:bg-blue-700" onClick={() => openEditDialog(p)}>
+                    <Button size="sm" className="flex-1" onClick={() => openEditDialog(p)}>
                       <Pencil className="mr-1 h-4 w-4" />Changer
                     </Button>
                   </div>
@@ -774,23 +787,23 @@ export default function PassageValidationPage() {
             <DialogTitle>Revue du passage — {editDialog?.memberName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {editError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{editError}</div>}
+            {editError && <Callout tone="danger">{editError}</Callout>}
 
-            <div className="rounded-md bg-muted/40 p-3 text-sm">
+            <Callout tone="muted">
               {editDialog?.isLeaving ? (
-                <p><strong>Proposition CU :</strong> Quitte le groupe</p>
+                <p><strong>Proposition du chef d'unité :</strong> Quitte le groupe</p>
               ) : (
                 <>
-                  <p><strong>Proposition CU :</strong> {editDialog?.proposedUnitCode} — {editDialog?.proposedUnitName}</p>
+                  <p><strong>Proposition du chef d'unité :</strong> {editDialog?.proposedUnitCode} — {editDialog?.proposedUnitName}</p>
                   {editDialog?.proposedTeamName && <p>Équipe : {editDialog.proposedTeamName}</p>}
                   <p>Fonction : {editDialog?.proposedRoleName}</p>
                 </>
               )}
-              {editDialog?.cuNotes && <p className="text-muted-foreground mt-1">Notes : {editDialog.cuNotes}</p>}
-            </div>
+              {editDialog?.cuNotes && <p className="text-muted-foreground mt-1">Notes du chef d'unité : {editDialog.cuNotes}</p>}
+            </Callout>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Unité finale</label>
+              <RequiredLabel required>Unité finale</RequiredLabel>
               {(() => {
                 // Only the units the member can go to (parcours scout): stay in the SAME branch
                 // (équipe/fonction change) or move to a progression target. The CU's proposed unit is
@@ -820,7 +833,7 @@ export default function PassageValidationPage() {
                         <>
                           {!proposedInList && proposedUnit && (
                             <SelectGroup>
-                              <SelectLabel>Proposition CU</SelectLabel>
+                              <SelectLabel>Proposition du chef d'unité</SelectLabel>
                               <SelectItem value={proposedUnit.id}>{proposedUnit.code} — {proposedUnit.name}</SelectItem>
                             </SelectGroup>
                           )}
@@ -852,7 +865,7 @@ export default function PassageValidationPage() {
 
             {!editLeaving && (<>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Équipe finale</label>
+              <RequiredLabel>Équipe finale</RequiredLabel>
               <Select value={editFinalTeamId || '_none'} onValueChange={(v) => setEditFinalTeamId(v === '_none' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="Aucune équipe" /></SelectTrigger>
                 <SelectContent>
@@ -863,7 +876,7 @@ export default function PassageValidationPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Fonction finale</label>
+              <RequiredLabel required>Fonction finale</RequiredLabel>
               {(() => {
                 // Only the non-archived, non-maîtrise functions of the destination unit's TYPE (a member
                 // passage). Moving UP the parcours locks it to the base youth role.
@@ -887,7 +900,7 @@ export default function PassageValidationPage() {
             </>)}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Raison du changement (facultatif)</label>
+              <RequiredLabel>Raison du changement</RequiredLabel>
               <Input
                 value={editCgNotes}
                 onChange={e => setEditCgNotes(e.target.value)}
@@ -915,7 +928,7 @@ export default function PassageValidationPage() {
       <ConfirmDialog
         open={finalizeDialog}
         onOpenChange={setFinalizeDialog}
-        title="Publier le passage"
+        title="Publier le passage ?"
         description={
           `${approvedCount} ligne(s) acceptée(s)` + (pendingCount > 0 ? ` + ${pendingCount} en attente, acceptée(s) automatiquement` : '') +
           ` seront publiées pour tout le groupe : les affectations actuelles seront clôturées et les nouvelles créées. ` +
@@ -925,6 +938,21 @@ export default function PassageValidationPage() {
         loading={finalizeMutation.isPending}
         onConfirm={handleFinalize}
       />
+
+      {/* Open / close confirm — explains what changes for the chefs d'unité. */}
+      <ConfirmDialog
+        open={toggleDialog}
+        onOpenChange={setToggleDialog}
+        title={passageStatus?.isOpen ? 'Fermer le passage ?' : 'Ouvrir le passage ?'}
+        description={passageStatus?.isOpen
+          ? `Les chefs d'unité ne pourront plus proposer ni modifier les lignes de passage de leur unité pour ${scoutYear}. Vous pourrez le rouvrir plus tard.`
+          : `Les chefs d'unité pourront proposer les lignes de passage de leur unité pour ${scoutYear}.`}
+        confirmLabel={passageStatus?.isOpen ? 'Fermer le passage' : 'Ouvrir le passage'}
+        variant={passageStatus?.isOpen ? 'destructive' : 'default'}
+        loading={toggleMutation.isPending}
+        onConfirm={handleToggle}
+      />
+      </>)}
     </Page>
   )
 }

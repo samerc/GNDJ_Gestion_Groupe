@@ -57,6 +57,7 @@ export default function UnitsPage() {
       <PageHeader
         title="Unités"
         icon={Building2}
+        description="Les unités du groupe, leur type et leur association"
         actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvelle unité</Button>}
       />
 
@@ -179,7 +180,7 @@ export default function UnitsPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer l'unité"
+        title="Supprimer l'unité ?"
         description={deleting?.memberCount
           ? `Impossible de supprimer « ${deleting.name} » : ${deleting.memberCount} membre${deleting.memberCount > 1 ? 's y sont actifs' : ' y est actif'}. Pour ne plus l'utiliser, désactivez-la (statut inactive).`
           : `Supprimer « ${deleting?.name} » ? Impossible si l'unité a eu des membres par le passé (historique) : dans ce cas, désactivez-la plutôt. Cette action est irréversible.`}

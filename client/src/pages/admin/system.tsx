@@ -14,15 +14,16 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Callout } from '@/components/shared/callout'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { ConfigIssuesBanner } from '@/components/shared/config-issues-banner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { parseApiError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 
-const dt = (iso: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const dt = (iso: string | null) => (iso ? formatDateTime(iso) : '—')
 
 function interval(min: number) {
   if (min < 60) return `toutes les ${min} min`
@@ -31,10 +32,10 @@ function interval(min: number) {
 }
 
 function JobRow({ j }: { j: JobStatus }) {
-  const state = j.stale ? { label: 'Arrêtée', cls: 'bg-red-100 text-red-900 dark:bg-red-950/50 dark:text-red-300' }
-    : j.failing ? { label: 'En erreur', cls: 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300' }
-    : !j.lastRunAt ? { label: 'Pas encore lancée', cls: 'bg-muted text-muted-foreground' }
-    : { label: 'OK', cls: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-300' }
+  const state: { label: string; variant: 'danger' | 'warning' | 'secondary' | 'success' } = j.stale ? { label: 'Arrêtée', variant: 'danger' }
+    : j.failing ? { label: 'En erreur', variant: 'warning' }
+    : !j.lastRunAt ? { label: 'Pas encore lancée', variant: 'secondary' }
+    : { label: 'OK', variant: 'success' }
   return (
     <tr className="border-b last:border-0 align-top">
       <td className="px-4 py-2">
@@ -44,7 +45,7 @@ function JobRow({ j }: { j: JobStatus }) {
         <div className="text-xs text-muted-foreground md:hidden">Dernier succès : {dt(j.lastSuccessAt)}</div>
         {j.failing && j.lastError && <div className="text-xs text-red-700 dark:text-red-400 md:hidden">{j.consecutiveFailures}× — {j.lastError}</div>}
       </td>
-      <td className="px-4 py-2"><span className={cn('rounded px-2 py-0.5 text-xs font-medium', state.cls)}>{state.label}</span></td>
+      <td className="px-4 py-2"><Badge variant={state.variant}>{state.label}</Badge></td>
       <td className="hidden px-4 py-2 text-muted-foreground md:table-cell">{dt(j.lastSuccessAt)}</td>
       <td className="hidden px-4 py-2 text-xs md:table-cell">
         {j.failing && j.lastError
@@ -105,7 +106,7 @@ function OrphanFilesCard() {
   const run = async () => {
     try {
       const r = await del.mutateAsync()
-      toast.success(`${r.deleted} fichier(s) supprimé(s) — ${formatBytes(r.freedBytes)} libérés.`)
+      toast.success(`${r.deleted} fichier(s) supprimé(s) — ${formatBytes(r.freedBytes)} libérés`)
       setConfirm(false)
       refetch()
     } catch (e) { toast.error(parseApiError(e)) }
@@ -150,10 +151,10 @@ function OrphanFilesCard() {
                 {data.count > data.files.length && <p className="text-xs text-muted-foreground">Les {data.files.length} plus gros sont affichés.</p>}
                 {/* Same safety stop as the server: most files "unused" = wrong folder / database, not real leftovers. */}
                 {data.count > 20 && data.count * 2 > data.scannedFiles ? (
-                  <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs dark:border-amber-900 dark:bg-amber-950/40">
+                  <Callout tone="warning" icon={AlertTriangle}>
                     La majorité des fichiers semblent orphelins : c'est anormal (mauvais dossier ou base de données restaurée ?).
                     La suppression est bloquée par sécurité.
-                  </p>
+                  </Callout>
                 ) : (
                   <Button variant="destructive" size="sm" onClick={() => setConfirm(true)}>
                     <Trash2 className="mr-1 h-4 w-4" />Supprimer {data.count} fichier(s)
@@ -196,19 +197,14 @@ export default function SystemPage() {
           <div className="space-y-4">
             {/* The same list the daily alert email carries. */}
             {data.problems.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />Tout fonctionne normalement.
-              </div>
+              <Callout tone="success" icon={CheckCircle2} title="Tout fonctionne normalement" />
             ) : (
-              <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/40">
-                <p className="mb-2 font-medium">{data.problems.length} point(s) à vérifier</p>
-                <ul className="space-y-1">
-                  {data.problems.map((p, i) => (
-                    <li key={i} className="flex items-start gap-2"><XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />{p}</li>
-                  ))}
+              <Callout tone="danger" icon={XCircle} title={`${data.problems.length} point(s) à vérifier`}>
+                <ul className="list-disc space-y-1 pl-4">
+                  {data.problems.map((p, i) => <li key={i}>{p}</li>)}
                 </ul>
                 <p className="mt-2 text-xs text-muted-foreground">Un email récapitulatif est envoyé à l'administrateur au plus une fois par jour tant qu'un point reste ouvert.</p>
-              </div>
+              </Callout>
             )}
 
             <Card>
@@ -264,7 +260,7 @@ export default function SystemPage() {
                 <p className="text-xs text-muted-foreground">
                   Requêtes de plus de {(data.slowThresholdMs / 1000).toLocaleString('fr-FR')} s depuis le démarrage du serveur, regroupées par page.
                 </p>
-                {data.slowRoutes.length === 0 ? <p className="text-muted-foreground">Aucune requête lente.</p> : (
+                {data.slowRoutes.length === 0 ? <EmptyState icon={Gauge} title="Aucune requête lente" /> : (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[640px] text-sm">
                       <thead>

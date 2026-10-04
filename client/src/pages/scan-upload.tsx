@@ -1,6 +1,11 @@
 import { useRef, useState } from 'react'
 import { useParams } from 'react-router'
-import { Camera, ImageUp, CheckCircle2, AlertTriangle, Loader2, RotateCcw } from 'lucide-react'
+import { Camera, ImageUp, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react'
+import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
+import { DateInput } from '@/components/shared/date-input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { BrandMark } from '@/components/shared/brand-mark'
 import { parseApiError } from '@/lib/error-utils'
 import { useScanUploadInfo, scanUploadFiles } from '@/services/scan-upload-service'
@@ -86,11 +91,11 @@ export default function ScanUploadPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          <LoadingSpinner />
         ) : error || !info ? (
           <div className="rounded-xl border bg-card p-6 text-center shadow-sm">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/50">
-              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-warning-subtle">
+              <AlertTriangle className="h-6 w-6 text-warning" />
             </div>
             <p className="text-sm text-muted-foreground">
               {parseApiError(error) || "Ce lien a expiré ou n'est plus valide."}
@@ -105,35 +110,31 @@ export default function ScanUploadPage() {
             </div>
 
             {/* Document type */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Type de document</label>
-              <select
-                value={docTypeId}
-                onChange={(e) => { setDocTypeId(e.target.value); setExpiry(''); setMsg(null) }}
-                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">Choisir un type…</option>
-                {info.docTypes.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
+            <div className="space-y-2">
+              <Label htmlFor="scan-doc-type">Type de document</Label>
+              <Select value={docTypeId} onValueChange={(v) => { setDocTypeId(v); setExpiry(''); setMsg(null) }}>
+                <SelectTrigger id="scan-doc-type" className="h-11 w-full">
+                  <SelectValue placeholder="Choisir un type…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {info.docTypes.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Expiry (only for types that require it) */}
             {needsExpiry && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Date d'expiration</label>
-                <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)}
-                  className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm" />
+              <div className="space-y-2">
+                <Label>Date d'expiration</Label>
+                <DateInput value={expiry || null} onChange={(v) => setExpiry(v ?? '')} />
               </div>
             )}
 
             {/* Status message */}
             {msg && (
-              <div className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${msg.type === 'success'
-                ? 'border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300'
-                : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300'}`}>
-                {msg.type === 'success' ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
-                <span>{msg.text}</span>
-              </div>
+              <Callout tone={msg.type === 'success' ? 'success' : 'danger'} icon={msg.type === 'success' ? CheckCircle2 : AlertTriangle}>
+                {msg.text}
+              </Callout>
             )}
 
             {/* Upload progress */}

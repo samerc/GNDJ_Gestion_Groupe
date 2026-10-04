@@ -5,7 +5,8 @@ import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Callout } from '@/components/shared/callout'
+import { MemberAuthShell } from '@/components/auth/member-auth-shell'
 import { HoneypotField } from '@/components/shared/honeypot-field'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
@@ -38,7 +39,7 @@ export default function ResetPasswordPage() {
     }
 
     if (!passwordMeetsPolicy(newPassword, policy)) {
-      setError('Le mot de passe ne respecte pas les exigences ci-dessous.')
+      setError('Le mot de passe ne respecte pas toutes les exigences.')
       return
     }
 
@@ -50,91 +51,76 @@ export default function ResetPasswordPage() {
     }
   }
 
-  // Guard: missing token/email means the link was malformed/incomplete — show invalid-link card.
+  const title = isSetup ? 'Activez votre compte' : 'Nouveau mot de passe'
+
+  // Guard: missing token/email means the link was malformed/incomplete — show the invalid-link notice.
   if (!token || !email) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              Lien de réinitialisation invalide ou expiré.
-            </div>
-            <Link to="/login" className="mt-4 block text-center text-sm text-primary hover:underline">
-              Retour à la connexion
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <MemberAuthShell title={title} subtitle={null}>
+        <div className="space-y-4">
+          <Callout tone="danger">Lien de réinitialisation invalide ou expiré.</Callout>
+          <Link to="/login" className="block text-center text-sm text-primary hover:underline">
+            Retour à la connexion
+          </Link>
+        </div>
+      </MemberAuthShell>
     )
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted p-4">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold">GNDJ Scout</h1>
-        <p className="text-muted-foreground">Gestion de Groupe Scout</p>
-      </div>
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">{isSetup ? 'Activez votre compte' : 'Nouveau mot de passe'}</CardTitle>
-          <CardDescription>
+    <MemberAuthShell
+      title={title}
+      subtitle={isSetup
+        ? 'Choisissez votre mot de passe pour accéder à votre espace GNDJ.'
+        : 'Choisissez un nouveau mot de passe pour votre compte.'}
+    >
+      {success ? (
+        <div className="space-y-4">
+          <Callout tone="success">
             {isSetup
-              ? 'Choisissez votre mot de passe pour accéder à votre espace GNDJ.'
-              : 'Choisissez un nouveau mot de passe pour votre compte.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {success ? (
-            <div className="space-y-4">
-              <div className="rounded-md bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 p-3 text-sm text-green-800 dark:text-green-300">
-                {isSetup
-                  ? 'Votre compte est activé. Vous pouvez maintenant vous connecter.'
-                  : 'Votre mot de passe a été réinitialisé avec succès.'}
-              </div>
-              <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-                Se connecter
-              </Link>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <HoneypotField value={website} onChange={setWebsite} />
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                <PasswordInput
-                  id="newPassword"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  autoFocus
-                  autoComplete="new-password"
-                />
-                <div className="pt-1"><PasswordRules password={newPassword} /></div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                <PasswordInput
-                  id="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending
-                  ? (isSetup ? 'Activation…' : 'Réinitialisation…')
-                  : (isSetup ? 'Activer mon compte' : 'Réinitialiser le mot de passe')}
-              </Button>
-              <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-                Retour à la connexion
-              </Link>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              ? 'Votre compte est activé. Vous pouvez maintenant vous connecter.'
+              : 'Votre mot de passe a été réinitialisé avec succès.'}
+          </Callout>
+          <Link to="/login" className="block text-center text-sm text-primary hover:underline">
+            Se connecter
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <HoneypotField value={website} onChange={setWebsite} />
+          {error && <Callout tone="danger">{error}</Callout>}
+          <div className="space-y-2">
+            <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+            <PasswordInput
+              id="newPassword"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              autoFocus
+              autoComplete="new-password"
+            />
+            <div className="pt-1"><PasswordRules password={newPassword} /></div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+            <PasswordInput
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={mutation.isPending}>
+            {mutation.isPending
+              ? (isSetup ? 'Activation…' : 'Réinitialisation…')
+              : (isSetup ? 'Activer mon compte' : 'Réinitialiser le mot de passe')}
+          </Button>
+          <Link to="/login" className="block text-center text-sm text-primary hover:underline">
+            Retour à la connexion
+          </Link>
+        </form>
+      )}
+    </MemberAuthShell>
   )
 }

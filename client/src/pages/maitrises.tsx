@@ -10,14 +10,18 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { parseApiError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatDateLong } from '@/lib/utils'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SearchInput } from '@/components/shared/search-input'
+import { Textarea } from '@/components/ui/textarea'
+import { Tip } from '@/components/ui/tooltip'
 import {
   Crown, ChevronRight, UserPlus, ArrowRightLeft, UserMinus, Undo2, AlertTriangle, CalendarClock, CheckCircle2, ArrowRight,
 } from 'lucide-react'
@@ -26,10 +30,6 @@ import { toast } from 'sonner'
 // Maîtrises (CG, maitrise.manage). Like the passage page: one row per unit showing this year's maîtrise and next
 // year's, with who stays / arrives / leaves. Changes are PLANNED for next year by default and applied when the CG
 // publishes the passage (same passage date); a "maintenant" option still exists for mid-year changes.
-
-const fmtDate = (iso: string | null) => iso
-  ? new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-  : null
 
 // Everything the page shows for one unit, derived from the plan.
 interface UnitView {
@@ -98,13 +98,18 @@ export default function MaitrisesPage() {
   const cancel = useCancelMaitrisePlan()
 
   const views = useMemo(() => (plan ? buildViews(plan) : []), [plan])
-  if (isLoading || !plan) return <LoadingSpinner variant="table" />
+  if (isLoading || !plan) return (
+    <Page>
+      <PageHeader title="Maîtrises" icon={Crown} description="Préparez la maîtrise de l'an prochain. Rien ne change avant la publication du passage." />
+      <LoadingSpinner variant="table" />
+    </Page>
+  )
 
   const pendingCount = plan.lines.filter(l => !l.applied).length
   const noHead = views.filter(v => !v.unit.isGroupUnit && v.nextCount > 0 && !v.headNext)
   const empty = views.filter(v => !v.unit.isGroupUnit && v.nextCount === 0 && v.nowCount > 0)
   const shown = onlyChanges ? views.filter(v => v.changes > 0 || noHead.includes(v) || empty.includes(v)) : views
-  const date = fmtDate(plan.passageDate)
+  const date = formatDateLong(plan.passageDate)
   const toggle = (id: string) => setOpen(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const undo = async (id: string) => {
@@ -118,10 +123,9 @@ export default function MaitrisesPage() {
 
       {/* How it works + where the year stands */}
       {plan.published ? (
-        <div className="flex items-start gap-2 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>Le passage {plan.scoutYear} est publié : la maîtrise prévue a été appliquée. Les changements se font maintenant au jour le jour (« maintenant »).</p>
-        </div>
+        <Callout tone="success" icon={CheckCircle2}>
+          Le passage {plan.scoutYear} est publié : la maîtrise prévue a été appliquée. Les changements se font maintenant au jour le jour (« maintenant »).
+        </Callout>
       ) : (
         <Card>
           <CardContent className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center">
@@ -140,11 +144,10 @@ export default function MaitrisesPage() {
       )}
 
       {(noHead.length > 0 || empty.length > 0) && !plan.published && (
-        <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          <p className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" />À vérifier pour l'an prochain</p>
+        <Callout tone="warning" icon={AlertTriangle} title="À vérifier pour l'an prochain">
           {noHead.length > 0 && <p>Sans chef d'unité : {noHead.map(v => v.unit.unitCode).join(', ')}</p>}
           {empty.length > 0 && <p>Plus aucun chef : {empty.map(v => v.unit.unitCode).join(', ')}</p>}
-        </div>
+        </Callout>
       )}
 
       <div className="flex items-center justify-end gap-2 text-sm">
@@ -195,7 +198,7 @@ export default function MaitrisesPage() {
                 </div>
               )
             })}
-            {shown.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune unité à afficher.</p>}
+            {shown.length === 0 && <EmptyState icon={Crown} title="Aucune unité à afficher" description={onlyChanges ? 'Aucune unité avec des changements ou des alertes.' : undefined} />}
           </div>
         </CardContent>
       </Card>
@@ -268,11 +271,15 @@ function PersonRow({ name, detail, head, action }: { name: string; detail: strin
 }
 
 function UndoButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
-  return <Button size="sm" variant="ghost" onClick={onClick} disabled={disabled} title="Annuler ce changement"><Undo2 className="h-3.5 w-3.5" /></Button>
+  return (
+    <Tip content="Annuler ce changement">
+      <Button size="sm" variant="ghost" onClick={onClick} disabled={disabled} aria-label="Annuler ce changement"><Undo2 className="h-3.5 w-3.5" /></Button>
+    </Tip>
+  )
 }
 
 function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return <textarea className="flex min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={value}
+  return <Textarea className="min-h-16" value={value}
     onChange={e => onChange(e.target.value)} placeholder="Note (facultatif)" maxLength={1000} />
 }
 
@@ -330,7 +337,7 @@ function ChangeDialog({ plan, target, onClose }: { plan: MaitrisePlan; target: {
   const transfer = useTransferMaitrise(), remove = useRemoveFromMaitrise()
   const busy = planChange.isPending || planEnd.isPending || transfer.isPending || remove.isPending
   const dest = plan.units.find(u => u.unitId === unitId)
-  const date = fmtDate(plan.passageDate)
+  const date = formatDateLong(plan.passageDate)
 
   const submit = async () => {
     try {
@@ -433,11 +440,11 @@ function AddDialog({ plan, unit, onClose }: { plan: MaitrisePlan; unit: Maitrise
               </div>
             ) : (
               <>
-                <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un membre…" />
+                <SearchInput autoFocus value={search} onChange={setSearch} placeholder="Rechercher un membre…" />
                 {debounced && results && (
                   <div className="max-h-56 overflow-y-auto rounded-md border text-sm">
                     {results.length === 0
-                      ? <p className="px-3 py-3 text-center text-muted-foreground">Aucun membre trouvé.</p>
+                      ? <EmptyState icon={UserPlus} title="Aucun membre trouvé" />
                       : results.map(m => (
                         <button key={m.memberId} type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left hover:bg-muted"
                           onClick={() => setPicked({ id: m.memberId, name: `${m.firstName} ${m.lastName}` })}>
@@ -455,7 +462,7 @@ function AddDialog({ plan, unit, onClose }: { plan: MaitrisePlan; unit: Maitrise
             <label className="text-sm font-medium">Fonction</label>
             <RolePicker unitTypeId={unit.unitTypeId} value={roleId} onChange={setRoleId} />
           </div>
-          <WhenChoice value={when} onChange={setWhen} published={plan.published} date={fmtDate(plan.passageDate)} />
+          <WhenChoice value={when} onChange={setWhen} published={plan.published} date={formatDateLong(plan.passageDate)} />
           {when === 'plan' && <NoteField value={notes} onChange={setNotes} />}
         </div>
         <DialogFooter>

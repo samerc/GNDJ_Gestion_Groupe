@@ -9,6 +9,8 @@ import { headingId, useHelpDoc } from '@/services/help-service'
 import { MarkdownView } from '@/components/help/markdown-view'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import apiClient from '@/lib/api-client'
+import { GROUP_NAME } from '@/lib/constants'
+import { formatDateLong } from '@/lib/utils'
 import publicApi from '@/lib/public-api-client'
 
 export function HelpPrintView({ client, linkBase }: { client: AxiosInstance; linkBase: string }) {
@@ -29,13 +31,13 @@ export function HelpPrintView({ client, linkBase }: { client: AxiosInstance; lin
   if (isError || !data) return <p className="p-8">Guide introuvable.</p>
 
   const sections = [...data.markdown.matchAll(/^## (.+)$/gm)].map((m) => m[1].trim())
-  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const today = formatDateLong(new Date())
 
   return (
     <div className="min-h-screen bg-white text-black">
       <div className="mx-auto max-w-3xl px-8 py-10 print:max-w-none print:px-0 print:py-0">
         <header className="mb-8 border-b pb-6">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">GNDJ — Groupe Notre-Dame de Jamhour</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">GNDJ — {GROUP_NAME}</p>
           <h1 className="mt-2 text-3xl font-bold">{data.title}</h1>
           {data.summary && <p className="mt-2 text-slate-600">{data.summary}</p>}
           <p className="mt-3 text-xs text-slate-500">Version du {today} · https://gndj.org</p>

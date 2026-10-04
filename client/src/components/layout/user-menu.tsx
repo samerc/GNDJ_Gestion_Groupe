@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { RequiredLabel } from '@/components/shared/required-label'
+import { Callout } from '@/components/shared/callout'
 import { useSwitchAccounts, type SwitchAccountDto } from '@/services/my-profile-service'
 import { getPool } from '@/lib/account-pool'
 import { useImpersonationStore } from '@/stores/impersonation-store'
@@ -23,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, KeyRound, IdCard, MonitorSmartphone, FileText, Image as ImageIcon, Sparkles, Globe, Sun, Moon, Monitor, Users, BookOpen, Tent } from 'lucide-react'
+import { LogOut, KeyRound, User, MonitorSmartphone, FolderOpen, Sparkles, Globe, Sun, Moon, Monitor, Users, BookOpen, Tent } from 'lucide-react'
 import { PwaInstallMenuItem } from '@/components/shared/pwa-install'
 import { PushToggleMenuItem } from '@/components/shared/push-toggle'
 import { toast } from 'sonner'
@@ -108,7 +109,7 @@ export function UserMenu() {
       return
     }
     if (!passwordMeetsPolicy(passwordForm.newPassword, passwordPolicy)) {
-      setPasswordError('Le mot de passe ne respecte pas les exigences affichées.')
+      setPasswordError('Le mot de passe ne respecte pas toutes les exigences.')
       return
     }
     try {
@@ -133,7 +134,7 @@ export function UserMenu() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="gap-2 pl-1.5 pr-2.5 text-white/90 hover:bg-white/10 hover:text-white">
+          <Button variant="ghost" aria-label="Mon compte" className="gap-2 pl-1.5 pr-2.5 text-white/90 hover:bg-white/10 hover:text-white">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-semibold shadow-sm ring-1 ring-white/20">
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
@@ -208,16 +209,16 @@ export function UserMenu() {
             <>
               {user?.memberId && (
                 <DropdownMenuItem onClick={() => navigate('/my-profile')}>
-                  <IdCard className="mr-2 h-4 w-4" />
+                  <User className="mr-2 h-4 w-4" />
                   Ma fiche
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => navigate('/my-documents')}>
-                <FileText className="mr-2 h-4 w-4" />
+                <FolderOpen className="mr-2 h-4 w-4" />
                 Mes documents
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/my-trombinoscope')}>
-                <ImageIcon className="mr-2 h-4 w-4" />
+                <Users className="mr-2 h-4 w-4" />
                 Trombinoscope
               </DropdownMenuItem>
               {user?.isCampEtapiste && (
@@ -257,7 +258,7 @@ export function UserMenu() {
           {/* Red at rest; on hover the row gets the accent background, so the text/icon go white for contrast. */}
           <DropdownMenuItem onClick={handleLogout} disabled={loggingOut} className="text-destructive focus:bg-destructive focus:text-white">
             <LogOut className="mr-2 h-4 w-4" />
-            {loggingOut ? 'Déconnexion…' : 'Déconnexion'}
+            {loggingOut ? 'Déconnexion…' : 'Se déconnecter'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -266,7 +267,7 @@ export function UserMenu() {
         <DialogContent>
           <DialogHeader><DialogTitle>Modifier le mot de passe</DialogTitle></DialogHeader>
           <form onSubmit={handleChangePassword} className="space-y-4">
-            {passwordError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{passwordError}</div>}
+            {passwordError && <Callout tone="danger">{passwordError}</Callout>}
             <div className="space-y-2">
               <RequiredLabel required>Mot de passe actuel</RequiredLabel>
               <PasswordInput value={passwordForm.currentPassword} onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} required autoComplete="current-password" />
@@ -297,7 +298,7 @@ export function UserMenu() {
               Entrez le mot de passe de ce compte une première fois. Il sera mémorisé sur cet appareil pour
               changer de compte instantanément ensuite.
             </p>
-            {switchError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{switchError}</div>}
+            {switchError && <Callout tone="danger">{switchError}</Callout>}
             <div className="space-y-2">
               <RequiredLabel>Identifiant</RequiredLabel>
               <Input value={pwTarget?.username ?? ''} disabled className="bg-muted" />

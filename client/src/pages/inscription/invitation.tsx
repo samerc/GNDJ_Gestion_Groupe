@@ -13,6 +13,7 @@ import { HoneypotField } from '@/components/shared/honeypot-field'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
 import { formatDateLong } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
@@ -45,7 +46,7 @@ export default function ApplicantInvitationPage() {
   const match = password === confirm
 
   if (isLoading) {
-    return <ApplicantAuthShell><div className="py-10"><LoadingSpinner /></div></ApplicantAuthShell>
+    return <ApplicantAuthShell><LoadingSpinner /></ApplicantAuthShell>
   }
 
   // Invalid / used / expired / revoked token → explain + offer the login (in case they already have an account).
@@ -60,7 +61,7 @@ export default function ApplicantInvitationPage() {
           </CardHeader>
           <CardContent>
             <p className="text-center text-sm text-muted-foreground">
-              Vous avez déjà un compte ?{' '}
+              Vous avez déjà un compte&nbsp;?{' '}
               <Link to="/inscription/login" className="font-medium text-primary hover:underline">Se connecter</Link>
             </p>
           </CardContent>
@@ -95,7 +96,7 @@ export default function ApplicantInvitationPage() {
             <CardDescription>La Maîtrise vous autorise à présenter une demande après la date limite.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <Button className="w-full" onClick={activate} disabled={loading}>{loading ? 'Activation…' : 'Activer et continuer'}</Button>
             {expiryNote}
           </CardContent>
@@ -129,7 +130,7 @@ export default function ApplicantInvitationPage() {
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
             <HoneypotField value={website} onChange={setWebsite} />
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <Label htmlFor="contactName">Votre nom (parent / responsable)</Label>
               <Input id="contactName" value={contactName} onChange={(e) => setContactName(e.target.value)} autoComplete="name" />
@@ -155,7 +156,7 @@ export default function ApplicantInvitationPage() {
             <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Création…' : 'Créer mon compte'}</Button>
             {expiryNote}
             <p className="text-center text-sm text-muted-foreground">
-              Vous avez déjà un compte ?{' '}
+              Vous avez déjà un compte&nbsp;?{' '}
               <Link to={`/inscription/login?invite=${token}`} className="font-medium text-primary hover:underline">Se connecter</Link>
             </p>
           </form>

@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Callout } from '@/components/shared/callout'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { Tip } from '@/components/ui/tooltip'
@@ -204,10 +205,10 @@ export default function ProgressionPathPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...payload })
-        toast.success('Parcours modifié')
+        toast.success('Lien de parcours enregistré')
       } else {
         await createMutation.mutateAsync({ associationId: null, ...payload })
-        toast.success('Parcours créé')
+        toast.success('Lien de parcours ajouté')
       }
       setFormOpen(false)
     } catch (err) {
@@ -217,8 +218,8 @@ export default function ProgressionPathPage() {
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Parcours supprimé'); setDeleting(null) }
-    catch (err) { setError(parseApiError(err)); setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Lien de parcours supprimé'); setDeleting(null) }
+    catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
   if (!unitTypes) return <LoadingSpinner variant="page" />
@@ -226,8 +227,9 @@ export default function ProgressionPathPage() {
   return (
     <Page>
       <PageHeader
-        title="Parcours de progression"
+        title="Parcours scouts"
         icon={Route}
+        description="Passages possibles d'un type d'unité à l'autre, pour les membres et les chefs."
         actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Ajouter un lien</Button>}
       />
 
@@ -275,7 +277,7 @@ export default function ProgressionPathPage() {
             </CardHeader>
             <CardContent>
               {!progressions || progressions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun lien défini.</p>
+                <EmptyState icon={Route} title="Aucun lien défini" />
               ) : (
                 <div className="space-y-2">
                   {progressions.map(p => {
@@ -294,12 +296,12 @@ export default function ProgressionPathPage() {
                           </div>
                           <div className="flex shrink-0 gap-1">
                             <Tip content="Modifier">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(p)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier" onClick={() => openEdit(p)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             </Tip>
                             <Tip content="Supprimer">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(p)}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Supprimer" onClick={() => setDeleting(p)}>
                                 <Trash2 className="h-3.5 w-3.5 text-destructive" />
                               </Button>
                             </Tip>
@@ -334,7 +336,7 @@ export default function ProgressionPathPage() {
             <DialogTitle>{editing ? 'Modifier le lien' : 'Nouveau lien de progression'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -384,13 +386,13 @@ export default function ProgressionPathPage() {
 
             <div className="space-y-2">
               <RequiredLabel>Notes</RequiredLabel>
-              <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ex: ACU puis CU…" />
+              <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ex. : ACU puis CU…" />
             </div>
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : 'Enregistrer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>
@@ -400,7 +402,7 @@ export default function ProgressionPathPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le lien"
+        title="Supprimer le lien ?"
         description={`Supprimer le lien ${deleting?.fromUnitTypeName} → ${deleting?.toUnitTypeName} ?`}
         confirmLabel="Supprimer"
         variant="destructive"

@@ -6,13 +6,15 @@ import { MemberPhoto } from '@/components/shared/member-photo'
 import { CameraCapture } from '@/components/shared/camera-capture'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { PageHeader } from '@/components/shared/page-header'
+import { BackLink } from '@/components/shared/back-link'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLeaderUnits } from '@/hooks/use-leader-units'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Check, ArrowLeft, ArrowRight, Camera, Users, List } from 'lucide-react'
+import { Check, ArrowRight, Camera, Users, List } from 'lucide-react'
 import { useMobileDetail } from '@/hooks/use-mobile-detail'
 
 // Camera capture for one member: snaps a photo, uploads it as a JPEG, then signals `onDone`.
@@ -95,19 +97,13 @@ export default function PhotoSessionPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner variant="cards" />
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingSpinner variant="page" />
 
   if (!unitId) {
     return (
       <EmptyState
         icon={Users}
-        title="Aucune unité assignée."
+        title="Aucune unité assignée"
         action={<Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>Retour</Button>}
       />
     )
@@ -117,26 +113,20 @@ export default function PhotoSessionPage() {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* Header */}
       <div className="shrink-0 space-y-3 pb-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            {leaderUnits.length > 1 ? (
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">Session photo —</h1>
-                <Select value={unitId} onValueChange={(v) => { setSelectedUnit(v); setSelectedMemberId(null) }}>
-                  <SelectTrigger className="h-8 w-56"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {leaderUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <h1 className="text-xl font-bold">Session photo — {unitName}</h1>
-            )}
-          </div>
-        </div>
+        <BackLink to="/dashboard" label="Mon unité" />
+        <PageHeader
+          title="Session photo"
+          icon={Camera}
+          description={unitName}
+          actions={leaderUnits.length > 1 ? (
+            <Select value={unitId} onValueChange={(v) => { setSelectedUnit(v); setSelectedMemberId(null) }}>
+              <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {leaderUnits.map(u => <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          ) : undefined}
+        />
         {/* Progress bar */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
@@ -154,9 +144,7 @@ export default function PhotoSessionPage() {
         {/* Left: member list */}
         <div className={cn('flex-1 overflow-y-auto bg-muted/30 md:w-72 md:flex-none md:shrink-0 md:border-r', selectedMemberId && 'hidden md:block')}>
           {members.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">
-              Aucun membre dans cette unité
-            </div>
+            <EmptyState icon={Users} title="Aucun membre dans cette unité" />
           ) : (
             members.map((m: MemberListDto) => (
               <div

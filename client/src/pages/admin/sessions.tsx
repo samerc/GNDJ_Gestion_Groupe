@@ -12,6 +12,8 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { formatDateTime } from '@/lib/utils'
 import { Callout } from '@/components/shared/callout'
 import { parseApiError } from '@/lib/error-utils'
 import { parseUserAgent } from '@/lib/audit-format'
@@ -32,12 +34,12 @@ function timeAgo(iso: string | null): string {
 }
 
 function fmt(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+  return iso ? formatDateTime(iso) : '—'
 }
 
 // Where the account is active (the "Où" column) — a member/chef in the app, or a parent in the demande portal.
 const SPACE: Record<ActiveSession['kind'], { label: string; className: string }> = {
-  member: { label: 'Membres et chefs', className: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' },
+  member: { label: 'Espace membres', className: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300' },
   applicant: { label: 'Portail des demandes', className: 'bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300' },
 }
 
@@ -144,7 +146,7 @@ export default function SessionsPage() {
     const target = confirm
     try {
       await disconnect.mutateAsync({ kind: target.kind, id: target.id })
-      toast.success(`${target.name} sera déconnecté(e) (effet sous 15 min).`)
+      toast.success(`${target.name} sera déconnecté(e) (effet sous 15 min)`)
     } catch (e) {
       toast.error(parseApiError(e))
     } finally {
@@ -152,8 +154,11 @@ export default function SessionsPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner variant="page" />
-  if (isError || !data) return <EmptyState icon={Wifi} title="Impossible de charger les sessions" />
+  const header = (description?: string) => (
+    <PageHeader title="Sessions actives" icon={Users} description={description ?? 'Qui est connecté, et sur quels appareils.'} />
+  )
+  if (isLoading) return <Page>{header()}<LoadingSpinner variant="table" /></Page>
+  if (isError || !data) return <Page>{header()}<EmptyState icon={Wifi} title="Impossible de charger les sessions" /></Page>
 
   // One combined list (members + parents); online first, then most-recent activity.
   const all = [...data.members, ...data.applicants]
@@ -168,12 +173,8 @@ export default function SessionsPage() {
   const visible = showOffline ? sorted : sorted.filter((s) => s.isOnline)
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Sessions actives"
-        icon={Users}
-        description={`${total} session(s) ouverte(s) · ${online} en ligne. Un membre connecté sur plusieurs appareils a une ligne par appareil. La liste se rafraîchit automatiquement.`}
-      />
+    <Page>
+      {header(`${total} session(s) ouverte(s) · ${online} en ligne — une ligne par appareil, mise à jour automatique.`)}
 
       <Callout tone="info" icon={Info}>
         « En ligne » correspond à une activité dans les {data.onlineWindowMinutes} dernières minutes (le compte
@@ -211,6 +212,6 @@ export default function SessionsPage() {
         loading={disconnect.isPending}
         onConfirm={doDisconnect}
       />
-    </div>
+    </Page>
   )
 }

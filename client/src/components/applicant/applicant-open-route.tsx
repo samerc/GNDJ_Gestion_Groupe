@@ -3,6 +3,7 @@ import { CalendarX } from 'lucide-react'
 import { useApplicantConfig, isSubmissionDeadlinePassed } from '@/services/applicant-service'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
 import { formatDateLong } from '@/lib/utils'
 
 // ROLE: gate for the ANONYMOUS applicant sub-pages (login / register / verify).
@@ -21,9 +22,7 @@ export function ApplicantOpenRoute({ submissionsRequired = false }: { submission
   if (isLoading) {
     return (
       <ApplicantAuthShell>
-        <div className="py-10">
-          <LoadingSpinner />
-        </div>
+        <LoadingSpinner />
       </ApplicantAuthShell>
     )
   }
@@ -37,24 +36,17 @@ export function ApplicantOpenRoute({ submissionsRequired = false }: { submission
     return (
       <ApplicantAuthShell subtitle="Inscriptions clôturées">
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
-            <CalendarX className="mt-0.5 h-5 w-5 shrink-0" />
-            <div>
-              {deadlinePassed ? (
-                <>
-                  <p className="font-medium">La date limite de soumission est dépassée</p>
-                  <p>La date limite était le {formatDateLong(config?.submissionDeadline)}. La création d'un nouveau compte d'inscription n'est plus possible pour cette année scoute.</p>
-                </>
-              ) : (
-                <>
-                  <p className="font-medium">Les inscriptions sont clôturées</p>
-                  <p>La période de soumission des demandes est terminée. La création d'un nouveau compte d'inscription n'est plus possible pour le moment.</p>
-                </>
-              )}
-            </div>
-          </div>
+          <Callout
+            tone="warning"
+            icon={CalendarX}
+            title={deadlinePassed ? 'La date limite de soumission est dépassée' : 'Les inscriptions sont clôturées'}
+          >
+            {deadlinePassed
+              ? <>La date limite était le {formatDateLong(config?.submissionDeadline)}. La création d'un nouveau compte d'inscription n'est plus possible pour cette année scoute.</>
+              : "La période de soumission des demandes est terminée. La création d'un nouveau compte d'inscription n'est plus possible pour le moment."}
+          </Callout>
           <p className="text-center text-sm text-muted-foreground">
-            Vous avez déjà un compte ?{' '}
+            Vous avez déjà un compte&nbsp;?{' '}
             <Link to="/inscription/login" className="font-medium text-primary hover:underline">Se connecter</Link>
           </p>
         </div>

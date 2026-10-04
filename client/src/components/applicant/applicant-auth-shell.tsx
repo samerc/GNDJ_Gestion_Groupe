@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useApplicantConfig } from '@/services/applicant-service'
 import { SupportNote } from '@/components/support-note'
+import { GROUP_NAME } from '@/lib/constants'
 import gndjLogo from '@/assets/gndj-logo.png'
 
 // ROLE: branded centered shell for the UNAUTHENTICATED applicant pages (register / login / verify /
@@ -24,7 +25,7 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
         <div className="mb-6 flex flex-col items-center text-center">
           {/* GNDJ logo on a white tile (readable in light + dark; its own background is white so it blends). */}
           <div className="mb-4 rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5">
-            <img src={gndjLogo} alt="GNDJ — Groupe Notre-Dame Jamhour" className="w-28" />
+            <img src={gndjLogo} alt={`GNDJ — ${GROUP_NAME}`} className="w-28" />
           </div>
           <span className="mb-1 rounded-full bg-accent/15 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent">
             Nouveau membre
@@ -58,7 +59,7 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
               <ArrowLeft className="h-3.5 w-3.5" /> Retour au site
             </Link>
             <span className="text-muted-foreground/50">·</span>
-            <span>© {new Date().getFullYear()} Groupe Notre-Dame - Jamhour</span>
+            <span>© {new Date().getFullYear()} {GROUP_NAME}</span>
           </div>
         </div>
       </div>

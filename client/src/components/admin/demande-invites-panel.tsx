@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Tip } from '@/components/ui/tooltip'
+import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { EmptyState } from '@/components/shared/empty-state'
 import { Ticket, Copy, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
@@ -16,11 +18,11 @@ import { formatDateLong } from '@/lib/utils'
 // Builds the public invite link from a token (the family opens this to register/claim).
 const inviteLink = (token: string) => `${window.location.origin}/inscription/invitation/${token}`
 
-const STATUS: Record<string, { label: string; className: string }> = {
-  active: { label: 'Actif', className: 'border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' },
-  claimed: { label: 'Utilisé', className: 'border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300' },
-  expired: { label: 'Expiré', className: 'border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 text-slate-600 dark:text-slate-400' },
-  revoked: { label: 'Annulé', className: 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300' },
+const STATUS: Record<string, { label: string; variant: 'success' | 'info' | 'secondary' | 'danger' }> = {
+  active: { label: 'Actif', variant: 'success' },
+  claimed: { label: 'Utilisé', variant: 'info' },
+  expired: { label: 'Expiré', variant: 'secondary' },
+  revoked: { label: 'Annulé', variant: 'danger' },
 }
 
 // CG panel to generate + manage "late-access" invite links — one link lets ONE family enroll after the deadline
@@ -67,7 +69,7 @@ export function DemandeInvitesPanel() {
           {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           <Ticket className="h-4 w-4 text-primary" />
           Invitations de dernière minute
-          {activeCount > 0 && <Badge variant="outline" className="ml-1 border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">{activeCount} actif{activeCount > 1 ? 's' : ''}</Badge>}
+          {activeCount > 0 && <Badge variant="success" className="ml-1">{activeCount} actif{activeCount > 1 ? 's' : ''}</Badge>}
         </CardTitle>
       </CardHeader>
       {open && (
@@ -80,25 +82,25 @@ export function DemandeInvitesPanel() {
           <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Générer un lien</Button>
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement…</p>
+            <LoadingSpinner />
           ) : !invites || invites.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune invitation générée.</p>
+            <EmptyState icon={Ticket} title="Aucune invitation générée" />
           ) : (
             <div className="space-y-2">
               {invites.map((inv) => {
-                const st = STATUS[inv.status] ?? { label: inv.status, className: '' }
+                const st = STATUS[inv.status] ?? { label: inv.status, variant: 'secondary' as const }
                 return (
                   <div key={inv.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border p-3 text-sm">
-                    <Badge variant="outline" className={`shrink-0 ${st.className}`}>{st.label}</Badge>
+                    <Badge variant={st.variant} className="shrink-0">{st.label}</Badge>
                     <span className="font-medium">{inv.label || <span className="text-muted-foreground">Sans étiquette</span>}</span>
                     {inv.email && <span className="text-muted-foreground">· {inv.email}</span>}
                     <span className="text-xs text-muted-foreground">· expire le {formatDateLong(inv.expiresAt)}</span>
-                    {inv.claimedEmail && <span className="text-xs text-blue-700 dark:text-blue-300">· utilisé par {inv.claimedEmail}</span>}
+                    {inv.claimedEmail && <span className="text-xs text-info">· utilisé par {inv.claimedEmail}</span>}
                     <div className="ml-auto flex items-center gap-1">
                       {inv.status === 'active' && (
                         <>
                           <Tip content="Copier le lien"><Button variant="outline" size="sm" onClick={() => copy(inv.token)}><Copy className="mr-1 h-3.5 w-3.5" />Copier le lien</Button></Tip>
-                          <Tip content="Annuler l'invitation"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setRevokeTarget(inv)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                          <Tip content="Révoquer l'invitation"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Révoquer l'invitation" onClick={() => setRevokeTarget(inv)}><Trash2 className="h-4 w-4" /></Button></Tip>
                         </>
                       )}
                     </div>
@@ -120,7 +122,7 @@ export function DemandeInvitesPanel() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="inv-label">Étiquette (pour vous en souvenir)</Label>
-              <Input id="inv-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. Famille Haddad" />
+              <Input id="inv-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex. : Famille Haddad" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="inv-email">Email de la famille (facultatif)</Label>

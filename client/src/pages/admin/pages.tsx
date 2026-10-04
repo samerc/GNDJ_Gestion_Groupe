@@ -21,6 +21,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { Page } from '@/components/shared/page'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -46,8 +47,8 @@ function PageRowInner({ page, onEdit, onDelete }: { page: PageAdmin; onEdit: (p:
         </span>
         {!page.parentId && !page.showInMenu && <Badge variant="outline" className="text-muted-foreground">Hors menu</Badge>}
         <Badge variant={page.isPublished ? 'default' : 'secondary'}>{page.isPublished ? 'Publié' : 'Brouillon'}</Badge>
-        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => onEdit(page)}><Pencil className="h-4 w-4" /></Button></Tip>
-        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => onDelete(page)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+        <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => onEdit(page)}><Pencil className="h-4 w-4" /></Button></Tip>
+        <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => onDelete(page)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
       </div>
       {/* Sub-pages nest inside the parent's sortable block, so they move with it */}
       <Children parentId={page.id} onEdit={onEdit} onDelete={onDelete} />
@@ -146,7 +147,7 @@ export default function AdminPagesPage() {
     // TipTap emits an empty doc as "<p></p>" — treat that as no content.
     if (!form.bodyHtml.trim() || form.bodyHtml === '<p></p>') { setError('Le contenu est requis.'); return }
     try {
-      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Page modifiée') }
+      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Page enregistrée') }
       else { await createMutation.mutateAsync(form); toast.success('Page créée') }
       setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
@@ -180,14 +181,14 @@ export default function AdminPagesPage() {
           <DialogHeader><DialogTitle>{editingId ? 'Modifier la page' : 'Nouvelle page'}</DialogTitle></DialogHeader>
           {/* onChange on the form marks the draft dirty for native inputs (title/checkboxes). */}
           <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel required>Titre</RequiredLabel>
                 <Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} required />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Page parente</label>
+                <RequiredLabel>Page parente</RequiredLabel>
                 <Select value={form.parentId ?? '_none'} onValueChange={(v) => { setForm(f => ({ ...f, parentId: v === '_none' ? null : v })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -204,12 +205,12 @@ export default function AdminPagesPage() {
             </div>
             <div className="flex items-center gap-2">
               <input type="checkbox" id="pagePublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
-              <label htmlFor="pagePublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
+              <RequiredLabel htmlFor="pagePublished">Publier (visible sur le site public)</RequiredLabel>
             </div>
             {!form.parentId && (
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="pageShowInMenu" checked={form.showInMenu} onChange={(e) => setForm(f => ({ ...f, showInMenu: e.target.checked }))} className="h-4 w-4 rounded border-input" />
-                <label htmlFor="pageShowInMenu" className="text-sm font-medium">Afficher dans le menu principal</label>
+                <RequiredLabel htmlFor="pageShowInMenu">Afficher dans le menu principal</RequiredLabel>
               </div>
             )}
             {!form.parentId && !form.showInMenu && (
@@ -217,7 +218,7 @@ export default function AdminPagesPage() {
             )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -226,7 +227,7 @@ export default function AdminPagesPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer la page"
+        title="Supprimer la page ?"
         description={(() => {
           const base = `Supprimer « ${deleting?.title} » ? Cette action est irréversible.`
           // Warn if this page has sub-pages that would be affected by the deletion.

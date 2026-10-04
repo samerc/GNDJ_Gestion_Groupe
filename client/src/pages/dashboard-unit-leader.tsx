@@ -6,7 +6,10 @@ import { useUnitDashboard, useUnitDashboardPrefs, type RosterMemberDto } from '@
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
-import { Input } from '@/components/ui/input'
+import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { EmptyState } from '@/components/shared/empty-state'
+import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { MemberPhoto } from '@/components/shared/member-photo'
@@ -126,7 +129,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   }, [])
 
   if (isLoading) return <LoadingSpinner variant="page" />
-  if (!data) return <p className="text-muted-foreground">Unité introuvable.</p>
+  if (!data) return <EmptyState icon={Users} title="Unité introuvable" description="Cette unité n'existe pas ou vous n'y avez pas accès." />
 
   // Flatten the team-grouped dashboard payload into one list, stamping each member with its team
   // name/color (null for unassigned) so search/filter can work over a single array.
@@ -232,16 +235,17 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* Top bar */}
       <div className="shrink-0 space-y-3 pb-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold truncate">{data.unitName}</h1>
-            <p className="text-xs text-muted-foreground truncate">{data.unitTypeName}<span className="sm:hidden"> · {data.totalMembers} membres · {data.totalTeams} équipes</span></p>
-          </div>
-          <div className="hidden gap-4 text-center shrink-0 sm:flex">
-            <div><p className="text-lg font-bold leading-none">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
-            <div><p className="text-lg font-bold leading-none">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
-          </div>
-        </div>
+        <PageHeader
+          title={data.unitName}
+          icon={Users}
+          description={<>{data.unitTypeName}<span className="sm:hidden"> · {data.totalMembers} membres · {data.totalTeams} équipes</span></>}
+          actions={
+            <div className="hidden gap-4 text-center shrink-0 sm:flex">
+              <div><p className="text-lg font-bold leading-none">{data.totalMembers}</p><p className="text-xs text-muted-foreground">Membres</p></div>
+              <div><p className="text-lg font-bold leading-none">{data.totalTeams}</p><p className="text-xs text-muted-foreground">Équipes</p></div>
+            </div>
+          }
+        />
         {/* Action bar: wraps on a phone (a sideways-scrolling row hid the last buttons with no hint); one row on
             larger screens. */}
         <div className="flex flex-wrap items-center gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -254,10 +258,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           {/* Custom reports live in their own "Rapports" sidebar section now (was a dropdown here). */}
         </div>
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
-          </div>
+          <SearchInput className="flex-1" placeholder="Rechercher un membre…" value={search} onChange={setSearch} />
           <Select value={teamFilter || 'all'} onValueChange={(v) => setTeamFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-36 h-8 shrink-0 text-sm sm:w-44"><SelectValue placeholder="Toutes" /></SelectTrigger>
             <SelectContent>
@@ -291,7 +292,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           style={{ '--left-w': `${leftWidth}px` } as React.CSSProperties}
         >
           {grouped.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-sm text-muted-foreground p-4">Aucun membre trouvé</div>
+            <EmptyState icon={debouncedSearch ? Search : Users} title={debouncedSearch ? `Aucun résultat pour « ${debouncedSearch} »` : 'Aucun membre trouvé'} />
           ) : (
             grouped.map(group => (
               <div key={group.key}>
@@ -327,9 +328,9 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
                     {prefs.row.dossier && <DossierIcon docsComplete={m.docsComplete} cotisationOk={m.cotisationOk} />}
                     {prefs.row.absences && absenceCounts.get(m.memberId) ? (
                       <Tip content="Absences aux réunions cette année">
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                        <Badge variant="warning" className="shrink-0 gap-0.5 px-1.5 text-[10px]">
                           <CalendarCheck className="h-3 w-3" />{absenceCounts.get(m.memberId)}
-                        </span>
+                        </Badge>
                       </Tip>
                     ) : null}
                   </div>

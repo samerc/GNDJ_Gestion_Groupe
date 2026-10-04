@@ -20,9 +20,10 @@ import { SearchInput } from '@/components/shared/search-input'
 import { Plus, Pencil, Trash2, Landmark } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
-import { BackLink } from '@/components/shared/back-link'
+import { BackToSettings } from '@/components/shared/back-to-settings'
+import { Callout } from '@/components/shared/callout'
 
-export default function AssociationsPage() {
+export default function AssociationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
   const [page, setPage] = useState(1)
@@ -59,7 +60,7 @@ export default function AssociationsPage() {
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...form })
-        toast.success('Association modifiée')
+        toast.success('Association enregistrée')
       } else {
         await createMutation.mutateAsync(form)
         toast.success('Association créée')
@@ -88,19 +89,23 @@ export default function AssociationsPage() {
   // input the user is typing in) or whenever the list has rows.
   const showSearch = !!search || !!(data && data.totalCount > 0)
 
+  const newButton = (
+    <Button onClick={openCreate}>
+      <Plus className="mr-1.5 h-4 w-4" />
+      Nouvelle association
+    </Button>
+  )
+
   return (
     <Page>
-      <BackLink to="/admin/settings" label="Retour aux paramètres" />
-      <PageHeader
-        title="Associations"
-        icon={Landmark}
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            Nouvelle association
-          </Button>
-        }
-      />
+      {embedded ? (
+        <div className="flex justify-end">{newButton}</div>
+      ) : (
+        <>
+          <BackToSettings />
+          <PageHeader title="Associations" icon={Landmark} description="Associations scoutes auxquelles les unités sont rattachées." actions={newButton} />
+        </>
+      )}
 
       {/* Search — only show when items exist */}
       {showSearch && (
@@ -140,12 +145,12 @@ export default function AssociationsPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         <Tip content="Modifier">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
+                          <Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(item)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </Tip>
                         <Tip content="Supprimer">
-                          <Button variant="ghost" size="icon" onClick={() => setDeleting(item)}>
+                          <Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(item)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </Tip>
@@ -186,9 +191,7 @@ export default function AssociationsPage() {
             <DialogTitle>{editing ? 'Modifier l\'association' : 'Nouvelle association'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-            )}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <RequiredLabel htmlFor="name" required>Nom</RequiredLabel>
               <Input id="name" className={fieldClass('name')} value={form.name} onChange={(e) => { setForm(f => ({ ...f, name: e.target.value })); clearField('name') }} required />
@@ -213,7 +216,7 @@ export default function AssociationsPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer l'association"
+        title="Supprimer l'association ?"
         description={deleting?.unitCount
           ? `Impossible de supprimer « ${deleting.name} » : ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's y sont rattachées' : ' y est rattachée'}. Rattachez-les d'abord à une autre association.`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}

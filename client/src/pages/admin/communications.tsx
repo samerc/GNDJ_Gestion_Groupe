@@ -25,6 +25,8 @@ import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
 import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { Callout } from '@/components/shared/callout'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { RichContent } from '@/components/public/rich-content'
 import { Send, Users, MailWarning, KeyRound, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
@@ -134,12 +136,8 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
     ? `l'unité ${units.find((u) => u.id === unitId)?.name ?? '(à choisir)'}`
     : 'toutes les maîtrises'
 
-  return (
-    <Page>
-      {!embedded && (
-        <PageHeader title="Envoyer un message aux chefs" icon={Send}
-          description="Choisissez un modèle et les destinataires, prévisualisez, puis envoyez. Par exemple l'email d'accueil de rentrée. Les chefs sans email de contact sont ignorés." />
-      )}
+  const body = (
+    <>
       <EmailDeliveryWarning />
 
       {/* Step 1 — template + step 2 — audience */}
@@ -156,11 +154,10 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
           {selectedTemplate && (
             <div className="space-y-2">
               {hasActivation && (
-                <div className="flex items-start gap-2 rounded-md border border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 p-2.5 text-xs text-sky-800 dark:text-sky-300">
-                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-                  <span>Ce modèle inclut un <strong>lien d'activation</strong> : chaque chef recevra un lien pour
-                    redéfinir son mot de passe. Les chefs ont déjà leur compte — retirez ce lien du modèle sauf besoin particulier.</span>
-                </div>
+                <Callout tone="info" icon={KeyRound}>
+                  Ce modèle inclut un <strong>lien d'activation</strong> : chaque chef recevra un lien pour
+                  redéfinir son mot de passe. Les chefs ont déjà leur compte — retirez ce lien du modèle sauf besoin particulier.
+                </Callout>
               )}
               <div className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
                 <div>
@@ -182,14 +179,11 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
         {/* Destinataires */}
         <div className="rounded-lg border p-4 space-y-3">
           <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">2 · Destinataires</Label>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant={audience === 'all' ? 'default' : 'outline'} onClick={() => setAudience('all')}>
-              Toutes les maîtrises
-            </Button>
-            <Button type="button" size="sm" variant={audience === 'unit' ? 'default' : 'outline'} onClick={() => setAudience('unit')}>
-              Une unité
-            </Button>
-          </div>
+          <SegmentedToggle<Audience>
+            options={[{ value: 'all', label: 'Toutes les maîtrises' }, { value: 'unit', label: 'Une unité' }]}
+            value={audience}
+            onChange={setAudience}
+          />
           {audience === 'unit' && (
             <Select value={unitId || undefined} onValueChange={setUnitId}>
               <SelectTrigger><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
@@ -270,7 +264,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
                     {r.contactEmail
                       ? <p className="truncate text-xs text-muted-foreground">{r.contactEmail}</p>
                       : <p className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"><MailWarning className="h-3.5 w-3.5" /> Aucun email</p>}
-                    {!r.hasLoggedIn && <p className="text-xs text-sky-700 dark:text-sky-300">Jamais connecté</p>}
+                    {!r.hasLoggedIn && <Badge variant="info" className="mt-1">Jamais connecté</Badge>}
                   </div>
                 </label>
               ))}
@@ -304,7 +298,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
                       </TableCell>
                       <TableCell>
                         {!r.hasLoggedIn && (
-                          <Badge variant="outline" className="border-sky-300 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300">Jamais connecté</Badge>
+                          <Badge variant="info">Jamais connecté</Badge>
                         )}
                       </TableCell>
                     </TableRow>
@@ -347,6 +341,16 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
         loading={send.isPending}
         onConfirm={doSend}
       />
+    </>
+  )
+
+  // Embedded in the "Emails aux chefs" page, which owns the Page shell + header — don't nest a second one.
+  if (embedded) return <div className="space-y-6">{body}</div>
+  return (
+    <Page>
+      <PageHeader title="Emails aux chefs" icon={Send}
+        description="Choisissez un modèle et les chefs, prévisualisez, puis envoyez (ex. : l'email de rentrée)." />
+      {body}
     </Page>
   )
 }

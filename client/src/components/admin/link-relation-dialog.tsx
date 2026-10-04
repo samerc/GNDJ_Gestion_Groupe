@@ -9,8 +9,9 @@ import { Check, Link2, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
 import { parseApiError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import {
   useDismissRelationSuggestion, useLinkPreview, useLinkRelationMember, type LinkPreviewParent,
 } from '@/services/demande-admin-service'
@@ -46,7 +47,7 @@ export function LinkRelationDialog({ target, onClose }: { target: LinkTarget | n
         </DialogHeader>
 
         {!target ? null : isLoading ? <LoadingSpinner /> : error ? (
-          <p className="text-sm text-destructive">{parseApiError(error)}</p>
+          <Callout tone="danger">{parseApiError(error)}</Callout>
         ) : !p ? null : (
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -58,25 +59,23 @@ export function LinkRelationDialog({ target, onClose }: { target: LinkTarget | n
               </Side>
               <Side title="Membre du groupe">
                 <Line label="Nom">{p.memberName}</Line>
-                <Line label="Naissance">{p.memberDateOfBirth ? `${p.memberDateOfBirth}${p.memberAge != null ? ` (${p.memberAge} ans)` : ''}` : '—'}</Line>
+                <Line label="Naissance">{p.memberDateOfBirth ? `${formatDate(p.memberDateOfBirth)}${p.memberAge != null ? ` (${p.memberAge} ans)` : ''}` : '—'}</Line>
                 <Line label="Poste">{p.memberPosts}</Line>
                 {p.memberCardNumber && <Line label="Matricule">{p.memberCardNumber}</Line>}
                 <Parents title="Parents du membre" list={p.memberParents} />
               </Side>
             </div>
-            <p className={cn('rounded-md px-3 py-2 text-sm',
-              common > 0 ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                : 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300')}>
+            <Callout tone={common > 0 ? 'success' : 'warning'}>
               {common > 0
                 ? `${common} parent(s) en commun — c'est très probablement le bon enfant.`
                 : 'Aucun parent en commun sur la fiche du membre — vérifiez bien avant de lier.'}
-            </p>
+            </Callout>
             {!p.isSibling && <p className="text-sm text-destructive">Seuls les frères et sœurs peuvent être liés.</p>}
           </div>
         )}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Annuler</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Annuler</Button>
           {target?.fromSuggestion && (
             <Button variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10" onClick={reject} disabled={busy || isLoading}>
               <X className="mr-1 h-4 w-4" />Non, ce n'est pas lui

@@ -7,10 +7,12 @@ import { useEffect, useState } from 'react'
 import { useCampLookup, useFamilleSchedule, type CampScheduleStepDto, type CampFamilleScheduleDto } from '@/services/camp-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { SearchInput } from '@/components/shared/search-input'
+import { Callout } from '@/components/shared/callout'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
-import { Search, MapPin, CloudRain, Phone, Users, Clock, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Search, MapPin, CloudRain, Phone, Users, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { hhmm } from '@/lib/camp-scoring'
 
 // Local wall-clock Date from 'yyyy-MM-dd' + 'HH:mm:ss' (camp time).
@@ -41,16 +43,12 @@ export function CampLookup({ campId }: { campId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Nom d'un membre ou numéro de famille…" className="pl-9 pr-9" />
-        {q && <button type="button" aria-label="Effacer" onClick={() => setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>}
-      </div>
+      <SearchInput value={q} onChange={setQ} placeholder="Nom d'un membre ou numéro de famille…" className="max-w-md" />
 
       {debounced && (
         <div className="max-w-md">
           {isFetching && !results ? <LoadingSpinner /> : (results ?? []).length === 0
-            ? <p className="text-sm text-muted-foreground">Personne trouvé.</p>
+            ? <p className="text-sm text-muted-foreground">Aucun résultat.</p>
             : <div className="divide-y rounded-lg border">
                 {results!.map(r => (
                   <button key={`${r.memberId}-${r.familleNumber}`} type="button" disabled={r.familleNumber == null}
@@ -75,7 +73,7 @@ export function CampLookup({ campId }: { campId: string }) {
 function FamilleWhereabouts({ campId, number, who }: { campId: string; number: number; who: string | null }) {
   const { data, isLoading, error } = useFamilleSchedule(campId, number)
   if (isLoading) return <LoadingSpinner />
-  if (error || !data) return <p className="text-sm text-destructive">Parcours introuvable (la rotation a-t-elle été générée ?).</p>
+  if (error || !data) return <Callout tone="danger">Parcours introuvable (la rotation a-t-elle été générée ?).</Callout>
   return <Whereabouts data={data} who={who} />
 }
 
@@ -107,13 +105,13 @@ function Whereabouts({ data, who }: { data: CampFamilleScheduleDto; who: string 
         <Clock className="h-4 w-4 text-muted-foreground" />
         <span className="font-medium">{custom ? moment.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : `Maintenant (${moment.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`}</span>
         <span className="text-muted-foreground">·</span>
-        <select className="rounded border bg-background px-2 py-1 text-sm" value={custom ? custom.slice(0, 10) : ''}
+        <select aria-label="Jour" className="rounded border bg-background px-2 py-1 text-sm" value={custom ? custom.slice(0, 10) : ''}
           onChange={e => setCustom(e.target.value ? `${e.target.value}T${custom ? custom.slice(11) : '12:00'}` : '')}>
           <option value="">Maintenant</option>
           {days.map(d => <option key={d} value={d}>{dayLabel(d)}</option>)}
         </select>
-        {custom && <input type="time" className="rounded border bg-background px-2 py-1 text-sm" value={custom.slice(11, 16)} onChange={e => setCustom(`${custom.slice(0, 10)}T${e.target.value}`)} />}
-        {data.useBackupLocations && <span className="flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-950/50 dark:text-sky-300"><CloudRain className="h-3.5 w-3.5" />Plan B (mauvais temps)</span>}
+        {custom && <input type="time" aria-label="Heure" className="rounded border bg-background px-2 py-1 text-sm" value={custom.slice(11, 16)} onChange={e => setCustom(`${custom.slice(0, 10)}T${e.target.value}`)} />}
+        {data.useBackupLocations && <Badge variant="info" className="gap-1"><CloudRain className="h-3.5 w-3.5" />Plan B (mauvais temps)</Badge>}
       </div>
       <p className="text-sm font-medium">{pos.status}</p>
 

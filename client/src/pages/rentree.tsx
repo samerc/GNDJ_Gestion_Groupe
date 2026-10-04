@@ -24,10 +24,11 @@ import { PageHeader } from '@/components/shared/page-header'
 import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { Check, Lock, CalendarClock, Users, Settings2, Sparkles, Pencil, Trash2, ListChecks, ChevronRight, Play, ArrowRight, Plus, X, Activity, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { DateInput } from '@/components/shared/date-input'
 
 const ROLE_LABELS: Record<string, string> = {
   'chef-de-groupe': 'Chef de Groupe', 'chef-unite': "Chef d'unité", 'assistant-de-groupe': 'Assistant de Groupe',
@@ -68,18 +69,22 @@ function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage:
   if (task.progressKey) {
     // Auto-tracked: reflects live module state, not manually checked.
     return (
-      <span title="Suivi automatiquement" className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-        done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-amber-400 text-amber-500')}>
-        {done ? <Check className="h-3 w-3" /> : <Activity className="h-2.5 w-2.5" />}
-      </span>
+      <Tip content="Suivi automatiquement">
+        <span aria-label="Suivi automatiquement" className={cn('mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+          done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-amber-400 text-amber-500')}>
+          {done ? <Check className="h-3 w-3" /> : <Activity className="h-2.5 w-2.5" />}
+        </span>
+      </Tip>
     )
   }
   const canTick = (task.isMine || canManage) && !task.isBlocked
   // The visual check stays a compact 20px dot, but the tappable button is padded to ~36px (with -m-2 so it keeps
   // the same layout footprint) — ticking a task is the page's main action and must be comfortable on a phone.
+  const tickLabel = task.isBlocked ? 'Bloquée par une tâche préalable' : done ? 'Rouvrir' : 'Marquer terminée'
   return (
+    <Tip content={tickLabel}>
     <button type="button" disabled={!canTick} onClick={() => onToggle(task)}
-      title={task.isBlocked ? 'Bloquée par une tâche préalable' : done ? 'Rouvrir' : 'Marquer terminée'}
+      aria-label={tickLabel}
       className={cn('group -m-2 mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
         task.isBlocked ? 'cursor-not-allowed' : canTick ? 'cursor-pointer' : '')}>
       <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border',
@@ -89,6 +94,7 @@ function CheckDot({ task, canManage, onToggle }: { task: RentreeTask; canManage:
         {done ? <Check className="h-3 w-3" /> : task.isBlocked ? <Lock className="h-2.5 w-2.5 text-muted-foreground" /> : null}
       </span>
     </button>
+    </Tip>
   )
 }
 
@@ -100,7 +106,7 @@ function Deadline({ task }: { task: RentreeTask }) {
   return (
     <span className={cn('inline-flex items-center gap-1', tone)}>
       <CalendarClock className="h-3 w-3" />
-      {task.dueDate ? new Date(task.dueDate).toLocaleDateString('fr-FR') : task.deadlineLabel}
+      {task.dueDate ? formatDate(task.dueDate) : task.deadlineLabel}
       {task.isOverdue && ' — en retard'}
     </span>
   )
@@ -137,7 +143,7 @@ function TaskAction({ task, canManage, running, onRun }: {
     if (!canManage) return null // running a "do" action needs rentree.manage
     return (
       <Button size="sm" className="mt-2 h-7" disabled={task.isBlocked || running} onClick={() => onRun(task)}>
-        <Play className="mr-1 h-3.5 w-3.5" />{running ? '…' : action.label}
+        <Play className="mr-1 h-3.5 w-3.5" />{running ? 'Exécution…' : action.label}
       </Button>
     )
   }
@@ -501,7 +507,7 @@ export default function RentreePage() {
             )}
             {canManage && (
               <>
-                {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un CU confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1.5 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
+                {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un chef d'unité confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1.5 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
                 {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1.5 h-4 w-4" />Ajouter une tâche</Button>}
                 <Tip content="Modifier les tâches type recopiées chaque année"><Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1.5 h-4 w-4" />Modèle de rentrée</Link></Button></Tip>
                 <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button>
@@ -512,10 +518,12 @@ export default function RentreePage() {
       />
 
       {noYears ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Aucune liste de rentrée générée.
-          {canManage ? <> Cliquez sur <b>Générer</b> pour créer la liste à partir du modèle.</> : <> Revenez quand le Chef de Groupe l'aura préparée.</>}
-        </div>
+        <EmptyState
+          icon={ListChecks}
+          title="Aucune liste de rentrée générée"
+          description={canManage ? 'Générez la liste à partir du modèle de rentrée.' : "Revenez quand le Chef de Groupe l'aura préparée."}
+          action={canManage ? <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button> : undefined}
+        />
       ) : (
         <>
           <div className="rounded-lg border p-3">
@@ -527,7 +535,7 @@ export default function RentreePage() {
           </div>
 
           {isLoading ? <LoadingSpinner variant="table" /> :
-           total === 0 ? <EmptyState icon={ListChecks} title={mineOnly ? "Vous n'avez aucune tâche assignée." : 'Aucune tâche.'} /> :
+           total === 0 ? <EmptyState icon={ListChecks} title={mineOnly ? "Vous n'avez aucune tâche assignée" : 'Aucune tâche'} /> :
            phases.map(({ phase, rows, done, total }) => {
             const collapsed = collapsedPhases.has(phase)
             return (
@@ -575,7 +583,7 @@ export default function RentreePage() {
               <>
                 {/* Destructive full regenerate goes through a confirm; add-new is the safe default. */}
                 <Button variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => setConfirmRegen(true)} disabled={generate.isPending}>Tout régénérer</Button>
-                <Button onClick={doAddNew} disabled={generate.isPending}>{generate.isPending ? '…' : 'Ajouter les nouvelles tâches'}</Button>
+                <Button onClick={doAddNew} disabled={generate.isPending}>{generate.isPending ? 'Ajout…' : 'Ajouter les nouvelles tâches'}</Button>
               </>
             ) : (
               <Button onClick={() => doGenerate(false)} disabled={generate.isPending}>{generate.isPending ? 'Génération…' : 'Générer'}</Button>
@@ -585,7 +593,7 @@ export default function RentreePage() {
       </Dialog>
 
       {/* Re-generate confirmation — overwriting an existing year erases all completed tasks / progress */}
-      <ConfirmDialog open={confirmRegen} onOpenChange={() => setConfirmRegen(false)} title="Régénérer la liste de rentrée" variant="destructive"
+      <ConfirmDialog open={confirmRegen} onOpenChange={() => setConfirmRegen(false)} title="Régénérer la liste de rentrée ?" variant="destructive"
         description={`Une liste existe déjà pour ${genYear.trim()}. La régénérer effacera TOUTE la progression actuelle (tâches terminées, échéances modifiées) pour cette année et la recréera à partir du modèle. Cette action est irréversible.`}
         confirmLabel="Régénérer" loading={generate.isPending}
         onConfirm={async () => { await doGenerate(true); setConfirmRegen(false) }} />
@@ -599,7 +607,7 @@ export default function RentreePage() {
             <div className="space-y-1"><RequiredLabel>Description</RequiredLabel><Input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} /></div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={editForm.deadlineLabel} onChange={e => setEditForm(f => ({ ...f, deadlineLabel: e.target.value }))} placeholder="1ʳᵉ sem. octobre" /></div>
-              <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={editForm.dueDate} onChange={e => setEditForm(f => ({ ...f, dueDate: e.target.value }))} />
+              <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><DateInput value={editForm.dueDate} onChange={iso => setEditForm(f => ({ ...f, dueDate: iso ?? '' }))} />
                 {editForm.deadlineAnchor && <p className="text-xs text-muted-foreground">Utilisée seulement si la date « {anchorLabel(editForm.deadlineAnchor)} » est vide dans les Paramètres.</p>}</div>
             </div>
             <div className="space-y-1"><RequiredLabel>Échéance basée sur une date</RequiredLabel>
@@ -640,7 +648,7 @@ export default function RentreePage() {
               <div className="space-y-1"><RequiredLabel>Échéance (texte)</RequiredLabel><Input value={addForm.deadlineLabel} onChange={e => setAddForm(f => ({ ...f, deadlineLabel: e.target.value }))} placeholder="1ʳᵉ sem. octobre" /></div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><Input type="date" value={addForm.dueDate} onChange={e => setAddForm(f => ({ ...f, dueDate: e.target.value }))} /></div>
+              <div className="space-y-1"><RequiredLabel>Date limite</RequiredLabel><DateInput value={addForm.dueDate} onChange={iso => setAddForm(f => ({ ...f, dueDate: iso ?? '' }))} /></div>
               <div className="space-y-1"><RequiredLabel>Échéance basée sur</RequiredLabel>
                 <Select value={addForm.deadlineAnchor || 'none'} onValueChange={v => setAddForm(f => ({ ...f, deadlineAnchor: v === 'none' ? '' : v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -721,7 +729,7 @@ export default function RentreePage() {
               <p className="text-sm text-muted-foreground">
                 « {bulkDue.r.title} » — la même date sera appliquée aux {bulkDue.r.units.length} unités.
               </p>
-              <Input type="date" value={bulkDue.date} onChange={e => setBulkDue(b => b && { ...b, date: e.target.value })} />
+              <DateInput value={bulkDue.date} onChange={iso => setBulkDue(b => b && { ...b, date: iso ?? '' })} />
               {bulkDue.r.sample.deadlineAnchor && (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   Cette tâche suit la date « {anchorLabel(bulkDue.r.sample.deadlineAnchor)} » des paramètres. Une date saisie ici la remplace.
@@ -738,7 +746,7 @@ export default function RentreePage() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la tâche"
+      <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)} title="Supprimer la tâche ?"
         description={`Supprimer « ${deleting?.title} »${deleting?.unitName ? ` (${deleting.unitName})` : ''} de la liste ${year} ?`} confirmLabel="Supprimer" variant="destructive"
         onConfirm={async () => { if (deleting) { try { await deleteTask.mutateAsync(deleting.id); toast.success('Supprimée'); setDeleting(null) } catch (err) { toast.error(parseApiError(err)) } } }} />
     </Page>

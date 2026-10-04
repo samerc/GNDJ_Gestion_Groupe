@@ -13,6 +13,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { parseApiError } from '@/lib/error-utils'
+import { Callout } from '@/components/shared/callout'
 import { KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -64,26 +65,26 @@ export function ForcePasswordChange() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="fpc-current">Mot de passe actuel</Label>
               <PasswordInput id="fpc-current" value={current} onChange={(e) => setCurrent(e.target.value)}
                 required autoComplete="current-password" placeholder="Celui que vous venez d'utiliser" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="fpc-new">Nouveau mot de passe</Label>
               <PasswordInput id="fpc-new" value={next} onChange={(e) => setNext(e.target.value)}
                 required autoComplete="new-password" />
               <div className="pt-1"><PasswordRules password={next} /></div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="fpc-confirm">Confirmez le mot de passe</Label>
+            <div className="space-y-2">
+              <Label htmlFor="fpc-confirm">Confirmer le mot de passe</Label>
               <PasswordInput id="fpc-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)}
                 required autoComplete="new-password" />
               {confirm.length > 0 && confirm !== next && (
                 <p className="text-xs text-destructive">Les mots de passe ne correspondent pas.</p>
               )}
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <Button type="submit" className="w-full" disabled={!valid || changePassword.isPending}>
               {changePassword.isPending ? 'Enregistrement…' : 'Définir le mot de passe'}
             </Button>

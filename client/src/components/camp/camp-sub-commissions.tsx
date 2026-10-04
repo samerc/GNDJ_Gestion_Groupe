@@ -9,6 +9,8 @@ import { parseApiError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Tip } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Trash2 } from 'lucide-react'
 
@@ -32,7 +34,7 @@ export function SubCommissionChips({ campId, member, names, editable }: {
             className={cn('rounded-full border px-2 py-0.5 text-xs transition-colors', on ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}>
             {n}
           </button>
-        ) : <span key={n} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{n}</span>
+        ) : <Badge key={n} variant="secondary">{n}</Badge>
       })}
     </div>
   )
@@ -78,14 +80,14 @@ export function SubCommissionsDialog({ campId, names, onClose }: { campId: strin
           {list.map((n, i) => (
             <div key={i} className="flex gap-2">
               <Input value={n} maxLength={60} onChange={e => setList(list.map((x, j) => (j === i ? e.target.value : x)))} />
-              <Button variant="ghost" size="icon" className="text-destructive" aria-label="Supprimer" onClick={() => setList(list.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+              <Tip content="Retirer la sous-commission"><Button variant="ghost" size="icon" className="text-destructive" aria-label="Retirer la sous-commission" onClick={() => setList(list.filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button></Tip>
             </div>
           ))}
           <Button variant="outline" size="sm" onClick={() => setList([...list, ''])}><Plus className="mr-1 h-4 w-4" />Ajouter</Button>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={submit} disabled={save.isPending}>Enregistrer</Button>
+          <Button onClick={submit} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

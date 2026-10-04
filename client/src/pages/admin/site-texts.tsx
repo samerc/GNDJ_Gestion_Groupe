@@ -14,14 +14,16 @@ import { Page } from '@/components/shared/page'
 import { Plus, Trash2, ImagePlus, Loader2, Globe } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+import { Textarea } from '@/components/ui/textarea'
+import { RequiredLabel } from '@/components/shared/required-label'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 
 function Field({ label, value, onChange, textarea, max }: { label: string; value: string; onChange: (v: string) => void; textarea?: boolean; max?: number }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">{label}</label>
+      <RequiredLabel>{label}</RequiredLabel>
       {textarea ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} maxLength={max ?? 1000}
-          className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        <Textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} maxLength={max ?? 1000} />
       ) : (
         <Input value={value} onChange={(e) => onChange(e.target.value)} maxLength={max ?? 200} />
       )}
@@ -62,7 +64,7 @@ export default function AdminSiteTextsPage({ embedded = false }: { embedded?: bo
 
   // Only spin while the initial fetch is in flight. Once it resolves (data OR error/empty),
   // fall back to empty defaults so the form always renders (fresh DB / error path).
-  if (isLoading && !form) return <LoadingSpinner variant="form" />
+  const loadingFirst = isLoading && !form
   const effectiveForm = form ?? emptyContent
 
   const home = effectiveForm.home
@@ -72,7 +74,7 @@ export default function AdminSiteTextsPage({ embedded = false }: { embedded?: bo
   const handleHeroFile = async (file: File | undefined) => {
     if (!file) return
     setUploadingHero(true)
-    try { const url = await uploadContentImage(file); setHome({ heroImageUrl: url }); toast.success('Photo téléversée. N\'oubliez pas d\'enregistrer.') }
+    try { const url = await uploadContentImage(file); setHome({ heroImageUrl: url }); toast.success("Photo téléversée — n'oubliez pas d'enregistrer") }
     catch (err) { toast.error(parseApiError(err)) }
     finally { setUploadingHero(false); if (heroFileRef.current) heroFileRef.current.value = '' }
   }
@@ -89,10 +91,15 @@ export default function AdminSiteTextsPage({ embedded = false }: { embedded?: bo
       {embedded ? (
         <div className="flex justify-end">{saveButton}</div>
       ) : (
-        <PageHeader title="Textes du site" icon={Globe}
-          description="Contenu des sections fixes du site public (accueil, pied de page, contact)."
-          actions={saveButton} />
+        <>
+          <BackToSettings />
+          <PageHeader title="Accueil & pied de page" icon={Globe}
+            description="Contenu des sections fixes du site public (accueil, pied de page, contact)."
+            actions={loadingFirst ? undefined : saveButton} />
+        </>
       )}
+
+      {loadingFirst ? <LoadingSpinner variant="form" /> : (<>
 
       <Section title="Accueil — bannière">
         <Field label="Badge" value={home.heroBadge} onChange={(v) => setHome({ heroBadge: v })} />
@@ -177,6 +184,7 @@ export default function AdminSiteTextsPage({ embedded = false }: { embedded?: bo
       </Section>
 
       <div className="flex justify-end">{saveButton}</div>
+      </>)}
     </Page>
   )
 }

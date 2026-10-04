@@ -35,8 +35,12 @@ import { SearchInput } from '@/components/shared/search-input'
 import { ArrowRightLeft, Check, Trash2, Users, ArrowRight, LogOut, ArrowUpDown, Pencil, LayoutGrid, Lock, Flag, ShieldAlert } from 'lucide-react'
 import { Callout } from '@/components/shared/callout'
 import { useNavigate } from 'react-router'
-import { cn, computeAge } from '@/lib/utils'
+import { cn, computeAge, formatDate } from '@/lib/utils'
+import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+
+// "Quitte le groupe" action button — same outlined orange style here and on the Organiser board.
+const LEAVE_BUTTON_CLASS = 'border-orange-400 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950/40'
 
 // One allowed move target for a member, from the parcours scout: kind 'same' = stay in the branch
 // (équipe/fonction change), kind 'up' = a progression target unit (unité supérieure).
@@ -219,10 +223,10 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
 
   // Gate: the CU can only act while the CG has opened the passage process for this year.
   if (!passageStatus?.isOpen) {
-    if (embedded) return <p className="text-sm text-muted-foreground">Le passage est fermé : ouvrez-le pour proposer des changements.</p>
+    if (embedded) return <Callout tone="muted">Le passage est fermé : ouvrez-le pour proposer des changements.</Callout>
     return (
       <Page>
-        <PageHeader title="Passage annuel" icon={ArrowRightLeft} />
+        <PageHeader title="Passage annuel" icon={ArrowRightLeft} description="Proposez la place de chaque membre pour l'année prochaine" />
         <Card>
           <CardContent className="py-4">
             <EmptyState
@@ -431,12 +435,12 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
   // Colored status pill for a proposal; an approved proposal that keeps the same unit+role reads as
   // "Pas de changement" rather than "Accepté".
   const statusBadge = (passage: PassageDto) => {
-    if (passage.status === 'Finalized') return <Badge className="bg-blue-600">Publié</Badge>
-    if (passage.cgModified) return <Badge className="bg-amber-600 text-white">Modifié par le CG</Badge>
-    if (passage.finalIsLeaving ?? passage.isLeaving) return <Badge className="bg-orange-600">Quitte le groupe</Badge>
+    if (passage.status === 'Finalized') return <Badge variant="secondary">Publié</Badge>
+    if (passage.cgModified) return <Badge variant="info">Modifié par le CG</Badge>
+    if (passage.finalIsLeaving ?? passage.isLeaving) return <Badge variant="danger">Quitte le groupe</Badge>
     switch (passage.status) {
-      case 'Approved': return <Badge className="bg-green-600">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName && (passage.proposedTeamName ?? null) === (passage.currentTeamName ?? null) ? 'Pas de changement' : 'Accepté'}</Badge>
-      default: return <Badge className="bg-yellow-500 text-white">En attente du CG</Badge>
+      case 'Approved': return <Badge variant="success">{passage.proposedUnitId === passage.currentUnitId && passage.proposedRoleName === passage.currentRoleName && (passage.proposedTeamName ?? null) === (passage.currentTeamName ?? null) ? 'Pas de changement' : 'Accepté'}</Badge>
+      default: return <Badge variant="warning">En attente du CG</Badge>
     }
   }
 
@@ -541,13 +545,13 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
 
     return (
       <div className="flex flex-wrap gap-1.5">
-        <Button size="sm" variant="outline" className="border-green-300 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/30 hover:text-green-800 dark:hover:text-green-300" onClick={() => handleNoChange(row)} disabled={proposeMutation.isPending}>
+        <Button size="sm" variant="success" onClick={() => handleNoChange(row)} disabled={proposeMutation.isPending}>
           <Check className="mr-1 h-3 w-3" />Pas de changement
         </Button>
         <Button size="sm" variant="outline" className="border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-blue-800 dark:hover:text-blue-300" onClick={() => openPropose(row)}>
           <ArrowRightLeft className="mr-1 h-3 w-3" />Proposer
         </Button>
-        <Button size="sm" variant="outline" className="border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:text-orange-800 dark:hover:text-orange-300" title="Quitte le groupe" onClick={() => handleLeaving(row)} disabled={proposeMutation.isPending}>
+        <Button size="sm" variant="outline" className={LEAVE_BUTTON_CLASS} onClick={() => handleLeaving(row)} disabled={proposeMutation.isPending}>
           <LogOut className="mr-1 h-3 w-3" />Quitte le groupe
         </Button>
         {row.passage && (
@@ -651,17 +655,27 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
       <PageHeader
         title={`Passage annuel — ${passageScoutYear}`}
         icon={ArrowRightLeft}
-        description={leaderUnits.length > 1 ? undefined : unitName}
+        description={leaderUnits.length > 1 ? "Proposez la place de chaque membre pour l'année prochaine" : unitName}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => navigate('/organiser')} title="Basculer vers le plan de l'unité (glisser-déposer)">
-              <LayoutGrid className="mr-1.5 h-4 w-4" />Plan de l'unité
-            </Button>
+            <Tip content="Basculer vers le plan de l'unité (glisser-déposer)">
+              <Button variant="outline" size="sm" onClick={() => navigate('/organiser')}>
+                <LayoutGrid className="mr-1.5 h-4 w-4" />Plan de l'unité
+              </Button>
+            </Tip>
             {unitLocked ? (
               <Badge variant="secondary"><Lock className="mr-1 h-3 w-3" />Unité terminée</Badge>
+            ) : unitStatus && unitStatus.missingLines > 0 ? (
+              // Span wrapper so the tooltip still shows on the disabled button.
+              <Tip content={`${unitStatus.missingLines} membre(s) sans proposition`}>
+                <span className="inline-flex">
+                  <Button size="sm" disabled>
+                    <Flag className="mr-1.5 h-4 w-4" />Terminer le passage de l'unité
+                  </Button>
+                </span>
+              </Tip>
             ) : (
-              <Button size="sm" onClick={() => setConfirmSubmit(true)} disabled={!unitStatus || unitStatus.missingLines > 0}
-                title={unitStatus && unitStatus.missingLines > 0 ? `${unitStatus.missingLines} membre(s) sans proposition` : undefined}>
+              <Button size="sm" onClick={() => setConfirmSubmit(true)} disabled={!unitStatus}>
                 <Flag className="mr-1.5 h-4 w-4" />Terminer le passage de l'unité
               </Button>
             )}
@@ -680,7 +694,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
 
       {unitLocked ? (
         <Callout tone="info" icon={Lock}>
-          Vous avez terminé le passage de l'unité{unitStatus?.submittedAt ? ` le ${new Date(unitStatus.submittedAt).toLocaleDateString('fr-FR')}` : ''}.
+          Vous avez terminé le passage de l'unité{unitStatus?.submittedAt ? ` le ${formatDate(unitStatus.submittedAt)}` : ''}.
           Seule la Maîtrise de Groupe peut encore modifier les lignes. Vous verrez ici ses décisions et leurs raisons.
         </Callout>
       ) : unitStatus && unitStatus.missingLines > 0 ? (
@@ -701,13 +715,13 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
           <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3 py-3">
             <span className="text-sm font-medium">{selected.size} membre(s) sélectionné(s)</span>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => openBulk('same')}>
+              <Button size="sm" variant="success" onClick={() => openBulk('same')}>
                 <Check className="mr-1 h-4 w-4" />Pas de changement
               </Button>
               <Button size="sm" onClick={() => openBulk('move')}>
                 <ArrowRight className="mr-1 h-4 w-4" />Déplacer vers…
               </Button>
-              <Button size="sm" className="bg-orange-600 text-white hover:bg-orange-700" onClick={openBulkLeave}>
+              <Button size="sm" variant="outline" className={LEAVE_BUTTON_CLASS} onClick={openBulkLeave}>
                 <LogOut className="mr-1 h-4 w-4" />Quitte le groupe
               </Button>
               <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
@@ -763,9 +777,9 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
                   {row.passage && canChangeRow(row) && (
                     <div className="flex gap-1 shrink-0">
                       {canEditRow(row) && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditRow(row.memberId)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Tip content="Modifier le choix"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier le choix" onClick={() => startEditRow(row.memberId)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
                       )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                      <Tip content="Supprimer la proposition"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Supprimer la proposition" onClick={() => setDeletingPassage(row.passage)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
                     </div>
                   )}
                 </div>
@@ -825,21 +839,25 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
                       {canEditRow(row) && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditRow(row.memberId)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tip content="Modifier le choix">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier le choix" onClick={() => startEditRow(row.memberId)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </Tip>
                       )}
                       {row.passage && canChangeRow(row) && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeletingPassage(row.passage)} title="Supprimer">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
+                        <Tip content="Supprimer la proposition">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Supprimer la proposition" onClick={() => setDeletingPassage(row.passage)}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </Tip>
                       )}
                     </div>
                   </td>
                 </tr>
               ))}
               {displayRows.length === 0 && (
-                <tr><td colSpan={9} className="px-3 py-6 text-center text-sm text-muted-foreground">Aucun membre ne correspond.</td></tr>
+                <tr><td colSpan={9}><EmptyState icon={Users} title="Aucun membre ne correspond" description="Modifiez la recherche ou le filtre." /></td></tr>
               )}
             </tbody>
           </table>
@@ -854,13 +872,10 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
             <DialogTitle>Proposer un passage — {editingMember?.memberName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {formError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{formError}</div>}
+            {formError && <Callout tone="danger">{formError}</Callout>}
 
             {suggestionHint && (
-              <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-2.5 text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
-                <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-                {suggestionHint}
-              </div>
+              <Callout tone="info" icon={ArrowRight}>{suggestionHint}</Callout>
             )}
 
             <div className="space-y-2">
@@ -903,7 +918,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {formError && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{formError}</div>}
+            {formError && <Callout tone="danger">{formError}</Callout>}
 
             {bulkMode === 'move' && (
               <>
@@ -957,7 +972,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
       <ConfirmDialog
         open={confirmSubmit}
         onOpenChange={setConfirmSubmit}
-        title="Terminer le passage de l'unité"
+        title="Terminer le passage de l'unité ?"
         description="Une fois terminé, vous ne pourrez plus modifier les lignes de votre unité : la Maîtrise de Groupe fait ses calculs par unité. Toute modification ultérieure sera faite par le CG. Continuer ?"
         confirmLabel="Terminer"
         loading={submitUnitMutation.isPending}
@@ -974,7 +989,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
       <ConfirmDialog
         open={!!deletingPassage}
         onOpenChange={() => setDeletingPassage(null)}
-        title="Supprimer la proposition"
+        title="Supprimer la proposition ?"
         description="Êtes-vous sûr de vouloir supprimer cette proposition de passage ?"
         confirmLabel="Supprimer"
         variant="destructive"
@@ -984,7 +999,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
       <ConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title="Supprimer les propositions"
+        title="Supprimer les propositions ?"
         description={`Supprimer les propositions de passage des ${selected.size} membre(s) sélectionné(s) ? Ils repasseront « à proposer ».`}
         confirmLabel="Supprimer"
         variant="destructive"

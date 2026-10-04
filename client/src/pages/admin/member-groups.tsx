@@ -29,8 +29,11 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
+import { Callout } from '@/components/shared/callout'
+import { RequiredLabel } from '@/components/shared/required-label'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { parseApiError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
 import { Plus, Users, Pencil, Trash2, ShieldCheck, X, Search, Check, Minus, Globe, Layers, Building2, Mail, Copy, FileDown, ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
@@ -73,8 +76,6 @@ export default function MemberGroupsPage() {
         || a.name.localeCompare(b.name, 'fr')),
   })).filter(s => s.items.length > 0)
 
-  if (isLoading) return <LoadingSpinner variant="table" />
-
   return (
     <Page>
       <PageHeader
@@ -85,7 +86,7 @@ export default function MemberGroupsPage() {
           </span>
         }
         icon={Users}
-        description="Ensembles de membres définis par des règles (Grande Maîtrise, Chefs d'unité, Haute Patrouille…), recalculés automatiquement. Réutilisables comme portée de réunion et comme filtre dans la liste d'une unité."
+        description="Ensembles de membres définis par des règles, utilisables pour les réunions et la liste d'une unité."
         actions={<Button onClick={() => setCreating(true)}><Plus className="mr-1.5 h-4 w-4" />Nouveau groupe</Button>}
       />
 
@@ -105,7 +106,9 @@ export default function MemberGroupsPage() {
         </div>
       )}
 
-      {all.length === 0 ? (
+      {isLoading ? (
+        <LoadingSpinner variant="cards" />
+      ) : all.length === 0 ? (
         <EmptyState icon={Users} title="Aucun groupe" description="Créez un groupe pour l'utiliser dans les réunions ou comme filtre d'unité." />
       ) : filtered.length === 0 ? (
         <EmptyState icon={Search} title="Aucun résultat" description="Aucun groupe ne correspond à votre recherche." />
@@ -116,7 +119,7 @@ export default function MemberGroupsPage() {
               <div className="flex items-center gap-2 border-b pb-1.5 text-sm font-semibold text-muted-foreground">
                 <s.icon className="h-4 w-4" />
                 <span>{s.label}</span>
-                <span className="rounded-full bg-muted px-1.5 text-xs">{s.items.length}</span>
+                <Badge variant="secondary">{s.items.length}</Badge>
               </div>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {s.items.map(g => (
@@ -133,7 +136,7 @@ export default function MemberGroupsPage() {
       )}
       {viewing && <MembersDialog group={viewing} onClose={() => setViewing(null)} />}
       <ConfirmDialog open={!!deleting} onOpenChange={() => setDeleting(null)}
-        title="Supprimer le groupe" description={`Supprimer « ${deleting?.name} » ? Cette action est définitive.`}
+        title="Supprimer le groupe ?" description={`Supprimer « ${deleting?.name} » ? Cette action est définitive.`}
         confirmLabel="Supprimer" variant="destructive" loading={del.isPending} onConfirm={remove} />
     </Page>
   )
@@ -156,12 +159,9 @@ function ruleText(r: MemberGroupRuleDto): string {
 // A single visibility indicator ("Réunions" / "Liste d'unité") — green when the group is offered there.
 function VisChip({ on, label }: { on: boolean; label: string }) {
   return (
-    <span className={cn(
-      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
-      on ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'border-border bg-muted/50 text-muted-foreground'
-    )}>
+    <Badge variant={on ? 'success' : 'outline'} className={on ? 'gap-1 font-medium' : 'gap-1 font-medium text-muted-foreground'}>
       {on ? <Check className="h-3 w-3" /> : <Minus className="h-3 w-3" />}{label}
-    </span>
+    </Badge>
   )
 }
 
@@ -197,26 +197,27 @@ function GroupCard({ g, onEdit, onDelete, onView }: { g: MemberGroupDto; onEdit:
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
-            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+            <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Modifier le groupe" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
             {!g.isSystem && (
-              <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button></Tip>
+              <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Supprimer le groupe" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button></Tip>
             )}
           </div>
         </div>
 
         {/* Member count (click to see who) on its own line, then visibility on a second line. */}
         <div className="flex flex-col items-start gap-2">
+          <Tip content="Voir les membres">
           <button
             type="button"
             onClick={onView}
             disabled={g.memberCount === 0}
             className="group/count flex items-baseline gap-1 rounded-md text-left transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-60"
-            title="Voir les membres"
           >
             <span className="text-2xl font-bold leading-none tabular-nums">{g.memberCount}</span>
             <span className="text-xs text-muted-foreground group-hover/count:text-primary">membre{g.memberCount > 1 ? 's' : ''}</span>
             {g.memberCount > 0 && <span className="ml-0.5 text-xs font-medium text-primary underline-offset-2 group-hover/count:underline">voir</span>}
           </button>
+          </Tip>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Apparaît dans :</span>
             <VisChip on={g.isVisible} label="Réunions" />
@@ -365,10 +366,7 @@ function MemberPane({ group, members, unitId, unitName, grouped }: {
       <p className="text-xs text-muted-foreground">{members.length} membre{members.length > 1 ? 's' : ''} · {withEmail.length} avec email</p>
 
       {members.length > 8 && (
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-8" />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" />
       )}
 
       <div className="-mx-1 flex-1 overflow-y-auto px-1">
@@ -430,11 +428,11 @@ function SendMessageDialog({ group, unitId, unitName, onClose }: { group: Member
           <DialogDescription>Un email par membre (adresse du membre, sinon celle d'un parent). Envoi mis en file.</DialogDescription>
         </DialogHeader>
 
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+        {error && <Callout tone="danger">{error}</Callout>}
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Contenu</label>
+            <Label>Contenu</Label>
             <Select value={mode} onValueChange={v => setMode(v as 'free' | 'template')}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -446,7 +444,7 @@ function SendMessageDialog({ group, unitId, unitName, onClose }: { group: Member
 
           {mode === 'template' ? (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Modèle</label>
+              <RequiredLabel required>Modèle</RequiredLabel>
               <Select value={templateCode} onValueChange={setTemplateCode}>
                 <SelectTrigger><SelectValue placeholder="Choisir un modèle…" /></SelectTrigger>
                 <SelectContent>{(templates ?? []).map(t => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
@@ -456,13 +454,13 @@ function SendMessageDialog({ group, unitId, unitName, onClose }: { group: Member
           ) : (
             <>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Objet</label>
-                <Input value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} placeholder="Objet de l'email" />
+                <RequiredLabel htmlFor="group-mail-subject" required>Objet</RequiredLabel>
+                <Input id="group-mail-subject" value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} placeholder="Objet de l'email" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Message</label>
-                <textarea value={body} onChange={e => setBody(e.target.value)} maxLength={10000} rows={8}
-                  className="w-full rounded-md border bg-transparent px-3 py-2 text-sm" placeholder="Votre message…" />
+                <RequiredLabel htmlFor="group-mail-body" required>Message</RequiredLabel>
+                <Textarea id="group-mail-body" value={body} onChange={e => setBody(e.target.value)} maxLength={10000} rows={8}
+                  placeholder="Votre message…" />
                 <p className="text-xs text-muted-foreground">Texte simple : les sauts de ligne sont conservés.</p>
               </div>
             </>
@@ -532,7 +530,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
       isVisible, showInUnitList, rules,
     }
     try {
-      if (group) { await update.mutateAsync({ id: group.id, ...payload }); toast.success('Groupe modifié') }
+      if (group) { await update.mutateAsync({ id: group.id, ...payload }); toast.success('Groupe enregistré') }
       else { await create.mutateAsync(payload); toast.success('Groupe créé') }
       onClose()
     } catch (e) { setError(parseApiError(e)) }
@@ -548,12 +546,12 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
           {isSystem && <DialogDescription>Groupe prédéfini : vous pouvez seulement le masquer/afficher.</DialogDescription>}
         </DialogHeader>
 
-        {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+        {error && <Callout tone="danger">{error}</Callout>}
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Nom</label>
-            <Input value={name} onChange={e => setName(e.target.value)} disabled={isSystem} maxLength={150} placeholder="Ex : Haute Patrouille" />
+            <RequiredLabel htmlFor="group-name" required={!isSystem}>Nom</RequiredLabel>
+            <Input id="group-name" value={name} onChange={e => setName(e.target.value)} disabled={isSystem} maxLength={150} placeholder="Ex. : Haute Patrouille" />
           </div>
 
           {/* Visibility toggles — where this group is offered (both work for presets too). */}
@@ -577,7 +575,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
             <>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Portée</label>
+                  <Label>Portée</Label>
                   <Select value={scopeType} onValueChange={v => { setScopeType(v); setUnitTypeId(''); setUnitId('') }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{GROUP_SCOPES.map(s => <SelectItem key={s} value={s}>{GROUP_SCOPE_LABELS[s]}</SelectItem>)}</SelectContent>
@@ -585,7 +583,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
                 </div>
                 {scopeType === 'UnitType' && (
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Branche</label>
+                    <RequiredLabel required>Branche</RequiredLabel>
                     <Select value={unitTypeId} onValueChange={setUnitTypeId}>
                       <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                       <SelectContent>{unitTypes?.items.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
@@ -594,7 +592,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
                 )}
                 {scopeType === 'Unit' && (
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Unité</label>
+                    <RequiredLabel required>Unité</RequiredLabel>
                     <Select value={unitId} onValueChange={setUnitId}>
                       <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                       <SelectContent>{units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
@@ -606,7 +604,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
               {/* Per-unit vs combined — only meaningful for a branch (UnitType) scope, which spans several units. */}
               {scopeType === 'UnitType' && (
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Organisation</label>
+                  <Label>Organisation</Label>
                   <Select value={perUnit ? 'per' : 'combined'} onValueChange={v => setPerUnit(v === 'per')}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -625,7 +623,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
               {/* Rules builder */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Règles d'appartenance</label>
+                  <Label>Règles d'appartenance</Label>
                   <Button type="button" variant="outline" size="sm" onClick={addRule}><Plus className="mr-1 h-3.5 w-3.5" />Ajouter une règle</Button>
                 </div>
                 <p className="text-xs text-muted-foreground">Le groupe = l'union des règles « Inclure », moins les règles « Exclure ».</p>
@@ -643,7 +641,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Annuler</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? '...' : 'Enregistrer'}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -669,8 +667,8 @@ function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, 
     <div className="flex items-start gap-1.5 rounded-md border p-2">
       {/* Reorder handles (cosmetic ordering for readability) */}
       <div className="flex flex-col">
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-8 text-muted-foreground disabled:opacity-30" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Monter"><ChevronUp className="h-4 w-4" /></Button>
-        <Button type="button" variant="ghost" size="icon" className="h-6 w-8 text-muted-foreground disabled:opacity-30" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Descendre"><ChevronDown className="h-4 w-4" /></Button>
+        <Tip content="Monter"><Button type="button" variant="ghost" size="icon" className="h-6 w-8 text-muted-foreground disabled:opacity-30" onClick={onMoveUp} disabled={!canMoveUp} aria-label="Monter la règle"><ChevronUp className="h-4 w-4" /></Button></Tip>
+        <Tip content="Descendre"><Button type="button" variant="ghost" size="icon" className="h-6 w-8 text-muted-foreground disabled:opacity-30" onClick={onMoveDown} disabled={!canMoveDown} aria-label="Descendre la règle"><ChevronDown className="h-4 w-4" /></Button></Tip>
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -713,7 +711,9 @@ function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, 
             </Select>
           )}
           {canRemove && (
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onRemove}><X className="h-4 w-4" /></Button>
+            <Tip content="Retirer la règle">
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="Retirer la règle" onClick={onRemove}><X className="h-4 w-4" /></Button>
+            </Tip>
           )}
         </div>
         {/* Member search only mounts for the "member" criterion, so its query doesn't fire for other rules. */}

@@ -17,11 +17,11 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
+import { formatDate } from '@/lib/utils'
 import { Users, GitMerge, Check } from 'lucide-react'
 
 // ── small helpers ──────────────────────────────────────────────────────────────────────────────────
 const S = (v: string | null | undefined) => (v ?? '').trim()
-const fmtDate = (v: string | null) => (v ? new Date(v).toLocaleDateString('fr-FR') : '—')
 const dash = (v: string | null | undefined) => (S(v) ? v! : '—')
 const digits = (v: string | null | undefined) => (v ?? '').replace(/\D/g, '')
 const norm = (v: string | null | undefined) => S(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -49,7 +49,7 @@ type FieldDesc = { key: string; label: string; sig: (d: DemandeReview) => string
 const FIELDS: FieldDesc[] = [
   { key: 'firstName', label: 'Prénom', sig: d => S(d.firstName), display: d => dash(d.firstName), values: d => ({ firstName: d.firstName }) },
   { key: 'lastName', label: 'Nom', sig: d => S(d.lastName), display: d => dash(d.lastName), values: d => ({ lastName: d.lastName }) },
-  { key: 'dateOfBirth', label: 'Date de naissance', sig: d => S(d.dateOfBirth), display: d => fmtDate(d.dateOfBirth), values: d => ({ dateOfBirth: d.dateOfBirth }) },
+  { key: 'dateOfBirth', label: 'Date de naissance', sig: d => S(d.dateOfBirth), display: d => (d.dateOfBirth ? formatDate(d.dateOfBirth) : '—'), values: d => ({ dateOfBirth: d.dateOfBirth }) },
   { key: 'gender', label: 'Sexe', sig: d => S(d.gender), display: d => dash(d.gender), values: d => ({ gender: d.gender }) },
   { key: 'nationality', label: 'Nationalité', sig: d => S(d.nationality), display: d => dash(d.nationality), values: d => ({ nationality: d.nationality }) },
   { key: 'school', label: 'École', sig: d => S(d.school), display: d => dash(d.school), values: d => ({ school: d.school }) },
@@ -85,7 +85,7 @@ export default function DemandeDuplicatesPage() {
       <PageHeader
         title="Doublons de demandes"
         icon={Users}
-        description="Fusionnez les demandes présentées plusieurs fois pour le même enfant. Les champs identiques sont fusionnés automatiquement ; vous décidez de ceux qui diffèrent (y compris les parents et les proches)."
+        description="Fusionnez les demandes déposées plusieurs fois pour le même enfant."
       />
 
       {isLoading ? (

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { UserPlus, KeyRound, Mail, ArrowLeft } from 'lucide-react'
+import { Callout } from '@/components/shared/callout'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { emailDomain } from '@/lib/email-domain'
@@ -11,8 +12,6 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { HoneypotField } from '@/components/shared/honeypot-field'
 import { parseApiError } from '@/lib/error-utils'
-import type { AxiosError } from 'axios'
-import type { ApiError } from '@/types/api'
 
 // Result of POST /auth/request-login-code (passwordless step 1).
 interface LoginCodeRequestResult { found: boolean; hasEmail: boolean; maskedEmail: string | null }
@@ -51,7 +50,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
       await login({ email, password, website }, rememberMe)
       setFailedAttempts(0); navigate('/dashboard', { replace: true })
     } catch (err) {
-      setError((err as AxiosError<ApiError>).response?.data?.error ?? 'Une erreur est survenue.')
+      setError(parseApiError(err))
       setFailedAttempts((n) => n + 1)
     } finally { setLoading(false) }
   }
@@ -73,7 +72,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
     try {
       await loginWithCode(email, code, rememberMe); navigate('/dashboard', { replace: true })
     } catch (err) {
-      setError((err as AxiosError<ApiError>).response?.data?.error ?? 'Une erreur est survenue.')
+      setError(parseApiError(err))
     } finally { setLoading(false) }
   }
 
@@ -81,7 +80,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
   const switchToPassword = () => { setMode('password'); setError('') }
 
   const usernameField = (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor="email">Identifiant</Label>
       <Input
         id="email" name="username" type="text" inputMode="email"
@@ -103,7 +102,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
     </div>
   )
 
-  const errorBox = error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+  const errorBox = error && <Callout tone="danger">{error}</Callout>
   const backLink = onBack && (
     <button type="button" onClick={onBack} className="mb-1 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
       <ArrowLeft className="h-3.5 w-3.5" /> Comptes enregistrés
@@ -124,28 +123,27 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
         {backLink}
         {errorBox}
         {usernameField}
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Mot de passe</Label>
+        <div className="space-y-2">
+          {/* "Mot de passe oublié ?" sits next to the label — same place on the portal login. */}
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="password">Mot de passe</Label>
+            <Link to="/forgot-password" className="text-sm text-primary hover:underline">Mot de passe oublié&nbsp;?</Link>
+          </div>
           <PasswordInput id="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
         </div>
         {rememberBox}
         {failedAttempts >= 3 && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
-            <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Vous n'arrivez pas à vous connecter&nbsp;?{' '}
-              <Link to="/forgot-password" className="font-medium underline underline-offset-2">Réinitialiser le mot de passe</Link>{' '}ou{' '}
-              <Link to="/forgot-username" className="font-medium underline underline-offset-2">retrouver l'identifiant</Link>.
-            </span>
-          </div>
+          <Callout tone="warning" icon={KeyRound}>
+            Vous n'arrivez pas à vous connecter&nbsp;?{' '}
+            <Link to="/forgot-password" className="font-medium underline underline-offset-2">Réinitialiser votre mot de passe</Link>{' '}ou{' '}
+            <Link to="/forgot-username" className="font-medium underline underline-offset-2">retrouver mon identifiant</Link>.
+          </Callout>
         )}
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? 'Connexion…' : 'Se connecter'}
         </Button>
-        {/* Recovery links — compact single row, de-emphasized. */}
-        <div className="flex items-center justify-center gap-2 text-center text-sm">
-          <Link to="/forgot-password" className="text-primary hover:underline">Mot de passe oublié&nbsp;?</Link>
-          <span className="text-muted-foreground/50">·</span>
+        {/* Username recovery (the password one sits next to the password label). */}
+        <div className="text-center text-sm">
           <Link to="/forgot-username" className="text-primary hover:underline">Identifiant oublié&nbsp;?</Link>
         </div>
         {/* "ou" divider + the passwordless option (slim, explained by its caption). */}
@@ -153,7 +151,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
           <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
           <div className="relative flex justify-center"><span className="bg-card px-2 text-xs text-muted-foreground">ou</span></div>
         </div>
-        <Button type="button" onClick={switchToCode} className="w-full bg-teal-600 text-white hover:bg-teal-700">
+        <Button type="button" variant="secondary" onClick={switchToCode} className="w-full">
           <Mail className="mr-2 h-4 w-4" /> Se connecter avec un code
         </Button>
         <p className="text-center text-xs text-muted-foreground">
@@ -174,7 +172,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
         {errorBox}
         {usernameField}
         <p className="text-xs text-muted-foreground">Nous enverrons un code à 6 chiffres à l'adresse email enregistrée sur le dossier.</p>
-        <Button type="submit" className="w-full bg-teal-600 text-white hover:bg-teal-700" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={loading}>
           {loading ? 'Envoi…' : 'Envoyer le code'}
         </Button>
       </form>
@@ -185,13 +183,10 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
   return (
     <form onSubmit={verifyCode} className="space-y-4">
       {errorBox}
-      <div className="rounded-md border border-teal-300 bg-teal-50 p-3 text-sm text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-200">
-        <div className="flex items-start gap-2">
-          <Mail className="mt-0.5 h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" />
-          <span>Un code a été envoyé à <span className="font-medium">{maskedEmail}</span>. Entrez-le ci-dessous (valable 15 minutes).</span>
-        </div>
-      </div>
-      <div className="space-y-1.5">
+      <Callout tone="info" icon={Mail}>
+        Un code a été envoyé à <span className="font-medium">{maskedEmail}</span>. Entrez-le ci-dessous (valable 15 minutes).
+      </Callout>
+      <div className="space-y-2">
         <Label htmlFor="code">Code de connexion</Label>
         <Input
           id="code" name="one-time-code" type="text" inputMode="numeric" autoComplete="one-time-code"
@@ -201,7 +196,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
         />
       </div>
       {rememberBox}
-      <Button type="submit" className="w-full bg-teal-600 text-white hover:bg-teal-700" disabled={loading || code.length < 6}>
+      <Button type="submit" className="w-full" disabled={loading || code.length < 6}>
         {loading ? 'Connexion…' : 'Se connecter'}
       </Button>
       <div className="flex items-center justify-between text-sm">

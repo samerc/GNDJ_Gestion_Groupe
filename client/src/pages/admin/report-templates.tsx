@@ -29,6 +29,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
 import { Plus, Pencil, Trash2, FileText, FileSpreadsheet, ArrowUp, ArrowDown, X, Download, Users, Building2, Layers, Globe } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -200,15 +201,15 @@ export default function ReportTemplatesPage() {
       titleOverride: form.titleOverride?.trim() ? form.titleOverride.trim() : null,
     }
     try {
-      if (editing) { await updateMutation.mutateAsync({ id: editing.id, ...payload }); toast.success('Modèle modifié') }
-      else { await createMutation.mutateAsync(payload); toast.success('Modèle créé') }
+      if (editing) { await updateMutation.mutateAsync({ id: editing.id, ...payload }); toast.success('Modèle de rapport enregistré') }
+      else { await createMutation.mutateAsync(payload); toast.success('Modèle de rapport créé') }
       setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
   }
 
   const handleDelete = async () => {
     if (!deleting) return
-    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Modèle supprimé'); setDeleting(null) }
+    try { await deleteMutation.mutateAsync(deleting.id); toast.success('Modèle de rapport supprimé'); setDeleting(null) }
     catch (err) { toast.error(parseApiError(err)); setDeleting(null) }
   }
 
@@ -248,20 +249,19 @@ export default function ReportTemplatesPage() {
     return 'Une unité'
   }
 
-  if (isLoading) return <LoadingSpinner variant="table" />
-
   return (
     <Page>
       {isManager && <BackToSettings />}
       <PageHeader
-        title="Rapports personnalisés"
+        title="Modèles de rapports"
         icon={FileText}
         description="Construisez des listes et exports sur mesure, ciblés sur une unité, plusieurs unités, une branche ou tout le groupe."
-        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau rapport</Button>}
+        actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau modèle</Button>}
       />
 
-      {!templates || templates.length === 0 ? (
-        <EmptyState icon={FileText} title="Aucun rapport" description="Créez votre premier modèle de rapport." />
+      {isLoading ? <LoadingSpinner variant="cards" /> : !templates || templates.length === 0 ? (
+        <EmptyState icon={FileText} title="Aucun modèle de rapport" description="Créez votre premier modèle de rapport."
+          action={<Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />Créer</Button>} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(t => {
@@ -278,8 +278,8 @@ export default function ReportTemplatesPage() {
                       {t.name}
                     </CardTitle>
                     <div className="flex gap-1 shrink-0">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier" onClick={() => openEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Supprimer" onClick={() => setDeleting(t)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
                     </div>
                   </div>
                 </CardHeader>
@@ -307,9 +307,9 @@ export default function ReportTemplatesPage() {
       {/* ── Visual builder ─────────────────────────────────────────────────────── */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? 'Modifier le rapport' : 'Nouveau rapport'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier le modèle de rapport' : 'Nouveau modèle de rapport'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
 
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Left: settings */}
@@ -391,9 +391,7 @@ export default function ReportTemplatesPage() {
                 )}
                 </>
                 ) : (
-                  <p className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
-                    Ce rapport cible votre unité (choisie à la génération).
-                  </p>
+                  <Callout tone="muted">Ce rapport cible votre unité (choisie à la génération).</Callout>
                 )}
 
                 <div className="space-y-2">
@@ -428,9 +426,9 @@ export default function ReportTemplatesPage() {
                         <li key={key} className="flex items-center gap-2 px-2 py-1.5 text-sm">
                           <span className="w-5 text-center text-xs text-muted-foreground">{i + 1}</span>
                           <span className="flex-1 truncate">{labelOf.get(key) ?? key}</span>
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={i === 0} onClick={() => moveColumn(i, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={i === columns.length - 1} onClick={() => moveColumn(i, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
-                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeColumn(key)}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+                          <Tip content="Monter"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Monter" disabled={i === 0} onClick={() => moveColumn(i, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button></Tip>
+                          <Tip content="Descendre"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Descendre" disabled={i === columns.length - 1} onClick={() => moveColumn(i, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button></Tip>
+                          <Tip content="Retirer la colonne"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Retirer la colonne" onClick={() => removeColumn(key)}><X className="h-3.5 w-3.5 text-destructive" /></Button></Tip>
                         </li>
                       ))}
                     </ol>
@@ -462,7 +460,7 @@ export default function ReportTemplatesPage() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : 'Enregistrer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>
@@ -496,7 +494,7 @@ export default function ReportTemplatesPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le rapport"
+        title="Supprimer le modèle de rapport ?"
         description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ?`}
         confirmLabel="Supprimer"
         variant="destructive"

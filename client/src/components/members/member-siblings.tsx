@@ -6,13 +6,16 @@ import { useMembers } from '@/services/member-service'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { SiblingReconcileSheet } from '@/components/members/sibling-reconcile-sheet'
 import { parseApiError } from '@/lib/error-utils'
 import { computeAge } from '@/lib/utils'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/shared/empty-state'
+import { SearchInput } from '@/components/shared/search-input'
+import { Tip } from '@/components/ui/tooltip'
+import { Textarea } from '@/components/ui/textarea'
 
 // "Frères et sœurs" section on a member fiche. Shows the member's CONFIRMED siblings (from their fratrie group).
 // `canManage` (CG) enables linking another member as a sibling + unlinking one; `linkable` makes siblings click
@@ -58,7 +61,7 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false, 
       <CardContent>
 
       {(!siblings || siblings.length === 0) ? (
-        <p className="text-sm text-muted-foreground">Aucun frère ou sœur enregistré.</p>
+        <EmptyState icon={Users} title="Aucun frère ou sœur enregistré" />
       ) : (
         <ul className="space-y-1.5">
           {siblings.map((s) => {
@@ -75,11 +78,13 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false, 
                   ? <Link to={`/members/${s.memberId}`} className="hover:underline">{body}</Link>
                   : body}
                 {canManage && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => setUnlinkTarget({ id: s.memberId, name: `${s.firstName} ${s.lastName}` })}
-                    title="Retirer de la fratrie" aria-label="Retirer de la fratrie">
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <Tip content="Retirer de la fratrie">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => setUnlinkTarget({ id: s.memberId, name: `${s.firstName} ${s.lastName}` })}
+                      aria-label="Retirer de la fratrie">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </Tip>
                 )}
               </li>
             )
@@ -91,10 +96,7 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false, 
       <Dialog open={showLink} onOpenChange={(o) => { setShowLink(o); if (!o) setSearch('') }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Lier un frère / une sœur</DialogTitle></DialogHeader>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input autoFocus placeholder="Rechercher un membre…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
-          </div>
+          <SearchInput autoFocus placeholder="Rechercher un membre…" value={search} onChange={setSearch} />
           <div className="max-h-72 space-y-1 overflow-y-auto">
             {results?.items?.filter((m) => m.id !== memberId).map((m) => (
               <button key={m.id} type="button" onClick={() => pickTarget(m.id)}
@@ -104,7 +106,7 @@ export function MemberSiblings({ memberId, canManage = false, linkable = false, 
               </button>
             ))}
             {debounced && (!results?.items || results.items.filter((m) => m.id !== memberId).length === 0) && (
-              <p className="py-4 text-center text-sm text-muted-foreground">Aucun membre trouvé.</p>
+              <EmptyState icon={Search} title="Aucun membre trouvé" />
             )}
           </div>
         </DialogContent>
@@ -174,7 +176,7 @@ function ReportSiblingDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             </label>
           ))}
         </div>
-        <textarea className="min-h-20 w-full rounded-md border bg-background p-2 text-sm" placeholder="Précisez si besoin (nom du frère/sœur manquant…)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
+        <Textarea className="min-h-20" placeholder="Précisez si besoin (nom du frère/sœur manquant…)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
           <Button onClick={submit} disabled={report.isPending}>{report.isPending ? 'Envoi…' : 'Envoyer'}</Button>

@@ -13,7 +13,7 @@ import { Page } from '@/components/shared/page'
 import { Save, CreditCard, User, Hash, Building2, Users, Shield, Calendar, Droplet, Phone, ListPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { BackLink } from '@/components/shared/back-link'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 
 // Catalog of card fields; `alwaysOn` fields (name) can't be toggled off.
 const CARD_FIELDS = [
@@ -80,7 +80,7 @@ export default function CardDesignerPage({ embedded = false }: { embedded?: bool
         key: 'card_config',
         value: JSON.stringify(config),
       })
-      toast.success('Configuration de la carte sauvegardée')
+      toast.success('Carte membre enregistrée')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -90,8 +90,8 @@ export default function CardDesignerPage({ embedded = false }: { embedded?: bool
 
   return (
     <Page>
-      {!embedded && <BackLink to="/admin/settings" label="Retour aux paramètres" />}
-      {!embedded && <PageHeader title="Carte membre" icon={CreditCard} />}
+      {!embedded && <BackToSettings />}
+      {!embedded && <PageHeader title="Carte membre" icon={CreditCard} description="Informations imprimées sur la carte PDF des membres." />}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Configuration */}
@@ -178,14 +178,14 @@ export default function CardDesignerPage({ embedded = false }: { embedded?: bool
               </div>
               <hr className="my-1" />
               <div className="flex gap-3 text-[10px]">
-                {config.fields.bloodType && <span>Sang: A+</span>}
+                {config.fields.bloodType && <span>Sang : A+</span>}
                 {config.fields.emergencyContact && (
-                  <span>Urgence: Marie Dupont +961 71 234 567</span>
+                  <span>Urgence : Marie Dupont +961 71 234 567</span>
                 )}
               </div>
               {config.fields.customFields && (
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  Véhicule: Toyota Yaris
+                  Véhicule : Toyota Yaris
                 </div>
               )}
             </div>

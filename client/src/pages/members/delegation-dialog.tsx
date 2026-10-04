@@ -106,7 +106,7 @@ export function DelegationDialog({ memberId, memberName, open, onOpenChange }: {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={setMutation.isPending}>Annuler</Button>
             <Button onClick={save} disabled={setMutation.isPending || !dirty}>
-              {setMutation.isPending ? '...' : 'Enregistrer'}
+              {setMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </div>
         </DialogFooter>

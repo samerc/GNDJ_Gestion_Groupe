@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
-import { formatDateLong } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
@@ -40,7 +40,7 @@ export default function DeletedMembersPage() {
       <PageHeader
         title="Corbeille"
         icon={Trash2}
-        description="Membres supprimés. Vous pouvez les restaurer jusqu'à leur suppression définitive automatique. Passé ce délai, le membre, son compte et toutes ses données sont effacés définitivement."
+        description="Membres supprimés, restaurables jusqu'à leur suppression définitive automatique."
       />
 
       {isLoading ? (
@@ -66,7 +66,7 @@ export default function DeletedMembersPage() {
                   <tr key={m.id} className={i % 2 ? 'bg-muted/20' : ''}>
                     <td className="px-4 py-2.5 font-medium">{m.lastName} {m.firstName}</td>
                     <td className="px-4 py-2.5">{m.cardNumber ?? '—'}</td>
-                    <td className="px-4 py-2.5">{formatDateLong(m.deletedAt)}</td>
+                    <td className="px-4 py-2.5">{formatDate(m.deletedAt)}</td>
                     <td className="px-4 py-2.5">
                       <span className={days <= 3 ? 'font-medium text-destructive' : 'text-muted-foreground'}>
                         {days <= 0 ? 'imminente' : `dans ${days} jour${days > 1 ? 's' : ''}`}
@@ -80,7 +80,7 @@ export default function DeletedMembersPage() {
                           </Button>
                         </Tip>
                         <Tip content="Supprimer définitivement maintenant">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setAction({ member: m, kind: 'purge' })}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" aria-label="Supprimer définitivement maintenant" onClick={() => setAction({ member: m, kind: 'purge' })}>
                             <X className="h-4 w-4" />
                           </Button>
                         </Tip>
@@ -97,7 +97,7 @@ export default function DeletedMembersPage() {
       <ConfirmDialog
         open={!!action}
         onOpenChange={(o) => { if (!o) setAction(null) }}
-        title={action?.kind === 'restore' ? 'Restaurer le membre' : 'Supprimer définitivement'}
+        title={action?.kind === 'restore' ? 'Restaurer le membre ?' : 'Supprimer définitivement le membre ?'}
         description={action?.kind === 'restore'
           ? `Restaurer ${action?.member.firstName} ${action?.member.lastName} ? Le membre redevient visible et son compte est réactivé (sans affectation active — à réaffecter si besoin).`
           : `Supprimer définitivement ${action?.member.firstName} ${action?.member.lastName} ? Le membre, son compte et toutes ses données (contacts, famille, documents, cotisations…) seront effacés immédiatement. Cette action est irréversible.`}

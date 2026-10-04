@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { BackToSettings } from '@/components/shared/back-to-settings'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
@@ -40,7 +41,7 @@ export default function EmailSmtpPage({ embedded = false }: { embedded?: boolean
       {!embedded && (
         <>
           <BackToSettings />
-          <PageHeader title="Serveurs SMTP" icon={Server} />
+          <PageHeader title="Serveurs SMTP" icon={Server} description="Fournisseurs utilisés pour envoyer les emails de l'application." />
         </>
       )}
       <SmtpTab />
@@ -119,7 +120,7 @@ function SmtpTab() {
           fromEmail: form.fromEmail, fromName: form.fromName,
           useSsl: form.useSsl, isActive: form.isActive, maxPerHour,
         })
-        toast.success('Serveur SMTP modifié')
+        toast.success('Serveur SMTP enregistré')
       } else {
         await createMutation.mutateAsync({
           name: form.name, host: form.host, port: form.port,
@@ -162,7 +163,7 @@ function SmtpTab() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner variant="form" />
+  if (isLoading) return <LoadingSpinner variant="table" />
 
   return (
     <div className="space-y-4">
@@ -208,11 +209,11 @@ function SmtpTab() {
                       {s.isDefault ? (
                         <Tip content="Serveur par défaut"><span className="inline-flex h-9 w-9 items-center justify-center"><Star className="h-4 w-4 fill-amber-400 text-amber-500" /></span></Tip>
                       ) : s.isActive ? (
-                        <Tip content="Définir par défaut"><Button variant="ghost" size="icon" onClick={() => doSetDefault(s)} disabled={setDefaultMutation.isPending}><Star className="h-4 w-4 text-muted-foreground" /></Button></Tip>
+                        <Tip content="Définir par défaut"><Button variant="ghost" size="icon" aria-label="Définir par défaut" onClick={() => doSetDefault(s)} disabled={setDefaultMutation.isPending}><Star className="h-4 w-4 text-muted-foreground" /></Button></Tip>
                       ) : null}
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Envoyer un test"><Button variant="ghost" size="icon" onClick={() => openTest(s.id)}><Send className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Envoyer un test"><Button variant="ghost" size="icon" aria-label="Envoyer un test" onClick={() => openTest(s.id)}><Send className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -229,7 +230,7 @@ function SmtpTab() {
             <DialogTitle>{editing ? 'Modifier le serveur SMTP' : 'Nouveau serveur SMTP'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <RequiredLabel required>Nom</RequiredLabel>
               <Input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} required />
@@ -267,11 +268,11 @@ function SmtpTab() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Max emails / heure</label>
+              <RequiredLabel>Max emails / heure</RequiredLabel>
               <Input type="number" min={1} value={form.maxPerHour} onChange={(e) => setForm(f => ({ ...f, maxPerHour: e.target.value }))} placeholder="Illimité" />
               <p className="text-xs text-muted-foreground">
                 Laissez vide pour ne pas limiter. Renseignez le plafond horaire du fournisseur pour lisser les
-                gros envois (ex. SendPulse gratuit&nbsp;: 50/h → mettez&nbsp;45). Les emails en trop sont
+                gros envois (ex.&nbsp;: SendPulse gratuit&nbsp;: 50/h → mettez&nbsp;45). Les emails en trop sont
                 automatiquement échelonnés dans le temps, sans échec.
               </p>
             </div>
@@ -295,10 +296,9 @@ function SmtpTab() {
           <DialogHeader><DialogTitle>Tester le serveur SMTP</DialogTitle></DialogHeader>
           <form onSubmit={handleTest} className="space-y-4">
             {testError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive break-words">
-                <p className="font-medium">Échec de l'envoi</p>
-                <p className="mt-1 whitespace-pre-wrap">{testError}</p>
-              </div>
+              <Callout tone="danger" title="Échec de l'envoi" className="break-words">
+                <p className="whitespace-pre-wrap">{testError}</p>
+              </Callout>
             )}
             <div className="space-y-2">
               <RequiredLabel required>Adresse email de test</RequiredLabel>
@@ -318,7 +318,7 @@ function SmtpTab() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le serveur SMTP"
+        title="Supprimer le serveur SMTP ?"
         description={`Supprimer le serveur « ${deleting?.name} » ?`}
         confirmLabel="Supprimer"
         variant="destructive"

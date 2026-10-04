@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tip } from '@/components/ui/tooltip'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { Callout } from '@/components/shared/callout'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, ArrowRight, Bell, CheckCircle2, ChevronRight, Circle, Flag, Lock, Unlock } from 'lucide-react'
 
@@ -127,9 +128,9 @@ export function PassageUnitsOverview({ scoutYear, summary, isOpen, canRemind, on
         <div className="space-y-3">
           {/* Members the chef hasn't given a line yet — counted as staying, listed apart so the CG sees who. */}
           {r.noLine.length > 0 && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 dark:border-amber-800 dark:bg-amber-950/30">
+            <Callout tone="warning" className="p-2">
               <MemberList title="Sans proposition (restent pour l'instant)" tone="amber" items={r.noLine.map(m => m.memberName)} />
-            </div>
+            </Callout>
           )}
           <MemberList title="Restent" tone="slate" items={r.stays.filter(m => m.lineStatus !== 'None').map(m => m.memberName)} />
         </div>

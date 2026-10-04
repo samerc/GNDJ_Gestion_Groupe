@@ -6,6 +6,7 @@ import { useApplicantStore } from '@/stores/applicant-store'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import { CheckCircle2, XCircle, MailCheck } from 'lucide-react'
 
@@ -68,7 +69,7 @@ export default function ApplicantVerifyPage() {
     <ApplicantAuthShell subtitle="Vérification de l'email">
       <Card className="shadow-elevated">
         <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-          {state === 'pending' && <p className="text-muted-foreground">Vérification en cours…</p>}
+          {state === 'pending' && <LoadingSpinner className="py-4" />}
           {state === 'ok' && (
             <>
               <CheckCircle2 className="h-12 w-12 text-green-600" />

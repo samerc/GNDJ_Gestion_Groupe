@@ -12,6 +12,7 @@ import { PasswordInput } from '@/components/ui/password-input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { HoneypotField } from '@/components/shared/honeypot-field'
+import { Callout } from '@/components/shared/callout'
 import { parseApiError } from '@/lib/error-utils'
 
 // Sign-in screen for the applicant portal — distinct from the member /login (separate auth store).
@@ -62,10 +63,9 @@ export default function ApplicantLoginPage() {
       {/* Arrived via a CG late-access invite link → explain the existing-account path (new families use the
           "Créer un compte" button below, which keeps the invite). */}
       {inviteToken && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
-          <Ticket className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Vous avez une invitation à présenter une demande. Connectez-vous à votre compte existant pour l'activer.</span>
-        </div>
+        <Callout tone="success" icon={Ticket} className="mb-4">
+          Vous avez une invitation à présenter une demande. Connectez-vous à votre compte existant pour l'activer.
+        </Callout>
       )}
       <Card className="shadow-elevated">
         <CardHeader>
@@ -75,7 +75,7 @@ export default function ApplicantLoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <HoneypotField value={website} onChange={setWebsite} />
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <Label htmlFor="email">Adresse email</Label>
               <Input id="email" name="username" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="username" autoFocus />
@@ -90,7 +90,7 @@ export default function ApplicantLoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Mot de passe</Label>
-                <Link to="/inscription/forgot-password" className="text-sm text-primary hover:underline">Mot de passe oublié ?</Link>
+                <Link to="/inscription/forgot-password" className="text-sm text-primary hover:underline">Mot de passe oublié&nbsp;?</Link>
               </div>
               <PasswordInput id="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
             </div>
@@ -101,13 +101,10 @@ export default function ApplicantLoginPage() {
             </label>
             {/* After 3 consecutive failed attempts, proactively offer a password reset. */}
             {failedAttempts >= 3 && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
-                <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  Vous n'arrivez pas à vous connecter&nbsp;?{' '}
-                  <Link to="/inscription/forgot-password" className="font-medium underline underline-offset-2">Réinitialiser votre mot de passe</Link>.
-                </span>
-              </div>
+              <Callout tone="warning" icon={KeyRound}>
+                Vous n'arrivez pas à vous connecter&nbsp;?{' '}
+                <Link to="/inscription/forgot-password" className="font-medium underline underline-offset-2">Réinitialiser votre mot de passe</Link>.
+              </Callout>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Connexion…' : 'Se connecter'}
@@ -116,7 +113,7 @@ export default function ApplicantLoginPage() {
           {/* Login is now the portal's first page, so "Créer un compte" is a full, obvious button (not a small
               link) — a new family lands here and needs an unmissable way to start. */}
           <div className="mt-5 border-t pt-4 text-center">
-            <p className="mb-2 text-sm text-muted-foreground">Première demande d'inscription ?</p>
+            <p className="mb-2 text-sm text-muted-foreground">Première demande d'inscription&nbsp;?</p>
             {/* With an invite, "Créer un compte" goes back to the invitation page (which registers WITH the token,
                 bypassing the closed-registration block); otherwise the normal register page. */}
             <Button asChild variant="outline" className="w-full"><Link to={inviteToken ? `/inscription/invitation/${inviteToken}` : '/inscription/register'}>Créer un compte</Link></Button>

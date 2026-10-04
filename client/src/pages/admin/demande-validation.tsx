@@ -32,13 +32,16 @@ import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-rel
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Callout } from '@/components/shared/callout'
+import { SearchInput } from '@/components/shared/search-input'
+import { confirmAsync } from '@/lib/confirm'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Search, Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
+  Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
   SlidersHorizontal,
 } from 'lucide-react'
 import { Page } from '@/components/shared/page'
@@ -100,9 +103,9 @@ function statusInfo(d: DemandeReview): { border: string; label: string } {
 
 // Badge colour for the "Statut" column.
 function statusBadgeClass(d: DemandeReview): string {
-  if (d.status === 'Approved') return 'bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300'
-  if (d.status === 'Declined') return 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300'
-  return 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+  if (d.status === 'Approved') return 'bg-success-subtle text-success'
+  if (d.status === 'Declined') return 'bg-destructive-subtle text-destructive'
+  return 'bg-warning-subtle text-warning'
 }
 // Sort order for the "Statut" column: to-study first, then accepted, then declined.
 function statusRank(d: DemandeReview): number {
@@ -363,7 +366,7 @@ export default function DemandeValidationPage() {
 
   // Stage a single decision (not yet emailed). Approve requires a target unit.
   const decide = async (d: DemandeReview, newStatus: 'Approved' | 'Declined', unitId: string | null, note: string | null) => {
-    if (newStatus === 'Approved' && !unitId) { toast.error('Veuillez choisir une unité.'); return false }
+    if (newStatus === 'Approved' && !unitId) { toast.error('Veuillez choisir une unité'); return false }
     try {
       await decideMutation.mutateAsync({ id: d.id, status: newStatus, decidedUnitId: newStatus === 'Approved' ? unitId : null, decisionNotes: note || null })
       toast.success(newStatus === 'Approved' ? "Demande acceptée (en attente d'envoi)" : "Demande refusée (en attente d'envoi)")
@@ -387,7 +390,7 @@ export default function DemandeValidationPage() {
 
   // ── bulk actions ───────────────────────────────────────────────
   const runBulk = async (payload: { status: string; decisionNotes?: string | null; items: { id: string; decidedUnitId?: string | null }[] }, label: string) => {
-    if (!payload.items.length) { toast.error('Aucun élément applicable.'); return }
+    if (!payload.items.length) { toast.error('Aucun élément applicable'); return }
     try {
       const r = await bulkMutation.mutateAsync(payload)
       toast.success(`${r.processed} ${label}${r.skipped ? ` · ${r.skipped} ignorée(s)` : ''}`)
@@ -395,7 +398,7 @@ export default function DemandeValidationPage() {
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const bulkApproveToUnit = () => {
-    if (!bulkUnit) { toast.error('Choisissez une unité.'); return }
+    if (!bulkUnit) { toast.error('Choisissez une unité'); return }
     runBulk({ status: 'Approved', items: [...selected].map((id) => ({ id, decidedUnitId: bulkUnit })) }, 'acceptée(s)')
   }
   // Accept the whole selection, each into its own suggestUnit() target; ones with no eligible unit are skipped.
@@ -407,7 +410,7 @@ export default function DemandeValidationPage() {
       const s = suggestUnit(d, occList)
       if (s) items.push({ id, decidedUnitId: s.unitId }); else noSug++
     }
-    if (noSug) toast.warning(`${noSug} demande(s) sans unité éligible — ignorée(s).`)
+    if (noSug) toast.warning(`${noSug} demande(s) sans unité éligible — ignorée(s)`)
     runBulk({ status: 'Approved', items }, 'acceptée(s) (unité suggérée)')
   }
   const bulkDecline = () => runBulk({ status: 'Declined', decisionNotes: bulkMotif || null, items: [...selected].map((id) => ({ id })) }, 'refusée(s)')
@@ -417,7 +420,7 @@ export default function DemandeValidationPage() {
     if (!deleteTarget) return
     try {
       await deleteMutation.mutateAsync(deleteTarget.id)
-      toast.success('Demande supprimée.')
+      toast.success('Demande supprimée')
       setDeleteTarget(null); setDetailId(null)
     } catch (err) { toast.error(parseApiError(err)); setDeleteTarget(null) }
   }
@@ -458,7 +461,7 @@ export default function DemandeValidationPage() {
   const handleClose = async () => {
     try {
       const r = await closeMutation.mutateAsync(scoutYear)
-      toast.success(`Demandes clôturées : ${r.archived} demande(s) archivée(s), ${r.accountsDeleted} compte(s) supprimé(s), inscriptions fermées.`)
+      toast.success(`Demandes clôturées : ${r.archived} demande(s) archivée(s), ${r.accountsDeleted} compte(s) supprimé(s), inscriptions fermées`)
       setCloseOpen(false)
     } catch (err) { toast.error(parseApiError(err)); setCloseOpen(false) }
   }
@@ -509,17 +512,18 @@ export default function DemandeValidationPage() {
 
       {/* Account filter banner — arrived from "Comptes d'inscription". Shows only this account's demande(s). */}
       {accountFilter && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-          <Users2 className="h-4 w-4 text-primary" />
-          <span>
-            Demandes d'un seul compte{all[0]?.contactName || all[0]?.accountEmail ? ` — ${all[0]?.contactName || all[0]?.accountEmail}` : ''}
-            {all.length === 0 && !isLoading ? ' : aucune demande pour ce compte cette année.' : ''}
-          </span>
-          <Button variant="outline" size="sm" className="ml-auto"
-            onClick={() => setSearchParams((p) => { p.delete('account'); return p })}>
-            <X className="mr-1 h-3.5 w-3.5" />Afficher toutes les demandes
-          </Button>
-        </div>
+        <Callout tone="info" icon={Users2}>
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              Demandes d'un seul compte{all[0]?.contactName || all[0]?.accountEmail ? ` — ${all[0]?.contactName || all[0]?.accountEmail}` : ''}
+              {all.length === 0 && !isLoading ? ' : aucune demande pour ce compte cette année.' : ''}
+            </span>
+            <Button variant="outline" size="sm" className="ml-auto"
+              onClick={() => setSearchParams((p) => { p.delete('account'); return p })}>
+              <X className="mr-1 h-3.5 w-3.5" />Afficher toutes les demandes
+            </Button>
+          </div>
+        </Callout>
       )}
 
       {/* Secondary toolbar: work the decisions in Excel (export → fill → import) + remind non-submitters. */}
@@ -544,15 +548,14 @@ export default function DemandeValidationPage() {
       </div>
 
       {status === 'all' && undecided > 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-800 dark:text-amber-300">
-          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-          <span><strong>{undecided} demande(s) encore à étudier.</strong> Toutes les demandes doivent être acceptées ou refusées avant de pouvoir envoyer les réponses.</span>
-        </div>
+        <Callout tone="warning" icon={Clock} title={`${undecided} demande(s) encore à étudier`}>
+          Toutes les demandes doivent être acceptées ou refusées avant de pouvoir envoyer les réponses.
+        </Callout>
       )}
       {status !== 'all' && pendingSend > 0 && undecided === 0 && (
-        <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+        <Callout tone="muted">
           Affichez « Toutes » les demandes pour vérifier qu'aucune n'est en attente, puis envoyez les réponses.
-        </div>
+        </Callout>
       )}
 
       {/* Occupancy panel */}
@@ -584,11 +587,7 @@ export default function DemandeValidationPage() {
         {/* Only the search bar shows; « Filtres » unfolds the rest (on every screen size). */}
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1 sm:flex-none">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input className="w-full pl-8 pr-7 sm:w-80" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, email, téléphone, parent…" />
-              {search && <Tip content="Effacer"><button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')}><X className="h-3.5 w-3.5" /></button></Tip>}
-            </div>
+            <SearchInput className="w-full sm:w-80" value={search} onChange={setSearch} placeholder="Nom, email, téléphone, parent…" />
           </div>
           <button
             type="button"
@@ -791,10 +790,10 @@ export default function DemandeValidationPage() {
                         )}
                         {sib && (
                           <span title={`Frère/sœur parmi les proches : ${[sib.firstName, sib.lastName].filter(Boolean).join(' ') || '—'}${sib.relatedMemberName ? ` — déjà membre (${sib.relatedMemberName})` : ''}`}>
-                            <Badge variant="outline" className="border-amber-400 bg-amber-50 px-1.5 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">Frère/sœur</Badge>
+                            <Badge variant="warning" className="px-1.5 text-[10px]">Frère/sœur</Badge>
                           </span>
                         )}
-                        {hasSiblingToLink(d) && <Badge variant="outline" className="border-orange-400 bg-orange-50 px-1.5 text-[10px] text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-300" title="Correspondance à confirmer (Lier) dans la fiche">À lier</Badge>}
+                        {hasSiblingToLink(d) && <Tip content="Correspondance à confirmer (Lier) dans la fiche"><Badge variant="info" className="px-1.5 text-[10px]">À lier</Badge></Tip>}
                       </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -813,12 +812,12 @@ export default function DemandeValidationPage() {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       {!locked && (
                         <div className="flex justify-end gap-1">
-                          <Tip content="Accepter"><Button size="sm" variant={d.status === 'Approved' ? 'default' : 'outline'} className="h-8 px-2" onClick={() => openApprove(d)}><Check className="h-4 w-4" /></Button></Tip>
-                          <Tip content="Refuser"><Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="h-8 px-2" onClick={() => openDecline(d)}><X className="h-4 w-4" /></Button></Tip>
+                          <Tip content="Accepter"><Button size="sm" variant={d.status === 'Approved' ? 'success' : 'outline'} className="h-8 px-2" aria-label="Accepter" onClick={() => openApprove(d)}><Check className="h-4 w-4" /></Button></Tip>
+                          <Tip content="Refuser"><Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="h-8 px-2" aria-label="Refuser" onClick={() => openDecline(d)}><X className="h-4 w-4" /></Button></Tip>
                           {(d.status === 'Approved' || d.status === 'Declined') && (
-                            <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-8 px-2" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
+                            <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-8 px-2" aria-label="Remettre à étudier" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
                           )}
-                          <Tip content="Supprimer"><Button size="sm" variant="outline" className="h-8 px-2 text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                          <Tip content="Supprimer la demande"><Button size="sm" variant="outline" className="h-8 px-2 text-destructive hover:bg-destructive/10" aria-label="Supprimer la demande" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
                         </div>
                       )}
                     </TableCell>
@@ -862,26 +861,24 @@ export default function DemandeValidationPage() {
                           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">{decidedUnit?.unitCode ?? d.decidedUnitName ?? '—'}{decidedUnit && unitFull(decidedUnit) && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}</span>
                         )}
                         {d.status === 'Declined' && d.decisionNotes && <span className="max-w-[12rem] truncate text-xs text-red-700 dark:text-red-300">{d.decisionNotes}</span>}
-                        {sib && <Badge variant="outline" className="border-amber-400 bg-amber-50 px-1.5 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">Frère/sœur</Badge>}
-                        {hasSiblingToLink(d) && <Badge variant="outline" className="border-orange-400 bg-orange-50 px-1.5 text-[10px] text-orange-700 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-300" title="Correspondance à confirmer (Lier) dans la fiche">À lier</Badge>}
+                        {sib && <Badge variant="warning" className="px-1.5 text-[10px]">Frère/sœur</Badge>}
+                        {hasSiblingToLink(d) && <Tip content="Correspondance à confirmer (Lier) dans la fiche"><Badge variant="info" className="px-1.5 text-[10px]">À lier</Badge></Tip>}
                         {d.scoutRelations.length > 0 && <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground"><Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}</span>}
                       </div>
                     </button>
                   </div>
                   {!locked && (
                     <div className="flex flex-wrap gap-1.5 border-t bg-muted/30 px-3 py-2">
-                      <Button size="sm" variant="outline"
-                        className={cn('flex-1', d.status === 'Approved'
-                          ? 'border-transparent bg-green-600 text-white hover:bg-green-700'
-                          : 'border-green-500 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-950/40')}
+                      <Button size="sm" variant={d.status === 'Approved' ? 'success' : 'outline'}
+                        className={cn('flex-1', d.status !== 'Approved' && 'border-success-border text-success hover:bg-success-subtle')}
                         onClick={() => openApprove(d)}><Check className="mr-1 h-4 w-4" />Accepter</Button>
                       <Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'}
-                        className={cn('flex-1', d.status !== 'Declined' && 'border-red-400 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40')}
+                        className={cn('flex-1', d.status !== 'Declined' && 'border-destructive-border text-destructive hover:bg-destructive-subtle')}
                         onClick={() => openDecline(d)}><X className="mr-1 h-4 w-4" />Refuser</Button>
                       {(d.status === 'Approved' || d.status === 'Declined') && (
-                        <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-9 w-9 p-0" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
+                        <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-9 w-9 p-0" aria-label="Remettre à étudier" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
                       )}
-                      <Tip content="Supprimer"><Button size="sm" variant="outline" className="h-9 w-9 p-0 text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer la demande"><Button size="sm" variant="outline" className="h-9 w-9 p-0 text-destructive hover:bg-destructive/10" aria-label="Supprimer la demande" onClick={() => setDeleteTarget(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
                     </div>
                   )}
                 </div>
@@ -934,7 +931,7 @@ export default function DemandeValidationPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveTarget(null)}>Annuler</Button>
-            <Button onClick={confirmApprove} disabled={decideMutation.isPending}>Accepter</Button>
+            <Button variant="success" onClick={confirmApprove} disabled={decideMutation.isPending}>{decideMutation.isPending ? 'Enregistrement…' : 'Accepter'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -950,28 +947,28 @@ export default function DemandeValidationPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeclineTarget(null)}>Annuler</Button>
-            <Button variant="destructive" onClick={confirmDecline} disabled={decideMutation.isPending}>Refuser</Button>
+            <Button variant="destructive" onClick={confirmDecline} disabled={decideMutation.isPending}>{decideMutation.isPending ? 'Enregistrement…' : 'Refuser'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog
         open={sendOpen} onOpenChange={setSendOpen}
-        title="Envoyer les réponses"
+        title="Envoyer les réponses ?"
         description={`Ceci va convertir les demandes acceptées en membres (avec identifiants) et notifier toutes les familles concernées. ${pendingSend} décision(s) seront envoyées. Cette action est définitive. Continuer ?`}
         confirmLabel="Envoyer" loading={sendMutation.isPending} onConfirm={handleSend}
       />
 
       <ConfirmDialog
         open={closeOpen} onOpenChange={setCloseOpen}
-        title="Clôturer les demandes"
+        title="Clôturer les demandes ?"
         description={`Toutes les demandes (${all.length}) seront archivées, puis TOUTES les données des candidats (comptes, parents, demandes) seront DÉFINITIVEMENT supprimées et les inscriptions fermées. Les membres déjà créés ne sont pas touchés. Le menu Demandes disparaîtra ensuite : les archives restent dans Configuration jusqu'à la réouverture des inscriptions. Cette action est irréversible. Continuer ?`}
         confirmLabel="Archiver et supprimer" variant="destructive" loading={closeMutation.isPending} onConfirm={handleClose}
       />
 
       <ConfirmDialog
         open={submissionsConfirm !== null} onOpenChange={(o) => { if (!o) setSubmissionsConfirm(null) }}
-        title={submissionsConfirm ? 'Rouvrir les soumissions' : 'Clôturer les soumissions'}
+        title={submissionsConfirm ? 'Rouvrir les soumissions ?' : 'Clôturer les soumissions ?'}
         description={submissionsConfirm
           ? 'Les parents pourront à nouveau créer et modifier leurs demandes. Le portail reste ouvert. Continuer ?'
           : 'Les parents ne pourront plus créer, modifier ni soumettre de demande — seulement consulter leur statut. Le portail reste ouvert pour la consultation. C\'est la phase de revue par la Maîtrise de Groupe. Vous pourrez rouvrir les soumissions à tout moment. Continuer ?'}
@@ -983,7 +980,7 @@ export default function DemandeValidationPage() {
       {/* Single delete confirm */}
       <ConfirmDialog
         open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
-        title="Supprimer la demande"
+        title="Supprimer la demande ?"
         description={deleteTarget ? `Supprimer définitivement la demande de ${deleteTarget.firstName} ${deleteTarget.lastName} ? Cette demande disparaîtra de la liste. (Un membre déjà créé n'est jamais supprimé.)` : ''}
         confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={handleDelete}
       />
@@ -991,7 +988,7 @@ export default function DemandeValidationPage() {
       {/* Bulk delete confirm */}
       <ConfirmDialog
         open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}
-        title="Supprimer les demandes sélectionnées"
+        title="Supprimer les demandes sélectionnées ?"
         description={`Supprimer ${[...selected].filter((id) => !byId[id]?.createdMemberId).length} demande(s) sélectionnée(s) ? Les demandes déjà converties en membres sont ignorées. Continuer ?`}
         confirmLabel="Supprimer" variant="destructive" loading={deleteMutation.isPending} onConfirm={bulkDelete}
       />
@@ -999,7 +996,7 @@ export default function DemandeValidationPage() {
       {/* Reminder confirm (G) */}
       <ConfirmDialog
         open={reminderConfirm} onOpenChange={setReminderConfirm}
-        title="Relancer les non-soumis"
+        title="Relancer les non-soumis ?"
         description={`Un email de rappel sera envoyé à ${unsubmittedCount ?? 0} compte(s) qui n'ont pas encore soumis de demande pour ${scoutYear}. Continuer ?`}
         confirmLabel="Envoyer les rappels" loading={remindersMutation.isPending} onConfirm={handleReminders}
       />
@@ -1046,12 +1043,12 @@ function ReasonPicker({ reasons, onPick, className }: { reasons: RejectionReason
 
 function StatusBadge({ d }: { d: DemandeReview }) {
   if (d.responseSentAt) {
-    if (d.status === 'Approved') return <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée (envoyée)</Badge>
-    if (d.status === 'Declined') return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Refusée (envoyée)</Badge>
+    if (d.status === 'Approved') return <Badge variant="success"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée (envoyée)</Badge>
+    if (d.status === 'Declined') return <Badge variant="danger"><XCircle className="mr-1 h-3 w-3" />Refusée (envoyée)</Badge>
   }
-  if (d.status === 'Approved') return <Badge className="bg-green-600/90"><Check className="mr-1 h-3 w-3" />Acceptée</Badge>
-  if (d.status === 'Declined') return <Badge variant="destructive"><X className="mr-1 h-3 w-3" />Refusée</Badge>
-  return <Badge className="bg-blue-600"><Clock className="mr-1 h-3 w-3" />À étudier</Badge>
+  if (d.status === 'Approved') return <Badge variant="success"><Check className="mr-1 h-3 w-3" />Acceptée</Badge>
+  if (d.status === 'Declined') return <Badge variant="danger"><X className="mr-1 h-3 w-3" />Refusée</Badge>
+  return <Badge variant="info"><Clock className="mr-1 h-3 w-3" />À étudier</Badge>
 }
 
 function LegendItem({ color, label }: { color: string; label: string }) {
@@ -1192,8 +1189,8 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
       <div className="border-b bg-muted/30 p-5">
         <div className="flex items-center justify-between pr-8">
           <div className="flex gap-1">
-            <Tip content="Précédent (←)"><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!hasPrev} onClick={onPrev}><ChevronLeft className="h-4 w-4" /></Button></Tip>
-            <Tip content="Suivant (→)"><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!hasNext} onClick={onNext}><ChevronRight className="h-4 w-4" /></Button></Tip>
+            <Tip content="Précédent (←)"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Précédent" disabled={!hasPrev} onClick={onPrev}><ChevronLeft className="h-4 w-4" /></Button></Tip>
+            <Tip content="Suivant (→)"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Suivant" disabled={!hasNext} onClick={onNext}><ChevronRight className="h-4 w-4" /></Button></Tip>
           </div>
           <div className="flex items-center gap-2">
             {!locked && (
@@ -1279,7 +1276,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                     <span className="font-medium">{[r.firstName, r.lastName].filter(Boolean).join(' ') || '—'}</span>
                     <Badge variant="outline" className="text-xs">{RELATION_LABEL[r.status] ?? r.status}</Badge>
                     {r.relationship && (isSiblingRelation(r.relationship)
-                      ? <Badge variant="outline" className="border-amber-400 bg-amber-50 text-[10px] text-amber-700 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-300">{r.relationship}</Badge>
+                      ? <Badge variant="warning" className="text-[10px]">{r.relationship}</Badge>
                       : <span className="text-xs text-muted-foreground">{r.relationship}</span>)}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
@@ -1291,19 +1288,25 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                       member + a fratrie is declared. "Retirer le lien" undoes it. */}
                   {r.relatedMemberId && r.relatedMemberName && (
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-subtle px-2 py-1 text-xs font-medium text-success">
                         <Link2 className="h-3.5 w-3.5" />
                         Lié à un membre : {r.relatedMemberName}{r.relatedMemberUnit ? ` (${r.relatedMemberUnit})` : ''}
                       </span>
                       {!locked && r.id && (
-                        <button type="button" className="text-xs text-muted-foreground underline hover:text-destructive disabled:opacity-50"
+                        <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive"
                           disabled={unlinkMatch.isPending}
                           onClick={async () => {
+                            if (!(await confirmAsync({
+                              title: 'Retirer le lien ?',
+                              description: `Le proche ne sera plus lié à ${r.relatedMemberName}.`,
+                              confirmLabel: 'Retirer le lien',
+                              destructive: true,
+                            }))) return
                             try { await unlinkMatch.mutateAsync(r.id!); toast.success('Lien retiré') }
                             catch (e) { toast.error(parseApiError(e)) }
                           }}>
                           Retirer le lien
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -1312,7 +1315,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                   {!r.relatedMemberId && (r.suggestedMemberId || (isSiblingRelation(r.relationship) && r.status === 'CurrentInGroup')) && (
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       {r.suggestedMemberId && r.suggestedMemberName && (
-                        <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/40 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-warning-border bg-warning-subtle px-2 py-1 text-xs font-medium text-warning">
                           <AlertTriangle className="h-3.5 w-3.5" />
                           Correspondance possible : {r.suggestedMemberName}{r.suggestedMemberUnit ? ` (${r.suggestedMemberUnit})` : ''}
                         </span>
@@ -1325,10 +1328,10 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                               <Link2 className="mr-1 h-3.5 w-3.5" />Lier
                             </Button>
                           )}
-                          <button type="button" className="text-xs text-muted-foreground underline hover:text-foreground"
+                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
                             onClick={() => setPickFor(r.id!)}>
                             {r.suggestedMemberId ? 'Choisir un autre membre…' : 'Lier à un membre…'}
-                          </button>
+                          </Button>
                         </>
                       )}
                       {r.suggestedMemberId && !isSiblingRelation(r.relationship) && (
@@ -1397,7 +1400,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                 <div className="min-w-0 flex-1"><UnitSelect occupancy={occupancy} d={d} value={unit} onChange={setUnit} /></div>
                 {unitDirty && (
                   <Button size="sm" variant="outline" className="shrink-0" onClick={saveUnit} disabled={setUnitMutation.isPending}>
-                    <Save className="mr-1 h-4 w-4" />Enregistrer
+                    <Save className="mr-1 h-4 w-4" />{setUnitMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
                   </Button>
                 )}
               </div>
@@ -1410,16 +1413,16 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif de refus (optionnel, inclus dans l'email)" />
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1 bg-green-600 text-white hover:bg-green-700" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
+              <Button variant="success" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
                 <Check className="mr-1 h-4 w-4" />{d.status === 'Approved' ? 'Mettre à jour' : 'Accepter'}
               </Button>
               <Button variant="destructive" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Declined', null, motif)}>
                 <X className="mr-1 h-4 w-4" />{d.status === 'Declined' ? 'Mettre à jour' : 'Refuser'}
               </Button>
               {(d.status === 'Approved' || d.status === 'Declined') && (
-                <Tip content="Remettre à étudier (annuler la décision)"><Button variant="outline" className="shrink-0" disabled={busy} onClick={() => onReset(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
+                <Tip content="Remettre à étudier (annuler la décision)"><Button variant="outline" className="shrink-0" aria-label="Remettre à étudier" disabled={busy} onClick={() => onReset(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
               )}
-              <Tip content="Supprimer la demande"><Button variant="outline" className="shrink-0 text-destructive hover:bg-destructive/10" disabled={busy} onClick={() => onDelete(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
+              <Tip content="Supprimer la demande"><Button variant="outline" className="shrink-0 text-destructive hover:bg-destructive/10" aria-label="Supprimer la demande" disabled={busy} onClick={() => onDelete(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
             </div>
             <p className="hidden text-center text-xs text-muted-foreground sm:block">Raccourcis : <kbd>A</kbd> accepter · <kbd>R</kbd> refuser · <kbd>←</kbd>/<kbd>→</kbd> naviguer</p>
           </div>
@@ -1457,8 +1460,12 @@ function OccRow({ u, scoutYear }: { u: UnitOccupancy; scoutYear: string }) {
   const remaining = u.quota != null ? u.quota - u.accepted : null
   const save = () => {
     const n = Number(val)
+    if (val === (u.quota?.toString() ?? '')) return // unchanged → nothing to save
     if (Number.isNaN(n) || n < 0) return
-    setQuota.mutate({ unitId: u.unitId, scoutYear, quota: n })
+    setQuota.mutate({ unitId: u.unitId, scoutYear, quota: n }, {
+      onSuccess: () => toast.success(`Quota de ${u.unitCode} enregistré`),
+      onError: (e) => toast.error(parseApiError(e)),
+    })
   }
   return (
     <tr className="border-b hover:bg-muted/20">
@@ -1466,7 +1473,7 @@ function OccRow({ u, scoutYear }: { u: UnitOccupancy; scoutYear: string }) {
       <td className="px-3 py-2 text-center">{u.currentActive}</td>
       <td className="px-3 py-2 text-center font-medium">{u.projected}</td>
       <td className="px-3 py-2 text-center">
-        <Input className="mx-auto h-8 w-20 text-center" value={val} onChange={(e) => setVal(e.target.value)} onBlur={save} placeholder="—" />
+        <Input className="mx-auto h-8 w-20 text-center" aria-label={`Quota ${u.unitCode}`} value={val} onChange={(e) => setVal(e.target.value)} onBlur={save} placeholder="—" />
       </td>
       <td className="px-3 py-2 text-center">{u.accepted}</td>
       <td className="px-3 py-2 text-center">

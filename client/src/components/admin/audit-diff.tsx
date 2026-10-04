@@ -38,7 +38,7 @@ export function DiffViewer({ oldJson, newJson }: { oldJson: string | null; newJs
           const nv = newObj?.[k]
           const changed = both && formatVal(ov) !== formatVal(nv)
           return (
-            <div key={k} className={`grid ${both ? 'grid-cols-[6rem_1fr_1fr] sm:grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[6rem_1fr] sm:grid-cols-[10rem_1fr]'} ${changed ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}>
+            <div key={k} className={`grid ${both ? 'grid-cols-[6rem_1fr_1fr] sm:grid-cols-[10rem_1fr_1fr]' : 'grid-cols-[6rem_1fr] sm:grid-cols-[10rem_1fr]'} ${changed ? 'bg-warning-subtle' : ''}`}>
               <div className="px-3 py-1.5 font-medium text-muted-foreground">{fieldLabel(k)}</div>
               {both ? (
                 <>

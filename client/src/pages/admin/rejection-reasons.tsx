@@ -12,6 +12,8 @@ import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
 import { Callout } from '@/components/shared/callout'
 import { Tip } from '@/components/ui/tooltip'
+import { Textarea } from '@/components/ui/textarea'
+import { RequiredLabel } from '@/components/shared/required-label'
 import { parseApiError } from '@/lib/error-utils'
 import { Ban, Plus, Trash2, Star, Save, Info, Pencil, X } from 'lucide-react'
 
@@ -34,9 +36,11 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
   // Index of the reason pending delete-confirmation (null = no confirm open). Deletion is destructive
   // (persists the whole list minus that reason), so it goes through a confirm like every other admin list.
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+  // Inline validation errors for the edit form (field-level for code/libellé, general for the rest).
+  const [errors, setErrors] = useState<{ code?: string; label?: string }>({})
 
-  const startAdd = () => { setDraftIndex(-1); setDraft({ ...EMPTY, isDefault: reasons.length === 0 }) }
-  const startEdit = (i: number) => { setDraftIndex(i); setDraft({ ...reasons[i] }) }
+  const startAdd = () => { setDraftIndex(-1); setDraft({ ...EMPTY, isDefault: reasons.length === 0 }); setErrors({}) }
+  const startEdit = (i: number) => { setDraftIndex(i); setDraft({ ...reasons[i] }); setErrors({}) }
   const cancel = () => { setDraftIndex(null) }
 
   // Persist the whole list after applying `next` (built by the caller). Enforces exactly one default here.
@@ -57,22 +61,25 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
 
   const saveDraft = async () => {
     const cleaned: RejectionReason = { code: draft.code.trim(), label: draft.label.trim(), text: draft.text.trim(), isDefault: draft.isDefault }
-    if (!cleaned.code) { toast.error('Le code est requis.'); return }
-    if (!cleaned.label) { toast.error('Le libellé est requis.'); return }
-    if (cleaned.code === '--' || cleaned.code === '-') { toast.error('Le code « -- » est réservé (motif par défaut).'); return }
     // Unique code (accent/case-insensitive) against the OTHER rows.
     const others = reasons.filter((_, i) => i !== draftIndex)
-    if (others.some((r) => r.code.trim().toLowerCase() === cleaned.code.toLowerCase())) { toast.error('Ce code existe déjà.'); return }
+    const next: { code?: string; label?: string } = {}
+    if (!cleaned.code) next.code = 'Le code est requis.'
+    else if (cleaned.code === '--' || cleaned.code === '-') next.code = 'Le code « -- » est réservé (motif par défaut).'
+    else if (others.some((r) => r.code.trim().toLowerCase() === cleaned.code.toLowerCase())) next.code = 'Ce code existe déjà.'
+    if (!cleaned.label) next.label = 'Le libellé est requis.'
+    setErrors(next)
+    if (next.code || next.label) return
     // If this one becomes the default, clear the others.
     const applyDefault = (list: RejectionReason[]) => cleaned.isDefault ? list.map((r) => ({ ...r, isDefault: false })) : list
-    const next = draftIndex === -1
+    const list = draftIndex === -1
       ? [...applyDefault(reasons), cleaned]
       : applyDefault(reasons).map((r, i) => (i === draftIndex ? cleaned : r))
-    await persist(next, 'Motif enregistré.')
+    await persist(list, draftIndex === -1 ? 'Motif ajouté' : 'Motif enregistré')
   }
 
   const removeRow = async (i: number) => {
-    await persist(reasons.filter((_, idx) => idx !== i), 'Motif supprimé.')
+    await persist(reasons.filter((_, idx) => idx !== i), 'Motif supprimé')
     setConfirmDelete(null)
   }
 
@@ -104,16 +111,22 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
         <div className="space-y-4 rounded-lg border bg-card p-4 shadow-2xs">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">{draftIndex === -1 ? 'Nouveau motif' : 'Modifier le motif'}</h2>
-            <Button variant="ghost" size="icon" onClick={cancel}><X className="h-4 w-4" /></Button>
+            <Tip content="Fermer"><Button variant="ghost" size="icon" aria-label="Fermer" onClick={cancel}><X className="h-4 w-4" /></Button></Tip>
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="w-full sm:w-32">
-              <label className="text-xs text-muted-foreground">Code</label>
-              <Input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder="ex. 6" />
+              <RequiredLabel htmlFor="rr-code" required>Code</RequiredLabel>
+              <Input id="rr-code" value={draft.code} aria-invalid={!!errors.code}
+                className={errors.code ? 'border-destructive' : undefined}
+                onChange={(e) => { setDraft({ ...draft, code: e.target.value }); setErrors((er) => ({ ...er, code: undefined })) }} placeholder="Ex. : 6" />
+              {errors.code && <p className="mt-1 text-xs text-destructive">{errors.code}</p>}
             </div>
             <div className="w-full sm:min-w-56 sm:flex-1">
-              <label className="text-xs text-muted-foreground">Libellé</label>
-              <Input value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="ex. Manque de place" />
+              <RequiredLabel htmlFor="rr-label" required>Libellé</RequiredLabel>
+              <Input id="rr-label" value={draft.label} aria-invalid={!!errors.label}
+                className={errors.label ? 'border-destructive' : undefined}
+                onChange={(e) => { setDraft({ ...draft, label: e.target.value }); setErrors((er) => ({ ...er, label: undefined })) }} placeholder="Ex. : Manque de place" />
+              {errors.label && <p className="mt-1 text-xs text-destructive">{errors.label}</p>}
             </div>
             <div className="flex items-end pt-4">
               <Button type="button" variant={draft.isDefault ? 'default' : 'outline'} onClick={() => setDraft({ ...draft, isDefault: !draft.isDefault })}>
@@ -122,9 +135,10 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Texte du motif (inclus dans l'email de refus)</label>
-            <textarea
-              className="mt-1 flex min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <RequiredLabel htmlFor="rr-text">Texte du motif (inclus dans l'email de refus)</RequiredLabel>
+            <Textarea
+              id="rr-text"
+              className="mt-1 min-h-24"
               value={draft.text}
               onChange={(e) => setDraft({ ...draft, text: e.target.value })}
               placeholder="Nous sommes au regret de vous informer que…"
@@ -133,7 +147,7 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={cancel} disabled={update.isPending}>Annuler</Button>
-            <Button onClick={saveDraft} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />Enregistrer</Button>
+            <Button onClick={saveDraft} disabled={update.isPending}><Save className="mr-1 h-4 w-4" />{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
           </div>
         </div>
       )}
@@ -165,8 +179,8 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
                   <TableCell className="hidden max-w-md truncate text-muted-foreground md:table-cell">{r.text || <span className="italic">(libellé utilisé)</span>}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Tip content="Modifier"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => startEdit(i)} disabled={update.isPending}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setConfirmDelete(i)} disabled={update.isPending}><Trash2 className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Modifier"><Button variant="outline" size="icon" className="h-8 w-8" aria-label="Modifier" onClick={() => startEdit(i)} disabled={update.isPending}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="outline" size="icon" className="h-8 w-8" aria-label="Supprimer" onClick={() => setConfirmDelete(i)} disabled={update.isPending}><Trash2 className="h-4 w-4" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -179,7 +193,7 @@ export default function RejectionReasonsPage({ embedded = false }: { embedded?: 
       <ConfirmDialog
         open={confirmDelete !== null}
         onOpenChange={(o) => { if (!o) setConfirmDelete(null) }}
-        title="Supprimer ce motif"
+        title="Supprimer ce motif ?"
         variant="destructive"
         description={
           confirmDelete !== null && reasons[confirmDelete]?.isDefault

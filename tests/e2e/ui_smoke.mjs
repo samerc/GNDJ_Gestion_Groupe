@@ -80,7 +80,7 @@ try {
   const app = await signIn(CU, { standalone: true })
   const menu = (name) => app.locator('aside').getByRole('link', { name, exact: true }).click()
   await menu('Mes documents'); await app.waitForURL('**/my-documents')
-  await menu('Réunions'); await app.waitForURL('**/attendance')
+  await menu('Réunions & absences'); await app.waitForURL('**/attendance')
   await app.waitForTimeout(500)
   check('menu taps keep the history at [home, section]', (await idx(app)) === 1, await idx(app))
   await app.goBack(); await app.waitForTimeout(800)

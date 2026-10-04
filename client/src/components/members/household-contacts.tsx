@@ -49,6 +49,13 @@ const canonicalRel = (v: string) => RELATIONSHIP_OPTIONS.find(r => normRel(r.val
 
 interface Props { memberId: string; selfService?: boolean; canEdit?: boolean }
 
+// Delete confirm title + success toast per contact kind (names the thing being removed).
+const DEL_LABELS = {
+  phone: { title: 'Supprimer le téléphone ?', done: 'Téléphone supprimé' },
+  email: { title: "Supprimer l'email ?", done: 'Email supprimé' },
+  address: { title: "Supprimer l'adresse ?", done: 'Adresse supprimée' },
+} as const
+
 export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
   const editable = !!selfService || !!canEdit // a member always edits their own; a leader needs canEdit
   const { data: member } = useMember(memberId)
@@ -125,7 +132,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
       if (phoneEdit.owner === 'self') await updPhone.mutateAsync({ id: phoneEdit.id, countryCode: phoneEdit.countryCode, number: phoneEdit.number, type: 'Personnel', isPrimary: phoneEdit.isPrimary, isEmergency: phoneEdit.isEmergency })
       else await updGPhone.mutateAsync({ id: phoneEdit.id, countryCode: phoneEdit.countryCode, number: phoneEdit.number, type: relLabel(phoneEdit.relationship), isPrimary: phoneEdit.isPrimary })
       await applyRelationship(phoneEdit.owner, phoneEdit.linkId, phoneEdit.relationship)
-      setPhoneEdit(null); toast.success('Téléphone modifié')
+      setPhoneEdit(null); toast.success('Téléphone enregistré')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const submitAddEmail = async (e: React.FormEvent) => {
@@ -146,7 +153,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
       // Keep the "principal" email pointing at the (possibly changed) address.
       if (member.primaryContactEmail && member.primaryContactEmail.toLowerCase() === emailEdit.origAddress.toLowerCase() && emailEdit.address.trim().toLowerCase() !== emailEdit.origAddress.toLowerCase())
         await setPrimary.mutateAsync(emailEdit.address.trim())
-      setEmailEdit(null); toast.success('Email modifié')
+      setEmailEdit(null); toast.success('Email enregistré')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const submitAddAddr = async (e: React.FormEvent) => {
@@ -156,7 +163,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
   }
   const submitEditAddr = async (e: React.FormEvent) => {
     e.preventDefault(); if (!addrEdit) return
-    try { await updAddr.mutateAsync({ id: addrEdit.id, type: addrEdit.type, country: addrEdit.country, city: addrEdit.city, details: addrEdit.details || null, isPrimary: addrEdit.isPrimary }); setAddrEdit(null); toast.success('Adresse modifiée') }
+    try { await updAddr.mutateAsync({ id: addrEdit.id, type: addrEdit.type, country: addrEdit.country, city: addrEdit.city, details: addrEdit.details || null, isPrimary: addrEdit.isPrimary }); setAddrEdit(null); toast.success('Adresse enregistrée') }
     catch (err) { toast.error(parseApiError(err)) }
   }
   const confirmDelete = async () => {
@@ -165,7 +172,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
       if (del.kind === 'phone') await (del.owner === 'self' ? delPhone.mutateAsync(del.id) : delGPhone.mutateAsync(del.id))
       else if (del.kind === 'email') await (del.owner === 'self' ? delEmail.mutateAsync(del.id) : delGEmail.mutateAsync(del.id))
       else await delAddr.mutateAsync(del.id)
-      setDel(null); toast.success('Supprimé')
+      setDel(null); toast.success(DEL_LABELS[del.kind].done)
     } catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -181,7 +188,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <p className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Email de contact principal</p>
                 <p className="text-xs text-muted-foreground">Adresse qui reçoit nos messages (réinitialisation du mot de passe…).</p>
               </div>
-              <Select value={member.primaryContactEmail ?? '__auto__'} onValueChange={(v) => setPrimary.mutateAsync(v === '__auto__' ? null : v).then(() => toast.success('Email principal mis à jour')).catch(err => toast.error(parseApiError(err)))} disabled={setPrimary.isPending}>
+              <Select value={member.primaryContactEmail ?? '__auto__'} onValueChange={(v) => setPrimary.mutateAsync(v === '__auto__' ? null : v).then(() => toast.success('Email principal enregistré')).catch(err => toast.error(parseApiError(err)))} disabled={setPrimary.isPending}>
                 <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__auto__">Automatique (membre, sinon parent)</SelectItem>
@@ -213,8 +220,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                   {!selfService && <CopyButton value={formatPhoneDisplay(r.cc, r.number)} label="Copier le numéro" />}
                   {!selfService && <WhatsappLink countryCode={r.cc} number={r.number} />}
                   {editable && <>
-                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                    <Tip content="Modifier le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier le téléphone" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                    <Tip content="Supprimer le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer le téléphone" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                   </>}
                 </div>
               </div>
@@ -243,8 +250,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                     {r.urgence && <Badge variant="destructive" className="h-5 text-[10px]">Urgence</Badge>}
                     {!selfService && <CopyButton value={r.address} label="Copier l'email" />}
                     {editable && <>
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                      <Tip content="Modifier l'email"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier l'email" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                      <Tip content="Supprimer l'email"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer l'email" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                     </>}
                   </div>
                 </div>
@@ -270,8 +277,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
                   {a.isPrimary && <Badge variant="outline" className="h-5 text-[10px]">Principal</Badge>}
                   {editable && <>
-                    <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setAddrEdit({ id: a.id, type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })}><Pencil className="h-3 w-3" /></Button></Tip>
-                    <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'address', owner: 'self', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
+                    <Tip content="Modifier l'adresse"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier l'adresse" onClick={() => setAddrEdit({ id: a.id, type: a.type, country: a.country, city: a.city, details: a.details ?? '', isPrimary: a.isPrimary })}><Pencil className="h-3 w-3" /></Button></Tip>
+                    <Tip content="Supprimer l'adresse"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer l'adresse" onClick={() => setDel({ kind: 'address', owner: 'self', id: a.id, label: `${a.city}, ${a.country}` })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                   </>}
                 </div>
               </div>
@@ -291,7 +298,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneAdd.countryCode} onValueChange={(v) => setPhoneAdd(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher…" /></div>
                 <div className="space-y-2 sm:col-span-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneAdd.countryCode} value={phoneAdd.number} onChange={(v) => setPhoneAdd(f => f && { ...f, number: v })} required /></div>
               </div>
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneAdd(null)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending || addGPhone.isPending}>Ajouter</Button></DialogFooter>
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneAdd(null)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending || addGPhone.isPending}>{addPhone.isPending || addGPhone.isPending ? 'Ajout…' : 'Ajouter'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -308,7 +315,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <div className="space-y-2 sm:col-span-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneEdit.countryCode} value={phoneEdit.number} onChange={(v) => setPhoneEdit(f => f && { ...f, number: v })} required /></div>
               </div>
               {phoneEdit.owner !== 'self' && <RelationField value={phoneEdit.relationship} onChange={(v) => setPhoneEdit(f => f && { ...f, relationship: v })} />}
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneEdit(null)}>Annuler</Button><Button type="submit" disabled={updPhone.isPending || updGPhone.isPending || updGLink.isPending}>Enregistrer</Button></DialogFooter>
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneEdit(null)}>Annuler</Button><Button type="submit" disabled={updPhone.isPending || updGPhone.isPending || updGLink.isPending}>{updPhone.isPending || updGPhone.isPending || updGLink.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -322,7 +329,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
             <form onSubmit={submitAddEmail} className="space-y-4">
               <OwnerField owners={owners} value={emailAdd.owner} onChange={(v) => setEmailAdd(f => f && { ...f, owner: v })} />
               <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" required value={emailAdd.address} onChange={(e) => setEmailAdd(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setEmailAdd(null)}>Annuler</Button><Button type="submit" disabled={addEmail.isPending || addGEmail.isPending}>Ajouter</Button></DialogFooter>
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setEmailAdd(null)}>Annuler</Button><Button type="submit" disabled={addEmail.isPending || addGEmail.isPending}>{addEmail.isPending || addGEmail.isPending ? 'Ajout…' : 'Ajouter'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -336,7 +343,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
             <form onSubmit={submitEditEmail} className="space-y-4">
               <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" required value={emailEdit.address} onChange={(e) => setEmailEdit(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
               {emailEdit.owner !== 'self' && <RelationField value={emailEdit.relationship} onChange={(v) => setEmailEdit(f => f && { ...f, relationship: v })} />}
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setEmailEdit(null)}>Annuler</Button><Button type="submit" disabled={updEmail.isPending || updGEmail.isPending || updGLink.isPending}>Enregistrer</Button></DialogFooter>
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setEmailEdit(null)}>Annuler</Button><Button type="submit" disabled={updEmail.isPending || updGEmail.isPending || updGLink.isPending}>{updEmail.isPending || updGEmail.isPending || updGLink.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -354,7 +361,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addrAdd.city} onChange={(city) => setAddrAdd(f => f && { ...f, city })} cities={cities} /></div>
               </div>
               <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addrAdd.details} onChange={(e) => setAddrAdd(f => f && { ...f, details: e.target.value })} placeholder="Rue, immeuble…" /></div>
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setAddrAdd(null)}>Annuler</Button><Button type="submit" disabled={addAddr.isPending}>Ajouter</Button></DialogFooter>
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setAddrAdd(null)}>Annuler</Button><Button type="submit" disabled={addAddr.isPending}>{addAddr.isPending ? 'Ajout…' : 'Ajouter'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -373,13 +380,13 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
               </div>
               <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addrEdit.details} onChange={(e) => setAddrEdit(f => f && { ...f, details: e.target.value })} placeholder="Rue, immeuble…" /></div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={addrEdit.isPrimary} onChange={(e) => setAddrEdit(f => f && { ...f, isPrimary: e.target.checked })} />Principal</label>
-              <DialogFooter><Button type="button" variant="outline" onClick={() => setAddrEdit(null)}>Annuler</Button><Button type="submit" disabled={updAddr.isPending}>Enregistrer</Button></DialogFooter>
+              <DialogFooter><Button type="button" variant="outline" onClick={() => setAddrEdit(null)}>Annuler</Button><Button type="submit" disabled={updAddr.isPending}>{updAddr.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={!!del} onOpenChange={() => setDel(null)} title="Supprimer" description={`Supprimer « ${del?.label} » ?`} confirmLabel="Supprimer" variant="destructive"
+      <ConfirmDialog open={!!del} onOpenChange={() => setDel(null)} title={del ? DEL_LABELS[del.kind].title : 'Supprimer ?'} description={`« ${del?.label} » sera supprimé de la fiche.`} confirmLabel="Supprimer" variant="destructive"
         loading={delPhone.isPending || delGPhone.isPending || delEmail.isPending || delGEmail.isPending || delAddr.isPending} onConfirm={confirmDelete} />
     </Card>
   )

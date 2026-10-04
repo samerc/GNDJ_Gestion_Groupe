@@ -18,6 +18,9 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
+import { Page } from '@/components/shared/page'
+import { Callout } from '@/components/shared/callout'
+import { BackToSettings } from '@/components/shared/back-to-settings'
 import { SearchInput } from '@/components/shared/search-input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, FileText, GripVertical, X, Upload, Download, FileSignature } from 'lucide-react'
@@ -110,7 +113,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...form })
-        toast.success('Type de document modifié')
+        toast.success('Type de document enregistré')
       } else {
         await createMutation.mutateAsync(form)
         toast.success('Type de document créé')
@@ -156,11 +159,14 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
   )
 
   return (
-    <div className="space-y-6">
+    <Page>
       {embedded ? (
         <div className="flex justify-end">{newTypeButton}</div>
       ) : (
-        <PageHeader title="Types de documents" icon={FileText} actions={newTypeButton} />
+        <>
+          <BackToSettings />
+          <PageHeader title="Types de documents" icon={FileText} description="Documents demandés aux membres chaque année." actions={newTypeButton} />
+        </>
       )}
 
       {showSearch && <SearchInput value={search} onChange={setSearch} placeholder="Rechercher…" className="max-w-sm" />}
@@ -176,7 +182,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
         />
       ) : (
         <>
-          {canReorder && <p className="text-xs text-muted-foreground">Glissez pour réordonner. Cet ordre s'applique à la checklist « Ma fiche » et au tableau des documents.</p>}
+          {canReorder && <p className="text-xs text-muted-foreground">Glissez pour réordonner. Cet ordre s'applique à la liste « Ma fiche » et au tableau des documents.</p>}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy} disabled={!canReorder}>
               <ul className="space-y-2">
@@ -201,7 +207,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
             <DialogTitle>{editing ? 'Modifier le type de document' : 'Nouveau type de document'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             {hasErrors && <FormFieldErrors show={hasErrors} />}
             <div className="space-y-2">
               <RequiredLabel htmlFor="name" required>Nom</RequiredLabel>
@@ -277,14 +283,14 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
               <div>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={form.requiresApproval} onChange={(e) => setForm(f => ({ ...f, requiresApproval: e.target.checked }))} />
-                  Acceptation requise
+                  Validation par un chef
                 </label>
                 <p className="text-xs text-muted-foreground ml-6">Un responsable devra accepter le document après envoi</p>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || templateLoading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || templateLoading}>{isSaving ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -302,16 +308,17 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le type de document"
+        title="Supprimer le type de document ?"
         description={(deleting?.documentCount ?? 0) > 0
-          ? `« ${deleting?.name} » est utilisé par ${deleting?.documentCount} document(s). Vous ne pouvez pas le supprimer — désactivez-le plutôt (décochez « Actif cette année »).`
+          ? `« ${deleting?.name} » est utilisé par ${deleting?.documentCount} document(s) : il ne peut pas être supprimé. Désactivez-le plutôt (bouton Modifier, puis décochez « Actif cette année »).`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}
-        confirmLabel={(deleting?.documentCount ?? 0) > 0 ? 'Désactiver…' : 'Supprimer'}
+        hideConfirm={(deleting?.documentCount ?? 0) > 0}
+        confirmLabel="Supprimer"
         variant="destructive"
         loading={deleteMutation.isPending}
-        onConfirm={(deleting?.documentCount ?? 0) > 0 ? () => { const d = deleting; setDeleting(null); if (d) openEdit(d) } : handleDelete}
+        onConfirm={handleDelete}
       />
-    </div>
+    </Page>
   )
 }
 
@@ -361,8 +368,8 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
       </div>
       <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">{item.documentCount} document{item.documentCount > 1 ? 's' : ''}</span>
       <div className="flex gap-1">
-        <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
-        <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+        <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={onEdit}><Pencil className="h-4 w-4" /></Button></Tip>
+        <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={onDelete}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
       </div>
     </li>
   )

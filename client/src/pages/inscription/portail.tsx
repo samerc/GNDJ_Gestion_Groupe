@@ -1,6 +1,10 @@
 import { useNavigate, Navigate } from 'react-router'
 import { useApplicantConfig, useApplicantProfile, useDeleteDemande, useResendVerification, isSubmissionDeadlinePassed, type Demande } from '@/services/applicant-service'
-import { formatDateLong } from '@/lib/utils'
+import { formatDate, formatDateLong } from '@/lib/utils'
+import { confirmAsync } from '@/lib/confirm'
+import { Callout } from '@/components/shared/callout'
+import { PageHeader } from '@/components/shared/page-header'
+import { Tip } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -15,7 +19,7 @@ import { UserPlus, Pencil, Eye, Trash2, Users, MailWarning, CheckCircle2, XCircl
 // closed but results not out yet → a submitted demande reads "En cours d'étude" (blue) instead of "Soumise".
 function statusMeta(d: Demande, reviewPhase: boolean): { border: string; badge: React.ReactNode } {
   if (d.responseSentAt && d.status === 'Approved')
-    return { border: 'border-l-green-500', badge: <Badge className="bg-green-600"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge> }
+    return { border: 'border-l-green-500', badge: <Badge variant="success"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge> }
   if (d.responseSentAt && d.status === 'Declined')
     return { border: 'border-l-red-500', badge: <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Refusée</Badge> }
   if (d.status === 'Expired')
@@ -26,8 +30,8 @@ function statusMeta(d: Demande, reviewPhase: boolean): { border: string; badge: 
   // Submitted, awaiting the decision. During the review phase (submissions closed, results not out) show
   // "En cours d'étude" in blue; while submissions are still open it's "Soumise" in amber (still editable).
   if (reviewPhase)
-    return { border: 'border-l-blue-500', badge: <Badge className="bg-blue-600"><Hourglass className="mr-1 h-3 w-3" />En cours d'étude</Badge> }
-  return { border: 'border-l-amber-500', badge: <Badge className="bg-amber-500"><Clock className="mr-1 h-3 w-3" />Soumise</Badge> }
+    return { border: 'border-l-blue-500', badge: <Badge variant="info"><Hourglass className="mr-1 h-3 w-3" />En cours d'étude</Badge> }
+  return { border: 'border-l-amber-500', badge: <Badge variant="warning"><Clock className="mr-1 h-3 w-3" />Soumise</Badge> }
 }
 
 // Applicant home after login: lists the account's demandes (one per child) as cards, with the
@@ -61,7 +65,12 @@ export default function ApplicantPortalPage() {
   if (demandes.length === 0 && canSubmit) return <Navigate to="/inscription/portail/demande/new" replace />
 
   const handleDelete = async (d: Demande) => {
-    if (!confirm(`Supprimer la demande de ${d.firstName} ${d.lastName} ?`)) return
+    if (!(await confirmAsync({
+      title: 'Supprimer la demande ?',
+      description: `La demande de ${d.firstName} ${d.lastName} sera supprimée.`,
+      confirmLabel: 'Supprimer',
+      destructive: true,
+    }))) return
     try { await deleteMutation.mutateAsync(d.id); toast.success('Demande supprimée') }
     catch (err) { toast.error(parseApiError(err)) }
   }
@@ -89,76 +98,63 @@ export default function ApplicantPortalPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mes demandes d'inscription</h1>
-          <p className="text-sm text-muted-foreground">{profile.email} · Année {config?.scoutYear}</p>
-        </div>
-        {/* Hidden entirely once submissions close (deadline passed / CG review phase) — the banner below
-            explains why; a disabled button would just look broken. Shown while the window is open. */}
-        {canSubmit && (
-          <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={reachedMax}>
-            <UserPlus className="mr-2 h-4 w-4" />Ajouter une demande
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        icon={Users}
+        title="Mes demandes d'inscription"
+        description={`${profile.email} · Année ${config?.scoutYear ?? ''}`}
+        actions={
+          // Hidden entirely once submissions close (deadline passed / CG review phase) — the banner below
+          // explains why; a disabled button would just look broken. Shown while the window is open.
+          canSubmit && (
+            <Button onClick={() => navigate('/inscription/portail/demande/new')} disabled={reachedMax}>
+              <UserPlus className="mr-2 h-4 w-4" />Ajouter une demande
+            </Button>
+          )
+        }
+      />
 
       {needsVerify && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
-          <MailWarning className="mt-0.5 h-5 w-5 shrink-0" />
+        <Callout tone="warning" icon={MailWarning} title="Vérifiez votre adresse email">
           <div className="space-y-2">
-            <p className="font-medium">Vérifiez votre adresse email</p>
             <p>Un email de vérification vous a été envoyé. Vous devez confirmer votre adresse avant de pouvoir soumettre une demande.</p>
             <Button size="sm" variant="outline" disabled={resendMutation.isPending} onClick={async () => {
               try { await resendMutation.mutateAsync(); toast.success('Email de vérification renvoyé') }
               catch (err) { toast.error(parseApiError(err)) }
             }}>{resendMutation.isPending ? 'Envoi…' : "Renvoyer l'email"}</Button>
           </div>
-        </div>
+        </Callout>
       )}
 
       {!open && (
-        <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
+        <Callout tone="warning">
           Les inscriptions sont actuellement fermées. Vous pouvez consulter vos demandes mais pas les modifier.
-        </div>
+        </Callout>
       )}
 
       {lateGrant && (
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-sm text-emerald-800 dark:text-emerald-300">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-medium">Accès exceptionnel accordé</p>
-            <p>La Maîtrise vous a autorisé à présenter une demande après la date limite. Vous pouvez créer et soumettre votre demande normalement ci-dessous.</p>
-          </div>
-        </div>
+        <Callout tone="success" icon={CheckCircle2} title="Accès exceptionnel accordé">
+          La Maîtrise vous a autorisé à présenter une demande après la date limite. Vous pouvez créer et soumettre votre demande normalement ci-dessous.
+        </Callout>
       )}
 
       {reviewPhase && (
         deadlinePassed ? (
           // Automatic close because the submission deadline passed → be explicit that the délai is over.
-          <div className="flex items-start gap-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-300">
-            <Clock className="mt-0.5 h-5 w-5 shrink-0" />
-            <div>
-              <p className="font-medium">La date limite de soumission est dépassée</p>
-              <p>La date limite était le {formatDateLong(config?.submissionDeadline)}. Vous ne pouvez plus créer ni soumettre de demande. Vous pouvez toujours consulter vos demandes ici ; les résultats vous seront communiqués prochainement.</p>
-            </div>
-          </div>
+          <Callout tone="warning" icon={Clock} title="La date limite de soumission est dépassée">
+            La date limite était le {formatDateLong(config?.submissionDeadline)}. Vous ne pouvez plus créer ni soumettre de demande. Vous pouvez toujours consulter vos demandes ici ; les résultats vous seront communiqués prochainement.
+          </Callout>
         ) : (
           // Manual close by the CG (review phase) — deadline not passed.
-          <div className="flex items-start gap-3 rounded-lg border border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-800 dark:text-blue-300">
-            <Clock className="mt-0.5 h-5 w-5 shrink-0" />
-            <div>
-              <p className="font-medium">La période de soumission est terminée</p>
-              <p>Vos demandes sont en cours d'étude par la Maîtrise de Groupe. Vous pouvez suivre leur statut ici ; les résultats vous seront communiqués prochainement. Aucune modification n'est possible pour le moment.</p>
-            </div>
-          </div>
+          <Callout tone="info" icon={Clock} title="La période de soumission est terminée">
+            Vos demandes sont en cours d'étude par la Maîtrise de Groupe. Vous pouvez suivre leur statut ici ; les résultats vous seront communiqués prochainement. Aucune modification n'est possible pour le moment.
+          </Callout>
         )
       )}
 
       {reachedMax && open && (
-        <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+        <Callout tone="muted">
           Vous avez atteint le maximum de {max} demande(s) pour cette année.
-        </div>
+        </Callout>
       )}
 
       {demandes.length === 0 ? (
@@ -176,7 +172,7 @@ export default function ApplicantPortalPage() {
                     <p className="font-semibold">{d.firstName} {d.lastName}</p>
                     {d.serialNumber && <p className="font-mono text-xs text-muted-foreground">N° {d.serialNumber}</p>}
                     <p className="text-xs text-muted-foreground">
-                      {d.dateOfBirth ? `Né(e) le ${new Date(d.dateOfBirth).toLocaleDateString('fr-FR')}` : 'Naissance non renseignée'}
+                      {d.dateOfBirth ? `Né(e) le ${formatDateLong(d.dateOfBirth)}` : 'Naissance non renseignée'}
                     </p>
                   </div>
                   <div className="shrink-0">{r.badge}</div>
@@ -187,9 +183,11 @@ export default function ApplicantPortalPage() {
                 <div className="mt-3 flex gap-2 border-t pt-3">
                   <Button size="sm" variant="outline" className="flex-1" onClick={r.open}>{r.icon}{r.label}</Button>
                   {r.canDelete && (
-                    <Button size="sm" variant="outline" className="text-destructive" aria-label="Supprimer" onClick={() => handleDelete(d)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <Tip content="Supprimer la demande">
+                      <Button size="sm" variant="outline" className="text-destructive" aria-label="Supprimer la demande" onClick={() => handleDelete(d)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </Tip>
                   )}
                 </div>
               </div>
@@ -225,19 +223,21 @@ export default function ApplicantPortalPage() {
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                      {d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : '—'}
+                      {d.dateOfBirth ? formatDate(d.dateOfBirth) : '—'}
                     </td>
                     <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground md:table-cell">
-                      {d.submittedAt ? new Date(d.submittedAt).toLocaleDateString('fr-FR') : '—'}
+                      {d.submittedAt ? formatDate(d.submittedAt) : '—'}
                     </td>
                     <td className="px-4 py-3">{r.badge}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <Button size="sm" variant="outline" onClick={r.open}>{r.icon}{r.label}</Button>
                         {r.canDelete && (
-                          <Button size="sm" variant="ghost" className="text-destructive" aria-label="Supprimer" onClick={() => handleDelete(d)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <Tip content="Supprimer la demande">
+                            <Button size="sm" variant="ghost" className="text-destructive" aria-label="Supprimer la demande" onClick={() => handleDelete(d)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </Tip>
                         )}
                       </div>
                     </td>

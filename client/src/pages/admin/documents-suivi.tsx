@@ -21,7 +21,7 @@ export default function DocumentsSuiviPage() {
       <PageHeader
         title="Suivi des documents"
         icon={FileWarning}
-        description="Campagne de vérification (dates + mise en attente automatiques) et relances manuelles des dossiers incomplets."
+        description="Campagne de vérification des documents et relances des dossiers incomplets."
       />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

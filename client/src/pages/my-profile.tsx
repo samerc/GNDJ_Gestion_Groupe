@@ -1,7 +1,10 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { useMember, type MemberFormData } from '@/services/member-service'
 import { useUpdateMyProfile } from '@/services/my-profile-service'
-import { cn } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { Callout } from '@/components/shared/callout'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
+import { Textarea } from '@/components/ui/textarea'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,12 +93,17 @@ export default function MyProfilePage() {
         allergies: form.allergies || null,
         medicalNotes: form.medicalNotes || null,
       })
-      toast.success('Fiche mise à jour')
+      toast.success('Fiche enregistrée')
       setEditing(false)
     } catch (err) { setError(parseApiError(err)); setActiveTab('profile') } // required fields (école, nationalité) are on Profil
   }
 
-  if (isLoading || !member) return <LoadingSpinner variant="profile" />
+  if (isLoading || !member) return (
+    <Page size="narrow">
+      <PageHeader title="Ma fiche" icon={User} description={user?.email} />
+      <LoadingSpinner variant="profile" />
+    </Page>
+  )
 
   return (
     <Page size="narrow">
@@ -125,7 +133,7 @@ export default function MyProfilePage() {
       <DocumentsCta memberId={memberId} />
       <SiblingEnrollCta />
 
-      {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <Callout tone="danger">{error}</Callout>}
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v !== 'profile' && v !== 'medical') setEditing(false) }}>
         <TabsList>
@@ -147,7 +155,7 @@ export default function MyProfilePage() {
                   {/* Locked identity fields — admin-controlled; a member can view but not change them. */}
                   <div className="space-y-2"><RequiredLabel>Prénom</RequiredLabel><Input value={member.firstName} disabled /></div>
                   <div className="space-y-2"><RequiredLabel>Nom</RequiredLabel><Input value={member.lastName} disabled /></div>
-                  <div className="space-y-2"><RequiredLabel>Date de naissance</RequiredLabel><Input value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : ''} disabled /></div>
+                  <div className="space-y-2"><RequiredLabel>Date de naissance</RequiredLabel><Input value={formatDate(member.dateOfBirth)} disabled /></div>
                   <div className="space-y-2"><RequiredLabel>Sexe</RequiredLabel><Input value={member.gender ?? ''} disabled /></div>
                   <div className="space-y-2"><RequiredLabel>Matricule</RequiredLabel><Input value={member.cardNumber ?? ''} disabled /></div>
                   <div className="space-y-2">
@@ -181,15 +189,12 @@ export default function MyProfilePage() {
                   {member.showProfession && (
                     <div className="space-y-2 sm:col-span-2">
                       <RequiredLabel>Situation</RequiredLabel>
-                      <div className="inline-flex h-9 items-center rounded-md border p-0.5">
-                        <button type="button" onClick={() => setSituation('student')}
-                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'student' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                          Scolarisé(e)
-                        </button>
-                        <button type="button" onClick={() => setSituation('working')}
-                          className={cn('h-full rounded px-3 text-sm font-medium transition-colors', situation === 'working' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
-                          En activité
-                        </button>
+                      <div>
+                        <SegmentedToggle
+                          options={[{ value: 'student', label: 'Scolarisé(e)' }, { value: 'working', label: 'En activité' }]}
+                          value={situation}
+                          onChange={setSituation}
+                        />
                       </div>
                     </div>
                   )}
@@ -207,7 +212,7 @@ export default function MyProfilePage() {
                       </div>
                       <div className="space-y-2">
                         <RequiredLabel>Section</RequiredLabel>
-                        <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE…" maxLength={5} />
+                        <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex. : SV, SE…" maxLength={5} />
                       </div>
                     </>
                   ) : (
@@ -225,7 +230,7 @@ export default function MyProfilePage() {
                       </div>
                       <div className="space-y-2">
                         <RequiredLabel>Profession</RequiredLabel>
-                        <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin…" maxLength={150} />
+                        <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex. : Ingénieur, Médecin…" maxLength={150} />
                       </div>
                     </>
                   )}
@@ -235,7 +240,7 @@ export default function MyProfilePage() {
                 <dl className="grid gap-4 sm:grid-cols-2">
                   <Field label="Prénom" value={member.firstName} />
                   <Field label="Nom" value={member.lastName} />
-                  <Field label="Date de naissance" value={member.dateOfBirth ? new Date(member.dateOfBirth).toLocaleDateString('fr-FR') : null} />
+                  <Field label="Date de naissance" value={member.dateOfBirth ? formatDate(member.dateOfBirth) : null} />
                   <Field label="Sexe" value={member.gender} />
                   <Field label="Matricule" value={member.cardNumber} />
                   <Field label="Numéro de carte" value={member.externalCardNumber} />
@@ -284,8 +289,8 @@ export default function MyProfilePage() {
             <CardContent>
               {editing ? (
                 <div className="space-y-4">
-                  <div className="space-y-2"><RequiredLabel>Allergies</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.allergies ?? ''} onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))} /></div>
-                  <div className="space-y-2"><RequiredLabel>Notes médicales</RequiredLabel><textarea className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.medicalNotes ?? ''} onChange={(e) => setForm(f => ({ ...f, medicalNotes: e.target.value }))} /></div>
+                  <div className="space-y-2"><RequiredLabel>Allergies</RequiredLabel><Textarea className="min-h-20" value={form.allergies ?? ''} onChange={(e) => setForm(f => ({ ...f, allergies: e.target.value }))} /></div>
+                  <div className="space-y-2"><RequiredLabel>Notes médicales</RequiredLabel><Textarea className="min-h-20" value={form.medicalNotes ?? ''} onChange={(e) => setForm(f => ({ ...f, medicalNotes: e.target.value }))} /></div>
                 </div>
               ) : (
                 <dl className="space-y-4">

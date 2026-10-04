@@ -1,28 +1,27 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { CalendarDays, MapPin, Clock, ArrowRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatDateLong, formatMonthShort, parseDay } from '@/lib/utils'
+import { EmptyState } from '@/components/shared/empty-state'
+import { PublicPagination } from '@/components/public/pagination'
 import { PageHero } from '@/components/public/page-hero'
 import { usePublicEvents, type EventFilter, type PublicEventItem } from '@/services/events-service'
 import { usePublicUnits } from '@/services/public-service'
 import { Seo } from '@/components/public/seo'
 
-// Parse an ISO yyyy-MM-dd WITHOUT `new Date` to avoid any timezone shift (the agenda cares about the day).
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-function parts(iso: string) { const [y, m, d] = iso.split('-').map(Number); return { y, m: m - 1, d } }
-function monthKey(iso: string) { const { y, m } = parts(iso); return `${y}-${m}` }
-function monthLabel(iso: string) { const { y, m } = parts(iso); return `${MONTHS[m]} ${y}` }
-function longDate(iso: string) { const { y, m, d } = parts(iso); return `${d} ${MONTHS[m]} ${y}` }
+// Dates are bare yyyy-MM-dd (DateOnly); parseDay reads them as local calendar days (no timezone shift).
+const monthKey = (iso: string) => iso.slice(0, 7)
+const monthLabel = (iso: string) => parseDay(iso).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
 
 // One event row — a calendar-style date block + title/meta/excerpt (+ optional cover on the right).
 function EventRow({ ev }: { ev: PublicEventItem }) {
-  const { m, d } = parts(ev.startDate)
+  const d = parseDay(ev.startDate).getDate()
   return (
     <Link to={`/agenda/${ev.slug}`}
       className="group flex items-stretch gap-4 rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated">
       <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 py-2 text-primary">
         <span className="text-2xl font-bold leading-none">{d}</span>
-        <span className="mt-0.5 text-xs font-medium uppercase">{MONTHS[m].slice(0, 4)}</span>
+        <span className="mt-0.5 text-xs font-medium uppercase">{formatMonthShort(ev.startDate)}</span>
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -31,10 +30,10 @@ function EventRow({ ev }: { ev: PublicEventItem }) {
           {ev.location && <span className="inline-flex items-center gap-1 text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{ev.location}</span>}
         </div>
         <h3 className="mt-1 font-semibold leading-snug">{ev.title}</h3>
-        {ev.endDate && <p className="text-xs text-muted-foreground">Du {longDate(ev.startDate)} au {longDate(ev.endDate)}</p>}
+        {ev.endDate && <p className="text-xs text-muted-foreground">Du {formatDateLong(ev.startDate)} au {formatDateLong(ev.endDate)}</p>}
         {ev.excerpt && <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{ev.excerpt}</p>}
         <span className="mt-2 inline-flex items-center text-sm font-medium text-primary">
-          En savoir plus <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          Voir l'événement <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>
       {ev.coverImagePath && (
@@ -88,14 +87,13 @@ export default function PublicAgendaPage() {
             {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl border border-border bg-card" />)}
           </div>
         ) : isError ? (
-          <p className="text-muted-foreground">Impossible de charger l'agenda pour le moment.</p>
+          <EmptyState icon={CalendarDays} title="Impossible de charger l'agenda" description="Veuillez réessayer dans un instant." />
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <CalendarDays className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">
-              {isActive({}) ? 'Aucun événement à venir pour le moment. Revenez bientôt — le programme arrive !' : 'Aucun événement à venir pour cette sélection.'}
-            </p>
-          </div>
+          <EmptyState
+            icon={CalendarDays}
+            title="Aucun événement à venir"
+            description={isActive({}) ? 'Revenez bientôt — le programme arrive !' : 'Aucun événement pour cette sélection.'}
+          />
         ) : (
           <div className="space-y-10">
             {months.map((g) => (
@@ -107,14 +105,9 @@ export default function PublicAgendaPage() {
               </div>
             ))}
 
-            {data && data.totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-center gap-3">
-                <button disabled={!data.hasPreviousPage} onClick={() => setPage((p) => p - 1)}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Précédent</button>
-                <span className="text-sm text-muted-foreground">Page {data.page} / {data.totalPages}</span>
-                <button disabled={!data.hasNextPage} onClick={() => setPage((p) => p + 1)}
-                  className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium min-h-11 disabled:opacity-40">Suivant</button>
-              </div>
+            {data && (
+              <PublicPagination page={data.page} totalPages={data.totalPages} hasPreviousPage={data.hasPreviousPage}
+                hasNextPage={data.hasNextPage} onPageChange={setPage} />
             )}
           </div>
         )}

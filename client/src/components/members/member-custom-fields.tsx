@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Tip } from '@/components/ui/tooltip'
 import { Check, X, Pencil, Trash2, ListPlus, Lock } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmAsync } from '@/lib/confirm'
 
 // "Infos complémentaires" tab of the member detail page + Ma fiche. Renders the admin-defined custom fields
 // (text/number/select/boolean) and lets each be edited inline per field type — but ONLY if the current user
@@ -60,11 +61,12 @@ function FieldRow({ field, memberId, canEdit, selfService }: { field: MemberCust
 
   const handleDelete = async () => {
     if (!hasValue) return
+    if (!(await confirmAsync({ title: 'Effacer la valeur ?', description: `La valeur du champ « ${field.name} » sera effacée.`, confirmLabel: 'Effacer', destructive: true }))) return
     try {
       // Self-service clears by field id; the leader endpoint clears by the value's id.
       if (selfService) await delSelf.mutateAsync(field.fieldId)
       else if (field.valueId) await delLeader.mutateAsync(field.valueId)
-      toast.success('Valeur supprimée')
+      toast.success('Valeur effacée')
     } catch (err) {
       toast.error(parseApiError(err))
     }
@@ -127,20 +129,20 @@ function FieldRow({ field, memberId, canEdit, selfService }: { field: MemberCust
       {editing ? (
         <div className="flex items-center gap-2">
           {renderEditor()}
-          <Tip content="Enregistrer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={setMutation.isPending}>
+          <Tip content="Enregistrer"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Enregistrer" onClick={handleSave} disabled={setMutation.isPending}>
             <Check className="h-3.5 w-3.5" />
           </Button></Tip>
-          <Tip content="Annuler"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
+          <Tip content="Annuler"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Annuler" onClick={() => setEditing(false)}>
             <X className="h-3.5 w-3.5" />
           </Button></Tip>
         </div>
       ) : canEdit ? (
         <div className="flex items-center gap-1">
-          <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={startEdit}>
+          <Tip content="Modifier la valeur"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Modifier la valeur" onClick={startEdit}>
             <Pencil className="h-3.5 w-3.5" />
           </Button></Tip>
           {hasValue && (
-            <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDelete} disabled={deleteMutation.isPending}>
+            <Tip content="Effacer la valeur"><Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Effacer la valeur" onClick={handleDelete} disabled={deleteMutation.isPending}>
               <Trash2 className="h-3.5 w-3.5 text-destructive" />
             </Button></Tip>
           )}

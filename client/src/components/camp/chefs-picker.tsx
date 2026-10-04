@@ -1,9 +1,8 @@
 // Checkbox list of the assistants chef de groupe (active group-level role) the CG can name "Chef de commission":
 // they lead that camp with full rights on it. Used when creating a camp and on the camp's Commission tab.
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
 import { useCampCommissionCandidates } from '@/services/camp-service'
-import { Input } from '@/components/ui/input'
+import { SearchInput } from '@/components/shared/search-input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 
 export function ChefsPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
@@ -18,10 +17,7 @@ export function ChefsPicker({ value, onChange }: { value: string[]; onChange: (i
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input className="pl-8" placeholder="Rechercher un assistant…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
+      <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un assistant…" />
       <div className="max-h-56 space-y-1 overflow-y-auto">
         {isLoading ? <LoadingSpinner /> : filtered.length === 0 ? (
           <p className="py-3 text-center text-xs text-muted-foreground">Aucun assistant chef de groupe trouvé.</p>

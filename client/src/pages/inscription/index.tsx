@@ -5,16 +5,11 @@ import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { CalendarClock } from 'lucide-react'
+import { formatDateLong } from '@/lib/utils'
 
 // Public entry screen for the applicant (parent/future member) portal at /inscription.
 // Anonymous: shows the intro + Créer un compte / Se connecter, or a "fermées" notice when
 // inscriptions are closed. Already-logged-in applicants are bounced straight to the portail.
-// yyyy-MM-dd → "1 septembre 2026" (fr); null/invalid → null.
-function frDate(d: string | null | undefined): string | null {
-  if (!d) return null
-  const dt = new Date(d + 'T00:00:00')
-  return isNaN(dt.getTime()) ? null : dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-}
 
 export default function InscriptionLandingPage() {
   const isAuthenticated = useApplicantStore((s) => s.isAuthenticated)
@@ -27,11 +22,11 @@ export default function InscriptionLandingPage() {
   // straight to the login page (which carries the "Créer un compte" button). Only the CLOSED state keeps a
   // notice here (login itself is behind ApplicantOpenRoute, which bounces back here when closed → no loop).
   if (isLoading) {
-    return <ApplicantAuthShell><Card className="shadow-elevated"><CardContent className="py-10"><LoadingSpinner /></CardContent></Card></ApplicantAuthShell>
+    return <ApplicantAuthShell><Card className="shadow-elevated"><CardContent><LoadingSpinner /></CardContent></Card></ApplicantAuthShell>
   }
   if (config?.isOpen) return <Navigate to="/inscription/login" replace />
 
-  const opensOn = frDate(config?.submissionStart)   // shown when the portal isn't open yet (future start date)
+  const opensOn = formatDateLong(config?.submissionStart)   // shown when the portal isn't open yet (future start date)
 
   return (
     <ApplicantAuthShell>

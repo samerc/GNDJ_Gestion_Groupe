@@ -21,6 +21,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
+import { Callout } from '@/components/shared/callout'
 import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Library, ImagePlus, Paperclip, X, FileText } from 'lucide-react'
@@ -89,7 +90,7 @@ export default function AdminResourcesPage() {
     if (!form.title.trim()) { setError('Le titre est requis.'); return }
     if (!form.bodyHtml.trim() || form.bodyHtml === '<p></p>') { setError('Le contenu est requis.'); return }
     try {
-      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Ressource modifiée') }
+      if (editingId) { await updateMutation.mutateAsync({ id: editingId, ...form }); toast.success('Ressource enregistrée') }
       else { await createMutation.mutateAsync(form); toast.success('Ressource créée') }
       setDirty(false); setFormOpen(false)
     } catch (err) { setError(parseApiError(err)) }
@@ -105,7 +106,7 @@ export default function AdminResourcesPage() {
 
   return (
     <Page>
-      <PageHeader title="Ressources" icon={Library}
+      <PageHeader title="Ressources" description="Chants, nœuds, techniques et documents du site public." icon={Library}
         actions={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouvelle ressource</Button>} />
 
       {isLoading ? (
@@ -132,8 +133,8 @@ export default function AdminResourcesPage() {
                   <TableCell><Badge variant={r.isPublished ? 'default' : 'secondary'}>{r.isPublished ? 'Publiée' : 'Brouillon'}</Badge></TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button></Tip>
-                      <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(r)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                      <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button></Tip>
+                      <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(r)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -148,7 +149,7 @@ export default function AdminResourcesPage() {
           <DialogHeader><DialogTitle>{editingId ? 'Modifier la ressource' : 'Nouvelle ressource'}</DialogTitle></DialogHeader>
           {/* onChange on the form marks the draft dirty for native inputs (title/tags/attachment names/checkbox). */}
           <form onSubmit={handleSubmit} onChange={() => setDirty(true)} className="space-y-4">
-            {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            {error && <Callout tone="danger">{error}</Callout>}
             <div className="space-y-2">
               <RequiredLabel required>Titre</RequiredLabel>
               <Input value={form.title} onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} required />
@@ -163,14 +164,14 @@ export default function AdminResourcesPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Mots-clés (optionnel)</label>
+                <RequiredLabel>Mots-clés (optionnel)</RequiredLabel>
                 <Input value={form.tags ?? ''} onChange={(e) => setForm(f => ({ ...f, tags: e.target.value || null }))} placeholder="feu, veillée, louveteau…" />
                 <p className="text-xs text-muted-foreground">Séparés par des virgules — utilisés pour la recherche.</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Image de couverture</label>
+              <RequiredLabel>Image de couverture</RequiredLabel>
               {form.coverImagePath ? (
                 <div className="relative overflow-hidden rounded-lg border">
                   <img src={form.coverImagePath} alt="" className="h-44 w-full object-cover" />
@@ -192,7 +193,7 @@ export default function AdminResourcesPage() {
 
             {/* Attachments — mp3 (audio for chants) / PDF / images, listed + downloadable on the public page. */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Fichiers (audio MP3, PDF, images)</label>
+              <RequiredLabel>Fichiers (audio MP3, PDF, images)</RequiredLabel>
               {form.attachments.length > 0 && (
                 <ul className="space-y-1.5">
                   {form.attachments.map((a, i) => (
@@ -200,7 +201,7 @@ export default function AdminResourcesPage() {
                       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <input value={a.name} onChange={(e) => setForm(f => ({ ...f, attachments: f.attachments.map((x, j) => j === i ? { ...x, name: e.target.value } : x) }))} className="min-w-0 flex-1 bg-transparent outline-none" />
                       <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Voir</a>
-                      <button type="button" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button>
+                      <Tip content="Retirer le fichier"><button type="button" aria-label="Retirer le fichier" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button></Tip>
                     </li>
                   ))}
                 </ul>
@@ -213,11 +214,11 @@ export default function AdminResourcesPage() {
 
             <div className="flex items-center gap-2">
               <input type="checkbox" id="isPublished" checked={form.isPublished} onChange={(e) => setForm(f => ({ ...f, isPublished: e.target.checked }))} className="h-4 w-4 rounded border-input" />
-              <label htmlFor="isPublished" className="text-sm font-medium">Publier (visible sur le site public)</label>
+              <RequiredLabel htmlFor="isPublished">Publier (visible sur le site public)</RequiredLabel>
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement…' : editingId ? 'Enregistrer' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -226,7 +227,7 @@ export default function AdminResourcesPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer la ressource"
+        title="Supprimer la ressource ?"
         description={`Supprimer « ${deleting?.title} » ? Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"

@@ -11,7 +11,6 @@ import { ScanUploadDialog } from '@/components/members/scan-upload-dialog'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +18,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Tip } from '@/components/ui/tooltip'
+import { Callout } from '@/components/shared/callout'
+import { EmptyState } from '@/components/shared/empty-state'
+import { confirmAsync } from '@/lib/confirm'
+import { formatDate } from '@/lib/utils'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera, Smartphone } from 'lucide-react'
+import { DateInput } from '@/components/shared/date-input'
 
 // Document row actions share one size: 40px on phones (easy to tap), 36px on larger screens.
 const ICON_BTN = 'h-10 w-10 sm:h-9 sm:w-9'
@@ -184,6 +188,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   }
 
   const handleDeletePage = async (pageId: string) => {
+    if (!(await confirmAsync({ title: 'Supprimer la page ?', description: 'Ce fichier sera retiré du document. Cette action est irréversible.', confirmLabel: 'Supprimer', destructive: true }))) return
     try {
       await deletePageMutation.mutateAsync(pageId)
       toast.success('Page supprimée')
@@ -195,6 +200,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   // Delete page 1 (the primary file): the backend promotes the next page to primary. Only offered when the
   // document has another page (else there's nothing to promote — delete the whole document instead).
   const handleDeletePrimaryPage = async (docId: string) => {
+    if (!(await confirmAsync({ title: 'Supprimer la page ?', description: 'La page suivante deviendra la page principale du document. Cette action est irréversible.', confirmLabel: 'Supprimer', destructive: true }))) return
     try {
       await deletePrimaryPageMutation.mutateAsync(docId)
       toast.success('Page supprimée')
@@ -325,16 +331,14 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
     <div className="space-y-4">
       {/* Campaign gate banner (member's own view only): suspended, or deposit window closed. */}
       {memberBlock?.kind === 'hold' && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-800 dark:text-red-300">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span><strong>Compte suspendu.</strong> Votre dossier est incomplet : le dépôt de documents est désactivé. Contactez la <strong>maîtrise de groupe</strong> pour réactiver votre compte.</span>
-        </div>
+        <Callout tone="danger" icon={AlertTriangle} title="Compte suspendu">
+          Votre dossier est incomplet : le dépôt de documents est désactivé. Contactez la <strong>maîtrise de groupe</strong> pour réactiver votre compte.
+        </Callout>
       )}
       {memberBlock?.kind === 'closed' && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm text-amber-800 dark:text-amber-300">
-          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Le dépôt des documents est actuellement <strong>fermé</strong>.{memberBlock.reopensOn ? ` Réouverture le ${new Date(memberBlock.reopensOn).toLocaleDateString('fr-FR')}.` : ''}</span>
-        </div>
+        <Callout tone="warning" icon={Clock}>
+          Le dépôt des documents est actuellement <strong>fermé</strong>.{memberBlock.reopensOn ? ` Réouverture le ${formatDate(memberBlock.reopensOn)}.` : ''}
+        </Callout>
       )}
 
       {/* Progress summary */}
@@ -360,8 +364,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
 
       {!docTypes || docTypes.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">Aucun type de document actif.</p>
+          <CardContent>
+            <EmptyState icon={FileText} title="Aucun type de document actif" />
           </CardContent>
         </Card>
       ) : (
@@ -402,8 +406,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                           <Files className="h-3 w-3" />{doc.pages.length} pages
                         </button>
                       )}
-                      {doc.expiryDate && <span>Expire : {new Date(doc.expiryDate).toLocaleDateString('fr-FR')}</span>}
-                      <span>Envoyé : {new Date(doc.createdAt!).toLocaleDateString('fr-FR')}</span>
+                      {doc.expiryDate && <span>Expire : {formatDate(doc.expiryDate)}</span>}
+                      <span>Envoyé : {formatDate(doc.createdAt)}</span>
                     </div>
                   )}
                   {doc?.reviewNotes && (
@@ -442,24 +446,24 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {/* Row download opens page 1 — hide it when page 1's file is gone (it would 404); the pages
                       viewer still lists any downloadable extra pages. */}
                   {doc && !doc.pages.find(p => p.isPrimary)?.fileMissing && (
-                    <Tip content="Télécharger le document"><Button variant="outline" size="icon" className={ICON_BTN} onClick={() => handleDownload(doc)}>
+                    <Tip content="Télécharger le document"><Button variant="outline" size="icon" className={ICON_BTN} aria-label="Télécharger le document" onClick={() => handleDownload(doc)}>
                       <Download className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {doc && doc.status !== 'Approved' && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Accepter"><Button variant="outline" size="icon" className={`${ICON_BTN} border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300`} onClick={() => handleQuickReview(doc.id, 'Approved')}>
+                    <Tip content="Accepter"><Button variant="outline" size="icon" aria-label="Accepter le document" className={`${ICON_BTN} border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300`} onClick={() => handleQuickReview(doc.id, 'Approved')}>
                       <CheckCircle className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {/* Show for any status so an already-refused doc can be reopened to add/edit the reason;
                       pre-fill the existing note so editing keeps it. */}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_APPROVE) && (
-                    <Tip content="Refuser"><Button variant="outline" size="icon" className={`${ICON_BTN} border-red-300 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300`} onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
+                    <Tip content="Refuser"><Button variant="outline" size="icon" aria-label="Refuser le document" className={`${ICON_BTN} border-red-300 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300`} onClick={() => { setReviewOpen(doc); setReviewNotes(doc.reviewNotes ?? '') }}>
                       <XCircle className="h-5 w-5" />
                     </Button></Tip>
                   )}
                   {doc && hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
-                    <Tip content="Supprimer"><Button variant="outline" size="icon" className={`${ICON_BTN} text-destructive hover:text-destructive`} onClick={() => setDeleting(doc)}>
+                    <Tip content="Supprimer le document"><Button variant="outline" size="icon" aria-label="Supprimer le document" className={`${ICON_BTN} text-destructive hover:text-destructive`} onClick={() => setDeleting(doc)}>
                       <Trash2 className="h-5 w-5" />
                     </Button></Tip>
                   )}
@@ -591,7 +595,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
             </p>
             <div className="space-y-2">
               <RequiredLabel required>Date d'expiration</RequiredLabel>
-              <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+              <DateInput value={expiryDate} onChange={(iso) => setExpiryDate(iso ?? '')} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setUploadingDocTypeId(null); setPendingFiles([]) }}>Annuler</Button>
@@ -708,7 +712,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     </span>
                     {/* No download for a missing file (it would 404) — hide the button. */}
                     {!p.fileMissing && (
-                      <Tip content="Télécharger"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
+                      <Tip content="Télécharger la page"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Télécharger la page" onClick={() => openDoc && handleDownloadPage(openDoc, p)}>
                         <Download className="h-4 w-4" />
                       </Button></Tip>
                     )}
@@ -717,13 +721,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                         <span className="px-1 text-[10px] text-muted-foreground">page principale</span>
                         {/* Delete page 1 only when another page can take its place (else delete the whole document). */}
                         {hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (openDoc?.pages.length ?? 0) > 1 && (
-                          <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-9 w-9 text-destructive sm:h-8 sm:w-8" disabled={deletePrimaryPageMutation.isPending} onClick={() => openDoc && handleDeletePrimaryPage(openDoc.id)}>
+                          <Tip content="Supprimer la page"><Button variant="ghost" size="icon" aria-label="Supprimer la page" className="h-9 w-9 text-destructive sm:h-8 sm:w-8" disabled={deletePrimaryPageMutation.isPending} onClick={() => openDoc && handleDeletePrimaryPage(openDoc.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button></Tip>
                         )}
                       </>
                     ) : hasPermission(PERMISSIONS.DOCUMENTS_DELETE) && (
-                      <Tip content="Supprimer la page"><Button variant="ghost" size="icon" className="h-9 w-9 text-destructive sm:h-8 sm:w-8" disabled={deletePageMutation.isPending} onClick={() => p.pageId && handleDeletePage(p.pageId)}>
+                      <Tip content="Supprimer la page"><Button variant="ghost" size="icon" aria-label="Supprimer la page" className="h-9 w-9 text-destructive sm:h-8 sm:w-8" disabled={deletePageMutation.isPending} onClick={() => p.pageId && handleDeletePage(p.pageId)}>
                         <Trash2 className="h-4 w-4" />
                       </Button></Tip>
                     )}
@@ -747,7 +751,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
-        title="Supprimer le document"
+        title="Supprimer le document ?"
         description={`Êtes-vous sûr de vouloir supprimer « ${deleting?.title} » ? Cette action est irréversible.`}
         confirmLabel="Supprimer"
         variant="destructive"

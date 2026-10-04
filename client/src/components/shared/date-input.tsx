@@ -27,8 +27,16 @@ export function DateInput({ value, onChange, className, disabled }: DateInputPro
 
   // Re-sync when the value changes from outside (hydration, reset) — render-phase reset (React's
   // alternative to a syncing effect): updates before paint, no extra render pass.
+  // Only for changes coming from OUTSIDE: a value equal to what this field just emitted (e.g. null while the
+  // user is mid-edit after deleting a digit) must not wipe the half-typed text.
   const [prevValue, setPrevValue] = useState(value)
-  if (value !== prevValue) { setPrevValue(value); setText(isoToDisplay(value)) }
+  const [lastEmitted, setLastEmitted] = useState<string | null | undefined>(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    if ((value ?? null) !== (lastEmitted ?? null)) setText(isoToDisplay(value))
+  }
+
+  const emit = (iso: string | null) => { setLastEmitted(iso); onChange(iso) }
 
   function handleChange(raw: string) {
     // Keep only digits (max 8 = ddmmyyyy) and re-insert slashes as they fill in.
@@ -45,9 +53,9 @@ export function DateInput({ value, onChange, className, disabled }: DateInputPro
       const d = Number(dd), mo = Number(mm), y = Number(yyyy)
       const dt = new Date(y, mo - 1, d)
       const valid = dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d
-      onChange(valid ? `${yyyy}-${mm}-${dd}` : null)
+      emit(valid ? `${yyyy}-${mm}-${dd}` : null)
     } else {
-      onChange(null)
+      emit(null)
     }
   }
 
