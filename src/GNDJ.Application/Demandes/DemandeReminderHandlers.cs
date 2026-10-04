@@ -55,7 +55,7 @@ public class SendSubmissionRemindersCommandHandler(IApplicationDbContext context
             .Select(a => new { a.Email, a.ContactName })
             .ToListAsync(ct);
 
-        var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5173").TrimEnd('/');
+        var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5180").TrimEnd('/');
         var portalUrl = $"{baseUrl}/inscription";
         // Deadline (dd/MM/yyyy) for the email, else a soft phrase.
         var deadlineRaw = await context.Settings.Where(s => s.Key == "demande.submission_deadline").Select(s => s.Value).FirstOrDefaultAsync(ct);

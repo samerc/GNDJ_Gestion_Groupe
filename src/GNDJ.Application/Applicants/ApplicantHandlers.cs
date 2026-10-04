@@ -108,7 +108,7 @@ static class ApplicantHelpers
     // Queues the verification email (sent in the background — never blocks/fails registration).
     public static async Task SendVerificationEmail(IApplicationDbContext ctx, IEmailQueue queue, ApplicantAccount account, CancellationToken ct)
     {
-        var baseUrl = (await Setting(ctx, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
+        var baseUrl = (await Setting(ctx, "app.base_url", ct) ?? "http://localhost:5180").TrimEnd('/');
         var link = $"{baseUrl}/inscription/verify?token={account.EmailVerificationToken}";
         await queue.EnqueueAsync(new EmailJob("demande_email_verification", account.Email, new Dictionary<string, string>
         {
@@ -606,7 +606,7 @@ public class RequestApplicantPasswordResetCommandHandler(IApplicationDbContext c
             account.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
             await context.SaveChangesAsync(ct);
 
-            var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
+            var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5180").TrimEnd('/');
             var link = $"{baseUrl}/inscription/reset-password?token={token}&email={Uri.EscapeDataString(email)}";
             await emailQueue.EnqueueAsync(new EmailJob("demande_password_reset", account.Email, new Dictionary<string, string>
             {
@@ -766,7 +766,7 @@ public class ResendMemberActivationCommandHandler(IApplicationDbContext context,
         user.PasswordResetTokenExpiry = DateTime.UtcNow.AddDays(activationDays);
         await context.SaveChangesAsync(ct);
 
-        var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5173").TrimEnd('/');
+        var baseUrl = (await ApplicantHelpers.Setting(context, "app.base_url", ct) ?? "http://localhost:5180").TrimEnd('/');
         var link = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(user.Email)}&setup=1";
 
         // Deliver to the member's designated contact email (household primary → account email fallback).

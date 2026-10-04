@@ -41,7 +41,7 @@ dotnet run --project src/GNDJ.Api --urls "http://localhost:5000"
 # Frontend
 cd client
 npm install
-npm run dev          # Dev server (port 5173, proxies /api to localhost:5000)
+npm run dev          # Dev server (port 5180 — fixed, strictPort; proxies /api to localhost:5000)
 npm run build        # Production build
 
 # Database
@@ -3015,7 +3015,7 @@ self-heals on the next deploy/startup.
       and recorded them in `data_patches`. **Lesson: patch files are verbatim trusted SQL — never route them through
       `ExecuteSqlRaw`** (any bare `{` in JSON/template content breaks it). Also fixed the marker-date parse elsewhere
       is separate.
-- [x] **Dev "WebRootPath not found (wwwroot)" warning silenced.** In Development the SPA is served by Vite (:5173)
+- [x] **Dev "WebRootPath not found (wwwroot)" warning silenced.** In Development the SPA is served by Vite (:5180)
       and the API has no `wwwroot`, but it still registered `UseDefaultFiles`/`UseStaticFiles` + `MapFallbackToFile`
       → a framework Warning on every startup, flooding the dev Journal des erreurs. Guarded all three behind
       `!app.Environment.IsDevelopment()` (dev API is API-only). Prod unchanged. (2026-08-25)
@@ -6419,6 +6419,7 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   confirms (document page delete, custom-field clear, passage open/close, notification send, commission removal,
   login-message delete, email-queue delete, guardian phone/email delete); demande quota no longer saves 0 on blur.
 - Verified: tsc + eslint + build clean, smoke suite 60/60 API + 20/20 browser, bundle budget OK (entry unchanged).
-  NOTE: port 5173 on this box can be taken by ANOTHER project's Vite (title "Vessel Compliance") — run the browser
-  checks with `GNDJ_APP=http://localhost:<port>` against GNDJ's own Vite.
+  NOTE: port 5173 on this box is used by ANOTHER project's Vite ("Vessel Compliance") → GNDJ's dev frontend now runs on
+  a FIXED port **5180** (vite.config `port: 5180, strictPort: true`; API CORS, app.base_url default + dev-sync script,
+  start.ps1, smoke tests and help-docs tools all point at 5180).
 

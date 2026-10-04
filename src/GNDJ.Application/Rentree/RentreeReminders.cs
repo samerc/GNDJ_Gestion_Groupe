@@ -88,7 +88,7 @@ public static class RentreeReminders
             .Select(u => new { u.Id, u.Name }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var rentreeUrl = $"{baseUrl}/rentree";
 
         var jobs = new List<EmailJob>();

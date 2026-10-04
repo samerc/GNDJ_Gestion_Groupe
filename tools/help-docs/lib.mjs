@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 export const IMG_DIR = join(ROOT, 'docs', 'help', 'img')
-export const APP = (process.env.GNDJ_APP || 'http://localhost:5173').replace(/\/$/, '')
+export const APP = (process.env.GNDJ_APP || 'http://localhost:5180').replace(/\/$/, '')
 const PWD = process.env.GNDJ_PASSWORD || 'Gndj2026!'
 const BROWSER = process.env.GNDJ_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 const PSQL = process.env.GNDJ_PSQL || 'C:/Program Files/PostgreSQL/18/bin/psql.exe'

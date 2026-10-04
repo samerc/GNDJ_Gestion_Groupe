@@ -8,5 +8,5 @@ Write-Host "Backend starting on http://localhost:5000" -ForegroundColor Green
 
 # Start frontend
 Set-Location client
-Write-Host "Frontend starting on http://localhost:5173" -ForegroundColor Green
+Write-Host "Frontend starting on http://localhost:5180" -ForegroundColor Green
 npm run dev

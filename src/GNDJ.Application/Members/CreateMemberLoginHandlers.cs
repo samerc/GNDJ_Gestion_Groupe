@@ -212,7 +212,7 @@ static class LoginProvisioning
     {
         var domain = await UsernameFactory.GetDomainAsync(context, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var days = int.TryParse(await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct), out var d) && d > 0 ? d : 30;
         var year = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
         return new LoginSettings(domain, baseUrl, days, year);

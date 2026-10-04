@@ -48,7 +48,7 @@ public static class PassageReminders
 
         var settings = await context.Settings.Where(s => s.Key == "app.base_url" || s.Key == "passage.date")
             .ToDictionaryAsync(s => s.Key, s => s.Value, ct);
-        var baseUrl = (settings.GetValueOrDefault("app.base_url") is { Length: > 0 } b ? b : "http://localhost:5173").TrimEnd('/');
+        var baseUrl = (settings.GetValueOrDefault("app.base_url") is { Length: > 0 } b ? b : "http://localhost:5180").TrimEnd('/');
         var passageDate = DateOnly.TryParse(settings.GetValueOrDefault("passage.date"), out var d) ? d.ToString("dd/MM/yyyy") : "la date du passage";
 
         int emails = 0, notified = 0;

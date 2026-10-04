@@ -381,7 +381,7 @@ public class SendGroupMessageCommandHandler(IApplicationDbContext context, ICurr
 
         // Shared values for templates (the "mise à jour de la fiche" letter uses the login link + the year).
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var scoutYear = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
 
         var code = useTemplate ? request.TemplateCode!.Trim() : "adhoc_message";

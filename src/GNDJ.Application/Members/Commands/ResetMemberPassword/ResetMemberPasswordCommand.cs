@@ -65,7 +65,7 @@ public class ResetMemberPasswordCommandHandler(
         if (!string.IsNullOrWhiteSpace(sentTo))
         {
             var baseUrl = (await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)
-                ?? "http://localhost:5173").TrimEnd('/');
+                ?? "http://localhost:5180").TrimEnd('/');
             await emailQueue.EnqueueAsync(new EmailJob("member_password_reset", sentTo!, new Dictionary<string, string>
             {
                 ["memberName"] = $"{member.FirstName} {member.LastName}".Trim(),

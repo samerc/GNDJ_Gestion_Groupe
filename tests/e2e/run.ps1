@@ -1,7 +1,7 @@
 <#
   Runs the GNDJ end-to-end smoke tests against the LOCAL dev app. Run it before every deploy.
     1. API checks     (python tests/e2e/api_smoke.py)   - needs the API on :5000
-    2. Browser checks (node tests/e2e/ui_smoke.mjs)     - needs the API + the frontend on :5173 + Microsoft Edge
+    2. Browser checks (node tests/e2e/ui_smoke.mjs)     - needs the API + the frontend on :5180 + Microsoft Edge
     3. First-load size budget (node tests/e2e/bundle_budget.mjs) - builds the frontend into a temp folder
   Exit code 0 = everything passed. -ApiOnly skips the browser part; -Unit also runs the .NET unit tests first
   (stop the API before -Unit: the test build needs the DLLs it locks); -SkipBundle skips the size budget.

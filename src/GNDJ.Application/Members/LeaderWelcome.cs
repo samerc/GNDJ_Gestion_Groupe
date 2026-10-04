@@ -40,7 +40,7 @@ public static class LeaderWelcome
         var sendEnabled = await context.EmailTemplates.AnyAsync(t => t.Code == TemplateCode && t.IsActive, ct);
         var resolver = await ContactEmailResolver.LoadAsync(context, ids, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var scoutYear = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
 
         var jobs = new List<EmailJob>();

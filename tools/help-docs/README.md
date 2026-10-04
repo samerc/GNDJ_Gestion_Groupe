@@ -6,7 +6,7 @@ The API serves them role-filtered (`/api/v1/help`); in Development it reads the 
 shows on refresh. Diagrams: ```` ```mermaid ```` blocks. Callouts: blockquotes starting with 💡, ⚠️ or ✅.
 Link to another guide with `[text](guide-membre.md#section)`.
 
-Both tools run against the LOCAL dev app (API :5000 + Vite :5173), dev data from `deploy/dev-sync-from-prod.ps1`,
+Both tools run against the LOCAL dev app (API :5000 + Vite :5180), dev data from `deploy/dev-sync-from-prod.ps1`,
 every login `Gndj2026!`. `npm install` once in this folder.
 
 - `node capture.mjs [public member cu cg admin]` — retakes the screenshots. Every real name, email and phone is

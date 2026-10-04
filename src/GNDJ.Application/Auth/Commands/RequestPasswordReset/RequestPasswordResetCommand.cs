@@ -62,7 +62,7 @@ public class RequestPasswordResetCommandHandler(
         var baseUrl = await context.Settings
             .Where(s => s.Key == "app.base_url")
             .Select(s => s.Value)
-            .FirstOrDefaultAsync(ct) ?? "http://localhost:5173";
+            .FirstOrDefaultAsync(ct) ?? "http://localhost:5180";
         var resetLink = $"{baseUrl}/reset-password?token={token}&email={Uri.EscapeDataString(email)}";
         var vars = new Dictionary<string, string>
         {

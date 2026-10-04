@@ -279,7 +279,7 @@ public class SendDocumentRemindersCommandHandler(
 
         var resolver = await ContactEmailResolver.LoadAsync(context, targetIds, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var documentsUrl = $"{baseUrl}/my-documents";
         var today = LebanonClock.Today;
 

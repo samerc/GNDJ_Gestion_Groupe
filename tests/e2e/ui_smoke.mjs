@@ -1,13 +1,13 @@
-// GNDJ end-to-end BROWSER smoke tests - run against the LOCAL dev app (Vite :5173 + API :5000) before a deploy.
+// GNDJ end-to-end BROWSER smoke tests - run against the LOCAL dev app (Vite :5180 + API :5000) before a deploy.
 // Drives the installed Microsoft Edge through playwright-core (no browser download). Covers the flows people use
 // every day: login, the CU roster + member file, the phone back button (member file + installed app), the offline
 // screen, and a few admin pages. Signs its test sessions out at the end.
 //
 //   cd tests/e2e && npm install   (once)      then:   node ui_smoke.mjs
-// Settings (env): GNDJ_APP (http://localhost:5173), GNDJ_PASSWORD, GNDJ_ADMIN, GNDJ_CU, GNDJ_BROWSER (Edge path).
+// Settings (env): GNDJ_APP (http://localhost:5180), GNDJ_PASSWORD, GNDJ_ADMIN, GNDJ_CU, GNDJ_BROWSER (Edge path).
 import { chromium } from 'playwright-core'
 
-const APP = (process.env.GNDJ_APP || 'http://localhost:5173').replace(/\/$/, '')
+const APP = (process.env.GNDJ_APP || 'http://localhost:5180').replace(/\/$/, '')
 const PWD = process.env.GNDJ_PASSWORD || 'Gndj2026!'
 const ADMIN = process.env.GNDJ_ADMIN || 'admin@gndj.local'
 const CU = process.env.GNDJ_CU || 'wissam.azouri@scouts.gndj'

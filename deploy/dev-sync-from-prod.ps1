@@ -122,7 +122,7 @@ DELETE FROM email_outbox;
 DELETE FROM push_outbox;
 DELETE FROM push_subscriptions;
 DELETE FROM smtp_servers;
-UPDATE settings SET value = 'http://localhost:5173' WHERE key = 'app.base_url';
+UPDATE settings SET value = 'http://localhost:5180' WHERE key = 'app.base_url';
 UPDATE settings SET value = '' WHERE key = 'email.override_recipient';
 -- Dev convenience: give EVERY login the same easy password so any member (or admin@gndj.local) can be signed
 -- in while testing against the real prod data. Safe - this local dev copy can never send real email.

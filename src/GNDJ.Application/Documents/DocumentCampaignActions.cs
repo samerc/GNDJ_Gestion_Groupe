@@ -255,7 +255,7 @@ public static class DocumentCampaignActions
 
     private static async Task<string> BaseUrlAsync(IApplicationDbContext ctx, CancellationToken ct) =>
         ((await ctx.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
 
     // Upsert a marker setting (idempotency stamp) so the automated step fires once per campaign.
     public static async Task SetMarkerAsync(IApplicationDbContext ctx, string key, string? value, CancellationToken ct)

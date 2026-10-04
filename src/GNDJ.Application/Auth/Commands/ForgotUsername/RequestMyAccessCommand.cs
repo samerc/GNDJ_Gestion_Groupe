@@ -67,7 +67,7 @@ public class RequestMyAccessCommandHandler(IApplicationDbContext context, IEmail
             .ToListAsync(ct);
 
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var expiry = DateTime.UtcNow.AddDays(ExpiryDays);
         var jobs = new List<EmailJob>();
 

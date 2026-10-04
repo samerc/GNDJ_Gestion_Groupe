@@ -62,7 +62,7 @@ public class SendAccessEmailsCommandHandler(
 
         var resolver = await ContactEmailResolver.LoadAsync(context, targetIds, ct);
         var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct))
-            ?? "http://localhost:5173").TrimEnd('/');
+            ?? "http://localhost:5180").TrimEnd('/');
         var expiryDays = int.TryParse(await context.Settings.Where(s => s.Key == "member.activation_link_days").Select(s => s.Value).FirstOrDefaultAsync(ct), out var ad) && ad > 0 ? ad : 30;
 
         var active = await context.EmailTemplates

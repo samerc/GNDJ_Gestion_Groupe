@@ -6,7 +6,7 @@ They complement the .NET unit tests (`dotnet test GNDJ.slnx`), which test logic 
 | Script | What it checks | Needs |
 |---|---|---|
 | `api_smoke.py` | sign-in + lockout, one session per device, access control between roles (youth / CU / CG / super-admin), main screens' endpoints, data quality + bounce webhooks, public site + parent portal | API on :5000 |
-| `ui_smoke.mjs` | login pages, CU roster + member file, phone back button, installed-app back button, offline screen, admin pages, no JavaScript errors | API + frontend on :5173 + Microsoft Edge |
+| `ui_smoke.mjs` | login pages, CU roster + member file, phone back button, installed-app back button, offline screen, admin pages, no JavaScript errors | API + frontend on :5180 + Microsoft Edge |
 
 ## Run
 

@@ -162,7 +162,7 @@ public class SendLeaderMessageCommandHandler(
             .ToListAsync(ct);
 
         var scoutYear = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
-        var loginUrl = (await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "http://localhost:5173").TrimEnd('/');
+        var loginUrl = (await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "http://localhost:5180").TrimEnd('/');
 
         var memberIds = rows.Select(r => r.MemberId).Distinct().ToList();
         var resolver = await ContactEmailResolver.LoadAsync(context, memberIds, ct);

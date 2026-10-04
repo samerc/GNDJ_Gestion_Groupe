@@ -234,7 +234,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Development", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5180", "http://127.0.0.1:5180")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -497,7 +497,7 @@ if (!app.Environment.IsDevelopment())
 
 // Serve the React build (copied into wwwroot at publish time) so the API and SPA share one origin.
 // API routes are matched by controllers first; everything else falls back to the SPA shell below.
-// In Development the SPA is served by the Vite dev server (port 5173) and there is NO wwwroot, so skip static
+// In Development the SPA is served by the Vite dev server (port 5180) and there is NO wwwroot, so skip static
 // serving + the SPA fallback — the dev API is API-only. This also avoids the framework's per-startup
 // "The WebRootPath was not found … Static files may be unavailable" warning polluting the dev error log.
 if (!app.Environment.IsDevelopment())
@@ -606,7 +606,7 @@ app.MapHealthChecks("/health");
 app.MapControllers();
 
 // SPA client-side routing: any non-API, non-file request returns index.html (prod only — in dev the SPA is
-// served by Vite on :5173 and there's no wwwroot/index.html to fall back to).
+// served by Vite on :5180 and there's no wwwroot/index.html to fall back to).
 if (!app.Environment.IsDevelopment())
     app.MapFallbackToFile("index.html");
 

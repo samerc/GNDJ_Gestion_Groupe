@@ -70,8 +70,13 @@ export default defineConfig({
     // Pin the dev server + API proxy to IPv4 (127.0.0.1) rather than "localhost". On newer Node the DNS
     // result order is "verbatim", so "localhost" can resolve to IPv6 ::1 — but the backend listens on IPv4
     // 127.0.0.1:5000 only, so a "localhost" proxy target silently hangs every /api call (endless dashboard
-    // spinner). Binding the host to 127.0.0.1 keeps the browser on IPv4 too. Open http://127.0.0.1:5173.
+    // spinner). Binding the host to 127.0.0.1 keeps the browser on IPv4 too. Open http://127.0.0.1:5180.
     host: '127.0.0.1',
+    // Fixed port 5180 (not Vite's default 5173, which another project on this machine uses). strictPort: if 5180
+    // is busy Vite stops with an error instead of silently moving to another port — the API's CORS, app.base_url
+    // (links in emails) and the smoke tests all point at 5180.
+    port: 5180,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5000',

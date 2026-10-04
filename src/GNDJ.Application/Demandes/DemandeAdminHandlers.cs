@@ -1132,7 +1132,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
         var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
-        var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5173").TrimEnd('/');
+        var baseUrl = ((await context.Settings.Where(s => s.Key == "app.base_url").Select(s => s.Value).FirstOrDefaultAsync(ct)) ?? "http://localhost:5180").TrimEnd('/');
         var loginUrl = $"{baseUrl}/login";
         // The acceptance email carries a set-password (activation) link, valid for a configurable window
         // (member.activation_link_days, default 30) so a busy parent has time to click — same model as
