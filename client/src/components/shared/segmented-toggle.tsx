@@ -16,12 +16,15 @@ export function SegmentedToggle<T extends string>({
   onChange,
   size = 'default',
   className,
+  disabled = false,
 }: {
   options: SegOption<T>[]
   value: T
   onChange: (v: T) => void
   size?: 'sm' | 'default'
   className?: string
+  /** Greys out every segment (e.g. read-only view). */
+  disabled?: boolean
 }) {
   return (
     <div
@@ -39,9 +42,10 @@ export function SegmentedToggle<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
+            disabled={disabled}
             aria-pressed={active}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-[5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+              'inline-flex items-center gap-1.5 rounded-[5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50',
               size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
               active
                 ? 'bg-card text-foreground shadow-2xs'

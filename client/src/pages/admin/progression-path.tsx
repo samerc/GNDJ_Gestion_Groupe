@@ -340,7 +340,7 @@ export default function ProgressionPathPage() {
               <div className="space-y-2">
                 <RequiredLabel required>De (type d'unité)</RequiredLabel>
                 <Select value={form.fromUnitTypeId} onValueChange={v => setForm(f => ({ ...f, fromUnitTypeId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Source..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Source…" /></SelectTrigger>
                   <SelectContent>
                     {unitTypes?.map(ut => (
                       <SelectItem key={ut.id} value={ut.id}>{ut.name} {ageLabel(ut.ageMin, ut.ageMax) ? `(${ageLabel(ut.ageMin, ut.ageMax)})` : ''}</SelectItem>
@@ -351,7 +351,7 @@ export default function ProgressionPathPage() {
               <div className="space-y-2">
                 <RequiredLabel required>Vers (type d'unité)</RequiredLabel>
                 <Select value={form.toUnitTypeId} onValueChange={v => setForm(f => ({ ...f, toUnitTypeId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Destination..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Destination…" /></SelectTrigger>
                   <SelectContent>
                     {unitTypes?.map(ut => (
                       <SelectItem key={ut.id} value={ut.id}>{ut.name} {ageLabel(ut.ageMin, ut.ageMax) ? `(${ageLabel(ut.ageMin, ut.ageMax)})` : ''}</SelectItem>
@@ -384,13 +384,13 @@ export default function ProgressionPathPage() {
 
             <div className="space-y-2">
               <RequiredLabel>Notes</RequiredLabel>
-              <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ex: ACU puis CU..." />
+              <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ex: ACU puis CU…" />
             </div>
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : 'Enregistrer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : 'Enregistrer'}
               </Button>
             </DialogFooter>
           </form>

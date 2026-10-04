@@ -58,7 +58,7 @@ export default function ApplicantConditionsPage() {
           </label>
           <div className="flex flex-col gap-2 sm:flex-row-reverse">
             <Button className="w-full sm:flex-1" disabled={!checked || accept.isPending} onClick={handleAccept}>
-              {accept.isPending ? 'Enregistrement...' : 'Accepter et continuer'}
+              {accept.isPending ? 'Enregistrement…' : 'Accepter et continuer'}
             </Button>
             <Button variant="outline" className="w-full sm:flex-1" disabled={accept.isPending} onClick={handleRefuse}>
               Refuser

@@ -64,7 +64,7 @@ export default function UnitsPage() {
         <SearchInput
           value={search}
           onChange={(v) => { setSearch(v); setPage(1) }}
-          placeholder="Rechercher..."
+          placeholder="Rechercher…"
           className="flex-1 min-w-[200px] max-w-sm"
         />
         <Select value={assocFilter || '_all'} onValueChange={(v) => { setAssocFilter(v === '_all' ? '' : v); setPage(1) }}>

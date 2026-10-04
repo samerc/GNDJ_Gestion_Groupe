@@ -746,7 +746,7 @@ export default function PassageValidationPage() {
             disabled={!canFinalize || finalizeMutation.isPending}
           >
             <Send className="mr-2 h-5 w-5" />
-            {finalizeMutation.isPending ? 'Publication en cours...' : 'Publier le passage'}
+            {finalizeMutation.isPending ? 'Publication en cours…' : 'Publier le passage'}
           </Button>
         )}
       </div>
@@ -898,7 +898,7 @@ export default function PassageValidationPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialog(null)}>Annuler</Button>
             <Button onClick={handleEditSubmit} disabled={reviewMutation.isPending}>
-              {reviewMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              {reviewMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </DialogContent>

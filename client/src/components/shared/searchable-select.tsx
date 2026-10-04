@@ -33,8 +33,8 @@ export function SearchableSelect({
   onValueChange,
   options,
   pinnedValues = [],
-  placeholder = 'Sélectionner...',
-  searchPlaceholder = 'Rechercher...',
+  placeholder = 'Sélectionner…',
+  searchPlaceholder = 'Rechercher…',
   emptyMessage = 'Aucun résultat.',
   clearable = false,
 }: SearchableSelectProps) {

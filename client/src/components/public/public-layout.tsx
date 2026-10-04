@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
-import { Toaster } from 'sonner'
 import { Menu, X, MapPin, Mail, Phone, ArrowUp } from 'lucide-react'
 import { BrandMark } from '@/components/shared/brand-mark'
 
@@ -59,7 +58,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 // ROLE: shell for the anonymous public site (home, /unites, /actualites, /p/:slug, /contact).
 // Scroll-aware sticky header, nav built dynamically from CMS pages, and a footer.
-// Mounts its own Sonner <Toaster> (public site lives outside AppLayout). The
+// The
 // "Demande d'inscription" CTA only appears when inscriptions are open.
 export function PublicLayout() {
   const [scrolled, setScrolled] = useState(false)
@@ -126,7 +125,6 @@ export function PublicLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Toaster richColors position="top-center" />
       <header className={cn('sticky top-0 z-50 border-b transition-all duration-300',
         scrolled ? 'border-border bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70'
           : 'border-transparent bg-background/60 backdrop-blur-sm')}>

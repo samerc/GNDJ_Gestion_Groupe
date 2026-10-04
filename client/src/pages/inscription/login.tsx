@@ -110,7 +110,7 @@ export default function ApplicantLoginPage() {
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Connexion...' : 'Se connecter'}
+              {loading ? 'Connexion…' : 'Se connecter'}
             </Button>
           </form>
           {/* Login is now the portal's first page, so "Créer un compte" is a full, obvious button (not a small

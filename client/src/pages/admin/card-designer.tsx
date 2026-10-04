@@ -144,7 +144,7 @@ export default function CardDesignerPage({ embedded = false }: { embedded?: bool
 
             <Button onClick={handleSave} disabled={updateSetting.isPending} className="w-full">
               <Save className="mr-2 h-4 w-4" />
-              {updateSetting.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              {updateSetting.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </CardContent>
         </Card>

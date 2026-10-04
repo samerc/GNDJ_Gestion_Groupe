@@ -32,7 +32,7 @@ export function useUpdateMyProfile(memberId: string) {
   })
 }
 
-// POST /my-profile/review-contacts → the one-time contact-review popup « Confirmer »: apply the chosen courriel/
+// POST /my-profile/review-contacts → the one-time contact-review popup « Confirmer »: apply the chosen email/
 // téléphone principal + parents' situation + per-parent urgence/décédé and stamp ContactReviewedAt. The caller
 // reloads the user afterward (clears needsContactReview), so no query invalidation here.
 export interface ReviewMyContactsInput {

@@ -187,7 +187,7 @@ public class AddMyGuardianEmailValidator : AbstractValidator<AddMyGuardianEmailC
 {
     public AddMyGuardianEmailValidator()
     {
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse email est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }
@@ -224,7 +224,7 @@ public class UpdateMyGuardianEmailValidator : AbstractValidator<UpdateMyGuardian
     public UpdateMyGuardianEmailValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse email est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }
@@ -248,7 +248,7 @@ public class UpdateMyGuardianEmailHandler(IApplicationDbContext context, ICurren
     public async ValueTask<Result<bool>> Handle(UpdateMyGuardianEmailCommand request, CancellationToken ct)
     {
         var entity = await context.GuardianEmails.FindAsync([request.Id], ct);
-        if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Email introuvable.");
         var old = entity.Address;
         entity.Address = request.Address; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary;
         await context.SaveChangesAsync(ct);
@@ -288,7 +288,7 @@ public class DeleteMyGuardianEmailHandler(IApplicationDbContext context, ICurren
     public async ValueTask<Result<bool>> Handle(DeleteMyGuardianEmailCommand request, CancellationToken ct)
     {
         var entity = await context.GuardianEmails.FindAsync([request.Id], ct);
-        if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Email introuvable.");
         var info = new { Parent = await AuditNames.GuardianAsync(context, entity.GuardianId, ct), Email = entity.Address };
         context.GuardianEmails.Remove(entity);
         await context.SaveChangesAsync(ct);

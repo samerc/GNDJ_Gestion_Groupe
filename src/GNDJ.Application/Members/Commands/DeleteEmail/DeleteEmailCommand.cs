@@ -25,7 +25,7 @@ public class DeleteEmailCommandHandler : IRequestHandler<DeleteEmailCommand, Res
     public async ValueTask<Result<bool>> Handle(DeleteEmailCommand request, CancellationToken cancellationToken)
     {
         var entity = await _context.MemberEmails.FindAsync([request.Id], cancellationToken);
-        if (entity is null) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null) return Result<bool>.Failure("Email introuvable.");
 
         if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, entity.MemberId, cancellationToken))
             return Result<bool>.Failure("Accès non autorisé.");

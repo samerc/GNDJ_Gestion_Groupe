@@ -87,7 +87,7 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
       // Font family + size marks (TextStyle-based) — only when the host opts in, so email/CMS output is unchanged.
       ...(enableFont ? [FontFamily, FontSize] : []),
       Image.configure({ inline: false, HTMLAttributes: { class: 'rounded-lg' } }),
-      Placeholder.configure({ placeholder: placeholder ?? 'Commencez à écrire...' }),
+      Placeholder.configure({ placeholder: placeholder ?? 'Commencez à écrire…' }),
       ...(extraExtensions ?? []),
     ],
     content,

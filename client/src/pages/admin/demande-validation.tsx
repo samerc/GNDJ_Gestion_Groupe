@@ -693,7 +693,7 @@ export default function DemandeValidationPage() {
           <span className="text-sm font-medium">{selectedCount} sélectionnée(s)</span>
           <div className="flex w-full items-center gap-1.5 sm:w-auto">
             <Select value={bulkUnit} onValueChange={setBulkUnit}>
-              <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue placeholder="Unité..." /></SelectTrigger>
+              <SelectTrigger className="h-9 w-full sm:w-56"><SelectValue placeholder="Unité…" /></SelectTrigger>
               <SelectContent>
                 {occList.map((u) => <SelectItem key={u.unitId} value={u.unitId}>{u.unitCode} — {u.unitName} · {u.accepted}{u.quota != null ? `/${u.quota}` : ''}{unitFull(u) ? ' ⚠' : ''}</SelectItem>)}
               </SelectContent>
@@ -1239,7 +1239,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
             <FieldRow label="Compte" value={d.accountEmail} />
             <FieldRow label="Responsable" value={d.contactName} />
             <FieldRow label="Téléphone enfant" value={d.phoneNumber} />
-            <FieldRow label="Courriel enfant" value={d.email} />
+            <FieldRow label="Email enfant" value={d.email} />
           </Grid>
           {addr && <p className="mt-2 flex items-start gap-2 text-sm"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />{addr}</p>}
         </Section>

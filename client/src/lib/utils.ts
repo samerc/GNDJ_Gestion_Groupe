@@ -19,9 +19,33 @@ export function computeAge(dob: string | null | undefined): number | null {
 }
 
 // Long French date, e.g. "5 juillet 2026"; empty string for null/blank.
-export function formatDateLong(d: string | null | undefined): string {
+// ── Dates: the ONE place the app formats dates, so every screen shows them the same way ──────────────
+// A bare 'yyyy-MM-dd' (DateOnly from the API) is read as a LOCAL calendar day — `new Date('2026-10-04')` would
+// be midnight UTC and could show the previous day in a timezone behind UTC.
+export function parseDay(d: string | Date): Date {
+  if (d instanceof Date) return d
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d)
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(d)
+}
+// 04/10/2026 — the default everywhere (lists, tables, badges).
+export function formatDate(d: string | Date | null | undefined): string {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  return parseDay(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+// 4 octobre 2026 — for reading pages (news, agenda, letters, deadlines in sentences).
+export function formatDateLong(d: string | Date | null | undefined): string {
+  if (!d) return ''
+  return parseDay(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+// 04/10/2026 18:10 — for timestamps (logs, sessions, emails, audit).
+export function formatDateTime(d: string | Date | null | undefined): string {
+  if (!d) return ''
+  const x = parseDay(d)
+  return `${formatDate(x)} ${x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+}
+// « oct. », « avr. » — the short French month (calendar tiles).
+export function formatMonthShort(d: string | Date): string {
+  return parseDay(d).toLocaleDateString('fr-FR', { month: 'short' })
 }
 
 // Parse a JSON array string defensively, returning [] on null/empty/malformed input instead of throwing.

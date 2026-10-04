@@ -587,7 +587,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Branche</label>
                     <Select value={unitTypeId} onValueChange={setUnitTypeId}>
-                      <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                       <SelectContent>{unitTypes?.items.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -596,7 +596,7 @@ function GroupDialog({ group, onClose }: { group: MemberGroupDto | null; onClose
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Unité</label>
                     <Select value={unitId} onValueChange={setUnitId}>
-                      <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                       <SelectContent>{units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -690,25 +690,25 @@ function RuleRow({ rule, roles, profiles, units, unitTypes, onChange, onRemove, 
           {/* Value picker (per criterion) */}
           {rule.criterion === 'profile' && (
             <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Profil..." /></SelectTrigger>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Profil…" /></SelectTrigger>
               <SelectContent>{profiles.map(p => <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
           {rule.criterion === 'role' && (
             <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Fonction..." /></SelectTrigger>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Fonction…" /></SelectTrigger>
               <SelectContent>{roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
           {rule.criterion === 'unit' && (
             <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Unité..." /></SelectTrigger>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Unité…" /></SelectTrigger>
               <SelectContent>{units.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
             </Select>
           )}
           {rule.criterion === 'unit-type' && (
             <Select value={rule.value ?? ''} onValueChange={v => onChange({ value: v })}>
-              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Branche..." /></SelectTrigger>
+              <SelectTrigger className="h-8 min-w-40 flex-1"><SelectValue placeholder="Branche…" /></SelectTrigger>
               <SelectContent>{unitTypes.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
           )}

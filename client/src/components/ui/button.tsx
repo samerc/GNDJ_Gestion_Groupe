@@ -10,6 +10,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover hover:shadow-sm",
+        // "Accepter" / "Pas de changement" / "Payé" style positive actions (instead of hand-picked bg-green-600).
+        success:
+          "bg-success text-success-foreground shadow-xs hover:bg-success/90 hover:shadow-sm",
         destructive:
           "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive-hover hover:shadow-sm",
         outline:

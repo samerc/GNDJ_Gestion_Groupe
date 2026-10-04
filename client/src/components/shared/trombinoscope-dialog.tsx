@@ -193,7 +193,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
           <Button onClick={handleGenerate} disabled={busy !== ''}>
             {busy === 'generate' ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileDown className="mr-1 h-4 w-4" />}
-            {busy === 'generate' ? 'Génération...' : (archiveInfo?.exists ? 'Générer à nouveau' : 'Générer')}
+            {busy === 'generate' ? 'Génération…' : (archiveInfo?.exists ? 'Générer à nouveau' : 'Générer')}
           </Button>
         </DialogFooter>
       </DialogContent>

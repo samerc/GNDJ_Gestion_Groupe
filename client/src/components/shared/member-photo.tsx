@@ -5,6 +5,7 @@ import apiClient from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { Camera, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmAsync } from '@/lib/confirm'
 
 interface MemberPhotoProps {
   memberId: string
@@ -102,7 +103,7 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
   }
 
   const handlePhotoDelete = async () => {
-    if (!window.confirm('Supprimer la photo de ce membre ?')) return
+    if (!(await confirmAsync({ title: 'Supprimer la photo ?', description: 'La photo de ce membre sera supprimée.', confirmLabel: 'Supprimer', destructive: true }))) return
     setLoading(true)
     try {
       await deleteMutation.mutateAsync()

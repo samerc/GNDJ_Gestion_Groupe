@@ -242,7 +242,7 @@ export default function UnitDetailPage() {
                 <div className="space-y-2">
                   <RequiredLabel>Association</RequiredLabel>
                   <Select value={unitForm.associationId || '__none__'} onValueChange={(v) => setUnitForm(f => ({ ...f, associationId: v === '__none__' ? '' : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Aucune (inter-associations)</SelectItem>
                       {associations?.items.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
@@ -252,7 +252,7 @@ export default function UnitDetailPage() {
                 <div className="space-y-2">
                   <RequiredLabel required>Type d'unité</RequiredLabel>
                   <Select value={unitForm.unitTypeId} onValueChange={(v) => { setUnitForm(f => ({ ...f, unitTypeId: v })); unitV.clearField('unitTypeId') }}>
-                    <SelectTrigger className={unitV.fieldClass('unitTypeId')}><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                    <SelectTrigger className={unitV.fieldClass('unitTypeId')}><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                     <SelectContent>
                       {unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}
                     </SelectContent>
@@ -295,7 +295,7 @@ export default function UnitDetailPage() {
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" type="button" onClick={cancelUnit}>Annuler</Button>
-                <Button type="submit" disabled={savingUnit}>{savingUnit ? 'Enregistrement...' : 'Enregistrer'}</Button>
+                <Button type="submit" disabled={savingUnit}>{savingUnit ? 'Enregistrement…' : 'Enregistrer'}</Button>
               </div>
             </form>
           ) : (
@@ -447,7 +447,7 @@ export default function UnitDetailPage() {
             </label>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -479,7 +479,7 @@ function Info({ label, value, className }: { label: string; value: string; class
 function TeamMembers({ unitId, teamId }: { unitId: string; teamId: string }) {
   const { data, isLoading } = useMembers({ unitId, teamId, pageSize: 100 })
 
-  if (isLoading) return <div className="px-4 pb-3 text-sm text-muted-foreground">Chargement...</div>
+  if (isLoading) return <div className="px-4 pb-3 text-sm text-muted-foreground">Chargement…</div>
 
   // Sort by role rank (most senior first), then alphabetically.
   const members = [...(data?.items ?? [])].sort((a, b) => {

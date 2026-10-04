@@ -68,7 +68,7 @@ export default function ApplicantVerifyPage() {
     <ApplicantAuthShell subtitle="Vérification de l'email">
       <Card className="shadow-elevated">
         <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
-          {state === 'pending' && <p className="text-muted-foreground">Vérification en cours...</p>}
+          {state === 'pending' && <p className="text-muted-foreground">Vérification en cours…</p>}
           {state === 'ok' && (
             <>
               <CheckCircle2 className="h-12 w-12 text-green-600" />

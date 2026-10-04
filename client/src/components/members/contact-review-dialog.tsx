@@ -2,7 +2,7 @@
 // this file only when it will actually show — it pulls in the phone-number library). One-time, SKIPPABLE contact-review popup shown on login until the member confirms their household contacts.
 // Purpose: most members have the FATHER's email as the primary contact, but usually the MOTHER handles things —
 // so member-facing mail (password reset, documents) goes to the wrong place. This modal lets the member fix their
-// emails/phones, pick the courriel + téléphone principal, set the parents' situation, and per-parent urgence/
+// emails/phones, pick the email + téléphone principal, set the parents' situation, and per-parent urgence/
 // décédé. « Confirmer » stamps Member.ContactReviewedAt (never shown again); « Plus tard » defers for the session
 // only (sessionStorage) and it re-appears next login. Unified for EVERYONE (replaces the leader-only prompt); a
 // converted demande member sees it on first login to confirm the info they submitted. Suppressed while impersonating.
@@ -23,6 +23,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { PHONE_COUNTRY_CODES, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
 import { Mail, Phone, Plus, Trash2, Pencil, Star, HeartPulse, AtSign } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmAsync } from '@/lib/confirm'
 
 const RELATIONSHIP_OPTIONS = [
   { value: 'Père', label: 'Père' },
@@ -59,7 +60,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
   const updGLink = useUpdateMyGuardianLink(memberId) // to fix a parent's relationship (Père/Mère) from the edit dialog
 
   // Selection / flags — the decisions applied atomically on « Confirmer ».
-  const [primaryEmail, setPrimaryEmail] = useState('')        // address of the courriel principal ('' = auto)
+  const [primaryEmail, setPrimaryEmail] = useState('')        // address of the email principal ('' = auto)
   const [primaryPhoneId, setPrimaryPhoneId] = useState('')     // id of the téléphone principal ('' = none)
   const [situation, setSituation] = useState('')               // Unis / Séparés / Divorcés
   const [flags, setFlags] = useState<Record<string, { isDeceased: boolean; isEmergencyContact: boolean }>>({})
@@ -100,7 +101,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
       else await addGEmail.mutateAsync({ guardianId: emailForm.owner, address: emailForm.address, type, isPrimary: false })
       setPrimaryEmail(emailForm.address.trim()) // they likely added it to make it the principal
       setEmailForm(null)
-      toast.success('Courriel ajouté')
+      toast.success('Email ajouté')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const submitAddPhone = async (e: React.FormEvent) => {
@@ -117,15 +118,15 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
 
   // Deletes happen immediately (not on "Confirmer"), so ask first.
   const removeEmail = async (owner: 'self' | string, id: string, address: string) => {
-    if (!window.confirm(`Supprimer définitivement le courriel « ${address} » ?`)) return
+    if (!(await confirmAsync({ title: 'Supprimer cet email ?', description: `« ${address} » sera supprimé définitivement.`, confirmLabel: 'Supprimer', destructive: true }))) return
     try {
       if (owner === 'self') await delEmail.mutateAsync(id); else await delGEmail.mutateAsync(id)
       if (primaryEmail.toLowerCase() === address.toLowerCase()) setPrimaryEmail('')
-      toast.success('Courriel supprimé')
+      toast.success('Email supprimé')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const removePhone = async (owner: 'self' | string, id: string) => {
-    if (!window.confirm('Supprimer définitivement ce numéro de téléphone ?')) return
+    if (!(await confirmAsync({ title: 'Supprimer ce numéro ?', description: 'Ce numéro de téléphone sera supprimé définitivement.', confirmLabel: 'Supprimer', destructive: true }))) return
     try {
       if (owner === 'self') await delPhone.mutateAsync(id); else await delGPhone.mutateAsync(id)
       if (primaryPhoneId === id) setPrimaryPhoneId('')
@@ -151,7 +152,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
       // Keep the "principal" selection pointing at the (possibly changed) address.
       if (primaryEmail && primaryEmail.toLowerCase() === editEmail.origAddress.toLowerCase()) setPrimaryEmail(editEmail.address.trim())
       setEditEmail(null)
-      toast.success('Courriel modifié')
+      toast.success('Email modifié')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const submitEditPhone = async (e: React.FormEvent) => {
@@ -199,20 +200,20 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
           <DialogTitle className="text-center text-xl">Vérifiez vos coordonnées</DialogTitle>
           <p className="text-center text-sm text-muted-foreground">
             Nous vous contactons par email et téléphone (accès, documents, informations). Vérifiez qu'ils sont à jour
-            et indiquez le <strong>courriel principal</strong> — celui qui reçoit nos messages (souvent celui de la maman).
+            et indiquez le <strong>email principal</strong> — celui qui reçoit nos messages (souvent celui de la maman).
           </p>
         </DialogHeader>
 
         {loading ? <LoadingSpinner /> : (
           <div className="space-y-6 py-2">
-            {/* §1 — Courriel principal */}
+            {/* §1 — Email principal */}
             <section className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-sm font-semibold"><Mail className="h-4 w-4" />Courriel principal</h3>
+                <h3 className="flex items-center gap-2 text-sm font-semibold"><Mail className="h-4 w-4" />Email principal</h3>
                 <Button size="sm" variant="outline" onClick={() => setEmailForm({ owner: owners[0].key, address: '' })}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>
               </div>
               {emailRows.length === 0 ? (
-                <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Aucun courriel enregistré. Ajoutez-en un pour recevoir nos messages.</p>
+                <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Aucun email enregistré. Ajoutez-en un pour recevoir nos messages.</p>
               ) : (
                 <div className="space-y-1.5">
                   {emailRows.map(r => {
@@ -313,7 +314,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
       {/* Add email */}
       <Dialog open={!!emailForm} onOpenChange={(o) => { if (!o) setEmailForm(null) }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Ajouter un email</DialogTitle></DialogHeader>
           {emailForm && (
             <form onSubmit={submitAddEmail} className="space-y-4">
               <div className="space-y-2"><label className="text-sm font-medium">À qui ?</label>
@@ -342,7 +343,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
                 </Select>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2"><label className="text-sm font-medium">Indicatif</label><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher..." /></div>
+                <div className="space-y-2"><label className="text-sm font-medium">Indicatif</label><SearchableSelect value={phoneForm.countryCode} onValueChange={(v) => setPhoneForm(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher…" /></div>
                 <div className="space-y-2 sm:col-span-2"><label className="text-sm font-medium">Numéro</label><PhoneInput dialCode={phoneForm.countryCode} value={phoneForm.number} onChange={(v) => setPhoneForm(f => f && { ...f, number: v })} required /></div>
               </div>
               <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneForm(null)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending || addGPhone.isPending}>Ajouter</Button></DialogFooter>
@@ -354,7 +355,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
       {/* Edit email */}
       <Dialog open={!!editEmail} onOpenChange={(o) => { if (!o) setEditEmail(null) }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Modifier l'email</DialogTitle></DialogHeader>
           {editEmail && (
             <form onSubmit={submitEditEmail} className="space-y-4">
               <div className="space-y-2"><label className="text-sm font-medium">Adresse</label><Input type="email" required value={editEmail.address} onChange={(e) => setEditEmail(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
@@ -379,7 +380,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
           {editPhone && (
             <form onSubmit={submitEditPhone} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2"><label className="text-sm font-medium">Indicatif</label><SearchableSelect value={editPhone.countryCode} onValueChange={(v) => setEditPhone(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher..." /></div>
+                <div className="space-y-2"><label className="text-sm font-medium">Indicatif</label><SearchableSelect value={editPhone.countryCode} onValueChange={(v) => setEditPhone(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher…" /></div>
                 <div className="space-y-2 sm:col-span-2"><label className="text-sm font-medium">Numéro</label><PhoneInput dialCode={editPhone.countryCode} value={editPhone.number} onChange={(v) => setEditPhone(f => f && { ...f, number: v })} required /></div>
               </div>
               {editPhone.owner !== 'self' && (

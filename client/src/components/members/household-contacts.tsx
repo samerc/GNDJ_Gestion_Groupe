@@ -134,7 +134,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
     try {
       if (emailAdd.owner === 'self') await addEmail.mutateAsync({ address: emailAdd.address, type, isPrimary: false, isEmergency: false })
       else await addGEmail.mutateAsync({ guardianId: emailAdd.owner, address: emailAdd.address, type, isPrimary: false })
-      setEmailAdd(null); toast.success('Courriel ajouté')
+      setEmailAdd(null); toast.success('Email ajouté')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const submitEditEmail = async (e: React.FormEvent) => {
@@ -146,7 +146,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
       // Keep the "principal" email pointing at the (possibly changed) address.
       if (member.primaryContactEmail && member.primaryContactEmail.toLowerCase() === emailEdit.origAddress.toLowerCase() && emailEdit.address.trim().toLowerCase() !== emailEdit.origAddress.toLowerCase())
         await setPrimary.mutateAsync(emailEdit.address.trim())
-      setEmailEdit(null); toast.success('Courriel modifié')
+      setEmailEdit(null); toast.success('Email modifié')
     } catch (err) { toast.error(parseApiError(err)) }
   }
   const submitAddAddr = async (e: React.FormEvent) => {
@@ -173,15 +173,15 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
     <Card>
       <CardHeader><CardTitle className="text-base">Coordonnées du foyer</CardTitle></CardHeader>
       <CardContent className="space-y-6">
-        {/* Courriel de contact principal — recipient for member-facing mail. */}
+        {/* Email de contact principal — recipient for member-facing mail. */}
         {editable && (
           <div className="rounded-lg border bg-muted/20 p-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Courriel de contact principal</p>
+                <p className="flex items-center gap-1.5 text-sm font-medium"><Mail className="h-3.5 w-3.5 text-muted-foreground" />Email de contact principal</p>
                 <p className="text-xs text-muted-foreground">Adresse qui reçoit nos messages (réinitialisation du mot de passe…).</p>
               </div>
-              <Select value={member.primaryContactEmail ?? '__auto__'} onValueChange={(v) => setPrimary.mutateAsync(v === '__auto__' ? null : v).then(() => toast.success('Courriel principal mis à jour')).catch(err => toast.error(parseApiError(err)))} disabled={setPrimary.isPending}>
+              <Select value={member.primaryContactEmail ?? '__auto__'} onValueChange={(v) => setPrimary.mutateAsync(v === '__auto__' ? null : v).then(() => toast.success('Email principal mis à jour')).catch(err => toast.error(parseApiError(err)))} disabled={setPrimary.isPending}>
                 <SelectTrigger className="w-full sm:w-72"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__auto__">Automatique (membre, sinon parent)</SelectItem>
@@ -222,10 +222,10 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
           )}
         </div>
 
-        {/* Courriels (all household) */}
+        {/* Emails (all household) */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h5 className="flex items-center gap-1.5 text-sm font-semibold"><Mail className="h-4 w-4 text-muted-foreground" />Courriels</h5>
+            <h5 className="flex items-center gap-1.5 text-sm font-semibold"><Mail className="h-4 w-4 text-muted-foreground" />Emails</h5>
             {editable && <Button size="sm" variant="outline" onClick={() => setEmailAdd({ owner: owners[0].key, address: '' })}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
           </div>
           {emailRows.length === 0 ? <p className="text-sm text-muted-foreground">Aucun</p> : (
@@ -241,7 +241,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                   <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
                     {isPrimary && <Badge className="h-5 gap-0.5 text-[10px]"><Star className="h-2.5 w-2.5 fill-current" />Principal</Badge>}
                     {r.urgence && <Badge variant="destructive" className="h-5 text-[10px]">Urgence</Badge>}
-                    {!selfService && <CopyButton value={r.address} label="Copier le courriel" />}
+                    {!selfService && <CopyButton value={r.address} label="Copier l'email" />}
                     {editable && <>
                       <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
                       <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
@@ -288,7 +288,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
             <form onSubmit={submitAddPhone} className="space-y-4">
               <OwnerField owners={owners} value={phoneAdd.owner} onChange={(v) => setPhoneAdd(f => f && { ...f, owner: v })} />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneAdd.countryCode} onValueChange={(v) => setPhoneAdd(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher..." /></div>
+                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneAdd.countryCode} onValueChange={(v) => setPhoneAdd(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher…" /></div>
                 <div className="space-y-2 sm:col-span-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneAdd.countryCode} value={phoneAdd.number} onChange={(v) => setPhoneAdd(f => f && { ...f, number: v })} required /></div>
               </div>
               <DialogFooter><Button type="button" variant="outline" onClick={() => setPhoneAdd(null)}>Annuler</Button><Button type="submit" disabled={addPhone.isPending || addGPhone.isPending}>Ajouter</Button></DialogFooter>
@@ -304,7 +304,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
           {phoneEdit && (
             <form onSubmit={submitEditPhone} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneEdit.countryCode} onValueChange={(v) => setPhoneEdit(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher..." /></div>
+                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={phoneEdit.countryCode} onValueChange={(v) => setPhoneEdit(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher…" /></div>
                 <div className="space-y-2 sm:col-span-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={phoneEdit.countryCode} value={phoneEdit.number} onChange={(v) => setPhoneEdit(f => f && { ...f, number: v })} required /></div>
               </div>
               {phoneEdit.owner !== 'self' && <RelationField value={phoneEdit.relationship} onChange={(v) => setPhoneEdit(f => f && { ...f, relationship: v })} />}
@@ -317,7 +317,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
       {/* Add email */}
       <Dialog open={!!emailAdd} onOpenChange={(o) => { if (!o) setEmailAdd(null) }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Ajouter un email</DialogTitle></DialogHeader>
           {emailAdd && (
             <form onSubmit={submitAddEmail} className="space-y-4">
               <OwnerField owners={owners} value={emailAdd.owner} onChange={(v) => setEmailAdd(f => f && { ...f, owner: v })} />
@@ -331,7 +331,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
       {/* Edit email */}
       <Dialog open={!!emailEdit} onOpenChange={(o) => { if (!o) setEmailEdit(null) }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Modifier l'email</DialogTitle></DialogHeader>
           {emailEdit && (
             <form onSubmit={submitEditEmail} className="space-y-4">
               <div className="space-y-2"><RequiredLabel required>Adresse</RequiredLabel><Input type="email" required value={emailEdit.address} onChange={(e) => setEmailEdit(f => f && { ...f, address: e.target.value })} placeholder="prenom.nom@exemple.com" /></div>
@@ -353,7 +353,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addrAdd.country} onValueChange={(v) => setAddrAdd(f => f && { ...f, country: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{COUNTRY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addrAdd.city} onChange={(city) => setAddrAdd(f => f && { ...f, city })} cities={cities} /></div>
               </div>
-              <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addrAdd.details} onChange={(e) => setAddrAdd(f => f && { ...f, details: e.target.value })} placeholder="Rue, immeuble..." /></div>
+              <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addrAdd.details} onChange={(e) => setAddrAdd(f => f && { ...f, details: e.target.value })} placeholder="Rue, immeuble…" /></div>
               <DialogFooter><Button type="button" variant="outline" onClick={() => setAddrAdd(null)}>Annuler</Button><Button type="submit" disabled={addAddr.isPending}>Ajouter</Button></DialogFooter>
             </form>
           )}
@@ -371,7 +371,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                 <div className="space-y-2"><RequiredLabel required>Pays</RequiredLabel><Select value={addrEdit.country} onValueChange={(v) => setAddrEdit(f => f && { ...f, country: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(COUNTRY_OPTIONS, addrEdit.country).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><RequiredLabel required>Ville</RequiredLabel><CitySelect value={addrEdit.city} onChange={(city) => setAddrEdit(f => f && { ...f, city })} cities={cities} /></div>
               </div>
-              <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addrEdit.details} onChange={(e) => setAddrEdit(f => f && { ...f, details: e.target.value })} placeholder="Rue, immeuble..." /></div>
+              <div className="space-y-2"><RequiredLabel>Détails</RequiredLabel><Input value={addrEdit.details} onChange={(e) => setAddrEdit(f => f && { ...f, details: e.target.value })} placeholder="Rue, immeuble…" /></div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={addrEdit.isPrimary} onChange={(e) => setAddrEdit(f => f && { ...f, isPrimary: e.target.checked })} />Principal</label>
               <DialogFooter><Button type="button" variant="outline" onClick={() => setAddrEdit(null)}>Annuler</Button><Button type="submit" disabled={updAddr.isPending}>Enregistrer</Button></DialogFooter>
             </form>

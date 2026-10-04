@@ -179,7 +179,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
           <Button onClick={handleExport} disabled={generating}>
             {generating ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileSpreadsheet className="mr-1 h-4 w-4" />}
-            {generating ? 'G\u00e9n\u00e9ration...' : 'Exporter'}
+            {generating ? 'G\u00e9n\u00e9ration…' : 'Exporter'}
           </Button>
         </DialogFooter>
       </DialogContent>

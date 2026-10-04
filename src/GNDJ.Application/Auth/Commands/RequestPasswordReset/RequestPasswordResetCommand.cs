@@ -20,8 +20,8 @@ public record ForgotPasswordResult(bool Found, List<string> SentTo);
 public class RequestPasswordResetCommandValidator : AbstractValidator<RequestPasswordResetCommand>
 {
     public RequestPasswordResetCommandValidator()
-        => RuleFor(x => x.Email).NotEmpty().WithMessage("Le nom d'utilisateur est requis.")
-            .EmailAddress().WithMessage("Le nom d'utilisateur est invalide.").MaximumLength(254);
+        => RuleFor(x => x.Email).NotEmpty().WithMessage("L'identifiant est requis.")
+            .EmailAddress().WithMessage("L'identifiant est invalide.").MaximumLength(254);
 }
 
 public class RequestPasswordResetCommandHandler(

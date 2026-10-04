@@ -38,7 +38,7 @@ function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; mem
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12">
         <LoadingSpinner />
-        <p className="text-sm text-muted-foreground">Envoi en cours...</p>
+        <p className="text-sm text-muted-foreground">Envoi en cours…</p>
       </div>
     )
   }

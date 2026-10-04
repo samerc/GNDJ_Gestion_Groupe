@@ -257,7 +257,7 @@ export function UserMenu() {
           {/* Red at rest; on hover the row gets the accent background, so the text/icon go white for contrast. */}
           <DropdownMenuItem onClick={handleLogout} disabled={loggingOut} className="text-destructive focus:bg-destructive focus:text-white">
             <LogOut className="mr-2 h-4 w-4" />
-            {loggingOut ? 'Déconnexion...' : 'Déconnexion'}
+            {loggingOut ? 'Déconnexion…' : 'Déconnexion'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -282,7 +282,7 @@ export function UserMenu() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setChangePasswordOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={changePasswordMutation.isPending}>{changePasswordMutation.isPending ? 'Enregistrement...' : 'Modifier'}</Button>
+              <Button type="submit" disabled={changePasswordMutation.isPending}>{changePasswordMutation.isPending ? 'Enregistrement…' : 'Modifier'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -308,7 +308,7 @@ export function UserMenu() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setPwTarget(null)}>Annuler</Button>
-              <Button type="submit" disabled={switchLoggingIn}>{switchLoggingIn ? 'Connexion...' : 'Se connecter'}</Button>
+              <Button type="submit" disabled={switchLoggingIn}>{switchLoggingIn ? 'Connexion…' : 'Se connecter'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

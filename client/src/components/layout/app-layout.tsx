@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router'
-import { Toaster } from 'sonner'
 import { Sidebar, MobileSidebar } from './sidebar'
 import { useIsManager } from '@/lib/use-is-manager'
 import { Header } from './header'
@@ -23,8 +22,7 @@ import { rememberRootEntry } from '@/hooks/use-menu-replace'
 import { PwaInstallBanner } from '@/components/shared/pwa-install'
 
 // ROLE: authenticated app shell — sidebar + header around the routed <Outlet>.
-// Used as the layout route wrapping every signed-in page. Mounts the global
-// Sonner <Toaster>, the idle session-expiry warning, the once-per-session
+// Used as the layout route wrapping every signed-in page. Mounts the idle session-expiry warning, the once-per-session
 // rentrée-overdue reminder, and the Tooltip provider so they're present on all inner pages.
 export function AppLayout() {
   // The app scrolls INSIDE <main> (not the window), and <main> lives in this persistent layout — so
@@ -91,7 +89,6 @@ export function AppLayout() {
       <div className="flex flex-1 overflow-hidden">
         {!isManager && <Sidebar />}
         <MobileSidebar />
-        <Toaster richColors position="top-center" />
         {/* Loads the customizable currency symbols into the formatMoney registry (renders nothing). */}
         <CurrencySymbolsSync />
         {/* Suppress the member's own idle-timer / reminders / tour while impersonating — we're viewing, not

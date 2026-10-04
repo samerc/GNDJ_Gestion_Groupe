@@ -476,7 +476,7 @@ public class UpdateGuardianEmailCommandHandler : IRequestHandler<UpdateGuardianE
     public async ValueTask<Result<bool>> Handle(UpdateGuardianEmailCommand request, CancellationToken cancellationToken)
     {
         var entity = await _context.GuardianEmails.FindAsync([request.Id], cancellationToken);
-        if (entity is null) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null) return Result<bool>.Failure("Email introuvable.");
         if (!await GuardianAccessHelper.CanAccessGuardian(_context, _currentUser, entity.GuardianId, cancellationToken))
             return Result<bool>.Failure("Accès refusé.");
         var old = entity.Address;
@@ -522,7 +522,7 @@ public class DeleteGuardianEmailCommandHandler : IRequestHandler<DeleteGuardianE
     public async ValueTask<Result<bool>> Handle(DeleteGuardianEmailCommand request, CancellationToken cancellationToken)
     {
         var entity = await _context.GuardianEmails.FindAsync([request.Id], cancellationToken);
-        if (entity is null) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null) return Result<bool>.Failure("Email introuvable.");
         if (!await GuardianAccessHelper.CanAccessGuardian(_context, _currentUser, entity.GuardianId, cancellationToken))
             return Result<bool>.Failure("Accès refusé.");
         var parent = await AuditNames.GuardianAsync(_context, entity.GuardianId, cancellationToken);

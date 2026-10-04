@@ -94,7 +94,7 @@ export default function ApplicantResetPasswordPage() {
                 <PasswordInput id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}
+                {mutation.isPending ? 'Réinitialisation…' : 'Réinitialiser le mot de passe'}
               </Button>
               <Link to="/inscription/login" className="block text-center text-sm text-primary hover:underline">
                 Retour à la connexion

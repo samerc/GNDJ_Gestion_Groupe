@@ -25,7 +25,7 @@ public record LoginCodeRequestResult(bool Found, bool HasEmail, string? MaskedEm
 public class RequestLoginCodeCommandValidator : AbstractValidator<RequestLoginCodeCommand>
 {
     public RequestLoginCodeCommandValidator()
-        => RuleFor(x => x.Username).NotEmpty().WithMessage("Le nom d'utilisateur est requis.").MaximumLength(254);
+        => RuleFor(x => x.Username).NotEmpty().WithMessage("L'identifiant est requis.").MaximumLength(254);
 }
 
 public class RequestLoginCodeCommandHandler(IApplicationDbContext context, IEmailQueue emailQueue, IPasswordHasher hasher)

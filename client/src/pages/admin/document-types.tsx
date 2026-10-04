@@ -163,7 +163,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
         <PageHeader title="Types de documents" icon={FileText} actions={newTypeButton} />
       )}
 
-      {showSearch && <SearchInput value={search} onChange={setSearch} placeholder="Rechercher..." className="max-w-sm" />}
+      {showSearch && <SearchInput value={search} onChange={setSearch} placeholder="Rechercher…" className="max-w-sm" />}
 
       {isLoading ? (
         <LoadingSpinner variant="table" />
@@ -284,7 +284,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || templateLoading}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || templateLoading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

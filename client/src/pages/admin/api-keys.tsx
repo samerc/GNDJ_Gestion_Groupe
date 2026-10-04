@@ -255,7 +255,7 @@ export default function ApiKeysPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création…' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

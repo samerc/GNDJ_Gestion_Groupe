@@ -103,7 +103,7 @@ export function MyDevicesDialog({ open, onOpenChange }: { open: boolean; onOpenC
           <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Fermer</Button>
           {others.length > 0 && (
             <Button type="button" variant="destructive" onClick={endOthers} disabled={signOutOthers.isPending}>
-              {signOutOthers.isPending ? 'Déconnexion...' : others.length === 1 ? "Déconnecter l'autre appareil" : `Déconnecter les ${others.length} autres`}
+              {signOutOthers.isPending ? 'Déconnexion…' : others.length === 1 ? "Déconnecter l'autre appareil" : `Déconnecter les ${others.length} autres`}
             </Button>
           )}
         </DialogFooter>

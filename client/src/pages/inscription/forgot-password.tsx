@@ -57,7 +57,7 @@ export default function ApplicantForgotPasswordPage() {
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus autoComplete="email" />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Envoi...' : 'Envoyer le lien'}
+                {mutation.isPending ? 'Envoi…' : 'Envoyer le lien'}
               </Button>
               <Link to="/inscription/login" className="block text-center text-sm text-primary hover:underline">
                 Retour à la connexion

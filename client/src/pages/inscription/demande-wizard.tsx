@@ -464,7 +464,7 @@ export default function DemandeWizardPage() {
                   </Select>
                 </Field>
                 <Field label="Nationalité" required error={errors.nationality}>
-                  <SearchableSelect value={child.nationality ?? ''} onValueChange={(v) => setC({ nationality: v })} options={NATIONALITY_OPTIONS} pinnedValues={['Libanaise']} searchPlaceholder="Rechercher une nationalité..." />
+                  <SearchableSelect value={child.nationality ?? ''} onValueChange={(v) => setC({ nationality: v })} options={NATIONALITY_OPTIONS} pinnedValues={['Libanaise']} searchPlaceholder="Rechercher une nationalité…" />
                 </Field>
                 <Field label="École" required error={errors.school}>
                   {/* Searchable dropdown + "Autre…" free-text (snaps typed variants onto the canonical school). */}
@@ -533,7 +533,7 @@ export default function DemandeWizardPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Input type="email" placeholder="Votre email ou celui d'un parent" value={lookupEmail} onChange={(e) => setLookupEmail(e.target.value)} className="w-full sm:max-w-xs" />
                     <Button type="button" variant="outline" size="sm" disabled={!lookupEmail.trim() || requestLookup.isPending} onClick={sendLookupCode}>
-                      {requestLookup.isPending ? 'Envoi...' : 'Envoyer le code'}
+                      {requestLookup.isPending ? 'Envoi…' : 'Envoyer le code'}
                     </Button>
                   </div>
                 ) : (
@@ -541,7 +541,7 @@ export default function DemandeWizardPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Input inputMode="numeric" placeholder="Code reçu par email" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} className="w-full sm:max-w-[12rem]" />
                       <Button type="button" size="sm" disabled={!lookupCode.trim() || verifyLookup.isPending} onClick={verifyLookupCode}>
-                        {verifyLookup.isPending ? 'Vérification...' : 'Vérifier et pré-remplir'}
+                        {verifyLookup.isPending ? 'Vérification…' : 'Vérifier et pré-remplir'}
                       </Button>
                       <Button type="button" variant="ghost" size="sm" onClick={() => { setLookupCodeSent(false); setLookupCode('') }}>Changer l'email</Button>
                     </div>
@@ -574,7 +574,7 @@ export default function DemandeWizardPage() {
                       <Input value={g.lastName} onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, lastName: e.target.value.toUpperCase() } : x))} className={errors[`g_${i}_last`] ? 'border-destructive' : ''} />
                     </Field>
                     <Field label="Domaine">
-                      <SearchableSelect value={g.professionDomain ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, professionDomain: v } : x))} options={(config?.professionDomains ?? []).map((d) => ({ value: d, label: d }))} placeholder="Domaine d'activité..." searchPlaceholder="Rechercher un domaine..." />
+                      <SearchableSelect value={g.professionDomain ?? ''} onValueChange={(v) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, professionDomain: v } : x))} options={(config?.professionDomains ?? []).map((d) => ({ value: d, label: d }))} placeholder="Domaine d'activité…" searchPlaceholder="Rechercher un domaine…" />
                     </Field>
                     <Field label="Profession (texte libre)">
                       <Input value={g.profession ?? ''} maxLength={150} placeholder="Profession (ex. Ingénieure)" onChange={(e) => setGuardians((arr) => arr.map((x, j) => j === i ? { ...x, profession: e.target.value } : x))} />
@@ -598,7 +598,7 @@ export default function DemandeWizardPage() {
               <div className="pt-2 sm:max-w-xs">
                 <Field label="Situation des parents" required error={errors.parentsSituation}>
                   <Select value={parentsSituation || undefined} onValueChange={setParentsSituation}>
-                    <SelectTrigger className={errors.parentsSituation ? 'border-destructive' : ''}><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectTrigger className={errors.parentsSituation ? 'border-destructive' : ''}><SelectValue placeholder="Choisir…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Unis">Unis</SelectItem>
                       <SelectItem value="Séparés">Séparés</SelectItem>
@@ -618,9 +618,9 @@ export default function DemandeWizardPage() {
               </div>
 
               <div className="pt-2">
-                <Field label="Courriel de contact principal">
+                <Field label="Email de contact principal">
                   <Select value={primaryContactEmail || '__none'} onValueChange={(v) => setPrimaryContactEmail(v === '__none' ? '' : v)}>
-                    <SelectTrigger><SelectValue placeholder="Choisir une adresse..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Choisir une adresse…" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none">Aucun (par défaut)</SelectItem>
                       {householdEmailOptions.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}

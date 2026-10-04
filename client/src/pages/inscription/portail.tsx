@@ -81,7 +81,7 @@ export default function ApplicantPortalPage() {
       else if (sent) navigate(`/inscription/portail/demande/${d.id}/resultat`)
       else navigate(`/inscription/portail/demande/${d.id}`)
     }
-    const label = enteredMemberArea ? 'Espace membre' : sent ? 'Voir le résultat' : editable && d.status === 'Draft' ? 'Continuer' : 'Voir'
+    const label = enteredMemberArea ? 'Espace membres' : sent ? 'Voir le résultat' : editable && d.status === 'Draft' ? 'Continuer' : 'Voir'
     const icon = enteredMemberArea ? <LogIn className="mr-1 h-3.5 w-3.5" /> : label === 'Continuer' ? <Pencil className="mr-1 h-3.5 w-3.5" /> : <Eye className="mr-1 h-3.5 w-3.5" />
     const { border, badge } = statusMeta(d, reviewPhase)
     return { open, label, icon, border, badge, canDelete: editable && !locked }

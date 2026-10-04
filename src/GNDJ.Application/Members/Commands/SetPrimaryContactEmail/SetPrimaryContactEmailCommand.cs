@@ -32,7 +32,7 @@ public class SetPrimaryContactEmailCommandHandler(IApplicationDbContext context,
             var isGuardianEmail = await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
                 && e.Guardian.Links.Any(l => l.MemberId == request.MemberId && !l.IsDeleted), ct);
             if (!isMemberEmail && !isGuardianEmail)
-                return Result<bool>.Failure("Ce courriel ne figure pas sur la fiche du membre.");
+                return Result<bool>.Failure("Cet email ne figure pas sur la fiche du membre.");
         }
 
         var oldEmail = member.PrimaryContactEmail;

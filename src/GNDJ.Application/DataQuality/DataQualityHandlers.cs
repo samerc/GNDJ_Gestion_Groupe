@@ -63,7 +63,7 @@ public class GetDataQualityReportQueryHandler(IApplicationDbContext context, ICu
         var all = new List<(Guid MemberId, string Address, string Owner)>();
         all.AddRange(own.Select(e => (e.MemberId, e.Address, "email du membre")));
         all.AddRange(members.Values.Where(m => !string.IsNullOrWhiteSpace(m.PrimaryContactEmail))
-            .Select(m => (m.MemberId, m.PrimaryContactEmail!, "courriel principal")));
+            .Select(m => (m.MemberId, m.PrimaryContactEmail!, "email principal")));
         var parentByGuardian = parentEmails.ToLookup(e => e.GuardianId, e => e.Address);
         foreach (var l in links)
             foreach (var addr in parentByGuardian[l.GuardianId])
@@ -100,7 +100,7 @@ public class GetDataQualityReportQueryHandler(IApplicationDbContext context, ICu
         var noEmail = ids.Where(id => resolver.Resolve(id, members[id].PrimaryContactEmail) is null)
             .OrderBy(Unit).ThenBy(Name).ToList();
         sections.Add(new("no-email", "Membres sans aucun email",
-            "Ni email personnel, ni courriel principal, ni email de parent : ils ne reçoivent aucun envoi (accès, relances…).",
+            "Ni email personnel, ni email principal, ni email de parent : ils ne reçoivent aucun envoi (accès, relances…).",
             noEmail.Count, noEmail.Take(MaxItems).Select(id => Item(id, "Aucun email")).ToList()));
 
         // 4-5. Missing identity fields.

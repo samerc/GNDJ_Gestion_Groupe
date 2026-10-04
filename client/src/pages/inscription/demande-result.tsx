@@ -90,8 +90,8 @@ export default function DemandeResultPage() {
                 <p className="text-sm text-muted-foreground">{childName}{demande.decidedUnitName ? ` · ${demande.decidedUnitName}` : ''}</p>
               </div>
             </div>
-            <p className="text-sm">Le compte de <strong>{childName}</strong> est actif. Connectez-vous à l'espace membre pour gérer le dossier et téléverser les documents.</p>
-            <Button onClick={() => navigate('/login')}><LogIn className="mr-2 h-4 w-4" />Aller à l'espace membre</Button>
+            <p className="text-sm">Le compte de <strong>{childName}</strong> est actif. Connectez-vous à l'espace membres pour gérer le dossier et téléverser les documents.</p>
+            <Button onClick={() => navigate('/login')}><LogIn className="mr-2 h-4 w-4" />Aller à l'espace membres</Button>
           </CardContent>
         </Card>
       )}
@@ -110,7 +110,7 @@ export default function DemandeResultPage() {
               </div>
             </div>
 
-            <p className="whitespace-pre-line text-sm">{config?.resultTextAccepted || "Un compte a été créé pour le nouveau membre. Voici les étapes pour accéder à l'espace membre et téléverser les documents. Ces mêmes informations vous ont été envoyées par email."}</p>
+            <p className="whitespace-pre-line text-sm">{config?.resultTextAccepted || "Un compte a été créé pour le nouveau membre. Voici les étapes pour accéder à l'espace membres et téléverser les documents. Ces mêmes informations vous ont été envoyées par email."}</p>
 
             {/* Username the parent will use to log in. */}
             {demande.memberUsername && (
@@ -125,7 +125,7 @@ export default function DemandeResultPage() {
               {[
                 { icon: Mail, text: <>Consultez l'<strong>email d'acceptation</strong> : il contient votre identifiant et un lien pour définir votre mot de passe.</> },
                 { icon: KeyRound, text: <>Cliquez sur le lien et <strong>choisissez votre mot de passe</strong>.</> },
-                { icon: LogIn, text: <>Connectez-vous à l'<strong>espace membre</strong> avec votre identifiant.</> },
+                { icon: LogIn, text: <>Connectez-vous à l'<strong>espace membres</strong> avec votre identifiant.</> },
                 { icon: UploadCloud, text: <>Téléversez les <strong>documents requis</strong> depuis « Mes documents ».</> },
               ].map((s, i) => (
                 <li key={i} className="flex items-start gap-3">
@@ -139,7 +139,7 @@ export default function DemandeResultPage() {
             </ol>
 
             <div className="flex flex-wrap gap-2 pt-1">
-              <Button onClick={() => navigate('/login')}><LogIn className="mr-2 h-4 w-4" />Aller à l'espace membre</Button>
+              <Button onClick={() => navigate('/login')}><LogIn className="mr-2 h-4 w-4" />Aller à l'espace membres</Button>
               <Button variant="outline" disabled={resend.isPending} onClick={handleResend}>
                 <Mail className="mr-2 h-4 w-4" />{resend.isPending ? 'Envoi…' : "Renvoyer l'email d'activation"}
               </Button>

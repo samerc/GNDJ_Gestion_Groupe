@@ -174,7 +174,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
               </Select>
             </Field>
             <Field label="Nationalité">
-              <SearchableSelect value={nationality} onValueChange={setNationality} options={NATIONALITY_OPTIONS} pinnedValues={['Libanaise']} searchPlaceholder="Rechercher une nationalité..." />
+              <SearchableSelect value={nationality} onValueChange={setNationality} options={NATIONALITY_OPTIONS} pinnedValues={['Libanaise']} searchPlaceholder="Rechercher une nationalité…" />
             </Field>
             <Field label="Groupe sanguin">
               <Select value={bloodType} onValueChange={setBloodType}>
@@ -198,7 +198,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
             <Field label="Téléphone enfant">
               <PhoneInput dialCode={phoneCode} value={phone} onChange={setPhone} />
             </Field>
-            <Field label="Courriel enfant" className="sm:col-span-2">
+            <Field label="Email enfant" className="sm:col-span-2">
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </Field>
           </div>
@@ -253,7 +253,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
                   <Field label="Prénom"><Input value={g.firstName} onChange={(e) => setG(i, { firstName: e.target.value })} /></Field>
                   <Field label="Nom"><Input value={g.lastName} onChange={(e) => setG(i, { lastName: e.target.value.toUpperCase() })} /></Field>
                   <Field label="Domaine">
-                    <SearchableSelect value={g.professionDomain ?? ''} onValueChange={(v) => setG(i, { professionDomain: v })} options={professionDomains.map((x) => ({ value: x, label: x }))} placeholder="Domaine..." searchPlaceholder="Rechercher..." />
+                    <SearchableSelect value={g.professionDomain ?? ''} onValueChange={(v) => setG(i, { professionDomain: v })} options={professionDomains.map((x) => ({ value: x, label: x }))} placeholder="Domaine…" searchPlaceholder="Rechercher…" />
                   </Field>
                   <Field label="Profession"><Input value={g.profession ?? ''} maxLength={150} onChange={(e) => setG(i, { profession: e.target.value })} /></Field>
                   <Field label="Téléphone"><PhoneInput dialCode={g.phoneCountryCode ?? '+961'} value={g.phoneNumber ?? ''} onChange={(v) => setG(i, { phoneNumber: v })} /></Field>

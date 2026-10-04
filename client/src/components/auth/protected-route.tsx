@@ -21,7 +21,7 @@ export function ProtectedRoute() {
   if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Chargement...</div>
+        <div className="text-muted-foreground">Chargement…</div>
       </div>
     )
   }

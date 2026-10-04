@@ -11,7 +11,7 @@ namespace GNDJ.Application.Applicants;
 
 // "Inscrire un frère ou une sœur" from Ma fiche. A parent signed in as their child starts a demande for a younger
 // sibling WITHOUT the email-code step: the family is already known, so the server
-//  1. picks the family email on the member's file (courriel principal → a parent's email → the member's own),
+//  1. picks the family email on the member's file (email principal → a parent's email → the member's own),
 //  2. finds the family's parent-portal account for that email, or creates it (already verified — the member
 //     account proves the family; a random password: the parent can use "mot de passe oublié" in the portal),
 //  3. on a NEW or still-empty account, prefills parents + address and adds the household's members as
@@ -44,7 +44,7 @@ public class StartSiblingDemandeCommandHandler(IApplicationDbContext context, IC
         var email = new[] { member.PrimaryContactEmail, guardianEmail, ownEmail }
             .FirstOrDefault(e => !string.IsNullOrWhiteSpace(e))?.Trim().ToLowerInvariant();
         if (email is null)
-            return Result<ApplicantAuthDto>.Failure("Aucun courriel de famille sur votre fiche. Ajoutez un courriel (onglet Contact & famille) puis réessayez.");
+            return Result<ApplicantAuthDto>.Failure("Aucun email de famille sur votre fiche. Ajoutez un email (onglet Contact & famille) puis réessayez.");
 
         // 2. The family's portal account (created if needed).
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Email.ToLower() == email, ct);

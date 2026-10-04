@@ -104,7 +104,7 @@ export default function AssociationsPage() {
 
       {/* Search — only show when items exist */}
       {showSearch && (
-        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Rechercher..." className="max-w-sm" />
+        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Rechercher…" className="max-w-sm" />
       )}
 
       {/* Table */}
@@ -203,7 +203,7 @@ export default function AssociationsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

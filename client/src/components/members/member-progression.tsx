@@ -267,7 +267,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
             <div className="space-y-2">
               <RequiredLabel required>Unité</RequiredLabel>
               <Select value={form.unitId} onValueChange={(v) => setForm(f => ({ ...f, unitId: v, scoutStageId: '', badgeId: '' }))}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une unité…" /></SelectTrigger>
                 <SelectContent>
                   {unitPickerOptions.map(u => (
                     <SelectItem key={u.unitId} value={u.unitId}>{u.unitName}{proposing ? '' : (u.isActive ? ' (actuelle)' : ' (ancienne)')}</SelectItem>
@@ -281,7 +281,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
             <div className="space-y-2">
               <RequiredLabel required>Étape scoute</RequiredLabel>
               <Select value={form.scoutStageId} onValueChange={(v) => setForm(f => ({ ...f, scoutStageId: v, badgeId: '' }))}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une étape..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une étape…" /></SelectTrigger>
                 <SelectContent>
                   {stages?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
@@ -292,7 +292,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
               <div className="space-y-2">
                 <RequiredLabel required>Badge</RequiredLabel>
                 <Select value={form.badgeId} onValueChange={(v) => setForm(f => ({ ...f, badgeId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner un badge..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner un badge…" /></SelectTrigger>
                   <SelectContent>
                     {badges?.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                   </SelectContent>
@@ -307,7 +307,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Lieu</RequiredLabel>
-                <Input value={form.location} onChange={(e) => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Camp, local..." />
+                <Input value={form.location} onChange={(e) => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Camp, local…" />
               </div>
             </div>
 

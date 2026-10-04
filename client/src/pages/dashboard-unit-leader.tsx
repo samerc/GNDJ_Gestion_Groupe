@@ -207,7 +207,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
     cards: cardsEnabled ? (
       <Tip content="Imprimer les cartes de membre">
         <Button variant="outline" size="sm" className="shrink-0" onClick={handleBulkCards} disabled={bulkCardsLoading}>
-          <CreditCard className="mr-1 h-4 w-4" />{bulkCardsLoading ? 'Génération...' : 'Cartes'}
+          <CreditCard className="mr-1 h-4 w-4" />{bulkCardsLoading ? 'Génération…' : 'Cartes'}
         </Button>
       </Tip>
     ) : null,
@@ -256,7 +256,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
+            <Input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
           </div>
           <Select value={teamFilter || 'all'} onValueChange={(v) => setTeamFilter(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-36 h-8 shrink-0 text-sm sm:w-44"><SelectValue placeholder="Toutes" /></SelectTrigger>

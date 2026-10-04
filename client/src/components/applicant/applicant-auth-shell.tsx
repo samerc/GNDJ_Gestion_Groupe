@@ -1,13 +1,11 @@
 import { Link } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
-import { Toaster } from 'sonner'
 import { useApplicantConfig } from '@/services/applicant-service'
 import { SupportNote } from '@/components/support-note'
 import gndjLogo from '@/assets/gndj-logo.png'
 
 // ROLE: branded centered shell for the UNAUTHENTICATED applicant pages (register / login / verify /
-// forgot / reset / invitation). Mounts its own Sonner <Toaster> — same silent-toast fix as
-// ApplicantProtectedRoute, since these pages live outside AppLayout.
+// forgot / reset / invitation). Toasts use the single app-wide <Toaster> mounted in main.tsx.
 //
 // Matches the member /login branding language (GNDJ logo on a white tile + light plain-link footer) but stays
 // visually DISTINCT: the ACCENT (teal) colour + a "Nouveau membre" pill + the title "Demande d'inscription",
@@ -17,7 +15,6 @@ export function ApplicantAuthShell({ children, subtitle }: { children: React.Rea
   const { data: config } = useApplicantConfig()
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
-      <Toaster richColors position="top-center" />
       {/* Accent-dominant backdrop (member login is primary/navy-dominant) */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent/15 via-background to-accent/10" />
       <div className="pointer-events-none absolute -top-32 -right-24 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />

@@ -25,6 +25,7 @@ import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Library, ImagePlus, Paperclip, X, FileText } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmAsync } from '@/lib/confirm'
 
 const emptyForm: ResourceFormData = { title: '', bodyHtml: '', category: 'Chant', tags: null, coverImagePath: null, isPublished: false, attachments: [] }
 
@@ -77,8 +78,8 @@ export default function AdminResourcesPage() {
   const openEdit = (r: ResourceAdmin) => { setEditingId(r.id); setForm(emptyForm); setPrevEditData(undefined); setError(''); setDirty(false); setFormOpen(true) }
 
   // Guarded close: warn if there are unsaved edits before discarding the dialog.
-  const requestClose = () => {
-    if (dirty && !window.confirm('Des modifications non enregistrées seront perdues. Continuer ?')) return
+  const requestClose = async () => {
+    if (dirty && !(await confirmAsync({ title: 'Quitter sans enregistrer ?', description: 'Les modifications non enregistrées seront perdues.', confirmLabel: 'Quitter sans enregistrer', destructive: true }))) return
     setFormOpen(false)
   }
 
@@ -216,7 +217,7 @@ export default function AdminResourcesPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

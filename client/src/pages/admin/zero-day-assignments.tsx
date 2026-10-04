@@ -182,7 +182,7 @@ export default function ZeroDayAssignmentsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Annuler</Button>
             <Button onClick={saveEdit} disabled={update.isPending || !editStart || !editEnd || (!!editEnd && !!editStart && editEnd <= editStart)}>
-              {update.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              {update.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </DialogContent>

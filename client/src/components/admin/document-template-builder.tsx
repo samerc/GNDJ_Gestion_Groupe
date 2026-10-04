@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { FileText, Loader2, LayoutTemplate } from 'lucide-react'
+import { confirmAsync } from '@/lib/confirm'
 
 interface Props {
   open: boolean
@@ -79,10 +80,10 @@ export function DocumentTemplateBuilder({ open, onOpenChange, initialHtml, docum
   }
 
   // Load a ready-made starter into the editor. If there's already content, confirm before replacing it.
-  const applyStarter = (key: string) => {
+  const applyStarter = async (key: string) => {
     const starter = DOCUMENT_STARTERS.find(s => s.key === key)
     if (!starter) return
-    if (!isEmpty && !window.confirm('Remplacer le contenu actuel du modèle par cet exemple ?')) return
+    if (!isEmpty && !(await confirmAsync({ title: 'Remplacer le contenu ?', description: 'Le contenu actuel du modèle sera remplacé par cet exemple.', confirmLabel: 'Remplacer' }))) return
     setHtml(starter.html || '<p></p>')
   }
 

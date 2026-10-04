@@ -319,7 +319,7 @@ export default function MembersPage() {
           {/* Search — full width on mobile, flexible beside the filters on ≥sm */}
           <div className="relative w-full sm:flex-1 sm:min-w-[10rem] sm:max-w-sm">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher par nom, prénom ou carte..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
+            <Input placeholder="Rechercher par nom, prénom ou carte…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} className="pl-8 pr-8 h-8 text-sm" />
             {search && (
               <Tip content="Effacer la recherche">
                 <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => { setSearch(''); setPage(1) }}>
@@ -569,7 +569,7 @@ export default function MembersPage() {
               <div className="space-y-2">
                 <RequiredLabel required>Sexe</RequiredLabel>
                 <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v === '__clear__' ? '' : v || null }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__clear__">-- Aucun --</SelectItem>
                     {GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -582,7 +582,7 @@ export default function MembersPage() {
                 <RequiredLabel required>Nationalité</RequiredLabel>
                 <div className="flex items-center gap-1">
                   <div className="flex-1">
-                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
+                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v || null }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité…" />
                   </div>
                   {form.nationality && (
                     <Tip content="Effacer la nationalité">
@@ -596,7 +596,7 @@ export default function MembersPage() {
               <div className="space-y-2">
                 <RequiredLabel>Groupe sanguin</RequiredLabel>
                 <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v === '__clear__' ? '' : v || null }))}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__clear__">-- Aucun --</SelectItem>
                     {BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -632,7 +632,7 @@ export default function MembersPage() {
                   <div className="space-y-2">
                     <RequiredLabel>Classe</RequiredLabel>
                     <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__clear__">-- Aucune --</SelectItem>
                         {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -641,7 +641,7 @@ export default function MembersPage() {
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Section</RequiredLabel>
-                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
+                    <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE…" maxLength={5} />
                   </div>
                 </>
               ) : (
@@ -649,7 +649,7 @@ export default function MembersPage() {
                   <div className="space-y-2">
                     <RequiredLabel>Domaine</RequiredLabel>
                     <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__clear__">-- Aucun --</SelectItem>
                         {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -658,7 +658,7 @@ export default function MembersPage() {
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Profession</RequiredLabel>
-                    <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin..." maxLength={150} />
+                    <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin…" maxLength={150} />
                   </div>
                 </>
               )}
@@ -705,7 +705,7 @@ export default function MembersPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Création…' : 'Créer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -732,10 +732,10 @@ export default function MembersPage() {
             <p className="text-sm text-muted-foreground">Un compte utilisateur a été créé automatiquement. Notez ces informations.</p>
             <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
               <div>
-                <span className="text-muted-foreground">Nom d'utilisateur :</span>
+                <span className="text-muted-foreground">Identifiant :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{credentialsDialog?.username}</code>
-                  <Tip content="Copier le nom d'utilisateur">
+                  <Tip content="Copier l'identifiant">
                     <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(credentialsDialog?.username ?? ''); toast.success('Copié !') }}>
                       <Copy className="h-3.5 w-3.5" />
                     </Button>

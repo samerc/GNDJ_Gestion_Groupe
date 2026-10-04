@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Mot de passe oublié</CardTitle>
-          <CardDescription>Entrez votre nom d'utilisateur. Le lien de réinitialisation sera envoyé à l'adresse courriel enregistrée sur votre dossier.</CardDescription>
+          <CardDescription>Entrez votre identifiant. Le lien de réinitialisation sera envoyé à l'adresse email enregistrée sur votre dossier.</CardDescription>
         </CardHeader>
         <CardContent>
           {sentToSomewhere ? (
@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
             // Account exists but has no email on file — can't deliver the link.
             <div className="space-y-4">
               <div className="rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 p-3 text-sm text-amber-800 dark:text-amber-300">
-                Compte trouvé, mais aucune adresse courriel n'est enregistrée sur le dossier. Contactez un responsable pour réinitialiser votre mot de passe.
+                Compte trouvé, mais aucune adresse email n'est enregistrée sur le dossier. Contactez un responsable pour réinitialiser votre mot de passe.
               </div>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Retour à la connexion
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
               <HoneypotField value={website} onChange={setWebsite} />
               {result && !result.found && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  Compte introuvable. Vérifiez votre nom d'utilisateur (ex. prenom.nom@scouts.gndj).{' '}
+                  Compte introuvable. Vérifiez votre identifiant (ex. prenom.nom@scouts.gndj).{' '}
                   <Link to="/forgot-username" className="font-medium underline underline-offset-2">Identifiant oublié ?</Link>
                 </div>
               )}
@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Nom d'utilisateur</Label>
+                <Label htmlFor="email">Identifiant</Label>
                 <Input
                   id="email"
                   type="email"
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Envoi...' : 'Envoyer le lien'}
+                {mutation.isPending ? 'Envoi…' : 'Envoyer le lien'}
               </Button>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Retour à la connexion

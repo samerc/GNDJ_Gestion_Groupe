@@ -82,7 +82,7 @@ export default function AdminSiteTextsPage({ embedded = false }: { embedded?: bo
     catch (err) { toast.error(parseApiError(err)) }
   }
 
-  const saveButton = <Button onClick={handleSave} disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+  const saveButton = <Button onClick={handleSave} disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
 
   return (
     <Page>

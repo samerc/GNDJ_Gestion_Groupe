@@ -95,7 +95,7 @@ export function LeaverContactDialog({
             </p>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Courriel personnel</label>
+              <label className="text-sm font-medium">Email personnel</label>
               <Input
                 type="email"
                 list="leaver-email-suggestions"
@@ -118,7 +118,7 @@ export function LeaverContactDialog({
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Note (facultatif)</label>
-              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Raison du départ, destination..." />
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Raison du départ, destination…" />
             </div>
           </div>
         )}
@@ -131,7 +131,7 @@ export function LeaverContactDialog({
             <Button variant="ghost" onClick={onSkip} disabled={busy}>Passer</Button>
           )}
           <Button className="bg-orange-600 text-white hover:bg-orange-700" onClick={confirm} disabled={busy || isLoading}>
-            {busy ? 'Enregistrement...' : 'Confirmer le départ'}
+            {busy ? 'Enregistrement…' : 'Confirmer le départ'}
           </Button>
         </DialogFooter>
       </DialogContent>

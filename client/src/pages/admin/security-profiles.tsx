@@ -148,7 +148,7 @@ function CreateProfileDialog({ open, onOpenChange, onCreated }: { open: boolean;
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false) }}>Annuler</Button>
-          <Button onClick={handleCreate} disabled={createMutation.isPending}>{createMutation.isPending ? 'Création...' : 'Créer'}</Button>
+          <Button onClick={handleCreate} disabled={createMutation.isPending}>{createMutation.isPending ? 'Création…' : 'Créer'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

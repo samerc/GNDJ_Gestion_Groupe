@@ -198,7 +198,7 @@ export default function UnitTypeDetailPage() {
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" type="button" onClick={cancel}>Annuler</Button>
-                <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
               </div>
             </form>
           ) : (

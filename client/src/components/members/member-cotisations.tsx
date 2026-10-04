@@ -420,7 +420,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -450,7 +450,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
           <DialogFooter>
             <Button variant="outline" onClick={() => setExemptOpen(false)}>Annuler</Button>
             <Button onClick={submitExempt} disabled={exemptMutation.isPending}>
-              {exemptMutation.isPending ? 'Enregistrement...' : 'Confirmer'}
+              {exemptMutation.isPending ? 'Enregistrement…' : 'Confirmer'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -367,7 +367,7 @@ function TemplatesTab() {
                 content={form.bodyHtml}
                 onChange={(html) => setForm(f => ({ ...f, bodyHtml: html }))}
                 variables={currentVariables}
-                placeholder="Redigez votre email..."
+                placeholder="Redigez votre email…"
               />
             </div>
             {/* Attachments — files added to every email sent from this template (e.g. an official letter). */}
@@ -404,7 +404,7 @@ function TemplatesTab() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Créer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>

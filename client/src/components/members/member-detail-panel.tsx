@@ -493,13 +493,13 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                   <div className="space-y-1.5">
                     <RequiredLabel required>Sexe</RequiredLabel>
                     <Select value={form.gender ?? ''} onValueChange={(v) => setForm(f => ({ ...f, gender: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                       <SelectContent>{GENDER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
                     <RequiredLabel required>Nationalité</RequiredLabel>
-                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité..." />
+                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher une nationalité…" />
                   </div>
                   <div className="space-y-1.5"><RequiredLabel required>Matricule</RequiredLabel><Input value={form.cardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, cardNumber: e.target.value }))} /></div>
                   <div className="space-y-1.5"><RequiredLabel>Numéro de carte (SDL/GDL)</RequiredLabel><Input value={form.externalCardNumber ?? ''} onChange={(e) => setForm(f => ({ ...f, externalCardNumber: e.target.value }))} placeholder="Optionnel" maxLength={50} /></div>
@@ -561,14 +561,14 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                       <div className="space-y-1.5">
                         <RequiredLabel>Classe</RequiredLabel>
                         <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                           <SelectContent>
                             {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
                             {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} /></div>
+                      <div className="space-y-1.5"><RequiredLabel>Section</RequiredLabel><Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE…" maxLength={5} /></div>
                     </>
                   ) : (
                     <>
@@ -576,14 +576,14 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                       <div className="space-y-1.5">
                         <RequiredLabel>Domaine</RequiredLabel>
                         <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                           <SelectContent>
                             {form.professionDomain && <SelectItem value="__clear__">— Aucun —</SelectItem>}
                             {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5"><RequiredLabel>Profession</RequiredLabel><Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin..." maxLength={150} /></div>
+                      <div className="space-y-1.5"><RequiredLabel>Profession</RequiredLabel><Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin…" maxLength={150} /></div>
                     </>
                   )}
                 </div>
@@ -645,7 +645,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
                     <div className="space-y-1.5">
                       <RequiredLabel>Groupe sanguin</RequiredLabel>
                       <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                         <SelectContent>{BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
@@ -788,10 +788,10 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
             <p className="text-sm text-muted-foreground">Communiquez ces informations au membre. Le mot de passe ne sera plus affiché.</p>
             <div className="rounded-md bg-muted p-4 space-y-3 text-sm">
               <div>
-                <span className="text-muted-foreground">Nom d'utilisateur :</span>
+                <span className="text-muted-foreground">Identifiant :</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-bold">{resetCreds?.username}</code>
-                  <Button variant="ghost" size="sm" aria-label="Copier le nom d'utilisateur" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="sm" aria-label="Copier l'identifiant" title="Copier" onClick={() => { navigator.clipboard.writeText(resetCreds?.username ?? ''); toast.success('Copié !') }}><Copy className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
               <div>

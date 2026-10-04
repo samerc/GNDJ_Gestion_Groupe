@@ -98,7 +98,7 @@ export default function PublicContactPage() {
                   />
                 </div>
                 <Button type="submit" disabled={sendMutation.isPending} className="w-full sm:w-auto">
-                  {sendMutation.isPending ? 'Envoi...' : 'Envoyer le message'}
+                  {sendMutation.isPending ? 'Envoi…' : 'Envoyer le message'}
                 </Button>
               </form>
             )}

@@ -96,7 +96,7 @@ export default function ApplicantInvitationPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-            <Button className="w-full" onClick={activate} disabled={loading}>{loading ? 'Activation...' : 'Activer et continuer'}</Button>
+            <Button className="w-full" onClick={activate} disabled={loading}>{loading ? 'Activation…' : 'Activer et continuer'}</Button>
             {expiryNote}
           </CardContent>
         </Card>
@@ -152,7 +152,7 @@ export default function ApplicantInvitationPage() {
                 className={confirm && !match ? 'border-destructive' : ''} />
               {confirm && !match && <p className="text-xs text-destructive">Les mots de passe ne correspondent pas.</p>}
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Création...' : 'Créer mon compte'}</Button>
+            <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Création…' : 'Créer mon compte'}</Button>
             {expiryNote}
             <p className="text-center text-sm text-muted-foreground">
               Vous avez déjà un compte ?{' '}

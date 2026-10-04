@@ -724,7 +724,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
         <>
         {/* Search box + status filter (apply to both the desktop table and the mobile cards) */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre..." className="flex-1" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un membre…" className="flex-1" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-60"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -880,14 +880,14 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
               <Input
                 value={propNotes}
                 onChange={e => setPropNotes(e.target.value)}
-                placeholder="Notes pour la Maîtrise de Groupe..."
+                placeholder="Notes pour la Maîtrise de Groupe…"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setProposeDialogOpen(false)}>Annuler</Button>
             <Button onClick={handlePropose} disabled={proposeMutation.isPending}>
-              {proposeMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              {proposeMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -928,7 +928,7 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
               <Input
                 value={propNotes}
                 onChange={e => setPropNotes(e.target.value)}
-                placeholder="Notes pour la Maîtrise de Groupe..."
+                placeholder="Notes pour la Maîtrise de Groupe…"
               />
             </div>
           </div>

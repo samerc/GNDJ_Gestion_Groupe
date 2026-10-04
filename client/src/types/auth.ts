@@ -36,7 +36,7 @@ export interface MeResponse {
   isMaitrise?: boolean
   // True when the member hasn't confirmed their household contacts yet (ContactReviewedAt null; super-admins
   // excluded). The app shows a one-time SKIPPABLE « Vérifiez vos coordonnées » modal (fix emails/phones, pick the
-  // courriel/téléphone principal, parents' situation + flags). Cleared after « Confirmer » (loadUser refreshes it).
+  // email/téléphone principal, parents' situation + flags). Cleared after « Confirmer » (loadUser refreshes it).
   needsContactReview?: boolean
   // True once the member has opened the installed PWA at least once (server flag, cross-device). Lets a DESKTOP
   // session know the app is already on the member's phone, so the "installer sur mobile" QR nudge hides itself.

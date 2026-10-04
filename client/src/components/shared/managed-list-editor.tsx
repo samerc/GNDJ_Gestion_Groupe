@@ -79,7 +79,7 @@ export function ManagedListEditor({ settingKey }: { settingKey: string }) {
         {active.length > 8 && (
           <div className="relative w-full max-w-[16rem]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Filtrer la liste..." value={filter} onChange={(e) => setFilter(e.target.value)} className="pl-9 pr-8" />
+            <Input placeholder="Filtrer la liste…" value={filter} onChange={(e) => setFilter(e.target.value)} className="pl-9 pr-8" />
             {filter && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setFilter('')}><X className="h-3.5 w-3.5" /></button>}
           </div>
         )}
@@ -130,7 +130,7 @@ export function ManagedListEditor({ settingKey }: { settingKey: string }) {
       <div className="flex gap-2">
         <Input value={adding} onChange={(e) => setAdding(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-          placeholder="Ajouter une valeur..." className="max-w-xs" />
+          placeholder="Ajouter une valeur…" className="max-w-xs" />
         <Button type="button" variant="outline" size="sm" onClick={add} disabled={!adding.trim() || addValue.isPending}>Ajouter</Button>
       </div>
 

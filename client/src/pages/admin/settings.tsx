@@ -367,7 +367,7 @@ function CurrenciesEditor({ defaultCurrency, ratesJson, symbolsJson }: { default
       </div>
       <div className="flex items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={addRow}><Plus className="mr-1 h-3.5 w-3.5" />Ajouter une devise</Button>
-        {dirty && <Button type="button" size="sm" onClick={onSave} disabled={saving}><Save className="mr-1 h-3 w-3" />{saving ? 'Enregistrement...' : 'Enregistrer'}</Button>}
+        {dirty && <Button type="button" size="sm" onClick={onSave} disabled={saving}><Save className="mr-1 h-3 w-3" />{saving ? 'Enregistrement…' : 'Enregistrer'}</Button>}
         {saved && <Badge variant="default" className="text-xs">Enregistré</Badge>}
       </div>
       <p className="text-xs text-muted-foreground">
@@ -427,7 +427,7 @@ function ArrayFreeTextInput({ onAdd }: { onAdd: (val: string) => void }) {
     <div className="flex gap-2">
       <Input value={text} onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd() } }}
-        placeholder="Ajouter une valeur..." className="max-w-xs" />
+        placeholder="Ajouter une valeur…" className="max-w-xs" />
       <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!text.trim()}>Ajouter</Button>
     </div>
   )
@@ -456,7 +456,7 @@ function ArrayTableEditor({ items, options, onChange }: {
         {items.length > 8 && (
           <div className="relative w-full max-w-[16rem]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Filtrer la liste..." value={filter} onChange={(e) => setFilter(e.target.value)} className="pl-9 pr-8" />
+            <Input placeholder="Filtrer la liste…" value={filter} onChange={(e) => setFilter(e.target.value)} className="pl-9 pr-8" />
             {filter && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setFilter('')}><X className="h-3.5 w-3.5" /></button>}
           </div>
         )}
@@ -484,7 +484,7 @@ function ArrayTableEditor({ items, options, onChange }: {
         <div className="max-w-xs">
           <SearchableSelect value="" onValueChange={add}
             options={options.filter(o => !items.includes(o.value))}
-            placeholder="Ajouter..." searchPlaceholder="Rechercher..." emptyMessage="Toutes les valeurs sont déjà ajoutées." />
+            placeholder="Ajouter…" searchPlaceholder="Rechercher…" emptyMessage="Toutes les valeurs sont déjà ajoutées." />
         </div>
       ) : <ArrayFreeTextInput onAdd={add} />}
     </div>
@@ -621,7 +621,7 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
             <CampPlacesEditor value={value} onChange={setValue} />
           ) : isSelectSingle ? (
             <div className="max-w-sm">
-              <SearchableSelect value={value} onValueChange={setValue} options={options} placeholder="Sélectionner..." searchPlaceholder="Rechercher..." />
+              <SearchableSelect value={value} onValueChange={setValue} options={options} placeholder="Sélectionner…" searchPlaceholder="Rechercher…" />
             </div>
           ) : isNumber ? (
             <div className="flex items-center gap-2">
@@ -649,7 +649,7 @@ function SettingEditor({ setting, onSave, disabled = false, disabledHint }: { se
 
           {hasChanged && (
             <Button size="sm" onClick={handleSave} disabled={saving || dateInPast}>
-              <Save className="mr-1 h-3 w-3" />{saving ? 'Enregistrement...' : 'Enregistrer'}
+              <Save className="mr-1 h-3 w-3" />{saving ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           )}
         </>
@@ -784,7 +784,7 @@ export default function SettingsPage() {
         <PageHeader
           title="Paramètres"
           icon={Settings2}
-          actions={<SearchInput value={query} onChange={setQuery} placeholder="Rechercher un paramètre..." className="w-full sm:max-w-xs" />}
+          actions={<SearchInput value={query} onChange={setQuery} placeholder="Rechercher un paramètre…" className="w-full sm:max-w-xs" />}
         />
       </div>
 

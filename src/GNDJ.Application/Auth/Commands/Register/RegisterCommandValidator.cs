@@ -11,8 +11,8 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
     public RegisterCommandValidator(IPasswordPolicy policy)
     {
         RuleFor(x => x.Email)
-            .NotEmpty().WithMessage("L'adresse courriel est requise.")
-            .EmailAddress().WithMessage("L'adresse courriel est invalide.")
+            .NotEmpty().WithMessage("L'adresse email est requise.")
+            .EmailAddress().WithMessage("L'adresse email est invalide.")
             .MaximumLength(254);
 
         RuleFor(x => x.Password).PasswordPolicy(policy);

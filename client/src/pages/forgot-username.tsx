@@ -74,7 +74,7 @@ export default function ForgotUsernamePage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Envoi...' : 'Recevoir mes accès'}
+                {mutation.isPending ? 'Envoi…' : 'Recevoir mes accès'}
               </Button>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">
                 Retour à la connexion

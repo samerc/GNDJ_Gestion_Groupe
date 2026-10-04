@@ -282,7 +282,7 @@ function MeetingFormDialog({ unitId, memberGroupId, unitGroups = [], canManage, 
             <div className="space-y-2">
               <RequiredLabel required>Concernés</RequiredLabel>
               <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                 <SelectContent>
                   {canManage && <SelectItem value="__unit__">Toute l'unité</SelectItem>}
                   {teams.length > 0 && (
@@ -415,7 +415,7 @@ export default function AttendancePage() {
       <div className="flex flex-wrap items-center gap-2">
         {(unitOptions.length + groups.length) > 1 && (
           <Select value={sel} onValueChange={setSel}>
-            <SelectTrigger className="w-full sm:w-72"><SelectValue placeholder="Choisir une unité..." /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-72"><SelectValue placeholder="Choisir une unité…" /></SelectTrigger>
             <SelectContent>
               {unitOptions.length > 0 && (
                 <SelectGroup>

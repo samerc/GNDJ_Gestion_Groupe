@@ -860,7 +860,7 @@ export default function UnitDocumentsPage() {
                   <iframe src={previewBlobUrl} className="w-full" style={{ height: 440 }} title="PDF" />
                 )}
                 {!previewBlobUrl && !previewError && (
-                  <div className="py-12 text-sm text-muted-foreground">Chargement...</div>
+                  <div className="py-12 text-sm text-muted-foreground">Chargement…</div>
                 )}
                 {previewError && (
                   <div className="py-12 text-sm text-destructive">Impossible de charger l'aperçu du fichier.</div>
@@ -1012,7 +1012,7 @@ export default function UnitDocumentsPage() {
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setCotisationMember(null)}>Annuler</Button>
                 <Button type="submit" disabled={createCotisation.isPending || updateCotisation.isPending}>
-                  {createCotisation.isPending || updateCotisation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                  {createCotisation.isPending || updateCotisation.isPending ? 'Enregistrement…' : 'Enregistrer'}
                 </Button>
               </DialogFooter>
             </form>

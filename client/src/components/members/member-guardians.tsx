@@ -208,7 +208,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
   const handleEditEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editEmail) return
-    try { await updEmailMutation.mutateAsync(editEmail); toast.success('Courriel modifié'); setEditEmail(null) }
+    try { await updEmailMutation.mutateAsync(editEmail); toast.success('Email modifié'); setEditEmail(null) }
     catch (err) { toast.error(parseApiError(err)) }
   }
 
@@ -300,13 +300,13 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
               {/* Emails */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Mail className="h-3.5 w-3.5" />Courriels</span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Mail className="h-3.5 w-3.5" />Emails</span>
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEmailForm({ address: '', type: 'Personnel', isPrimary: false }); setEmailDialog(gl.guardianId) }}>
                     <Plus className="mr-1 h-3 w-3" />Ajouter
                   </Button>
                 </div>
                 {gl.guardian.emails.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">Aucun courriel</p>
+                  <p className="text-xs text-muted-foreground italic">Aucun email</p>
                 ) : (
                   <div className="space-y-1.5">
                     {gl.guardian.emails.map(em => (
@@ -319,11 +319,11 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                           <span className="text-xs text-muted-foreground">{em.type}</span>
                         </div>
                         {em.isPrimary && <Badge variant="outline" className="h-5 shrink-0 text-xs">Principal</Badge>}
-                        {!selfService && <CopyButton value={em.address} label="Copier le courriel" />}
+                        {!selfService && <CopyButton value={em.address} label="Copier l'email" />}
                         <Tip content="Modifier"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" onClick={() => setEditEmail({ id: em.id, address: em.address, type: em.type, isPrimary: em.isPrimary })}>
                           <Pencil className="h-3 w-3" />
                         </Button></Tip>
-                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Courriel supprimé')).catch(err => toast.error(parseApiError(err)))}>
+                        <Tip content="Supprimer"><Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 opacity-100 transition-opacity sm:h-7 sm:w-7 pointer-fine:opacity-60 pointer-fine:group-hover:opacity-100" disabled={deleteEmailMutation.isPending} onClick={() => deleteEmailMutation.mutateAsync(em.id).then(() => toast.success('Email supprimé')).catch(err => toast.error(parseApiError(err)))}>
                           <Trash2 className="h-3 w-3 text-destructive" />
                         </Button></Tip>
                       </div>
@@ -357,7 +357,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
             <div className="space-y-4">
               <div className="space-y-2">
                 <RequiredLabel>Rechercher un parent existant</RequiredLabel>
-                <Input placeholder="Tapez un nom..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+                <Input placeholder="Tapez un nom…" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
               </div>
               {searchResults && searchResults.length > 0 && (
                 <div className="space-y-2 max-h-60 overflow-auto">
@@ -421,8 +421,8 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                     // parent's profession is a single action.
                     onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v, profession: v ? f.profession : '' }))}
                     options={domainOptions}
-                    placeholder="Domaine d'activité..."
-                    searchPlaceholder="Rechercher un domaine..."
+                    placeholder="Domaine d'activité…"
+                    searchPlaceholder="Rechercher un domaine…"
                     clearable
                   />
                 </div>
@@ -440,7 +440,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
               </div>
               <DialogFooter>
                 <Button variant="outline" type="button" onClick={() => setAddDialogOpen(false)}>Annuler</Button>
-                <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Enregistrement...' : (selfService ? 'Ajouter' : 'Créer et lier')}</Button>
+                <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Enregistrement…' : (selfService ? 'Ajouter' : 'Créer et lier')}</Button>
               </DialogFooter>
             </form>
           )}
@@ -460,7 +460,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                   onValueChange={(v) => setPhoneForm(f => ({ ...f, countryCode: v }))}
                   options={PHONE_COUNTRY_CODES}
                   placeholder="Code pays"
-                  searchPlaceholder="Rechercher un indicatif..."
+                  searchPlaceholder="Rechercher un indicatif…"
                 />
               </div>
               <div className="sm:col-span-2 space-y-2">
@@ -487,10 +487,10 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
       {/* Add email dialog */}
       <Dialog open={!!emailDialog} onOpenChange={() => setEmailDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Ajouter un courriel</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Ajouter un email</DialogTitle></DialogHeader>
           <form onSubmit={handleAddEmail} className="space-y-4">
             <div className="space-y-2">
-              <RequiredLabel required>Adresse courriel</RequiredLabel>
+              <RequiredLabel required>Adresse email</RequiredLabel>
               <Input type="email" value={emailForm.address} onChange={(e) => setEmailForm(f => ({ ...f, address: e.target.value }))} required />
             </div>
             <div className="space-y-2">
@@ -516,12 +516,12 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
           {editPhone && (
             <form onSubmit={handleEditPhone} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhone.countryCode} onValueChange={(v) => setEditPhone(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif..." /></div>
+                <div className="space-y-2"><RequiredLabel required>Indicatif</RequiredLabel><SearchableSelect value={editPhone.countryCode} onValueChange={(v) => setEditPhone(f => f && { ...f, countryCode: v })} options={PHONE_COUNTRY_CODES} placeholder="Code pays" searchPlaceholder="Rechercher un indicatif…" /></div>
                 <div className="sm:col-span-2 space-y-2"><RequiredLabel required>Numéro</RequiredLabel><PhoneInput dialCode={editPhone.countryCode} value={editPhone.number} onChange={(v) => setEditPhone(f => f && { ...f, number: v })} required /></div>
               </div>
               <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editPhone.type} onValueChange={(v) => setEditPhone(f => f && { ...f, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(PHONE_TYPE_OPTIONS, editPhone.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editPhone.isPrimary} onChange={(e) => setEditPhone(f => f && { ...f, isPrimary: e.target.checked })} />Principal</label>
-              <DialogFooter><Button variant="outline" type="button" onClick={() => setEditPhone(null)}>Annuler</Button><Button type="submit" disabled={updPhoneMutation.isPending}>{updPhoneMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
+              <DialogFooter><Button variant="outline" type="button" onClick={() => setEditPhone(null)}>Annuler</Button><Button type="submit" disabled={updPhoneMutation.isPending}>{updPhoneMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -530,13 +530,13 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
       {/* Edit guardian email dialog */}
       <Dialog open={!!editEmail} onOpenChange={() => setEditEmail(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Modifier le courriel</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Modifier l'email</DialogTitle></DialogHeader>
           {editEmail && (
             <form onSubmit={handleEditEmail} className="space-y-4">
-              <div className="space-y-2"><RequiredLabel required>Adresse courriel</RequiredLabel><Input type="email" value={editEmail.address} onChange={(e) => setEditEmail(f => f && { ...f, address: e.target.value })} required /></div>
+              <div className="space-y-2"><RequiredLabel required>Adresse email</RequiredLabel><Input type="email" value={editEmail.address} onChange={(e) => setEditEmail(f => f && { ...f, address: e.target.value })} required /></div>
               <div className="space-y-2"><RequiredLabel required>Type</RequiredLabel><Select value={editEmail.type} onValueChange={(v) => setEditEmail(f => f && { ...f, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{optionsWithCurrent(EMAIL_TYPE_OPTIONS, editEmail.type).map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select></div>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editEmail.isPrimary} onChange={(e) => setEditEmail(f => f && { ...f, isPrimary: e.target.checked })} />Principal</label>
-              <DialogFooter><Button variant="outline" type="button" onClick={() => setEditEmail(null)}>Annuler</Button><Button type="submit" disabled={updEmailMutation.isPending}>{updEmailMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button></DialogFooter>
+              <DialogFooter><Button variant="outline" type="button" onClick={() => setEditEmail(null)}>Annuler</Button><Button type="submit" disabled={updEmailMutation.isPending}>{updEmailMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
@@ -574,8 +574,8 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
                   // remove a parent's profession). Available to members too (Ma fiche uses this same form).
                   onValueChange={(v) => setEditForm(f => ({ ...f, professionDomain: v, profession: v ? f.profession : '' }))}
                   options={domainOptions}
-                  placeholder="Domaine d'activité..."
-                  searchPlaceholder="Rechercher un domaine..."
+                  placeholder="Domaine d'activité…"
+                  searchPlaceholder="Rechercher un domaine…"
                   clearable
                 />
               </div>
@@ -601,7 +601,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
             )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setEditDialogOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={updateMutation.isPending || updateLinkMutation.isPending}>{updateMutation.isPending || updateLinkMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={updateMutation.isPending || updateLinkMutation.isPending}>{updateMutation.isPending || updateLinkMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

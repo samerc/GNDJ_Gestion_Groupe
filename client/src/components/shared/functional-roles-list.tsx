@@ -349,7 +349,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input className="h-9 w-full pl-8 pr-7" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une fonction..." />
+                  <Input className="h-9 w-full pl-8 pr-7" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une fonction…" />
                   {search && <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setSearch('')} aria-label="Effacer"><X className="h-3.5 w-3.5" /></button>}
                 </div>
                 {showUnitTypeColumn && (
@@ -509,7 +509,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
             <div className="space-y-2">
               <RequiredLabel required>Profil de sécurité</RequiredLabel>
               <Select value={form.securityProfileId} onValueChange={(v) => { setForm(f => ({ ...f, securityProfileId: v })); clearField('securityProfileId') }}>
-                <SelectTrigger className={fieldClass('securityProfileId')}><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectTrigger className={fieldClass('securityProfileId')}><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                 <SelectContent>
                   {profiles?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                 </SelectContent>
@@ -544,7 +544,7 @@ export function FunctionalRolesList({ unitTypeId, unitTypeName, showUnitTypeColu
             <p className="text-xs text-muted-foreground">Le classement (rang) se règle en glissant les fonctions sur la page du type d'unité.</p>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

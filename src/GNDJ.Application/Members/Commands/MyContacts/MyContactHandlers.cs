@@ -104,7 +104,7 @@ public class AddMyEmailValidator : AbstractValidator<AddMyEmailCommand>
 {
     public AddMyEmailValidator()
     {
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse email est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }
@@ -113,7 +113,7 @@ public class UpdateMyEmailValidator : AbstractValidator<UpdateMyEmailCommand>
     public UpdateMyEmailValidator()
     {
         RuleFor(x => x.Id).NotEmpty();
-        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse courriel est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
+        RuleFor(x => x.Address).NotEmpty().WithMessage("L'adresse email est requise.").EmailAddress().MaximumLength(150).NoHtml().RealEmail();
         RuleFor(x => x.Type).NotEmpty().MaximumLength(50).NoHtml();
     }
 }
@@ -139,7 +139,7 @@ public class UpdateMyEmailHandler(IApplicationDbContext context, ICurrentUserSer
     public async ValueTask<Result<bool>> Handle(UpdateMyEmailCommand request, CancellationToken ct)
     {
         var entity = await context.MemberEmails.FindAsync([request.Id], ct);
-        if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Email introuvable.");
         var oldEmail = entity.Address; var oldType = entity.Type;
         entity.Address = request.Address; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary; entity.IsEmergency = request.IsEmergency;
         await context.SaveChangesAsync(ct);
@@ -155,7 +155,7 @@ public class DeleteMyEmailHandler(IApplicationDbContext context, ICurrentUserSer
     public async ValueTask<Result<bool>> Handle(DeleteMyEmailCommand request, CancellationToken ct)
     {
         var entity = await context.MemberEmails.FindAsync([request.Id], ct);
-        if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Courriel introuvable.");
+        if (entity is null || entity.MemberId != currentUser.MemberId) return Result<bool>.Failure("Email introuvable.");
         var member = await AuditNames.MemberAsync(context, entity.MemberId, ct);
         var email = entity.Address; var memberId = entity.MemberId;
         context.MemberEmails.Remove(entity);
@@ -188,7 +188,7 @@ public class SetMyPrimaryContactEmailHandler(IApplicationDbContext context, ICur
             var ownEmail = await context.MemberEmails.AnyAsync(e => e.MemberId == memberId.Value && !e.IsDeleted && e.Address.ToLower() == lower, ct);
             var guardianEmail = ownEmail || await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
                 && context.GuardianLinks.Any(l => l.GuardianId == e.GuardianId && l.MemberId == memberId.Value && !l.IsDeleted), ct);
-            if (!ownEmail && !guardianEmail) return Result<bool>.Failure("Ce courriel ne fait pas partie de vos coordonnées.");
+            if (!ownEmail && !guardianEmail) return Result<bool>.Failure("Cet email ne fait pas partie de vos coordonnées.");
         }
         member.PrimaryContactEmail = string.IsNullOrEmpty(email) ? null : email;
         await context.SaveChangesAsync(ct);
@@ -201,7 +201,7 @@ public class SetMyPrimaryContactEmailHandler(IApplicationDbContext context, ICur
 }
 
 // ── Contact-review popup (one-time « Vérifiez vos coordonnées ») ──────────────
-// The member confirms their household contacts in one atomic action: pick the courriel principal
+// The member confirms their household contacts in one atomic action: pick the email principal
 // (Member.PrimaryContactEmail — the address that receives password-reset/document mail) and the téléphone
 // principal (reuses per-list IsPrimary), set the parents' situation (propagated to a confirmed fratrie), and
 // per-parent urgence (GuardianLink.IsEmergencyContact) / décédé (Guardian.IsDeceased). Stamps ContactReviewedAt
@@ -242,7 +242,7 @@ public class ReviewMyContactsHandler(IApplicationDbContext context, ICurrentUser
             var ownEmail = await context.MemberEmails.AnyAsync(e => e.MemberId == memberId.Value && !e.IsDeleted && e.Address.ToLower() == lower, ct);
             var guardianEmail = ownEmail || await context.GuardianEmails.AnyAsync(e => !e.IsDeleted && e.Address.ToLower() == lower
                 && context.GuardianLinks.Any(l => l.GuardianId == e.GuardianId && l.MemberId == memberId.Value && !l.IsDeleted), ct);
-            if (!ownEmail && !guardianEmail) return Result<bool>.Failure("Ce courriel ne fait pas partie de vos coordonnées.");
+            if (!ownEmail && !guardianEmail) return Result<bool>.Failure("Cet email ne fait pas partie de vos coordonnées.");
             member.PrimaryContactEmail = email;
         }
         else member.PrimaryContactEmail = null; // "Automatique" — resolver falls back to own/guardian email

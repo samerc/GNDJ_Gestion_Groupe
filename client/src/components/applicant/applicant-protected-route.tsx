@@ -1,15 +1,13 @@
 import { Navigate, Outlet, Link, useNavigate } from 'react-router'
 import { LogOut, BookOpen } from 'lucide-react'
 import { BrandMark } from '@/components/shared/brand-mark'
-import { Toaster } from 'sonner'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { Button } from '@/components/ui/button'
 
 // ROLE: layout + auth gate for the signed-in applicant portal (/inscription/*).
 // Uses the ISOLATED applicant JWT (applicant claim) — never touches the User/Member
 // auth store or app permissions. Redirects to the applicant login when unauthenticated.
-// Mounts its own Sonner <Toaster> (the portal lives outside AppLayout, so without this
-// every portal toast fired into the void — the "Soumettre did nothing" silent-toast bug).
+// Toasts use the single app-wide <Toaster> mounted in main.tsx (one per layout used to leave gaps).
 export function ApplicantProtectedRoute() {
   const isAuthenticated = useApplicantStore((s) => s.isAuthenticated)
   const logout = useApplicantStore((s) => s.logout)
@@ -19,7 +17,6 @@ export function ApplicantProtectedRoute() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Toaster richColors position="top-center" />
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-card/85 px-4 backdrop-blur-md sm:px-6">
         <Link to="/inscription/portail" className="flex items-center gap-2.5">
           <BrandMark className="h-9 w-9" />

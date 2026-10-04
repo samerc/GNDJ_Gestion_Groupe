@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
               </div>
               <Button type="submit" className="w-full" disabled={mutation.isPending}>
                 {mutation.isPending
-                  ? (isSetup ? 'Activation...' : 'Réinitialisation...')
+                  ? (isSetup ? 'Activation…' : 'Réinitialisation…')
                   : (isSetup ? 'Activer mon compte' : 'Réinitialiser le mot de passe')}
               </Button>
               <Link to="/login" className="block text-center text-sm text-primary hover:underline">

@@ -49,7 +49,7 @@ const DialogContent = React.forwardRef<
       {/* Padded hit area (~36px) so the close target is comfortable on touch, while the glyph stays small. */}
       <DialogPrimitive.Close className="absolute right-2 top-2 rounded-md p-2 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-muted data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">Fermer</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>

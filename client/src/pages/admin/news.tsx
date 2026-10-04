@@ -27,6 +27,7 @@ import { Page } from '@/components/shared/page'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, Newspaper, ImagePlus, Paperclip, X, FileText } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmAsync } from '@/lib/confirm'
 
 const emptyForm: NewsFormData = { title: '', bodyHtml: '', isPublished: false, tagType: 'Group', tagUnitTypeId: null, tagUnitId: null, coverImagePath: null, attachments: [] }
 
@@ -83,8 +84,8 @@ export default function AdminNewsPage() {
   const openEdit = (p: NewsPostAdmin) => { setEditingId(p.id); setForm(emptyForm); setPrevEditData(undefined); setError(''); setDirty(false); setFormOpen(true) }
 
   // Guarded close: warn if there are unsaved edits before discarding the dialog.
-  const requestClose = () => {
-    if (dirty && !window.confirm('Des modifications non enregistrées seront perdues. Continuer ?')) return
+  const requestClose = async () => {
+    if (dirty && !(await confirmAsync({ title: 'Quitter sans enregistrer ?', description: 'Les modifications non enregistrées seront perdues.', confirmLabel: 'Quitter sans enregistrer', destructive: true }))) return
     setFormOpen(false)
   }
 
@@ -181,7 +182,7 @@ export default function AdminNewsPage() {
                 <div className="space-y-2">
                   <RequiredLabel required>Branche</RequiredLabel>
                   <Select value={form.tagUnitTypeId ?? ''} onValueChange={(v) => setForm(f => ({ ...f, tagUnitTypeId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                     <SelectContent>{unitTypes?.items.map(ut => <SelectItem key={ut.id} value={ut.id}>{ut.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
@@ -190,7 +191,7 @@ export default function AdminNewsPage() {
                 <div className="space-y-2">
                   <RequiredLabel required>Unité</RequiredLabel>
                   <Select value={form.tagUnitId ?? ''} onValueChange={(v) => setForm(f => ({ ...f, tagUnitId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                     <SelectContent>{units?.items.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
@@ -246,7 +247,7 @@ export default function AdminNewsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving || coverUploading || attachUploading}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

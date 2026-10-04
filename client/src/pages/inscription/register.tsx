@@ -87,7 +87,7 @@ export default function ApplicantRegisterPage() {
               Après la création du compte, vous devrez lire et accepter les conditions d'inscription avant de continuer.
             </p>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Création...' : 'Créer mon compte'}
+              {loading ? 'Création…' : 'Créer mon compte'}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Déjà un compte ?{' '}

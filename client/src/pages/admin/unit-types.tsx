@@ -108,7 +108,7 @@ export default function UnitTypesPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         {showSearch && (
-          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher..." className="w-full sm:max-w-sm" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Rechercher…" className="w-full sm:max-w-sm" />
         )}
         {/* Mobile: sort picker (the cards have no clickable headers). Desktop sorts via the table headers. */}
         <div className="flex items-center gap-2 md:hidden">

@@ -282,7 +282,7 @@ function SmtpTab() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement...' : editing ? 'Enregistrer' : 'Créer'}
+                {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>
@@ -307,7 +307,7 @@ function SmtpTab() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setTestDialogOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={testMutation.isPending}>
-                {testMutation.isPending ? 'Envoi...' : 'Envoyer'}
+                {testMutation.isPending ? 'Envoi…' : 'Envoyer'}
               </Button>
             </DialogFooter>
           </form>

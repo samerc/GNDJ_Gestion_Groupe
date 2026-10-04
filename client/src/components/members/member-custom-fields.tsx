@@ -91,7 +91,7 @@ function FieldRow({ field, memberId, canEdit, selfService }: { field: MemberCust
       case 'select':
         return (
           <Select value={value} onValueChange={(v) => setValue(v)}>
-            <SelectTrigger className="h-8 w-48"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+            <SelectTrigger className="h-8 w-48"><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
             <SelectContent>
               {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
             </SelectContent>

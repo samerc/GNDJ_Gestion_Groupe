@@ -719,7 +719,7 @@ export default function CotisationDashboardPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPayFor(null)}>Annuler</Button>
             <Button onClick={submitPayment} disabled={createCotisation.isPending}>
-              {createCotisation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+              {createCotisation.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -749,7 +749,7 @@ export default function CotisationDashboardPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setExemptFor(null)}>Annuler</Button>
             <Button onClick={submitExempt} disabled={setExempt.isPending}>
-              {setExempt.isPending ? 'Enregistrement...' : 'Confirmer'}
+              {setExempt.isPending ? 'Enregistrement…' : 'Confirmer'}
             </Button>
           </DialogFooter>
         </DialogContent>

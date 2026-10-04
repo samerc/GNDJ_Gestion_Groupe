@@ -49,7 +49,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
     label: 'Contact',
     columns: [
       { key: 'phone', label: 'Téléphone' },
-      { key: 'email', label: 'Courriel' },
+      { key: 'email', label: 'Email' },
     ],
   },
   {
@@ -147,7 +147,7 @@ export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: P
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
           <Button onClick={handleGenerate} disabled={generating}>
             {generating ? <LoadingSpinner className="py-0 mr-2 h-4 w-4" /> : <FileDown className="mr-1 h-4 w-4" />}
-            {generating ? 'Génération...' : 'Générer'}
+            {generating ? 'Génération…' : 'Générer'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -28,6 +28,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, FileText, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
+import { confirmAsync } from '@/lib/confirm'
 
 const emptyForm: PageFormData = { title: '', bodyHtml: '', isPublished: false, showInMenu: true, parentId: null }
 
@@ -133,8 +134,8 @@ export default function AdminPagesPage() {
   const openEdit = (p: PageAdmin) => { setEditingId(p.id); setForm(emptyForm); setPrevEditData(undefined); setError(''); setDirty(false); setFormOpen(true) }
 
   // Guarded close: warn if there are unsaved edits before discarding the dialog.
-  const requestClose = () => {
-    if (dirty && !window.confirm('Des modifications non enregistrées seront perdues. Continuer ?')) return
+  const requestClose = async () => {
+    if (dirty && !(await confirmAsync({ title: 'Quitter sans enregistrer ?', description: 'Les modifications non enregistrées seront perdues.', confirmLabel: 'Quitter sans enregistrer', destructive: true }))) return
     setFormOpen(false)
   }
 
@@ -216,7 +217,7 @@ export default function AdminPagesPage() {
             )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={requestClose}>Annuler</Button>
-              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+              <Button type="submit" disabled={isSaving}>{isSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

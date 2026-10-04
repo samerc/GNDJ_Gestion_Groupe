@@ -68,7 +68,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResp
                 newValues: new { Email = request.Email, Reason = user is null ? "Utilisateur introuvable" : user.Member is null ? "Membre supprimé" : "Mot de passe incorrect", Portal = "Espace membres" },
                 cancellationToken: cancellationToken);
             _throttle.RecordFailure("member", email);
-            return Result<AuthResponse>.Failure("Adresse courriel ou mot de passe incorrect.");
+            return Result<AuthResponse>.Failure("Identifiant ou mot de passe incorrect.");
         }
 
         // Maintenance gate: while the whole site or the members app is in maintenance, only a super-admin may

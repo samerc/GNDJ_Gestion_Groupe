@@ -114,7 +114,7 @@ export default function MyProfilePage() {
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setEditing(false)}>Annuler</Button>
               <Button onClick={handleSave} disabled={updateMutation.isPending}>
-                <Save className="mr-1.5 h-4 w-4" />{updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                <Save className="mr-1.5 h-4 w-4" />{updateMutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
               </Button>
             </div>
           )
@@ -152,12 +152,12 @@ export default function MyProfilePage() {
                   <div className="space-y-2"><RequiredLabel>Matricule</RequiredLabel><Input value={member.cardNumber ?? ''} disabled /></div>
                   <div className="space-y-2">
                     <RequiredLabel required>Nationalité</RequiredLabel>
-                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher..." />
+                    <SearchableSelect value={form.nationality ?? ''} onValueChange={(v) => setForm(f => ({ ...f, nationality: v }))} options={NATIONALITY_OPTIONS} pinnedValues={pinnedNationalities} searchPlaceholder="Rechercher…" />
                   </div>
                   <div className="space-y-2">
                     <RequiredLabel>Groupe sanguin</RequiredLabel>
                     <Select value={form.bloodType ?? ''} onValueChange={(v) => setForm(f => ({ ...f, bloodType: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                       <SelectContent>{BLOOD_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
@@ -198,7 +198,7 @@ export default function MyProfilePage() {
                       <div className="space-y-2">
                         <RequiredLabel>Classe</RequiredLabel>
                         <Select value={form.classe || ''} onValueChange={(v) => setForm(f => ({ ...f, classe: v === '__clear__' ? '' : v }))}>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                           <SelectContent>
                             {form.classe && <SelectItem value="__clear__">— Aucune —</SelectItem>}
                             {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -207,7 +207,7 @@ export default function MyProfilePage() {
                       </div>
                       <div className="space-y-2">
                         <RequiredLabel>Section</RequiredLabel>
-                        <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE..." maxLength={5} />
+                        <Input value={form.section || ''} onChange={(e) => setForm(f => ({ ...f, section: e.target.value.slice(0, 5) }))} placeholder="Ex: SV, SE…" maxLength={5} />
                       </div>
                     </>
                   ) : (
@@ -216,7 +216,7 @@ export default function MyProfilePage() {
                       <div className="space-y-2">
                         <RequiredLabel>Domaine</RequiredLabel>
                         <Select value={form.professionDomain || ''} onValueChange={(v) => setForm(f => ({ ...f, professionDomain: v === '__clear__' ? '' : v }))}>
-                          <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
                           <SelectContent>
                             {form.professionDomain && <SelectItem value="__clear__">— Aucun —</SelectItem>}
                             {professionDomains.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -225,7 +225,7 @@ export default function MyProfilePage() {
                       </div>
                       <div className="space-y-2">
                         <RequiredLabel>Profession</RequiredLabel>
-                        <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin..." maxLength={150} />
+                        <Input value={form.profession || ''} onChange={(e) => setForm(f => ({ ...f, profession: e.target.value }))} placeholder="Ex: Ingénieur, Médecin…" maxLength={150} />
                       </div>
                     </>
                   )}

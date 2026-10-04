@@ -172,7 +172,7 @@ export const FIELD_LABELS: Record<string, string> = {
   Parent: 'Parent', RelationshipType: 'Relation', IsPrimaryContact: 'Contact principal',
   IsEmergencyContact: "Contact d'urgence", IsDeceased: 'Décédé(e)', Phone: 'Téléphone',
   // Member contact fields (add/update/delete phone/email/address, primary contact email)
-  Type: 'Type', Address: 'Adresse', PrimaryContactEmail: 'Courriel de contact principal',
+  Type: 'Type', Address: 'Adresse', PrimaryContactEmail: 'Email de contact principal',
   // Parcours / groupes / réunions / rapports / trombinoscope / messages
   From: 'De', To: 'Vers', PathType: 'Type de parcours', ScopeType: 'Portée',
   Recipients: 'Destinataires', Absences: 'Absences', Date: 'Date', Sender: 'Expéditeur',

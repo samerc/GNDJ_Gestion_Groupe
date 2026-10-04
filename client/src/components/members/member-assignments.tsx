@@ -350,7 +350,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
             <div className="space-y-2">
               <RequiredLabel required>Unité</RequiredLabel>
               <Select value={form.unitId} onValueChange={(v) => { setForm(f => ({ ...f, unitId: v, teamId: '', functionalRoleId: '' })); clearField('unitId') }}>
-                <SelectTrigger className={fieldClass('unitId')}><SelectValue placeholder="Sélectionner une unité..." /></SelectTrigger>
+                <SelectTrigger className={fieldClass('unitId')}><SelectValue placeholder="Sélectionner une unité…" /></SelectTrigger>
                 <SelectContent>{unitOptions.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -367,7 +367,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
             <div className="space-y-2">
               <RequiredLabel required>Fonction</RequiredLabel>
               <Select value={form.functionalRoleId} onValueChange={(v) => { setForm(f => ({ ...f, functionalRoleId: v })); clearField('functionalRoleId') }} disabled={!form.unitId}>
-                <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder={form.unitId ? 'Sélectionner une fonction...' : "Choisir d'abord une unité"} /></SelectTrigger>
+                <SelectTrigger className={fieldClass('functionalRoleId')}><SelectValue placeholder={form.unitId ? 'Sélectionner une fonction…' : "Choisir d'abord une unité"} /></SelectTrigger>
                 <SelectContent>{roles?.filter(r => !r.isArchived || r.id === form.functionalRoleId).map(r => <SelectItem key={r.id} value={r.id}>{r.name}{r.isArchived ? ' (archivée)' : ''}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -441,7 +441,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
             <div className="space-y-2">
               <RequiredLabel required>Nouvelle unité</RequiredLabel>
               <Select value={correctUnitId} onValueChange={setCorrectUnitId}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner la bonne unité..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Sélectionner la bonne unité…" /></SelectTrigger>
                 <SelectContent>
                   {(units?.items ?? [])
                     .filter(u => u.isActive !== false && u.id !== correcting?.unitId)

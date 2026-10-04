@@ -82,7 +82,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
 
   const usernameField = (
     <div className="space-y-1.5">
-      <Label htmlFor="email">Nom d'utilisateur</Label>
+      <Label htmlFor="email">Identifiant</Label>
       <Input
         id="email" name="username" type="text" inputMode="email"
         autoCapitalize="none" autoCorrect="off" spellCheck={false}
@@ -140,7 +140,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
           </div>
         )}
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Connexion...' : 'Se connecter'}
+          {loading ? 'Connexion…' : 'Se connecter'}
         </Button>
         {/* Recovery links — compact single row, de-emphasized. */}
         <div className="flex items-center justify-center gap-2 text-center text-sm">
@@ -175,7 +175,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
         {usernameField}
         <p className="text-xs text-muted-foreground">Nous enverrons un code à 6 chiffres à l'adresse email enregistrée sur le dossier.</p>
         <Button type="submit" className="w-full bg-teal-600 text-white hover:bg-teal-700" disabled={loading}>
-          {loading ? 'Envoi...' : 'Envoyer le code'}
+          {loading ? 'Envoi…' : 'Envoyer le code'}
         </Button>
       </form>
     )
@@ -202,7 +202,7 @@ export function LoginForm({ initialUsername = '', onBack }: { initialUsername?: 
       </div>
       {rememberBox}
       <Button type="submit" className="w-full bg-teal-600 text-white hover:bg-teal-700" disabled={loading || code.length < 6}>
-        {loading ? 'Connexion...' : 'Se connecter'}
+        {loading ? 'Connexion…' : 'Se connecter'}
       </Button>
       <div className="flex items-center justify-between text-sm">
         <button type="button" onClick={() => { setCodeSent(false); setCode(''); setError('') }} className="text-primary hover:underline">Modifier l'identifiant</button>
