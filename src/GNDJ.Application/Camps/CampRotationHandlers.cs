@@ -92,8 +92,9 @@ public class GetCampRotationQueryHandler(IApplicationDbContext context, ICurrent
 
         var slots = await context.CampRotationSlots.Where(s => s.CampId == camp.Id).OrderBy(s => s.Number)
             .Select(s => new CampRotationSlotDto(s.Number, s.Date, s.StartTime, s.EndTime)).ToListAsync(ct);
-        var counts = await context.CampRotationMatches.Where(m => m.CampId == camp.Id)
-            .GroupBy(_ => 1).Select(g => new { Total = g.Count(), Scored = g.Count(m => m.ScoredAt != null) }).FirstOrDefaultAsync(ct);
+        // Two plain counts (a GroupBy(_ => 1)…FirstOrDefault single query made EF log a warning on every load).
+        var matchQuery = context.CampRotationMatches.Where(m => m.CampId == camp.Id);
+        var counts = new { Total = await matchQuery.CountAsync(ct), Scored = await matchQuery.CountAsync(m => m.ScoredAt != null, ct) };
         var games = await CampRotationData.GamesByNumberAsync(context, camp.Id, ct);
         var existing = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= camp.FamillesCount, ct);
         var gamesCount = slots.Count > 0 ? slots.Count : CampRotationGrid.GamesFor(camp.FamillesCount);
@@ -104,7 +105,7 @@ public class GetCampRotationQueryHandler(IApplicationDbContext context, ICurrent
             : new CampRotationGameDto(n, null, null, null, null, [])).ToList();
 
         return Result<CampRotationDto>.Success(new CampRotationDto(slots.Count > 0, camp.UseBackupLocations, camp.FamillesCount, existing,
-            counts?.Total ?? 0, counts?.Scored ?? 0, slots, gameRows, LebanonClock.Now,
+            counts.Total, counts.Scored, slots, gameRows, LebanonClock.Now,
             gamesCount, CampRotationGrid.Problem(camp.FamillesCount), slots.Count * 2, CampRotationGrid.DefaultFirstDaySlots(plannedGames)));
     }
 }

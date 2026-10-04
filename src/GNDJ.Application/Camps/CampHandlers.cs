@@ -117,13 +117,18 @@ public class GetCampQueryHandler(IApplicationDbContext context, ICurrentUserServ
         var pc = await context.CampParticipants.Where(p => p.CampId == camp.Id && !p.IsDeleted && p.IsAttending)
             .Select(p => new { p.Note, InFamille = p.FamilleId != null || p.Role != CampRole.Membre }).ToListAsync(ct);
         var familleCount = await context.Familles.CountAsync(f => f.CampId == camp.Id && !f.IsDeleted, ct);
-        var leaders = await context.Familles.Where(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= camp.FamillesCount)
-            .GroupBy(_ => 1).Select(g => new { Pere = g.Count(f => f.PereMemberId != null), Mere = g.Count(f => f.MereMemberId != null), Both = g.Count(f => f.PereMemberId != null && f.MereMemberId != null) })
-            .FirstOrDefaultAsync(ct);
+        // Plain counts (a GroupBy(_ => 1)…FirstOrDefault single query made EF log a warning on every load).
+        var fq = context.Familles.Where(f => f.CampId == camp.Id && !f.IsDeleted && f.Number <= camp.FamillesCount);
+        var leaders = new
+        {
+            Pere = await fq.CountAsync(f => f.PereMemberId != null, ct),
+            Mere = await fq.CountAsync(f => f.MereMemberId != null, ct),
+            Both = await fq.CountAsync(f => f.PereMemberId != null && f.MereMemberId != null, ct),
+        };
 
         return Result<CampDto>.Success(new CampDto(camp.Id, camp.Name, camp.ScoutYear, camp.Theme, camp.FamillesCount, camp.Status, camp.IsArchived,
             camp.NoteForceCoef, camp.NoteOffset, branchDtos,
-            pc.Count, pc.Count(x => x.Note != null), pc.Count(x => x.InFamille), familleCount, leaders?.Pere ?? 0, leaders?.Mere ?? 0, leaders?.Both ?? 0,
+            pc.Count, pc.Count(x => x.Note != null), pc.Count(x => x.InFamille), familleCount, leaders.Pere, leaders.Mere, leaders.Both,
             await CampAccess.ForAsync(context, currentUser, camp.Id, ct)));
     }
 }
