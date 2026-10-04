@@ -80,20 +80,20 @@ public class EmailController : BaseApiController
         return Ok(new { success = true });
     }
 
-    /// <summary>Lists email templates. Requires associations.manage.</summary>
+    /// <summary>Lists email templates. Admins or Chef de Groupe.</summary>
     [HttpGet("templates")]
-    [HasPermission(Permissions.AssociationsManage)]
+    // Admins + Chef de Groupe (maitrise.manage): checked in the handler (SettingsAccess.CanEditEmailTemplates).
     public async Task<IActionResult> GetTemplates()
     {
         var result = await Mediator.Send(new GetEmailTemplatesQuery());
         return Ok(result);
     }
 
-    /// <summary>Returns a single email template by id. Requires associations.manage.</summary>
+    /// <summary>Returns a single email template by id. Admins or Chef de Groupe.</summary>
     /// <response code="404">Email template not found.</response>
     [HttpGet("templates/{id:guid}")]
     [ProducesResponseType(404)]
-    [HasPermission(Permissions.AssociationsManage)]
+    // Admins + Chef de Groupe (maitrise.manage): checked in the handler (SettingsAccess.CanEditEmailTemplates).
     public async Task<IActionResult> GetTemplate(Guid id)
     {
         var result = await Mediator.Send(new GetEmailTemplateByIdQuery(id));
@@ -112,9 +112,9 @@ public class EmailController : BaseApiController
         return Created("", new { id = result.Value });
     }
 
-    /// <summary>Updates an email template. Requires associations.manage.</summary>
+    /// <summary>Updates an email template (a Chef de Groupe can change the text, not the code/module/SMTP server).</summary>
     [HttpPut("templates/{id:guid}")]
-    [HasPermission(Permissions.AssociationsManage)]
+    // Admins + Chef de Groupe (maitrise.manage): checked in the handler (SettingsAccess.CanEditEmailTemplates).
     public async Task<IActionResult> UpdateTemplate(Guid id, [FromBody] UpdateEmailTemplateCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });

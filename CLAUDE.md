@@ -6386,3 +6386,13 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   line, description clamped with « Voir plus », and a « Matériel » panel (GameMaterials, `framed` only in « Mes jeux »).
   Jeux tab widened to max-w-4xl (two columns from md).
 
+### Email templates opened to the Chef de Groupe (2026-10-04, DEV until deploy)
+- `SettingsAccess.CanEditEmailTemplates` = admin OR maitrise.manage. Template list / read / update + the template
+  check (`/system/email-templates-check`) use it (handler checks; the controller attributes were removed on those 3).
+  A non-admin's update keeps the stored Code, Module and SmtpServerId (text, name, attachments, active flag only).
+  Create / delete / SMTP servers / outbox stay associations.manage.
+- Frontend: Paramètres tab "Modèles d'email" gated maitrise.manage; the page hides Nouveau/Supprimer for a CG, code +
+  module read-only, SMTP shown as the bound server name (no SMTP list fetch). "Emails aux chefs" shows the "Modifier
+  le texte du modèle" link to the CG. Live-tested: CG list/read/update 200 (code/module/SMTP unchanged), create/delete/
+  SMTP 403, CU 403.
+

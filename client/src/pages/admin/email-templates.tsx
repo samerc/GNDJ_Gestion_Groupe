@@ -1,4 +1,5 @@
-// Admin screen "Modèles d'email" (super-admin). CRUD of email templates (TipTap RichTextEditor body) bound
+// Admin screen "Modèles d'email" (super-admin + Chef de Groupe). A CG (no associations.manage) edits the name, subject,
+// body, attachments and active flag only: no create/delete, code/module/SMTP server read-only (server enforces it too). CRUD of email templates (TipTap RichTextEditor body) bound
 // to a module and an optional SMTP server. Templates use {{variable}} placeholders substituted server-side at
 // send time; MODULE_VARIABLES drives both the reference chip list and the editor's variable-insertion dropdown.
 // Split out of the old combined Email / SMTP page so the (heavy) rich-text editor only loads on this tab.
@@ -29,6 +30,8 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
 import { Plus, Trash2, Pencil, FileText, Paperclip, Upload, X, Mail } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 import { uploadContentFile } from '@/services/content-image-service'
 import { EMAIL_CATEGORIES, templateInfo } from '@/lib/email-template-catalog'
 
@@ -126,7 +129,9 @@ export default function EmailTemplatesPage({ embedded = false }: { embedded?: bo
 
 function TemplatesTab() {
   const { data: templates, isLoading } = useEmailTemplates()
-  const { data: servers } = useSmtpServers()
+  const { hasPermission, user } = useAuthStore()
+  const isAdmin = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.ASSOCIATIONS_MANAGE)
+  const { data: servers } = useSmtpServers(isAdmin)
   // The server a "Par défaut" template actually resolves to: the one marked default, else the oldest active
   // (matches the backend fallback in EmailService). Shown in the dropdown so "Par défaut" isn't a mystery.
   const defaultServer = useMemo(() => {
@@ -232,12 +237,14 @@ function TemplatesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau modèle</Button>
-      </div>
+      {isAdmin && (
+        <div className="flex justify-end">
+          <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Nouveau modèle</Button>
+        </div>
+      )}
 
       {!templates || templates.length === 0 ? (
-        <EmptyState icon={FileText} title="Aucun modèle d'email" description="Créez votre premier modèle d'email." action={<Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>} />
+        <EmptyState icon={FileText} title="Aucun modèle d'email" description={isAdmin ? "Créez votre premier modèle d'email." : undefined} action={isAdmin ? <Button onClick={openCreate}><Plus className="mr-1.5 h-4 w-4" />Créer</Button> : undefined} />
       ) : (
         // Grouped by category (see lib/email-template-catalog): what each template is for and when it's sent.
         <div className="space-y-6">
@@ -279,7 +286,7 @@ function TemplatesTab() {
                           <TableCell>
                             <div className="flex gap-1">
                               <Tip content="Modifier"><Button variant="ghost" size="icon" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
-                              <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>
+                              {isAdmin && <Tip content="Supprimer"><Button variant="ghost" size="icon" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -308,19 +315,23 @@ function TemplatesTab() {
               </div>
               <div className="space-y-2">
                 <RequiredLabel required>Code</RequiredLabel>
-                <Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="password-reset" />
+                <Input value={form.code} onChange={(e) => setForm(f => ({ ...f, code: e.target.value }))} required placeholder="password-reset" disabled={!isAdmin} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <RequiredLabel required>Module</RequiredLabel>
-                <Select value={form.module} onValueChange={(v) => setForm(f => ({ ...f, module: v }))}>
+                <Select value={form.module} onValueChange={(v) => setForm(f => ({ ...f, module: v }))} disabled={!isAdmin}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{MODULE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <RequiredLabel>Serveur SMTP</RequiredLabel>
+                {!isAdmin ? (
+                  // CG: the SMTP list is admin-only — show the bound server's name, not a picker.
+                  <Input value={editing?.smtpServerName ?? 'Par défaut'} disabled />
+                ) : (
                 <Select value={form.smtpServerId} onValueChange={(v) => setForm(f => ({ ...f, smtpServerId: v === '__none__' ? '' : v }))}>
                   <SelectTrigger><SelectValue placeholder={defaultServer ? `Par défaut (${defaultServer.name})` : 'Par défaut'} /></SelectTrigger>
                   <SelectContent>
@@ -328,6 +339,7 @@ function TemplatesTab() {
                     {servers?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}{s.isDefault ? ' — par défaut' : ''}{!s.isActive ? ' (inactif)' : ''}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                )}
               </div>
             </div>
             <div className="space-y-2">

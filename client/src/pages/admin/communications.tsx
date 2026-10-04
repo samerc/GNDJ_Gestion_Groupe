@@ -43,7 +43,7 @@ export default function CommunicationsPage({ embedded = false }: { embedded?: bo
 
   const scoutYear = useCurrentScoutYear()
   const { hasPermission, user } = useAuthStore()
-  const canEditTemplates = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.ASSOCIATIONS_MANAGE)
+  const canEditTemplates = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.ASSOCIATIONS_MANAGE) || hasPermission(PERMISSIONS.MAITRISE_MANAGE)
 
   const { data: templates } = useLeaderMessageTemplates()
   const { data: unitsPage } = useUnits({ isActive: true, pageSize: 100 })

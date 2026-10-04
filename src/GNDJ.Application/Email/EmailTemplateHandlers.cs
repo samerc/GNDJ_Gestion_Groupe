@@ -1,6 +1,7 @@
 using FluentValidation;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Settings;
 using GNDJ.Domain.Entities;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -50,10 +51,11 @@ public record EmailTemplateDto(Guid Id, string Name, string Code, string Module,
 // GetAll
 public record GetEmailTemplatesQuery() : IRequest<List<EmailTemplateDto>>;
 
-public class GetEmailTemplatesQueryHandler(IApplicationDbContext context) : IRequestHandler<GetEmailTemplatesQuery, List<EmailTemplateDto>>
+public class GetEmailTemplatesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetEmailTemplatesQuery, List<EmailTemplateDto>>
 {
     public async ValueTask<List<EmailTemplateDto>> Handle(GetEmailTemplatesQuery request, CancellationToken ct)
     {
+        if (!SettingsAccess.CanEditEmailTemplates(currentUser)) throw new UnauthorizedAccessException("Accès non autorisé.");
         var rows = await context.EmailTemplates
             .Include(t => t.SmtpServer)
             .OrderBy(t => t.Module).ThenBy(t => t.Name)
@@ -66,10 +68,11 @@ public class GetEmailTemplatesQueryHandler(IApplicationDbContext context) : IReq
 // GetById
 public record GetEmailTemplateByIdQuery(Guid Id) : IRequest<EmailTemplateDto?>;
 
-public class GetEmailTemplateByIdQueryHandler(IApplicationDbContext context) : IRequestHandler<GetEmailTemplateByIdQuery, EmailTemplateDto?>
+public class GetEmailTemplateByIdQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetEmailTemplateByIdQuery, EmailTemplateDto?>
 {
     public async ValueTask<EmailTemplateDto?> Handle(GetEmailTemplateByIdQuery request, CancellationToken ct)
     {
+        if (!SettingsAccess.CanEditEmailTemplates(currentUser)) throw new UnauthorizedAccessException("Accès non autorisé.");
         var t = await context.EmailTemplates
             .Include(x => x.SmtpServer)
             .Where(x => x.Id == request.Id)
@@ -151,13 +154,19 @@ public class UpdateEmailTemplateCommandValidator : AbstractValidator<UpdateEmail
     }
 }
 
-public class UpdateEmailTemplateCommandHandler(IApplicationDbContext context, IAuditService auditService) : IRequestHandler<UpdateEmailTemplateCommand, Result<bool>>
+public class UpdateEmailTemplateCommandHandler(IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser) : IRequestHandler<UpdateEmailTemplateCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateEmailTemplateCommand request, CancellationToken ct)
     {
+        if (!SettingsAccess.CanEditEmailTemplates(currentUser)) throw new UnauthorizedAccessException("Accès non autorisé.");
         var entity = await context.EmailTemplates.FindAsync([request.Id], ct);
         if (entity is null)
             return Result<bool>.Failure("Modèle introuvable.");
+
+        // A Chef de Groupe edits the text only: the code (what the app looks the template up by), the module and the
+        // SMTP server stay as they are — those are admin settings.
+        if (!SettingsAccess.IsAdmin(currentUser))
+            request = request with { Code = entity.Code, Module = entity.Module, SmtpServerId = entity.SmtpServerId };
 
         var codeExists = await context.EmailTemplates.AnyAsync(t => t.Code == request.Code && t.Id != request.Id, ct);
         if (codeExists)

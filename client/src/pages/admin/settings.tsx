@@ -65,7 +65,8 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType<
   { key: 'cfg:custom-fields', label: 'Champs personnalisés', Component: CustomFieldsPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:card', label: 'Carte membre', Component: CardDesignerPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:smtp', label: 'Serveurs SMTP', Component: EmailSmtpPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
-  { key: 'cfg:email-templates', label: "Modèles d'email", Component: EmailTemplatesPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
+  // Chef de Groupe too: edits the text; code/module/SMTP server stay admin-only (enforced server-side).
+  { key: 'cfg:email-templates', label: "Modèles d'email", Component: EmailTemplatesPage, permission: PERMISSIONS.MAITRISE_MANAGE },
   { key: 'cfg:appearance', label: 'Apparence', Component: AppearancePage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },
   { key: 'cfg:site-texts', label: 'Accueil & pied de page', Component: SiteTextsPage, permission: PERMISSIONS.CONTENT_MANAGE },
   { key: 'cfg:api-keys', label: 'Clés API', Component: ApiKeysPage, permission: PERMISSIONS.ASSOCIATIONS_MANAGE },

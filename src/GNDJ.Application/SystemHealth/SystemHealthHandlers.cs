@@ -43,7 +43,7 @@ public class GetEmailTemplateCheckQueryHandler(IApplicationDbContext context, IC
 {
     public async ValueTask<Result<List<ConfigIssue>>> Handle(GetEmailTemplateCheckQuery request, CancellationToken ct)
     {
-        if (!SettingsAccess.IsAdmin(currentUser)) throw new UnauthorizedAccessException("Accès non autorisé.");
+        if (!SettingsAccess.CanEditEmailTemplates(currentUser)) throw new UnauthorizedAccessException("Accès non autorisé.");
         return Result<List<ConfigIssue>>.Success(await ConfigurationChecks.EmailTemplatesAsync(context, ct));
     }
 }

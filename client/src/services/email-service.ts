@@ -14,8 +14,9 @@ export interface SmtpServerDto {
 }
 
 // GET /email/smtp-servers → list of configured SMTP servers.
-export function useSmtpServers() {
-  return useQuery({ queryKey: ['smtp-servers'], queryFn: () => apiClient.get<SmtpServerDto[]>('/email/smtp-servers').then(r => r.data) })
+// `enabled` = false for a Chef de Groupe on the templates page (the SMTP list is admin-only).
+export function useSmtpServers(enabled = true) {
+  return useQuery({ queryKey: ['smtp-servers'], queryFn: () => apiClient.get<SmtpServerDto[]>('/email/smtp-servers').then(r => r.data), enabled })
 }
 
 // POST /email/smtp-servers → create; invalidates the list.

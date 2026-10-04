@@ -32,6 +32,11 @@ public static class SettingsAccess
     public static bool CanViewAny(ICurrentUserService user)
         => IsAdmin(user) || user.Permissions.Contains(Permissions.MaitriseManage);
 
+    // Email templates (Paramètres → Modèles d'email): admins AND the Chef de Groupe (maitrise.manage) may view and
+    // edit their text. Only an admin may create/delete a template or change its code, module or SMTP server.
+    public static bool CanEditEmailTemplates(ICurrentUserService user)
+        => IsAdmin(user) || user.Permissions.Contains(Permissions.MaitriseManage);
+
     // Is this category one a Chef de Groupe may edit?
     public static bool IsCgCategory(string category) => CgCategories.Contains(category);
 
