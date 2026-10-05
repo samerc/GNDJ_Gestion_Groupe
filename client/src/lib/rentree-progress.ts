@@ -15,6 +15,7 @@ export const RENTREE_PROGRESS: Record<string, RentreeProgressDef> = {
   'passage-finalized': { label: 'Passages finalisés', perUnit: false },
   'demandes-reviewed': { label: 'Demandes révisées', perUnit: false },
   'demandes-sent': { label: 'Réponses envoyées', perUnit: false },
+  'demandes-scheduled': { label: 'Envoi des réponses programmé', perUnit: false },
   'documents-verified': { label: 'Documents vérifiés — par unité', perUnit: true },
   'photos-done': { label: 'Photos prises — par unité', perUnit: true },
   'cotisations-paid': { label: 'Cotisations réglées — par unité', perUnit: true },

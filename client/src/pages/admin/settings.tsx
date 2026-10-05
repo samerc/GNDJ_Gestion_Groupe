@@ -79,7 +79,7 @@ const CONFIG_TABS: { key: string; label: string; Component: React.ComponentType<
 // The documents.* campaign dates/toggle live on "Suivi des documents → Campagne" (which validates their
 // order); their internal idempotency markers are never user-editable. Hidden here so there is ONE place
 // to set them (the generic editor would let you save the dates out of order and break the campaign phases).
-const HIDDEN_KEYS = new Set(['camp.game_locations', 'newyear.keep_document_types', 'newyear.keep_id_approval', 'newyear.cleanup_done_for', 'newyear.cleanup_status', 'site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
+const HIDDEN_KEYS = new Set(['camp.game_locations', 'demande.responses_scheduled_at', 'demande.responses_schedule_status', 'newyear.keep_document_types', 'newyear.keep_id_approval', 'newyear.cleanup_done_for', 'newyear.cleanup_status', 'site.content', 'card_config', 'member.cities', 'member.schools', 'member.classes', 'member.profession_domains', 'demande.rejection_reasons', 'ui.role_colors', 'pinned_professions',
   'passage.reminders_sent', // internal marker: automatic passage reminders already sent (7 / 2 days before)
   'audit.last_archived_year', // internal marker: which scout year's audit log was last auto-archived+cleared
   'documents.campaign_enabled', 'documents.scout_year', 'documents.deposit_start', 'documents.deposit_deadline', 'documents.correction_start', 'documents.correction_deadline', 'documents.final_deadline',

@@ -228,6 +228,28 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>The scheduled automatic « Envoyer les réponses » (Lebanon time) + the result of the last automatic run.
+    /// Requires demande.view (+ group manager in the handler).</summary>
+    [HttpGet("responses-schedule")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> GetResponsesSchedule()
+    {
+        var result = await Mediator.Send(new GetDemandeResponsesScheduleQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Schedules « Envoyer les réponses » for a date and time ("yyyy-MM-ddTHH:mm", Lebanon time; empty = cancel).
+    /// A background job runs the same send at that moment. Requires demande.manage.</summary>
+    [HttpPut("responses-schedule")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> ScheduleResponses([FromBody] ScheduleDemandeResponsesCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>
     /// Closes the campaign: archives every demande + its outcome into the permanent archive, then HARD-deletes all
     /// applicant-side data (accounts, guardians, relations, demandes) and disables inscriptions. Irreversible;

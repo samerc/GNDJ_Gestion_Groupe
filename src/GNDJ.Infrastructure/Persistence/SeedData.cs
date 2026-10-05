@@ -607,6 +607,32 @@ public static class SeedData
         if (changed) await context.SaveChangesAsync();
     }
 
+    // Group task "Programmer la date d'envoi des réponses aux demandes" (Demandes page → « Programmer l'envoi »), inserted
+    // just before "Envoyer les réponses…", tracked live (demandes-scheduled: done once a date is set or everything is
+    // sent). Idempotent (by title); a CG edit is never overwritten. Existing years: "Ajouter les nouvelles tâches".
+    public static async Task SeedRentreeResponsesScheduleTaskAsync(GndjDbContext context)
+    {
+        const string title = "Programmer la date d'envoi des réponses aux demandes";
+        var templates = await context.RentreeTaskTemplates.ToListAsync();
+        if (templates.Count == 0 || templates.Any(t => t.Title == title)) return;
+
+        var send = templates.FirstOrDefault(t => t.Title.StartsWith("Envoyer les réponses"));
+        var order = send?.DisplayOrder ?? (templates.Max(t => t.DisplayOrder) + 1);
+        foreach (var t in templates.Where(t => t.DisplayOrder >= order)) t.DisplayOrder++;
+
+        context.RentreeTaskTemplates.Add(new RentreeTaskTemplate
+        {
+            Title = title,
+            Description = "Page Demandes → « Programmer l'envoi » : choisissez la date et l'heure auxquelles toutes les "
+                          + "réponses partiront automatiquement (acceptations, refus, emails aux chefs d'unité).",
+            Phase = send?.Phase ?? "Demandes", DisplayOrder = order,
+            AssigneeType = "role", AssigneeRole = "chef-de-groupe", FanOutPerUnit = false,
+            DefaultDeadlineLabel = "avant la fin de la revue des demandes", DeadlineAnchor = "demande.submission_deadline",
+            ProgressKey = "demandes-scheduled", ActionKey = "goto-demandes", DependsOnTemplateIds = [],
+        });
+        await context.SaveChangesAsync();
+    }
+
     // Per-unit task "Terminer le passage de l'unité" (the CU clicks the button once every member has a line). Inserted
     // right after "Proposer les passages…", depends on it, tracked live (passage-finished), due on the passage date;
     // the "Finaliser/Publier" task then also waits for it. Idempotent (by title); a CG edit is never overwritten.

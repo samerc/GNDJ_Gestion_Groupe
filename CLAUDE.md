@@ -6423,3 +6423,22 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   a FIXED port **5180** (vite.config `port: 5180, strictPort: true`; API CORS, app.base_url default + dev-sync script,
   start.ps1, smoke tests and help-docs tools all point at 5180).
 
+### Demandes — scheduled « Envoyer les réponses » (2026-10-05, DEV until deploy)
+- **Dry run on real data (prod copy of Oct 3), dev restored afterwards:** the send is refused while any demande is
+  Submitted (3 left on prod: Sasha MAALOUF, Yasmina HOBEICHE, Anna HIMO); once decided → 161 members + 83 refusals in
+  7.4 s, second press sends nothing (idempotent), every member got card/login/post/parent/entrée; 477 emails queued
+  (309 acceptances to 291 addresses, 157 refusals to 142, 11 chef d'unité Excel emails), no unit without a CU.
+- **Scheduling:** `Application/Demandes/DemandeResponsesSchedule.cs` — hidden settings `demande.responses_scheduled_at`
+  ("yyyy-MM-ddTHH:mm", Lebanon time) + `demande.responses_schedule_status` (last automatic run JSON). Endpoints
+  `GET|PUT /demandes/responses-schedule` (view / manage + group manager; must be in the future; empty = cancel).
+  `DemandeResponsesSchedulerBackgroundService` (every minute, job "Envoi programmé des réponses aux demandes") clears
+  the schedule FIRST (never fires twice) then runs the same `SendDemandeResponsesCommand(demande.scout_year)`, stores
+  the result and notifies group managers (bell + push) — success or failure (failure = nothing sent).
+- UI: `components/admin/demande-responses-schedule.tsx` on the review page (Programmer l'envoi / Modifier / Annuler,
+  warning while demandes are undecided, last automatic result).
+- Rentrée: progress key `demandes-scheduled` (done when a date is set or all sent) + seeded task « Programmer la date
+  d'envoi des réponses aux demandes » (Demandes phase, before « Envoyer les réponses… », `SeedRentreeResponsesScheduleTaskAsync`;
+  existing years: « Ajouter les nouvelles tâches »).
+- Live-tested: past/garbage time 400, CU 403, failure path (undecided → nothing sent + notification), success path
+  (fired on the minute, 161/83, notification), UI schedule + cancel in Edge.
+

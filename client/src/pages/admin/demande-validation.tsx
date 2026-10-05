@@ -48,6 +48,9 @@ import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
+import { DemandeResponsesSchedule } from '@/components/admin/demande-responses-schedule'
+import { useAuthStore } from '@/stores/auth-store'
+import { PERMISSIONS } from '@/lib/constants'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function eligible(u: UnitOccupancy, d: DemandeReview): boolean {
@@ -340,6 +343,7 @@ export default function DemandeValidationPage() {
   const pendingSend = all.filter((d) => (d.status === 'Approved' || d.status === 'Declined') && !d.responseSentAt).length
   const undecided = all.filter((d) => d.status === 'Submitted' && !d.responseSentAt).length
   const canSend = pendingSend > 0 && undecided === 0 && status === 'all'
+  const canManageDemandes = useAuthStore((st) => st.hasPermission(PERMISSIONS.DEMANDE_MANAGE))
 
   const detailIndex = rows.findIndex((d) => d.id === detailId)
   const detail = detailIndex >= 0 ? rows[detailIndex] : null
@@ -546,6 +550,9 @@ export default function DemandeValidationPage() {
           </Button>
         </div>
       </div>
+
+      {/* Scheduled automatic send (date + time) — or a prompt to schedule one, and the last automatic result. */}
+      <DemandeResponsesSchedule undecided={undecided} pendingSend={pendingSend} canManage={canManageDemandes} />
 
       {status === 'all' && undecided > 0 && (
         <Callout tone="warning" icon={Clock} title={`${undecided} demande(s) encore à étudier`}>

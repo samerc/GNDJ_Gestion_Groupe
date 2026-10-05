@@ -97,6 +97,7 @@ builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.LeaderWelcomeBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.DemandeResponsesSchedulerBackgroundService>(); // « Envoyer les réponses » at the date/time the CG scheduled
 builder.Services.AddHostedService<GNDJ.Api.Services.PassageReminderBackgroundService>(); // 7 / 2 days before the passage date // "Bienvenue dans la maîtrise" email to new chefs
 builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.OpsAlertBackgroundService>(); // daily "système" problems email
@@ -381,6 +382,7 @@ using (var scope = app.Services.CreateScope())
             await SeedData.SeedRentreeReminderTaskAsync(context);
             await SeedData.SeedRentreeExtraTasksAsync(context);
             await SeedData.SeedRentreePassageFinishTaskAsync(context); // per-unit "Terminer le passage de l'unité"
+            await SeedData.SeedRentreeResponsesScheduleTaskAsync(context); // "Programmer la date d'envoi des réponses aux demandes"
             await SeedData.SeedRentreeAnchorsAndProgressAsync(context);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })

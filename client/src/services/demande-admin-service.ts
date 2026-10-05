@@ -290,6 +290,25 @@ export function useSendResponses() {
   })
 }
 
+// Scheduled « Envoyer les réponses »: the moment (Lebanon time, "yyyy-MM-ddTHH:mm") a background job will run the same
+// send, plus the result of the last automatic run. PUT with an empty value cancels it.
+export interface ResponsesScheduleStatus { at: string; scheduledFor: string | null; ok: boolean; message: string }
+export interface ResponsesSchedule { scheduledAt: string | null; lastRun: ResponsesScheduleStatus | null }
+export function useResponsesSchedule() {
+  return useQuery({
+    queryKey: ['demandes', 'responses-schedule'],
+    queryFn: () => apiClient.get<ResponsesSchedule>('/demandes/responses-schedule').then((r) => r.data),
+    refetchInterval: 60_000, // flips to "sent" on its own once the job has run
+  })
+}
+export function useSetResponsesSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scheduledAt: string | null) => apiClient.put('/demandes/responses-schedule', { scheduledAt }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['demandes', 'responses-schedule'] }),
+  })
+}
+
 // POST /demandes/close-campaign → archives every demande + outcome, HARD-deletes all applicant data, and
 // disables inscriptions. Irreversible. Returns {archived, accountsDeleted}; invalidates demandes.
 export function useCloseCampaign() {

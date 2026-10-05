@@ -29,6 +29,7 @@ public static class RentreeProgress
         ("passage-finalized", "Passages finalisés", false),
         ("demandes-reviewed", "Demandes révisées", false),
         ("demandes-sent", "Réponses envoyées", false),
+        ("demandes-scheduled", "Envoi des réponses programmé", false),
         ("documents-verified", "Documents vérifiés — par unité", true),
         ("photos-done", "Photos prises — par unité", true),
         ("cotisations-paid", "Cotisations réglées — par unité", true),
@@ -50,7 +51,7 @@ public static class RentreeProgress
         var present = withProgress.Select(t => t.ProgressKey!).ToHashSet();
 
         // ── Group-wide signals ──
-        State? demandesOpen = null, passageOpen = null, demandesReviewed = null, demandesSent = null, passageFinalized = null;
+        State? demandesOpen = null, passageOpen = null, demandesReviewed = null, demandesSent = null, passageFinalized = null, demandesScheduled = null;
 
         if (present.Contains("demandes-open") || present.Contains("passage-open"))
         {
@@ -62,7 +63,7 @@ public static class RentreeProgress
             passageOpen = new State(null, null, pasEn, pasEn ? "Ouvert" : "Fermé");
         }
 
-        if (present.Contains("demandes-reviewed") || present.Contains("demandes-sent"))
+        if (present.Contains("demandes-reviewed") || present.Contains("demandes-sent") || present.Contains("demandes-scheduled"))
         {
             // All non-draft demandes for the year; a decision (Approved/Declined) stages the status while
             // ResponseSentAt stays null until the batch is sent.
@@ -77,6 +78,14 @@ public static class RentreeProgress
             var unsent = dem.Count(d => d.Status is DemandeStatus.Approved or DemandeStatus.Declined && !d.Sent);
             demandesSent = new State(decided - unsent, decided, decided > 0 && unsent == 0,
                 unsent > 0 ? $"{unsent} à envoyer" : decided > 0 ? "Envoyées" : "Rien à envoyer");
+
+            // Done once a send date/time is programmed (Demandes page) — or once every decision has been sent.
+            var scheduledRaw = await context.Settings.Where(s => s.Key == GNDJ.Application.Demandes.DemandeResponsesSchedule.ScheduledAtKey)
+                .Select(s => s.Value).FirstOrDefaultAsync(ct);
+            var scheduledAt = GNDJ.Application.Demandes.DemandeResponsesSchedule.Parse(scheduledRaw);
+            var allSent = decided > 0 && unsent == 0;
+            demandesScheduled = new State(null, null, scheduledAt is not null || allSent,
+                scheduledAt is { } at ? $"Programmé le {at:dd/MM/yyyy} à {at:HH:mm}" : allSent ? "Réponses envoyées" : "Pas encore programmé");
         }
 
         if (present.Contains("passage-finalized"))
@@ -201,6 +210,7 @@ public static class RentreeProgress
                 "passage-open" => passageOpen,
                 "demandes-reviewed" => demandesReviewed,
                 "demandes-sent" => demandesSent,
+                "demandes-scheduled" => demandesScheduled,
                 "passage-finalized" => passageFinalized,
                 "passage-proposed" => t.UnitId.HasValue ? passageProposed.GetValueOrDefault(t.UnitId.Value) : null,
                 "passage-finished" => t.UnitId.HasValue ? passageFinished.GetValueOrDefault(t.UnitId.Value) : null,
