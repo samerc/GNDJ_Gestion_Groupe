@@ -129,9 +129,14 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 ### Envoyer les réponses
 
 **Envoyer les réponses** n'est possible que lorsque **toutes** les demandes soumises ont une décision. Chaque
-famille reçoit un email ; pour une demande acceptée, **le membre est créé** (fiche, affectation dans l'unité,
-parents, compte de connexion) et la famille reçoit un lien pour définir le mot de passe. Vous pouvez envoyer en
-plusieurs fois : seules les nouvelles décisions partent.
+famille reçoit un email par enfant, **à l'adresse qui a ouvert le compte d'inscription** ; pour une demande
+acceptée, **le membre est créé** (fiche, affectation dans l'unité, parents, compte de connexion) et l'email contient
+l'identifiant et un lien pour définir le mot de passe. Chaque chef d'unité reçoit un email avec la liste Excel de
+ses nouveaux membres. Vous pouvez envoyer en plusieurs fois : seules les nouvelles décisions partent.
+
+> 💡 **Programmer l'envoi** : choisissez une date et une heure (heure du Liban) ; les réponses partent toutes seules
+> à ce moment-là, et vous êtes prévenu(e) du résultat dans les notifications. S'il reste des demandes non décidées,
+> rien ne part et la notification explique pourquoi.
 
 ### Les autres outils des inscriptions
 

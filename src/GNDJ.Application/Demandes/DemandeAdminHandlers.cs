@@ -1182,15 +1182,17 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // Email jobs collected during the batch, sent only AFTER the transaction commits.
         var emailJobs = new List<(string Code, string To, Dictionary<string, string> Vars)>();
 
-        // Every response goes to all emails on the file: the applicant account (login), every guardian
-        // email, and the child's own email — deduplicated (case-insensitive), blanks skipped.
+        // Each response goes ONLY to the email that opened the applicant account (the family's login for the
+        // portal) — one email per demande. Fallback, only if that account has no email: the first parent's email,
+        // then the child's own — so a response is never silently dropped.
         HashSet<string> Recipients(Demande d, ApplicantAccount? acc)
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            void Add(string? e) { if (!string.IsNullOrWhiteSpace(e)) set.Add(e!.Trim()); }
-            Add(acc?.Email);
-            foreach (var ag in acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? []) Add(ag.Email);
-            Add(d.Email);
+            var to = new[] { acc?.Email }
+                .Concat((acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? []).Select(g => g.Email))
+                .Append(d.Email)
+                .FirstOrDefault(e => !string.IsNullOrWhiteSpace(e));
+            if (to is not null) set.Add(to.Trim());
             return set;
         }
 

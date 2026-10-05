@@ -6436,6 +6436,9 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   the result and notifies group managers (bell + push) — success or failure (failure = nothing sent).
 - UI: `components/admin/demande-responses-schedule.tsx` on the review page (Programmer l'envoi / Modifier / Annuler,
   warning while demandes are undecided, last automatic result).
+- **Recipients changed (2026-10-05):** responses now go ONLY to the applicant-account email (one per demande); fallback
+  first parent's email, then the child's, only if the account has none. Prod numbers: 244 family emails (161 + 83) +
+  11 CU emails, instead of 477. Guide (guide-chef-groupe) updated.
 - Rentrée: progress key `demandes-scheduled` (done when a date is set or all sent) + seeded task « Programmer la date
   d'envoi des réponses aux demandes » (Demandes phase, before « Envoyer les réponses… », `SeedRentreeResponsesScheduleTaskAsync`;
   existing years: « Ajouter les nouvelles tâches »).

@@ -93,7 +93,7 @@ export function DemandeResponsesSchedule({ undecided, pendingSend, canManage }: 
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Programmer l'envoi des réponses</DialogTitle>
-            <DialogDescription>À ce moment-là (heure du Liban), les demandes acceptées deviennent des membres et toutes les familles reçoivent leur réponse — comme avec le bouton « Envoyer les réponses ».</DialogDescription>
+            <DialogDescription>À ce moment-là (heure du Liban), les demandes acceptées deviennent des membres et chaque famille reçoit sa réponse à l'email qui a ouvert son compte — comme avec le bouton « Envoyer les réponses ».</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {error && <Callout tone="danger">{error}</Callout>}

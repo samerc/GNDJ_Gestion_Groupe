@@ -962,7 +962,7 @@ export default function DemandeValidationPage() {
       <ConfirmDialog
         open={sendOpen} onOpenChange={setSendOpen}
         title="Envoyer les réponses ?"
-        description={`Ceci va convertir les demandes acceptées en membres (avec identifiants) et notifier toutes les familles concernées. ${pendingSend} décision(s) seront envoyées. Cette action est définitive. Continuer ?`}
+        description={`Ceci va convertir les demandes acceptées en membres (avec identifiants) et envoyer à chaque famille sa réponse (à l'email qui a ouvert le compte d'inscription). ${pendingSend} décision(s) seront envoyées. Cette action est définitive. Continuer ?`}
         confirmLabel="Envoyer" loading={sendMutation.isPending} onConfirm={handleSend}
       />
 
