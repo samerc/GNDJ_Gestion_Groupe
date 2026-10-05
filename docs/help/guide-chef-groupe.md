@@ -389,7 +389,9 @@ Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vo
 - **Envoyer une notification** : un message dans l'application (et sur le téléphone de ceux qui ont activé les
   notifications) à une unité, un groupe ou des membres choisis.
 - **Site public → Messages de contact** : les messages envoyés depuis le formulaire du site ; **Je m'en occupe**
-  évite que deux personnes répondent, **Répondre** envoie la réponse par email.
+  évite que deux personnes répondent, **Répondre** envoie la réponse par email, **Marquer comme résolu** classe
+  le message sans répondre (réglé par téléphone, rien à faire…). La liste s'ouvre sur **À traiter** ; une réponse
+  envoyée marque aussi le message comme résolu, et **Rouvrir** le remet à traiter.
 
 ## Les paramètres
 

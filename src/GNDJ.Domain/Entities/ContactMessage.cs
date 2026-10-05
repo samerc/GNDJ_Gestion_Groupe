@@ -21,6 +21,12 @@ public class ContactMessage : BaseEntity
     public string? ClaimedByName { get; set; }
     public DateTime? ClaimedAt { get; set; }
 
+    // Resolved ("Résolu") — the message is dealt with, with or without an email reply (a reply also resolves it).
+    // Resolved messages leave the default « À traiter » list. Name denormalized for display.
+    public DateTime? ResolvedAt { get; set; }
+    public Guid? ResolvedByUserId { get; set; }
+    public string? ResolvedByName { get; set; }
+
     // Reply tracking — set when a manager answers from the inbox (a "Re:" email is queued to SenderEmail).
     public DateTime? RepliedAt { get; set; }
     public string? ReplySubject { get; set; }

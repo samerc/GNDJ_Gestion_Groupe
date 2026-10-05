@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-05", "text": "Messages de contact : bouton « Marquer comme résolu » pour classer un message sans y répondre (et « Rouvrir »). La liste s'ouvre sur « À traiter » (avec Résolus / Tous) ; envoyer une réponse marque aussi le message comme résolu. Les messages déjà répondus sont considérés comme résolus."},
       {"date": "2026-10-05", "text": "Corriger l'unité d'un membre (ex. accepté en M2 mais qui doit aller en M3) : l'étape « Entrée » et la demande d'inscription suivent maintenant le membre vers la bonne unité, et les chefs des deux unités reçoivent une notification."},
       {"date": "2026-10-05", "text": "Demandes : les réponses (acceptation ou refus) partent maintenant uniquement à l'email qui a ouvert le compte d'inscription — un email par enfant — au lieu de toutes les adresses du dossier (parents, enfant). Les chefs d'unité reçoivent toujours leur liste Excel."},
       {"date": "2026-10-05", "text": "Demandes : l'envoi des réponses peut être programmé à une date et une heure précises (heure du Liban) — bouton « Programmer l'envoi » sur la page Demandes. À ce moment-là, l'envoi se fait tout seul exactement comme avec « Envoyer les réponses », et la maîtrise de groupe est prévenue du résultat dans les notifications. Si des demandes ne sont pas encore décidées, rien ne part et une notification explique pourquoi. Nouvelle tâche de rentrée « Programmer la date d'envoi des réponses aux demandes », cochée automatiquement une fois la date fixée."},

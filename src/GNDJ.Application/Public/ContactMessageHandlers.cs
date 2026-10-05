@@ -13,6 +13,7 @@ public record ContactMessageDto(
     Guid Id, string SenderName, string SenderEmail, string Subject, string Message,
     bool IsRead, DateTime CreatedAt, DateTime? RepliedAt, string? ReplySubject, string? ReplyBody,
     Guid? ClaimedByUserId, string? ClaimedByName, DateTime? ClaimedAt,
+    DateTime? ResolvedAt, string? ResolvedByName,
     // Deliverable reply address: the SenderEmail for a normal address, the member's REAL contact email when the
     // sender typed their "@{user_domain}" login username, or null when it's a username with no real email on file
     // (so the dialog can warn instead of pretending it will be delivered).
@@ -22,10 +23,11 @@ public record ContactMessageDto(
 
 public record ContactMessageReplyDto(Guid Id, string Subject, string Body, string SentTo, string? RepliedByName, DateTime CreatedAt);
 
-public record ContactMessageListDto(IReadOnlyList<ContactMessageDto> Items, int Total, int UnreadCount, bool HasMore);
+public record ContactMessageListDto(IReadOnlyList<ContactMessageDto> Items, int Total, int UnreadCount, bool HasMore, int OpenCount = 0);
 
 // ── List (paged, unread first then newest) with accent-insensitive search ─────
-public record GetContactMessagesQuery(string? Search = null, bool UnreadOnly = false, int Page = 1, int PageSize = 20)
+// Status: "open" (not resolved — the default inbox), "resolved", anything else = all.
+public record GetContactMessagesQuery(string? Search = null, bool UnreadOnly = false, int Page = 1, int PageSize = 20, string? Status = null)
     : IRequest<ContactMessageListDto>;
 
 public class GetContactMessagesQueryHandler(IApplicationDbContext context)
@@ -52,17 +54,22 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
         }
 
         var unreadCount = await context.ContactMessages.CountAsync(m => !m.IsRead, ct);
+        var openCount = await context.ContactMessages.CountAsync(m => m.ResolvedAt == null, ct);
+        if (request.Status == "open") q = q.Where(m => m.ResolvedAt == null);
+        else if (request.Status == "resolved") q = q.Where(m => m.ResolvedAt != null);
         var total = await q.CountAsync(ct);
         if (request.UnreadOnly) q = q.Where(m => !m.IsRead);
 
         var items = await q
-            .OrderBy(m => m.IsRead)                 // unread first
+            .OrderBy(m => m.ResolvedAt != null)     // still to handle first
+            .ThenBy(m => m.IsRead)                  // then unread
             .ThenByDescending(m => m.CreatedAt)     // then newest
             .Skip((page - 1) * size).Take(size + 1) // +1 to detect "has more"
             .Select(m => new ContactMessageDto(
                 m.Id, m.SenderName, m.SenderEmail, m.Subject, m.Message,
                 m.IsRead, m.CreatedAt, m.RepliedAt, m.ReplySubject, m.ReplyBody,
-                m.ClaimedByUserId, m.ClaimedByName, m.ClaimedAt))
+                m.ClaimedByUserId, m.ClaimedByName, m.ClaimedAt,
+                m.ResolvedAt, m.ResolvedByName))
             .ToListAsync(ct);
 
         var hasMore = items.Count > size;
@@ -86,7 +93,7 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
             Replies = replies[i.Id].ToList(),
         }).ToList();
 
-        return new ContactMessageListDto(items, total, unreadCount, hasMore);
+        return new ContactMessageListDto(items, total, unreadCount, hasMore, openCount);
     }
 }
 
@@ -181,6 +188,13 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
         m.RepliedByUserId = currentUser.UserId;
         m.IsRead = true;
         m.ReadAt ??= DateTime.UtcNow;
+        // Answering a message resolves it (unless it already was).
+        if (m.ResolvedAt is null)
+        {
+            m.ResolvedAt = now;
+            m.ResolvedByUserId = currentUser.UserId;
+            m.ResolvedByName = string.IsNullOrWhiteSpace(replier) ? "Un responsable" : replier;
+        }
         await context.SaveChangesAsync(ct);
 
         // Tell the OTHER managers who answered, so two people don't reply to the same message. Best-effort,
@@ -190,6 +204,41 @@ public class ReplyContactMessageCommandHandler(IApplicationDbContext context, IC
             "/admin/contact-messages", excludeMemberId: currentUser.MemberId, ct: ct);
 
         await audit.LogAsync("Reply", "ContactMessage", m.Id, newValues: new { Sender = m.SenderName, Subject = subject }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}
+
+// ── Resolve / reopen ─────────────────────────────────────────────────────────
+// Marks a message as dealt with WITHOUT replying (answered by phone, spam, nothing to do…), or reopens it.
+// Resolving also marks it read. Name is denormalized for display.
+public record ResolveContactMessageCommand(Guid Id, bool Resolved) : IRequest<Result<bool>>;
+
+public class ResolveContactMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+    : IRequestHandler<ResolveContactMessageCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(ResolveContactMessageCommand request, CancellationToken ct)
+    {
+        var m = await context.ContactMessages.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (m is null) return Result<bool>.Failure("Message introuvable.");
+        if (request.Resolved)
+        {
+            if (m.ResolvedAt is not null) return Result<bool>.Success(true);
+            var name = currentUser.MemberId is Guid mid
+                ? await context.Members.Where(x => x.Id == mid).Select(x => (x.FirstName + " " + x.LastName).Trim()).FirstOrDefaultAsync(ct)
+                : null;
+            m.ResolvedAt = DateTime.UtcNow;
+            m.ResolvedByUserId = currentUser.UserId;
+            m.ResolvedByName = string.IsNullOrWhiteSpace(name) ? "Un responsable" : name;
+            m.IsRead = true;
+            m.ReadAt ??= DateTime.UtcNow;
+        }
+        else
+        {
+            m.ResolvedAt = null; m.ResolvedByUserId = null; m.ResolvedByName = null;
+        }
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync(request.Resolved ? "Resolve" : "Reopen", "ContactMessage", m.Id,
+            newValues: new { Sender = m.SenderName, m.Subject }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
 }

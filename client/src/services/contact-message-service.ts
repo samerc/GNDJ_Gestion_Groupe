@@ -17,6 +17,9 @@ export interface ContactMessageDto {
   claimedByUserId: string | null
   claimedByName: string | null
   claimedAt: string | null
+  // Resolved = dealt with (with or without a reply; a reply resolves it too).
+  resolvedAt: string | null
+  resolvedByName: string | null
   // Deliverable reply address: the senderEmail for a normal address, the member's real contact email when the
   // sender typed their login username, or null when it's a username with no real email on file (can't reply).
   replyToEmail: string | null
@@ -38,16 +41,20 @@ export interface ContactMessageListDto {
   total: number
   unreadCount: number
   hasMore: boolean
+  // Messages not resolved yet (whole inbox, ignores the filters).
+  openCount: number
 }
 
+export type ContactMessageStatus = 'open' | 'resolved' | 'all'
+
 // GET /contact-messages — paged inbox (unread first, then newest). search + unreadOnly optional.
-export function useContactMessages(params: { search?: string; unreadOnly?: boolean; page?: number; pageSize?: number }) {
+export function useContactMessages(params: { search?: string; unreadOnly?: boolean; status?: ContactMessageStatus; page?: number; pageSize?: number }) {
   return useQuery({
     queryKey: ['contact-messages', 'list', params],
     queryFn: () =>
       apiClient
         .get<ContactMessageListDto>('/contact-messages', {
-          params: { search: params.search || undefined, unreadOnly: params.unreadOnly || undefined, page: params.page ?? 1, pageSize: params.pageSize ?? 20 },
+          params: { search: params.search || undefined, unreadOnly: params.unreadOnly || undefined, status: params.status ?? 'all', page: params.page ?? 1, pageSize: params.pageSize ?? 20 },
         })
         .then((r) => r.data),
   })
@@ -91,6 +98,16 @@ export function useDeleteContactMessage() {
 }
 
 // Claim / release a message ("En cours de traitement par X").
+// Mark resolved (no reply needed) / reopen.
+export function useResolveContactMessage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, resolved }: { id: string; resolved: boolean }) =>
+      apiClient.post(`/contact-messages/${id}/resolve`, { resolved }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-messages'] }),
+  })
+}
+
 export function useClaimContactMessage() {
   const qc = useQueryClient()
   return useMutation({

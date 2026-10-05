@@ -19,8 +19,8 @@ public class ContactMessagesController : BaseApiController
     [HttpGet]
     [HasPermission(Permissions.ContentManage)]
     public async Task<IActionResult> List([FromQuery] string? search = null, [FromQuery] bool unreadOnly = false,
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => Ok(await Mediator.Send(new GetContactMessagesQuery(search, unreadOnly, page, pageSize)));
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? status = null)
+        => Ok(await Mediator.Send(new GetContactMessagesQuery(search, unreadOnly, page, pageSize, status)));
 
     /// <summary>Unread count for the sidebar badge.</summary>
     [HttpGet("unread-count")]
@@ -43,6 +43,15 @@ public class ContactMessagesController : BaseApiController
     public async Task<IActionResult> Reply(Guid id, [FromBody] ReplyBody body)
     {
         var result = await Mediator.Send(new ReplyContactMessageCommand(id, body.Subject, body.Body));
+        return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
+    }
+
+    /// <summary>Mark a message resolved (with or without a reply) or reopen it.</summary>
+    [HttpPost("{id:guid}/resolve")]
+    [HasPermission(Permissions.ContentManage)]
+    public async Task<IActionResult> Resolve(Guid id, [FromBody] ResolveBody body)
+    {
+        var result = await Mediator.Send(new ResolveContactMessageCommand(id, body.Resolved));
         return result.IsSuccess ? NoContent() : BadRequest(new { error = result.Error });
     }
 
@@ -76,4 +85,5 @@ public class ContactMessagesController : BaseApiController
     public record MarkReadBody(bool Read);
     public record ReplyBody(string Subject, string Body);
     public record ClaimBody(bool Claim);
+    public record ResolveBody(bool Resolved);
 }

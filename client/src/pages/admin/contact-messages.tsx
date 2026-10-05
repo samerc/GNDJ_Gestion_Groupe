@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, MailOpen, Reply, Trash2, Send, CornerUpLeft, MessageSquare, UserCheck } from 'lucide-react'
+import { Mail, MailOpen, Reply, Trash2, Send, CornerUpLeft, MessageSquare, UserCheck, CheckCircle2, RotateCcw } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 import {
   useContactMessages,
@@ -8,7 +8,9 @@ import {
   useDeleteContactMessage,
   useRestoreContactMessage,
   useClaimContactMessage,
+  useResolveContactMessage,
   type ContactMessageDto,
+  type ContactMessageStatus,
 } from '@/services/contact-message-service'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +23,7 @@ import { EmailDeliveryWarning } from '@/components/shared/email-delivery-warning
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchInput } from '@/components/shared/search-input'
+import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { Callout } from '@/components/shared/callout'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -35,10 +38,12 @@ import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 export default function ContactMessagesPage() {
   const [search, setSearch] = useState('')
   const [unreadOnly, setUnreadOnly] = useState(false)
+  // Default view = « À traiter » (not resolved yet); « Résolus » / « Tous » to look back.
+  const [status, setStatus] = useState<ContactMessageStatus>('open')
   const [page, setPage] = useState(1)
   const debounced = useDebounce(search, 400)
 
-  const { data, isLoading } = useContactMessages({ search: debounced, unreadOnly, page })
+  const { data, isLoading } = useContactMessages({ search: debounced, unreadOnly, status, page })
   const markRead = useMarkContactMessageRead()
   const del = useDeleteContactMessage()
   const restore = useRestoreContactMessage()
@@ -59,13 +64,22 @@ export default function ContactMessagesPage() {
       <PageHeader
         title="Messages de contact"
         icon={MessageSquare}
-        description="Les messages envoyés depuis le formulaire de contact du site public. Ouvrez un message pour le lire et y répondre."
+        description="Les messages envoyés depuis le formulaire de contact du site public. Ouvrez un message pour le lire, y répondre ou le marquer comme résolu."
       />
 
       <EmailDeliveryWarning />
 
       {/* Toolbar: search + unread filter + count */}
       <div className="flex flex-wrap items-center gap-3">
+        <SegmentedToggle<ContactMessageStatus>
+          value={status}
+          onChange={(v) => { setStatus(v); setPage(1) }}
+          options={[
+            { value: 'open', label: <>À traiter{typeof data?.openCount === 'number' ? ` (${data.openCount})` : ''}</> },
+            { value: 'resolved', label: 'Résolus' },
+            { value: 'all', label: 'Tous' },
+          ]}
+        />
         <SearchInput
           className="min-w-0 basis-full sm:basis-auto sm:flex-1"
           value={search}
@@ -88,7 +102,10 @@ export default function ContactMessagesPage() {
         <LoadingSpinner variant="table" />
       ) : !data || data.items.length === 0 ? (
         <EmptyState icon={MessageSquare} title="Aucun message"
-          description={debounced || unreadOnly ? 'Aucun message ne correspond à ce filtre.' : "Vous n'avez pas encore reçu de message de contact."} />
+          description={debounced || unreadOnly ? 'Aucun message ne correspond à ce filtre.'
+            : status === 'open' ? 'Tous les messages ont été traités.'
+            : status === 'resolved' ? "Aucun message n'a encore été marqué comme résolu."
+            : "Vous n'avez pas encore reçu de message de contact."} />
       ) : (
         <div className="space-y-2">
           {data.items.map((m) => (
@@ -98,7 +115,7 @@ export default function ContactMessagesPage() {
               onClick={() => open(m)}
               className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left shadow-2xs transition-colors hover:border-primary/30 ${
                 m.isRead ? 'bg-card' : 'border-primary/30 bg-primary/5'
-              }`}
+              } ${m.resolvedAt ? 'opacity-75' : ''}`}
             >
               <span className="mt-0.5 shrink-0 text-muted-foreground">
                 {m.isRead ? <MailOpen className="h-5 w-5" /> : <Mail className="h-5 w-5 text-primary" />}
@@ -115,6 +132,11 @@ export default function ContactMessagesPage() {
                   {m.claimedByName && (
                     <Badge variant="warning" className="gap-1">
                       <UserCheck className="h-3 w-3" /> {m.claimedByName}
+                    </Badge>
+                  )}
+                  {m.resolvedAt && (
+                    <Badge variant="secondary" className="gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Résolu
                     </Badge>
                   )}
                   {m.repliedAt && (
@@ -194,6 +216,7 @@ function MessageDialog({
   const emailToast = useEmailQueuedToast()
   const reply = useReplyContactMessage()
   const claim = useClaimContactMessage()
+  const resolve = useResolveContactMessage()
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
 
@@ -221,6 +244,12 @@ function MessageDialog({
     onError: (e) => toast.error(parseApiError(e)),
   })
 
+  // Résolu (no reply needed) / Rouvrir. Closes the dialog: the message leaves (or re-enters) « À traiter ».
+  const setResolved = (on: boolean) => resolve.mutate({ id: message.id, resolved: on }, {
+    onSuccess: () => { toast.success(on ? 'Message marqué comme résolu' : 'Message rouvert'); onClose() },
+    onError: (e) => toast.error(parseApiError(e)),
+  })
+
   const send = () => {
     reply.mutate({ id: message.id, subject, body }, {
       onSuccess: () => { emailToast("Réponse mise en file d'envoi pour " + (replyTo ?? message.senderEmail)); onClose() },
@@ -245,6 +274,17 @@ function MessageDialog({
             </div>
             <span className="text-xs text-muted-foreground">{formatDateTime(message.createdAt)}</span>
           </div>
+
+          {/* Resolved banner — dealt with (with or without a reply). */}
+          {message.resolvedAt && (
+            <Callout tone="success" icon={CheckCircle2}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>Résolu le {formatDateTime(message.resolvedAt)}{message.resolvedByName ? <> par <span className="font-medium">{message.resolvedByName}</span></> : null}</span>
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={resolve.isPending}
+                  onClick={() => setResolved(false)}><RotateCcw className="mr-1 h-3 w-3" />Rouvrir</Button>
+              </div>
+            </Callout>
+          )}
 
           {/* Claim banner — who's handling this message. */}
           {message.claimedByName && (
@@ -331,7 +371,14 @@ function MessageDialog({
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             {!replyOpen ? (
-              <Button onClick={() => onReplyToggle(true)}><Reply className="mr-1.5 h-4 w-4" />Répondre</Button>
+              <>
+                {!message.resolvedAt && (
+                  <Button variant="success" disabled={resolve.isPending} onClick={() => setResolved(true)}>
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" />Marquer comme résolu
+                  </Button>
+                )}
+                <Button onClick={() => onReplyToggle(true)}><Reply className="mr-1.5 h-4 w-4" />Répondre</Button>
+              </>
             ) : (
               <>
                 <Button variant="outline" onClick={() => onReplyToggle(false)}>Annuler</Button>
