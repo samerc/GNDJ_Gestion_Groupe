@@ -3,6 +3,7 @@
 // Authenticated apiClient; keyed on ['demandes', ...].
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
+import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
 import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput } from '@/services/applicant-service'
 
 export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean }
@@ -292,12 +293,10 @@ export function useSendResponses() {
 
 // Scheduled « Envoyer les réponses »: the moment (Lebanon time, "yyyy-MM-ddTHH:mm") a background job will run the same
 // send, plus the result of the last automatic run. PUT with an empty value cancels it.
-export interface ResponsesScheduleStatus { at: string; scheduledFor: string | null; ok: boolean; message: string }
-export interface ResponsesSchedule { scheduledAt: string | null; lastRun: ResponsesScheduleStatus | null }
 export function useResponsesSchedule() {
   return useQuery({
     queryKey: ['demandes', 'responses-schedule'],
-    queryFn: () => apiClient.get<ResponsesSchedule>('/demandes/responses-schedule').then((r) => r.data),
+    queryFn: () => apiClient.get<ScheduledRun>('/demandes/responses-schedule').then((r) => r.data),
     refetchInterval: 60_000, // flips to "sent" on its own once the job has run
   })
 }

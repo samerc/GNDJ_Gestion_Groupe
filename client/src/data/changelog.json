@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-05", "text": "Passage : la publication peut être programmée à une date et une heure précises (heure du Liban) — « Programmer la publication » sous l'étape « Publier le passage ». Elle fait exactement la même chose que le bouton ; s'il manque une ligne ou qu'une unité n'a pas terminé, rien n'est publié et les responsables sont prévenus."},
       {"date": "2026-10-05", "text": "Messages de contact : bouton « Marquer comme résolu » pour classer un message sans y répondre (et « Rouvrir »). La liste s'ouvre sur « À traiter » (avec Résolus / Tous) ; envoyer une réponse marque aussi le message comme résolu. Les messages déjà répondus sont considérés comme résolus."},
       {"date": "2026-10-05", "text": "Corriger l'unité d'un membre (ex. accepté en M2 mais qui doit aller en M3) : l'étape « Entrée » et la demande d'inscription suivent maintenant le membre vers la bonne unité, et les chefs des deux unités reçoivent une notification."},
       {"date": "2026-10-05", "text": "Demandes : les réponses (acceptation ou refus) partent maintenant uniquement à l'email qui a ouvert le compte d'inscription — un email par enfant — au lieu de toutes les adresses du dossier (parents, enfant). Les chefs d'unité reçoivent toujours leur liste Excel."},

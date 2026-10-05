@@ -229,6 +229,11 @@ part **automatiquement** ou par **envoi manuel**, et à quel moment.
 > ⚠️ **Publier** n'est possible que lorsque **chaque membre actif** a une ligne de passage et que **toutes les
 > unités** ont terminé leur passage.
 
+> 💡 **Programmer la publication** : sous l'étape « Publier le passage », choisissez une date et une heure (heure du
+> Liban) ; le passage est publié tout seul à ce moment-là, exactement comme avec le bouton, et vous êtes prévenu(e) du
+> résultat dans les notifications. S'il manque encore une ligne ou qu'une unité n'a pas terminé, rien n'est publié
+> et la notification explique pourquoi.
+
 ## La campagne de documents
 
 La campagne se règle une fois par an avec **5 dates**, sur la page **Suivi → Suivi documents** :

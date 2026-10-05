@@ -1013,7 +1013,9 @@ public class BulkChangePassagesCommandHandler(IApplicationDbContext context, ICu
 // 5. FinalizePassages ("Publier le passage") — group-wide only. Needs every active member to have a line and
 // every unit with active members to be finished by its CU. Lines still Pending are accepted automatically.
 // Ends the current assignments, creates the new ones, then emails each receiving unit's CU its newcomers.
-public record FinalizePassagesCommand(string ScoutYear) : IRequest<Result<int>>;
+// Automatic = run by the scheduled publication (no signed-in user). Never bound from the API: the controller builds
+// the command from a body that only carries the scout year.
+public record FinalizePassagesCommand(string ScoutYear, bool Automatic = false) : IRequest<Result<int>>;
 
 public class FinalizePassagesCommandValidator : AbstractValidator<FinalizePassagesCommand>
 {
@@ -1029,7 +1031,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
     public async ValueTask<Result<int>> Handle(FinalizePassagesCommand request, CancellationToken ct)
     {
         // CG-level operation (passage.manage) — controller-gated; defense-in-depth here.
-        if (!PassageLocks.IsManager(currentUser))
+        if (!request.Automatic && !PassageLocks.IsManager(currentUser))
             return Result<int>.Failure("Accès réservé à la maîtrise de groupe.");
 
         var today = LebanonClock.Today;

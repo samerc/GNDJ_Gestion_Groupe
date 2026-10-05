@@ -3,6 +3,7 @@
 // all mutations invalidate ['passages'].
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
+import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
 import { filenameFromDisposition } from '@/lib/download'
 
 export interface PassageDto {
@@ -232,6 +233,23 @@ export function useBulkChangePassages() {
 // POST /passages/finalize — CG posts the whole group's passage (pending lines are accepted automatically;
 // ends old + creates new assignments); returns { count }. Blocked until every member has a line and every
 // unit is finished. Also invalidates ['members'].
+// Scheduled « Publier le passage » (Lebanon time) + the last automatic result. Polled so the page flips once it ran.
+export function usePassageFinalizeSchedule(enabled = true) {
+  return useQuery({
+    queryKey: ['passages', 'finalize-schedule'],
+    queryFn: () => apiClient.get<ScheduledRun>('/passages/finalize-schedule').then(r => r.data),
+    refetchInterval: 60_000,
+    enabled,
+  })
+}
+export function useSetPassageFinalizeSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (scheduledAt: string | null) => apiClient.put('/passages/finalize-schedule', { scheduledAt }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['passages', 'finalize-schedule'] }),
+  })
+}
+
 export function useFinalizePassages() {
   const qc = useQueryClient()
   return useMutation({

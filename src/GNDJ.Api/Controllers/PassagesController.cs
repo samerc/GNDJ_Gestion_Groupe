@@ -154,11 +154,35 @@ public class PassagesController : BaseApiController
     /// </summary>
     [HttpPost("finalize")]
     [HasPermission(Permissions.PassageManage)]
-    public async Task<IActionResult> Finalize([FromBody] FinalizePassagesCommand command)
+    public async Task<IActionResult> Finalize([FromBody] FinalizeBody body)
+    {
+        var result = await Mediator.Send(new FinalizePassagesCommand(body.ScoutYear));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { count = result.Value });
+    }
+
+    public record FinalizeBody(string ScoutYear);
+
+    /// <summary>The scheduled automatic « Publier le passage » (Lebanon time) + the result of the last automatic run.
+    /// Requires passage.manage.</summary>
+    [HttpGet("finalize-schedule")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> GetFinalizeSchedule()
+    {
+        var result = await Mediator.Send(new GetPassageFinalizeScheduleQuery());
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>Schedules « Publier le passage » for a date and time ("yyyy-MM-ddTHH:mm", Lebanon time; empty = cancel).
+    /// A background job runs the same publication at that moment. Requires passage.manage.</summary>
+    [HttpPut("finalize-schedule")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> ScheduleFinalize([FromBody] SchedulePassageFinalizeCommand command)
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { count = result.Value });
+        return NoContent();
     }
 
     /// <summary>Finish status of one unit's passage (finished?, members without a line). Requires passage.view + unit access.</summary>

@@ -29,6 +29,7 @@ import { useMaitrisePlan } from '@/services/maitrise-service'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { BulkChangeDialog } from '@/components/passage/bulk-change-dialog'
+import { PassageFinalizeSchedule } from '@/components/passage/passage-finalize-schedule'
 import { useUnits } from '@/services/unit-service'
 import { useTeams, teamsForSelect } from '@/services/team-service'
 import { useFunctionalRoles } from '@/services/role-service'
@@ -467,6 +468,17 @@ export default function PassageValidationPage() {
           action={finalizedCount === 0 && canFinalize ? { label: 'Publier…', onClick: () => setFinalizeDialog(true) } : undefined}
         />
       </div>
+
+      {/* Scheduled automatic publication (date + time) for the configured passage year — or an invitation to schedule. */}
+      {scoutYear === passageScoutYear && (
+        <PassageFinalizeSchedule
+          published={finalizedCount > 0}
+          hasLines={approvedCount + pendingCount > 0}
+          missing={missingTotal}
+          unitsNotFinished={unitsNotSubmitted}
+          canManage
+        />
+      )}
 
       {/* One row per unit: chef finished? changes to validate? headcount now → next year + arrivals by origin. */}
       <PassageUnitsOverview
