@@ -62,7 +62,14 @@ Sur téléphone, le menu est derrière le bouton ☰ en haut à gauche.
 
 ![Ma fiche](img/membre-fiche.png)
 
-La fiche est organisée en onglets : **Profil**, **Contact & famille**, **Unités / Fonctions**, **Médical & infos**
+### Ma rentrée
+
+En haut de **Ma fiche**, la carte **Ma rentrée** liste ce qu'il vous reste à faire pour l'année : vérifier les
+coordonnées de la famille, envoyer vos documents (et, si le groupe l'a activé, la cotisation). Chaque ligne se coche
+toute seule quand c'est fait. Quand tout est fait, la carte se réduit à « Tout est en ordre » ; elle se rouvre d'elle-même
+si quelque chose de nouveau est demandé (un document refusé ou expiré, la rentrée suivante).
+
+La fiche est organisée en onglets : **Profil**, **Contact & famille**, **Mon unité**, **Médical & infos**
 et **Progression**.
 
 ### Ce que vous pouvez modifier vous-même
@@ -81,8 +88,8 @@ coordonnées se modifient directement dans l'onglet **Contact & famille** (crayo
 
 ### Vérifier vos coordonnées
 
-À la première connexion, une fenêtre **« Vérifiez vos coordonnées »** vous demande de relire vos emails et
-téléphones, et de choisir le **courriel principal** : c'est l'adresse qui recevra les messages du groupe
+À la première connexion (puis une fois par an, au début de la période des documents), une fenêtre
+**« Vérifiez vos coordonnées »** vous demande de relire vos emails et téléphones, et de choisir le **courriel principal** : c'est l'adresse qui recevra les messages du groupe
 (relances, liens pour le mot de passe). Choisissez celle du parent qui s'occupe réellement du dossier.
 
 ![Contact & famille](img/membre-contact.png)
@@ -97,9 +104,9 @@ en haut de **Ma fiche** (visible pendant la période d'inscription) : les parent
 
 ### Progression et fonctions
 
-Dans les onglets **Progression** et **Unités / Fonctions**, le bouton **Proposer** vous permet d'indiquer une étape
-franchie, un badge obtenu ou une fonction. Votre chef d'unité reçoit la proposition et l'accepte ou la refuse (le
-motif s'affiche alors sur votre fiche).
+Dans l'onglet **Progression**, le bouton **Ajouter une étape** vous permet d'indiquer une étape franchie ou un
+badge obtenu ; dans **Mon unité**, **Signaler un changement** sert pour un changement d'unité, d'équipe ou de
+fonction. Votre chef d'unité le reçoit et le confirme ou le refuse (le motif s'affiche alors sur votre fiche).
 
 ## Mes documents
 

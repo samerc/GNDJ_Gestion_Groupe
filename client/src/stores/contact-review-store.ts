@@ -10,6 +10,8 @@ const SKIP_KEY = 'contact-review.skip'
 interface ContactReviewState {
   skipped: boolean
   skip: () => void
+  /** Show the popup again this session (« Vérifier » on the Ma rentrée to-do). */
+  reopen: () => void
 }
 
 export const useContactReviewStore = create<ContactReviewState>((set) => ({
@@ -17,5 +19,9 @@ export const useContactReviewStore = create<ContactReviewState>((set) => ({
   skip: () => {
     try { sessionStorage.setItem(SKIP_KEY, '1') } catch { /* private mode */ }
     set({ skipped: true })
+  },
+  reopen: () => {
+    try { sessionStorage.removeItem(SKIP_KEY) } catch { /* private mode */ }
+    set({ skipped: false })
   },
 }))

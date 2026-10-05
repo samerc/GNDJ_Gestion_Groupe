@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Auth.DTOs;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
@@ -70,7 +71,9 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         // Unified contact-review popup (EVERYONE, not just leaders): shown once until the member confirms their
         // household contacts. Excludes super-admins (they have no personal household to review). Skippable per
         // session (client-side); ContactReviewedAt is stamped only on « Confirmer ».
-        var needsContactReview = !user.IsSuperAdmin && user.Member.ContactReviewedAt is null;
+        // Re-asked once a year when the document campaign starts (Common/ContactReview).
+        var needsContactReview = !user.IsSuperAdmin
+            && ContactReview.IsDue(user.Member.ContactReviewedAt, await ContactReview.YearStartAsync(_context, cancellationToken));
 
         // Étapiste of a game in a live camp → "Mes jeux" page (see GetMyCampGamesQuery).
         var isCampEtapiste = await _context.CampGameEtapistes.AnyAsync(e => e.MemberId == user.MemberId && !e.IsDeleted

@@ -21,7 +21,7 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
 import { HouseholdContacts } from '@/components/members/household-contacts'
-import { DocumentsCta } from '@/components/members/documents-cta'
+import { MyRentree } from '@/components/members/my-rentree'
 import { SiblingEnrollCta } from '@/components/members/sibling-enroll-cta'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
@@ -129,8 +129,8 @@ export default function MyProfilePage() {
         )}
       />
 
-      {/* Members mostly log in to upload documents — surface their dossier + completion right on Ma fiche. */}
-      <DocumentsCta memberId={memberId} />
+      {/* « Ma rentrée »: what is left to do this year (contacts, documents, cotisation, app) — ticks itself off. */}
+      <MyRentree />
       <SiblingEnrollCta />
 
       {error && <Callout tone="danger">{error}</Callout>}
@@ -139,7 +139,7 @@ export default function MyProfilePage() {
         <TabsList>
           <TabsTrigger value="profile">Profil</TabsTrigger>
           <TabsTrigger value="contact">Contact &amp; famille</TabsTrigger>
-          <TabsTrigger value="assignments">Unités / Fonctions</TabsTrigger>
+          <TabsTrigger value="assignments">Mon unité</TabsTrigger>
           <TabsTrigger value="medical">Médical &amp; infos</TabsTrigger>
           <TabsTrigger value="progression">Progression</TabsTrigger>
         </TabsList>
@@ -150,7 +150,7 @@ export default function MyProfilePage() {
             <CardContent>
               {editing ? (
                 <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">Le nom, le prénom, la date de naissance, le sexe et le matricule sont gérés par la maîtrise. Contactez vos chefs pour toute correction.</p>
+                <p className="text-xs text-muted-foreground">Le nom, le prénom, la date de naissance, le sexe et le matricule sont gérés par vos chefs. Pour les corriger, contactez votre chef d'unité.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {/* Locked identity fields — admin-controlled; a member can view but not change them. */}
                   <div className="space-y-2"><RequiredLabel>Prénom</RequiredLabel><Input value={member.firstName} disabled /></div>

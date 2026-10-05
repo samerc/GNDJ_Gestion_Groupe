@@ -127,7 +127,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       if (canPropose) {
         // Member: submit a proposal (unit + team + role) for CU/CG approval.
         await proposeMutation.mutateAsync({ unitId: form.unitId, teamId: form.teamId || null, functionalRoleId: form.functionalRoleId, startDate: form.startDate })
-        toast.success('Proposition envoyée — en attente d\'acceptation')
+        toast.success("Envoyé à votre chef d'unité, qui doit le confirmer")
         setFormOpen(false)
         return
       }
@@ -183,7 +183,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
 
       {/* A member's pending fonction proposals (awaiting CU/CG approval). */}
       {canPropose && pendingAssignments.length > 0 && (
-        <Callout tone="warning" title="En attente d'acceptation">
+        <Callout tone="warning" title="En attente de confirmation par votre chef">
           <ul className="space-y-0.5">
             {pendingAssignments.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>
@@ -192,7 +192,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
 
       {/* A member's REJECTED fonction proposals — shows the decision + reason so they aren't left guessing. */}
       {canPropose && rejectedAssignments.length > 0 && (
-        <Callout tone="danger" title="Proposition refusée">
+        <Callout tone="danger" title="Changement refusé par votre chef">
           <ul className="space-y-1.5">
             {rejectedAssignments.map(r => (
               <li key={r.id} className="flex items-start justify-between gap-2">
@@ -219,15 +219,16 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-              Postes actuels
+              {/* Plain wording on the member's own fiche; leaders keep the usual terms. */}
+              {canPropose ? "Mon unité aujourd'hui" : 'Postes actuels'}
             </CardTitle>
             {!readOnly && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Ajouter</Button>}
-            {canPropose && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Proposer une fonction</Button>}
+            {canPropose && <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />Signaler un changement</Button>}
           </div>
         </CardHeader>
         <CardContent>
           {activeAssignments.length === 0 ? (
-            <EmptyState icon={Building2} title="Aucun poste actuel" />
+            <EmptyState icon={Building2} title={canPropose ? "Vous n'êtes inscrit(e) dans aucune unité pour le moment" : 'Aucun poste actuel'} />
           ) : (
             <div className="space-y-3">
               {activeAssignments.map(a => {
@@ -285,7 +286,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       {sortedYears.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-muted-foreground">Historique</CardTitle>
+            <CardTitle className="text-muted-foreground">{canPropose ? 'Mes années précédentes' : 'Historique'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative">
@@ -336,7 +337,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
       {/* Create Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editing ? 'Modifier le poste' : canPropose ? 'Proposer une fonction' : `Ajouter un poste pour ${memberName}`}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier le poste' : canPropose ? 'Signaler un changement (unité, équipe ou fonction)' : `Ajouter un poste pour ${memberName}`}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <Callout tone="danger">{error}</Callout>}
             <FormFieldErrors show={hasErrors} />

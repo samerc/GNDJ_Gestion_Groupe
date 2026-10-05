@@ -42,8 +42,38 @@ export interface ReviewMyContactsInput {
   guardians: { guardianId: string; linkId: string; isDeceased: boolean; isEmergencyContact: boolean }[]
 }
 export function useReviewMyContacts() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: ReviewMyContactsInput) => apiClient.post('/my-profile/review-contacts', data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['members', 'todo'] }),
+  })
+}
+
+// GET /my-profile/todo → « Ma rentrée »: what the signed-in member still has to do this year. Keyed under
+// ['members'] so document uploads / contact reviews (which invalidate ['members']) refresh it.
+export interface MyTodo {
+  onHold: boolean
+  contactsDone: boolean
+  docsTotal: number
+  docsApproved: number
+  docsPending: number
+  docsRejected: number
+  docsMissing: number
+  uploadOpen: boolean
+  uploadClosesOn: string | null
+  uploadReopensOn: string | null
+  /** Paid | Partial | Unpaid | Exempt — null when not asked (no scout year, or maîtrise not paying). */
+  cotisationStatus: string | null
+  cotisationPercent: number
+  scoutYear: string | null
+  appInstalled: boolean
+}
+export function useMyTodo(enabled = true) {
+  return useQuery({
+    queryKey: ['members', 'todo'],
+    queryFn: () => apiClient.get<MyTodo | ''>('/my-profile/todo').then((r) => (r.data || null) as MyTodo | null),
+    enabled,
+    staleTime: 60_000,
   })
 }
 

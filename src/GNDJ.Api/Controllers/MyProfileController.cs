@@ -6,6 +6,7 @@ using GNDJ.Application.Members.Commands.MyOnboarding;
 using GNDJ.Application.Members.Commands.Push;
 using GNDJ.Application.Members.Commands.UpdateMyProfile;
 using GNDJ.Application.Members.Queries.MySwitchAccounts;
+using GNDJ.Application.Members.Queries.MyTodo;
 using GNDJ.Application.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -74,6 +75,16 @@ public class MyProfileController : BaseApiController
     /// Stamps Member.AppInstalledAt once (idempotent) so the CG can see who installed the app. Best-effort.</summary>
     [HttpPost("app-installed")]
     public async Task<IActionResult> AppInstalled() => Wrap(await Mediator.Send(new MarkAppInstalledCommand()));
+
+    /// <summary>« Ma rentrée »: what the caller still has to do this year (contacts, documents, cotisation, app).
+    /// Auth-only, own member. 204 when the account has no member.</summary>
+    [HttpGet("todo")]
+    public async Task<IActionResult> Todo()
+    {
+        var todo = await Mediator.Send(new GetMyTodoQuery());
+        return todo is null ? NoContent() : Ok(todo);
+    }
+
 
     /// <summary>The VAPID public key the client needs to subscribe to Web Push, + whether push is configured
     /// on the server. Auth-only (the public key isn't secret, but this is only used by signed-in members).</summary>

@@ -153,7 +153,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       } else {
         // Member: submit a proposal for CU/CG approval.
         await proposeMutation.mutateAsync(payload)
-        toast.success('Proposition envoyée — en attente d\'acceptation')
+        toast.success("Envoyé à votre chef d'unité, qui doit le confirmer")
       }
       setFormOpen(false)
     } catch (err) {
@@ -179,7 +179,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
       {/* A member's pending progression proposals (awaiting CU/CG approval). */}
       {selfPropose && pendingProgressions.length > 0 && (
-        <Callout tone="warning" title="En attente d'acceptation">
+        <Callout tone="warning" title="En attente de confirmation par votre chef">
           <ul className="space-y-0.5">
             {pendingProgressions.map(r => <li key={r.id}>• {r.summary}</li>)}
           </ul>
@@ -188,7 +188,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
       {/* A member's REJECTED progression proposals — shows the decision + reason so they aren't left guessing. */}
       {selfPropose && rejectedProgressions.length > 0 && (
-        <Callout tone="danger" title="Proposition refusée">
+        <Callout tone="danger" title="Étape refusée par votre chef">
           <ul className="space-y-1.5">
             {rejectedProgressions.map(r => (
               <li key={r.id} className="flex items-start justify-between gap-2">
@@ -211,9 +211,9 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><Star className="h-4 w-4" />Progression scoute</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Star className="h-4 w-4" />{proposing ? 'Ma progression' : 'Progression scoute'}</CardTitle>
             {canAddOrPropose && (
-              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />{canManage ? 'Ajouter' : 'Proposer'}</Button>
+              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-3 w-3" />{canManage ? 'Ajouter' : 'Ajouter une étape'}</Button>
             )}
           </div>
         </CardHeader>
@@ -261,7 +261,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
       {/* Create Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? 'Modifier la progression' : canManage ? 'Nouvelle progression' : 'Proposer une progression'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier la progression' : canManage ? 'Nouvelle progression' : 'Ajouter une étape ou un badge'}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <Callout tone="danger">{error}</Callout>}
 
@@ -321,7 +321,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
 
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>{createMutation.isPending || updateMutation.isPending || proposeMutation.isPending ? 'Enregistrement…' : canManage ? 'Enregistrer' : 'Proposer'}</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>{createMutation.isPending || updateMutation.isPending || proposeMutation.isPending ? 'Enregistrement…' : canManage ? 'Enregistrer' : 'Envoyer à mon chef'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
