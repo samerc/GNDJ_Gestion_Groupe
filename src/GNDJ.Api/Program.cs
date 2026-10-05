@@ -97,6 +97,7 @@ builder.Services.AddHostedService<GNDJ.Api.Services.MemberPurgeBackgroundService
 builder.Services.AddHostedService<GNDJ.Api.Services.DocumentCampaignBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.RentreeReminderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.LeaderWelcomeBackgroundService>();
+builder.Services.AddHostedService<GNDJ.Api.Services.CalendarReminderBackgroundService>();
 builder.Services.AddHostedService<GNDJ.Api.Services.ScheduledRunsBackgroundService>(); // « Envoyer les réponses » / « Publier le passage » at the date/time the CG scheduled
 builder.Services.AddHostedService<GNDJ.Api.Services.PassageReminderBackgroundService>(); // 7 / 2 days before the passage date // "Bienvenue dans la maîtrise" email to new chefs
 builder.Services.AddHostedService<GNDJ.Api.Services.ApplicationLogMaintenanceBackgroundService>();

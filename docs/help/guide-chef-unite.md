@@ -350,6 +350,23 @@ Le nombre d'absences de l'année s'affiche sur la fiche du membre et dans la lis
 > 💡 Les **chefs d'équipe** (CP, sizenier…) peuvent aussi créer une réunion pour leur équipe : elle vous arrive
 > **à approuver**.
 
+## Le calendrier de l'unité
+
+**Calendrier** montre les événements du groupe, de votre branche et de votre unité, ceux de la maîtrise, vos
+réunions (y compris celles d'un chef d'équipe à approuver) et les dates importantes de l'année.
+
+**Nouvel événement** ajoute un événement **pour votre unité** (les événements du groupe, des branches et de la
+maîtrise sont créés par l'équipe du Chef de Groupe) :
+
+- date (ou plusieurs jours), heures (sans heure = toute la journée), lieu, description ;
+- **Répétition** : chaque semaine, toutes les 2 semaines ou chaque mois, jusqu'à une date ;
+- **Rappel** : une notification à tous les membres de l'unité avant l'événement (1 heure à 1 semaine avant) ;
+- **Publier aussi sur le site** : l'événement apparaît dans l'agenda public (pas pour un événement qui se répète).
+
+Cliquez sur un événement pour le **modifier** ou le **supprimer** ; pour un événement qui se répète, **Annuler cette
+date** n'annule qu'un jour. Les réunions, sorties et camps se gèrent toujours dans **Réunions et absences** : ils
+apparaissent automatiquement dans le calendrier.
+
 ## Session photo
 
 Prenez les photos de vos membres directement avec votre téléphone : la page affiche la liste, vous touchez un nom,

@@ -149,6 +149,14 @@ def main() -> int:
         check("member cannot read someone else's file", s in (400, 403, 404), s)
         s, _ = call("GET", f"/members/{cu_member}/emails-received", token=youth)
         check("member cannot read someone else's Emails reçus", s in (400, 403, 404), s)
+        today = time.strftime("%Y-%m-%d")
+        s, cal = call("GET", f"/calendar?from={today}&to={today}", token=youth)
+        check("member reads the calendar", s == 200 and isinstance(cal, list), s)
+        s, _ = call("POST", "/calendar/events", {"title": "Smoke", "startDate": today, "audience": "Group", "recurrence": "None",
+                                                  "recurrenceInterval": 1, "publishOnSite": False}, token=youth)
+        check("member cannot create a calendar event", s == 400, s)
+        s, _ = call("GET", "/calendar/feed/doesnotexist.ics")
+        check("unknown phone-calendar link refused", s == 404, s)
         s, lst = call("GET", "/members?pageSize=5", token=youth)
         check("member gets no member list", s in (403, 200) and (s == 403 or lst.get("totalCount", 0) == 0), (s, lst if s != 200 else lst.get("totalCount")))
         for path in ["/audit-logs", "/sessions", "/data-quality", "/settings", "/demandes?scoutYear=2026-2027"]:

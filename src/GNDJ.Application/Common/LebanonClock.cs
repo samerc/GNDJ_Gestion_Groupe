@@ -28,4 +28,8 @@ public static class LebanonClock
 
     // Today's calendar date in Lebanon — the drop-in replacement for LebanonClock.Today.
     public static DateOnly Today => DateOnly.FromDateTime(Now);
+
+    // A Lebanon local date + time → the UTC instant (calendar feed: phone calendars need an absolute time).
+    public static DateTime ToUtc(DateOnly date, TimeOnly time) =>
+        TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(date.ToDateTime(time), DateTimeKind.Unspecified), Tz);
 }

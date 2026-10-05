@@ -9,6 +9,7 @@ public static class NotificationTypes
     public const string Demande = "demande";
     public const string Hold = "hold";
     public const string Info = "info";
+    public const string Calendar = "calendar"; // calendar event reminders
 }
 
 // Best-effort in-app notifications. Implementations MUST never throw — a notification failure must not mask

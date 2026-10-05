@@ -21,7 +21,8 @@ const check = (name, ok, detail = '') => {
 }
 const section = (t) => console.log(`\n== ${t}`)
 const errors = []
-const browser = await chromium.launch({ executablePath: BROWSER })
+// --no-proxy-server: the suite only talks to localhost; a system proxy (e.g. a VPN client) must not intercept it.
+const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-proxy-server'] })
 const contexts = []
 
 // Installed-app (PWA) emulation: report display-mode: standalone.
@@ -104,6 +105,7 @@ try {
     ['/admin/system', 'Système'],
     ['/aide/guide-administration', "Guide d'administration"],
     ['/admin/settings', 'Paramètres'],
+    ['/calendrier', 'Calendrier'],
     ['/members', null],
     ['/admin/audit-logs', null],
   ]) {

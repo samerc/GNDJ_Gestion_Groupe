@@ -15,6 +15,7 @@ import {
 export const personalNavItems = [
   { path: '/my-profile', label: 'Ma fiche', icon: User, permission: null },
   { path: '/my-documents', label: 'Mes documents', icon: FolderOpen, permission: null },
+  { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, permission: null },
   { path: '/my-trombinoscope', label: 'Trombinoscope', icon: Users, permission: null },
   { path: '/aide', label: 'Aide', icon: BookOpen, permission: null },
 ]
@@ -28,6 +29,8 @@ export const adminNavItems = [
   // manager lands next to their actual to-do list.
   { path: '/rentree', label: 'Rentrée scoute', icon: ListChecks, permission: null },
   { path: '/members', label: 'Membres', icon: Users, permission: PERMISSIONS.MEMBERS_VIEW },
+  // The group calendar (also in everyone's personal links).
+  { path: '/calendrier', label: 'Calendrier', icon: CalendarDays, permission: null },
   // Camp BP is placed dynamically in NavContent: in the Configuration group when no camp is active (where the
   // CG sets one up), and promoted to the main menu — for everyone with access — once a camp is active.
 ]

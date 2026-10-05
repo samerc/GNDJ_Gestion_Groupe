@@ -31,5 +31,8 @@ public class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.HasIndex(e => e.CardNumber).IsUnique().HasFilter("is_deleted = false AND card_number IS NOT NULL");
         // The official SDL/GDL card number must be unique too (skipping nulls — it's optional).
         builder.HasIndex(e => e.ExternalCardNumber).IsUnique().HasFilter("is_deleted = false AND external_card_number IS NOT NULL");
+        // Personal calendar link token (iCal): looked up anonymously by the feed endpoint.
+        builder.HasIndex(e => e.CalendarFeedToken).IsUnique().HasFilter("calendar_feed_token IS NOT NULL");
+        builder.Property(e => e.CalendarFeedToken).HasMaxLength(64);
     }
 }

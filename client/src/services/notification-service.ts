@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
 // Coarse categories — mirror the backend NotificationTypes (drive the icon/colour).
-export type NotificationType = 'document' | 'change_request' | 'demande' | 'hold' | 'info'
+export type NotificationType = 'document' | 'change_request' | 'demande' | 'hold' | 'info' | 'calendar'
 
 export interface NotificationDto {
   id: string

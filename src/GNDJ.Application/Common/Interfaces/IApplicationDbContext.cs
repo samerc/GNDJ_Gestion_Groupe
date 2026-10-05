@@ -75,6 +75,8 @@ public interface IApplicationDbContext
     DbSet<CampRotationMatch> CampRotationMatches { get; }
     DbSet<TrombinoscopeArchive> TrombinoscopeArchives { get; }
     DbSet<OutboxEmail> OutboxEmails { get; }
+    DbSet<CalendarEvent> CalendarEvents { get; }
+    DbSet<CalendarReminderSent> CalendarRemindersSent { get; }
     DbSet<Meeting> Meetings { get; }
     DbSet<MeetingAbsence> MeetingAbsences { get; }
     DbSet<MemberGroup> MemberGroups { get; }

@@ -154,6 +154,18 @@ flowchart LR
 En bas de **Mes documents**, la section **Cotisations** indique si la cotisation de l'année est réglée, en partie
 ou en totalité, et permet de télécharger les **reçus**. Le paiement se fait auprès de votre chef d'unité.
 
+## Le calendrier
+
+**Calendrier** (dans le menu) réunit tout ce qui est daté : les événements du groupe, de votre branche et de votre
+unité, les réunions, sorties et camps de votre unité (ou de votre équipe), et les dates importantes de l'année
+(documents à rendre, passage, première réunion). Vue **Mois** ou **Liste** ; touchez un jour ou un événement pour le détail.
+
+> 💡 **Dans mon téléphone** : ajoutez votre lien personnel à l'agenda de votre téléphone (iPhone : « Ajouter à mon
+> agenda » puis « S'abonner » ; Android : Google Agenda → « À partir de l'URL »). Les événements s'y mettent à jour
+> tout seuls. Ce lien est personnel : ne le partagez pas (« Nouveau lien » coupe l'ancien).
+
+Quand un événement a un rappel, vous recevez une notification avant qu'il commence.
+
 ## Trombinoscope
 
 La page **Trombinoscope** donne accès au trombinoscope de votre unité pour chaque année où vous y étiez, dès que la

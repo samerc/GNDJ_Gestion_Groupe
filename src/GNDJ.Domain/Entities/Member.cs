@@ -59,6 +59,10 @@ public class Member : BaseEntity
     // via « Plus tard »). Excludes super-admins. Also drives the CG/CU "Coordonnées vérifiées le …" fiche badge.
     public DateTime? ContactReviewedAt { get; set; }
 
+    // Secret token of this member's personal calendar link (iCal subscription for a phone calendar). Null until the
+    // member asks for the link; regenerating it cuts off the old link.
+    public string? CalendarFeedToken { get; set; }
+
     // First-login welcome tour: set when the member dismisses/finishes the onboarding carousel, so it never
     // shows again (server-side, not localStorage — survives switching device/browser). Null = not yet seen.
     // Only shown to regular members (not chefs — they get the printed guide).

@@ -78,6 +78,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<CampRotationMatch> CampRotationMatches => Set<CampRotationMatch>();
     public DbSet<TrombinoscopeArchive> TrombinoscopeArchives => Set<TrombinoscopeArchive>();
     public DbSet<OutboxEmail> OutboxEmails => Set<OutboxEmail>();
+    public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
+    public DbSet<CalendarReminderSent> CalendarRemindersSent => Set<CalendarReminderSent>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<MeetingAbsence> MeetingAbsences => Set<MeetingAbsence>();
     public DbSet<MemberGroup> MemberGroups => Set<MemberGroup>();

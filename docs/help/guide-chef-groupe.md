@@ -398,6 +398,30 @@ Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vo
 > unité). S'ils ont pointé sur papier, la commission saisit la feuille ensuite en choisissant « Depuis la feuille
 > papier ».
 
+## Le calendrier
+
+**Calendrier** réunit les événements, les réunions des unités et les dates importantes de l'année (dates des
+documents, du passage, de la première réunion ; les dates des inscriptions ne sont visibles que par votre équipe).
+Ces dates viennent des **Paramètres** : les changer met le calendrier à jour.
+
+**Nouvel événement** — choisissez **pour qui** :
+
+| Pour qui | Qui le voit |
+|---|---|
+| **Tout le groupe** | Tous les membres |
+| **Une branche** | Les membres de toutes les unités de la branche |
+| **Une unité** | Les membres de l'unité (un chef d'unité peut créer pour la sienne) |
+| **La maîtrise** | Tous les chefs |
+| **Équipe du Chef de Groupe** | Vous et vos assistants |
+
+Options : plusieurs jours, heures, lieu, **répétition** (chaque semaine / 2 semaines / mois, jusqu'à une date),
+**rappel** (notification à tous les concernés, de 1 heure à 1 semaine avant), **Publier aussi sur le site** (groupe,
+branche ou unité, sans répétition : l'événement est ajouté à l'agenda public et retiré si vous le supprimez).
+**Annuler cette date** retire un seul jour d'un événement qui se répète.
+
+Par défaut vous voyez les réunions de vos propres unités ; le menu **Réunions : …** affiche celles d'une autre unité.
+Chacun peut ajouter le calendrier à son téléphone (**Dans mon téléphone**).
+
 ## Notifications et messages
 
 - **Envoyer une notification** : un message dans l'application (et sur le téléphone de ceux qui ont activé les

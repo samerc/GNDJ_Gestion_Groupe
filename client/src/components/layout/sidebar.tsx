@@ -51,7 +51,9 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   // Étapistes of a live Camp BP get "Mes jeux" (their games + descriptions) with the personal links.
   // Leaders with the unit Camp BP page (camp.grade) see their game at the top of that page instead.
   const etapisteNav = user?.isCampEtapiste && !hasPermission(PERMISSIONS.CAMP_GRADE) ? [{ path: '/mes-jeux', label: 'Mes jeux', icon: Tent, permission: null }] : []
+  // A link present in both lists (Calendrier: personal for everyone, pinned for managers) is shown once.
   const navItems = [...personalNavItems, ...etapisteNav, ...(isManager ? adminNavItems : leaderNavItems)]
+    .filter((item, i, all) => all.findIndex((x) => x.path === item.path) === i)
 
   // Camp BP placement is DYNAMIC (see below): fetched for anyone who can reach a camp (grade = CU viewer,
   // manage = CG). While the list loads it counts as no live camp.

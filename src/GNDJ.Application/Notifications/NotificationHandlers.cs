@@ -176,7 +176,7 @@ public class UpdateNotificationPreferencesCommandHandler(IApplicationDbContext c
     private static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)
     {
         NotificationTypes.Document, NotificationTypes.ChangeRequest, NotificationTypes.Demande,
-        NotificationTypes.Hold, NotificationTypes.Info,
+        NotificationTypes.Hold, NotificationTypes.Info, NotificationTypes.Calendar,
     };
 
     public async ValueTask<Result<bool>> Handle(UpdateNotificationPreferencesCommand request, CancellationToken ct)

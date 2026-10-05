@@ -16,6 +16,7 @@ const PAGE_HELP: Record<string, PageHelp[]> = {
   '/my-profile': [M('Ma fiche')],
   '/my-documents': [M('Mes documents')],
   '/my-trombinoscope': [M('Trombinoscope')],
+  '/calendrier': [CG('Le calendrier'), CU("Le calendrier de l'unité"), M('Le calendrier')],
   // Chefs d'unité (and the Chef de Groupe on the shared pages)
   '/dashboard': [CG("L'Accueil"), CU('Mon unité')],
   '/members/*': [CG('Les membres'), CU("La fiche d'un membre")],
