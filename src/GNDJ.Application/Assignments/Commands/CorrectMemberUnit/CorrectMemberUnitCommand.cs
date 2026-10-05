@@ -14,7 +14,11 @@ namespace GNDJ.Application.Assignments.Commands.CorrectMemberUnit;
 //   • the TEAM is reset to none (old team belongs to the old unit; the receiving CU assigns a team later);
 //   • the ROLE is kept when the unit type is unchanged, else replaced by the NEW type's default youth role;
 //   • CG / super-admin only (a placement fix is a group-level decision);
-//   • any Passage record that finalized the member INTO the wrong unit is KEPT, with a "unité corrigée" note.
+//   • any Passage record that finalized the member INTO the wrong unit is KEPT, with a "unité corrigée" note;
+//   • the automatic « Entrée » progression of the wrong unit follows the member (new unit + the new branch's stage);
+//   • a demande that created this member into the wrong unit is updated (review list + archive show the right unit);
+//   • the leaders of BOTH units get a notification (the new unit's chef d'unité didn't get the member in the
+//     « Envoyer les réponses » Excel file, the old one did).
 public record CorrectMemberUnitCommand(Guid AssignmentId, Guid NewUnitId) : IRequest<Result<bool>>;
 
 public class CorrectMemberUnitCommandValidator : AbstractValidator<CorrectMemberUnitCommand>
@@ -27,7 +31,8 @@ public class CorrectMemberUnitCommandValidator : AbstractValidator<CorrectMember
 }
 
 public class CorrectMemberUnitCommandHandler(
-    IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser)
+    IApplicationDbContext context, IAuditService auditService, ICurrentUserService currentUser,
+    INotificationService notifications)
     : IRequestHandler<CorrectMemberUnitCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(CorrectMemberUnitCommand request, CancellationToken ct)
@@ -84,7 +89,50 @@ public class CorrectMemberUnitCommandHandler(
                 p.CgNotes = string.IsNullOrWhiteSpace(p.CgNotes) ? note : $"{p.CgNotes}\n{note}";
         }
 
+        // The « Entrée à … » progression recorded for the wrong unit moves with the member. Same branch → only the
+        // unit changes; another branch → the stage becomes that branch's entrée (if it has one).
+        var stages = await EntreeStageResolver.ResolveStagesForUnitsAsync(context, [oldUnitId, newUnit.Id], ct);
+        var oldEntree = stages.GetValueOrDefault(oldUnitId);
+        var newEntree = stages.GetValueOrDefault(newUnit.Id);
+        if (oldEntree is not null)
+        {
+            var entrees = await context.MemberProgressions
+                .Where(p => p.MemberId == entity.MemberId && p.UnitId == oldUnitId && p.ScoutStageId == oldEntree.Value)
+                .ToListAsync(ct);
+            foreach (var p in entrees)
+            {
+                p.UnitId = newUnit.Id;
+                if (newEntree is not null) p.ScoutStageId = newEntree.Value;
+            }
+        }
+
+        // The demande that created this member into the wrong unit: keep it truthful (review list, archive).
+        var demandes = await context.Demandes
+            .Where(d => d.CreatedMemberId == entity.MemberId && d.DecidedUnitId == oldUnitId)
+            .ToListAsync(ct);
+        foreach (var d in demandes) d.DecidedUnitId = newUnit.Id;
+
         await context.SaveChangesAsync(ct);
+
+        // Tell both units' leaders (members.edit holders active in each unit), never the acting CG themselves.
+        var memberName = await context.Members.Where(m => m.Id == entity.MemberId)
+            .Select(m => m.FirstName + " " + m.LastName).FirstOrDefaultAsync(ct) ?? "Un membre";
+        var leaders = await context.MemberAssignments
+            .Where(a => a.EndDate == null && (a.UnitId == oldUnitId || a.UnitId == newUnit.Id) && a.MemberId != entity.MemberId
+                && a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit))
+            .Select(a => new { a.MemberId, a.UnitId }).ToListAsync(ct);
+        var me = currentUser.MemberId;
+        var newLeaders = leaders.Where(l => l.UnitId == newUnit.Id && l.MemberId != me).Select(l => l.MemberId).Distinct().ToList();
+        var oldLeaders = leaders.Where(l => l.UnitId == oldUnitId && l.MemberId != me).Select(l => l.MemberId)
+            .Distinct().Except(newLeaders).ToList();
+        var link = $"/members/{entity.MemberId}";
+        if (newLeaders.Count > 0)
+            await notifications.NotifyMembersAsync(newLeaders, "info", $"Nouveau membre : {memberName}",
+                $"{memberName} a été placé(e) dans {newUnit.Name} (correction, au lieu de {oldUnit?.Name ?? "une autre unité"}). Choisissez son équipe.", link, ct);
+        if (oldLeaders.Count > 0)
+            await notifications.NotifyMembersAsync(oldLeaders, "info", $"{memberName} n'est plus dans {oldUnit?.Name ?? "votre unité"}",
+                $"Son unité a été corrigée : {memberName} est désormais dans {newUnit.Name}.", link, ct);
+
         var newSnapshot = await AssignmentAudit.DescribeAsync(context, entity.MemberId, entity.UnitId, entity.TeamId,
             entity.FunctionalRoleId, entity.StartDate, entity.EndDate, ct);
         await auditService.LogAsync("CorrectUnit", "MemberAssignment", entity.Id, oldValues: oldSnapshot,

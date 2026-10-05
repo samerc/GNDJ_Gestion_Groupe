@@ -427,7 +427,9 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
               À utiliser pour une <strong>mauvaise affectation</strong> (membre accepté ou passé dans la mauvaise
               unité). L'affectation actuelle est <strong>déplacée</strong> vers la bonne unité — l'ancienne unité
               n'est <strong>pas conservée</strong> dans l'historique. L'équipe est réinitialisée et la fonction est
-              adaptée à la nouvelle unité. Pour un vrai changement d'unité qui garde l'historique, utilisez le passage.
+              adaptée à la nouvelle unité. L'étape « Entrée » et la demande d'inscription (s'il y en a une) suivent
+              le membre, et les chefs des deux unités sont prévenus. Pour un vrai changement d'unité qui garde
+              l'historique, utilisez le passage.
             </div>
             <div className="rounded-md bg-muted p-3 text-sm">
               Unité actuelle : <strong>{correcting?.unitName}</strong>
