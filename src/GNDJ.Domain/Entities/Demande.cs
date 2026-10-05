@@ -39,6 +39,9 @@ public class Demande : BaseEntity
 
     public string Status { get; set; } = Enums.DemandeStatus.Draft;
     public DateTime? SubmittedAt { get; set; }
+    // Last time the family CHANGED an already-submitted demande (child form or the shared household). The first
+    // submission date (SubmittedAt) is kept as is; this shows « modifiée le … » to the family and the CG.
+    public DateTime? LastEditedAt { get; set; }
 
     // CG decision (staged until the batch is sent)
     public Guid? DecidedUnitId { get; set; }   // chosen unit on approval (implies association)

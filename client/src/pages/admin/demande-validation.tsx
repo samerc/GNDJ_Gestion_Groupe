@@ -47,7 +47,7 @@ import {
 } from 'lucide-react'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 import { DemandeResponsesSchedule } from '@/components/admin/demande-responses-schedule'
 import { useAuthStore } from '@/stores/auth-store'
@@ -1221,7 +1221,8 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
         <p className="text-sm text-muted-foreground">
           {d.age != null ? `${d.age} ans` : 'âge inconnu'}
           {d.dateOfBirth ? ` (${new Date(d.dateOfBirth).toLocaleDateString('fr-FR')})` : ''} · {d.gender}
-          {d.submittedAt ? ` · déposée le ${new Date(d.submittedAt).toLocaleDateString('fr-FR')}` : ''}
+          {d.submittedAt ? ` · déposée le ${formatDate(d.submittedAt)}` : ''}
+          {d.lastEditedAt ? ` · modifiée le ${formatDate(d.lastEditedAt)}` : ''}
         </p>
       </div>
 

@@ -211,7 +211,7 @@ public class ApplicantController : BaseApiController
     {
         var result = await Mediator.Send(new SubmitDemandeCommand(id));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { success = true });
+        return Ok(new { success = true, serialNumber = result.Value });
     }
 
     /// <summary>Deletes a demande owned by the current account.</summary>

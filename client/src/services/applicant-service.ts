@@ -36,6 +36,7 @@ export interface ApplicantConfig {
   supportEmail: string | null       // demande.support_email — shown on the inscription pages for help (empty = hide)
   userDomain: string | null         // user_domain (e.g. "scouts.gndj") — to suggest the member portal for a chef's email
   loginMessages: string[] | null    // login.applicant_messages — active announcement banners on the portal login (empty = none)
+  responseExpected: string | null   // demande.response_expected — when families hear back (free text), shown after submitting
 }
 
 export interface ApplicantGuardian {
@@ -98,6 +99,7 @@ export interface Demande {
   serialNumber?: string | null // human-facing reference (INS-YYYY-NNNN); null for an unsubmitted draft
   decisionNotes?: string | null
   submittedAt?: string | null
+  lastEditedAt?: string | null // last real change by the family after submitting (« modifiée le … »)
   responseSentAt?: string | null
   // Result-page fields — only populated once the response is sent (never a staged decision):
   converted?: boolean          // accepted → a member account was created
@@ -147,7 +149,7 @@ export function useClaimInvite() {
   })
 }
 
-export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'responseSentAt'>
+export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'lastEditedAt' | 'responseSentAt'>
 
 // GET /applicant/config → portal config (open flag, scout year, caps, school/class/city/unit/domain lists).
 export function useApplicantConfig() {
@@ -206,7 +208,7 @@ export function useUpdateDemande() {
 export function useSubmitDemande() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => applicantApi.post(`/applicant/demandes/${id}/submit`),
+    mutationFn: (id: string) => applicantApi.post<{ serialNumber: string }>(`/applicant/demandes/${id}/submit`).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['applicant', 'profile'] }),
   })
 }

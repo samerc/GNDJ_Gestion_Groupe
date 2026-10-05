@@ -38,7 +38,8 @@ public record DemandeReviewDto(
     IReadOnlyList<SiblingDto> Siblings,
     bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
     string? ParentsSituation = null, string? SerialNumber = null,
-    string? PhoneCountryCode = null); // carried so the merge tool can keep the phone's country code intact
+    string? PhoneCountryCode = null, // carried so the merge tool can keep the phone's country code intact
+    DateTime? LastEditedAt = null); // last change by the family after submission (« modifiée le … »)
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -268,7 +269,7 @@ static class DemandeReviewProjection
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
                         r.OtherGroupIsFormer, match.Name, match.Unit, r.SuggestedMemberId, sugg.Name, sugg.Unit);
                 }).ToList(),
-                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode);
+                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode, d.LastEditedAt);
         }).ToList();
     }
 }

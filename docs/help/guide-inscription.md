@@ -98,8 +98,9 @@ regrouper les familles.
 
 ![Étape 4 : récapitulatif](img/inscription-etape-recap.png)
 
-Relisez tout (le bouton **Modifier** ramène à l'étape concernée), puis **Soumettre la demande**. Vous recevez un
-email de confirmation avec le **numéro de votre demande** (par exemple `INS-2026-0123`).
+Relisez tout (le bouton **Modifier** ramène à l'étape concernée), puis **Soumettre la demande**. Une fenêtre
+**Demande reçue** s'affiche avec le **numéro de votre demande** (par exemple `INS-2026-0123`) et le moment où vous
+recevrez la réponse. Vous recevez aussi un email de confirmation.
 
 > ⚠️ Une demande **non soumise** n'est pas étudiée. Après la date limite, les brouillons ne peuvent plus être envoyés.
 
@@ -112,13 +113,14 @@ Votre espace montre toutes vos demandes et leur état.
 | État | Signification |
 |---|---|
 | **Brouillon** | Pas encore soumise : terminez-la et cliquez sur **Soumettre** |
-| **Soumise** | Reçue, en attente d'étude |
+| **Soumise** | Reçue ; vous pouvez encore la modifier jusqu'à la date limite |
+| **En cours d'étude** | La date limite est passée : la demande est étudiée et ne peut plus être modifiée |
 | **Acceptée** | Votre enfant est inscrit — voir ci-dessous |
 | **Refusée** | Le motif est affiché |
 | **Expirée** | Brouillon jamais soumis avant la date limite |
 
-Tant que la période d'inscription est ouverte et que la demande n'a pas encore été étudiée, vous pouvez encore
-**modifier** une demande soumise.
+Jusqu'à la date limite, vous pouvez encore **modifier** une demande soumise (bouton **Mettre à jour**). La date de
+soumission ne change pas ; la demande indique « modifiée le … ». Après la date limite, elle ne peut plus être modifiée.
 
 ## 5. Après l'acceptation
 

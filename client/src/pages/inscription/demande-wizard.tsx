@@ -21,10 +21,11 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { cn, formatDate, formatDateLong } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil, FileText } from 'lucide-react'
+import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil, FileText } from 'lucide-react'
 import { Callout } from '@/components/shared/callout'
 import { PageHeader } from '@/components/shared/page-header'
 import { Tip } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 // 4-step demande (enrollment request) wizard — the core of the applicant portal.
 // Steps: 0 Enfant (per-child) → 1 Parents + adresse → 2 Proches scouts → 3 Récapitulatif/submit.
@@ -137,6 +138,8 @@ export default function DemandeWizardPage() {
   const { id = 'new' } = useParams()
   const navigate = useNavigate()
   const { data: config } = useApplicantConfig()
+  // « Demande reçue » popup shown after the FIRST submission; closing it returns to the portal.
+  const [received, setReceived] = useState<{ serial: string; name: string } | null>(null)
   const { data: profile, isLoading } = useApplicantProfile()
   const createMutation = useCreateDemande()
   const updateMutation = useUpdateDemande()
@@ -345,7 +348,13 @@ export default function DemandeWizardPage() {
     setSaving(true)
     try {
       const did = await persist()
-      if (did) { await submitMutation.mutateAsync(did); toast.success('Demande soumise avec succès !'); navigate('/inscription/portail') }
+      if (did) {
+        const firstTime = existing?.status !== 'Submitted'
+        const res = await submitMutation.mutateAsync(did)
+        // First submission: a « Demande reçue » popup (number + when the answer comes); an update: a toast.
+        if (firstTime) setReceived({ serial: res.serialNumber, name: `${child.firstName} ${child.lastName}`.trim() })
+        else { toast.success('Demande mise à jour.'); navigate('/inscription/portail') }
+      }
     } catch (err) { toast.error(parseApiError(err)) }
     finally { setSaving(false) }
   }
@@ -763,6 +772,30 @@ export default function DemandeWizardPage() {
           <Button onClick={() => navigate('/inscription/portail')}><Check className="mr-1 h-4 w-4" />Fermer</Button>
         )}
       </div>
+
+      <Dialog open={received !== null} onOpenChange={(o) => { if (!o) navigate('/inscription/portail') }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogHeader className="items-center text-center sm:text-center">
+            <CheckCircle2 className="h-12 w-12 text-success" />
+            <DialogTitle>Demande reçue</DialogTitle>
+            <DialogDescription>
+              Merci ! La demande d'inscription de <strong className="text-foreground">{received?.name}</strong> a bien été reçue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-center text-sm">
+            {received?.serial && <p>Numéro de la demande : <span className="font-mono font-semibold">{received.serial}</span></p>}
+            <p>
+              {config?.responseExpected
+                ? <>Une réponse vous sera communiquée <strong>{config.responseExpected}</strong>, par email.</>
+                : <>Une réponse vous sera communiquée par email dès que les demandes auront été étudiées.</>}
+            </p>
+            <p className="text-muted-foreground">Un email de confirmation vient de vous être envoyé.</p>
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button onClick={() => navigate('/inscription/portail')}>Retour à mes demandes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

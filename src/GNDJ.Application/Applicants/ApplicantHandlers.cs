@@ -47,7 +47,10 @@ public record ApplicantConfigDto(bool IsOpen, bool SubmissionsOpen, string Scout
     string? UserDomain = null,
     // LoginMessages = login.applicant_messages — the announcement banners ACTIVE right now (each with its own
     // optional start/end schedule) shown at the top of the applicant portal login/register screens (empty = none).
-    List<string>? LoginMessages = null);
+    List<string>? LoginMessages = null,
+    // ResponseExpected = demande.response_expected (free text, e.g. "la deuxième semaine d'octobre") — when the
+    // family will hear back; shown in the "demande reçue" popup after submitting. Empty/null = generic wording.
+    string? ResponseExpected = null);
 
 public record ApplicantGuardianDto(Guid? Id, string Relationship, string FirstName, string LastName, string? Profession, string? ProfessionDomain,
     string? PhoneCountryCode, string? PhoneNumber, string? Email, bool IsDeceased, bool IsPrimaryContact, bool IsEmergencyContact);
@@ -72,7 +75,8 @@ public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string Las
     // Converted = an accepted demande that produced a member account; DecidedUnitName = the admitted unit;
     // MemberUsername = that member's login; MemberHasLoggedIn = they've already entered the member area
     // (so the portal stops showing onboarding steps and just links to the login page).
-    bool Converted = false, string? DecidedUnitName = null, string? MemberUsername = null, bool MemberHasLoggedIn = false);
+    bool Converted = false, string? DecidedUnitName = null, string? MemberUsername = null, bool MemberHasLoggedIn = false,
+    DateTime? LastEditedAt = null); // last real change after submission (« modifiée le … »)
 
 public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerified, string? ContactName,
     string? AddressCountry, string? AddressCity, string? AddressDetails,
@@ -124,7 +128,7 @@ static class ApplicantHelpers
         "demande.notes_max_length", "demande.require_email_verification",
         "demande.max_scout_relations", "demande.terms", "demande.excluded_classe", "member.schools", "member.classes", "member.cities", "member.profession_domains",
         "demande.submission_start", "demande.submission_deadline", "demande.result_text_accepted", "demande.result_text_declined", "member.activation_link_days",
-        "demande.support_email", "user_domain", "login.applicant_messages"
+        "demande.support_email", "user_domain", "login.applicant_messages", "demande.response_expected"
     ];
 
     // Parses a yyyy-MM-dd setting into a DateOnly (null if empty/invalid).
@@ -184,7 +188,8 @@ static class ApplicantHelpers
         return new ApplicantConfigDto(enabled, submissionsOpen, year, max, notesLen, requireVerify, schools, classes, cities, units, maxRelations, professionDomains, terms, excludedClasse,
             Get("demande.submission_start"), Get("demande.submission_deadline"), Get("demande.result_text_accepted"), Get("demande.result_text_declined"), activationDays,
             Get("demande.support_email"), Get("user_domain"),
-            loginMessages.Count > 0 ? loginMessages : null);
+            loginMessages.Count > 0 ? loginMessages : null,
+            string.IsNullOrWhiteSpace(Get("demande.response_expected")) ? null : Get("demande.response_expected")!.Trim());
     }
 
     // Returns an error message if the applicant may NOT submit/edit right now (portal closed, or the submission
@@ -220,7 +225,32 @@ static class ApplicantHelpers
         return new(
             d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
             d.BloodType, d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes,
-            status, notes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear, d.SerialNumber);
+            status, notes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear, d.SerialNumber,
+            LastEditedAt: d.LastEditedAt);
+    }
+
+    // What the family entered on the child form, to tell a real change from a save of the same data.
+    public static string ChildSignature(Demande d) => System.Text.Json.JsonSerializer.Serialize(new object?[]
+    {
+        d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section, d.BloodType,
+        d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes, d.HasPreviousDemande, d.PreviousDemandeYear,
+    });
+
+    // Same for the shared household (address, situation, parents, proches), read from the database.
+    public static async Task<string> HouseholdSignatureAsync(IApplicationDbContext context, Guid accountId, CancellationToken ct)
+    {
+        var a = await context.ApplicantAccounts.Where(x => x.Id == accountId)
+            .Select(x => new { x.AddressCountry, x.AddressCity, x.AddressDetails, x.PrimaryContactEmail, x.ParentsSituation })
+            .FirstOrDefaultAsync(ct);
+        var g = (await context.ApplicantGuardians.Where(x => x.ApplicantAccountId == accountId)
+                .Select(x => new { x.Relationship, x.FirstName, x.LastName, x.Profession, x.ProfessionDomain, x.PhoneCountryCode, x.PhoneNumber, x.Email, x.IsDeceased, x.IsPrimaryContact, x.IsEmergencyContact })
+                .ToListAsync(ct))
+            .Select(x => System.Text.Json.JsonSerializer.Serialize(x)).Order(StringComparer.Ordinal);
+        var r = (await context.ApplicantScoutRelations.Where(x => x.ApplicantAccountId == accountId)
+                .Select(x => new { x.Status, x.Relationship, x.FirstName, x.LastName, x.LastUnit, x.LastFunction, x.OtherGroupName, x.OtherGroupIsFormer })
+                .ToListAsync(ct))
+            .Select(x => System.Text.Json.JsonSerializer.Serialize(x)).Order(StringComparer.Ordinal);
+        return System.Text.Json.JsonSerializer.Serialize(new { a, g, r });
     }
 
     public static void Apply(Demande d, DemandeInput i)
@@ -991,10 +1021,20 @@ public class SaveApplicantHouseholdCommandHandler(IApplicationDbContext context,
             return Result<bool>.Failure($"Vous pouvez ajouter au maximum {maxRelations} proches scouts.");
 
         // Persist address + guardians + relations (shared helper; also used by the CG-admin edit path).
+        var before = await ApplicantHelpers.HouseholdSignatureAsync(context, id.Value, ct);
         var ok = await ApplicantHelpers.ApplyHouseholdAsync(context, id.Value, request, ct);
         if (!ok) return Result<bool>.Failure("Compte introuvable.");
 
         await context.SaveChangesAsync(ct);
+
+        // The household is shared by every child of the account: a real change counts as an edit of each
+        // already-submitted demande (« modifiée le … »). Saving the same data again (moving between steps) does not.
+        if (await ApplicantHelpers.HouseholdSignatureAsync(context, id.Value, ct) != before)
+        {
+            var now = DateTime.UtcNow;
+            await context.Demandes.Where(d => d.ApplicantAccountId == id && d.Status == DemandeStatus.Submitted)
+                .ExecuteUpdateAsync(u => u.SetProperty(d => d.LastEditedAt, now), ct);
+        }
         return Result<bool>.Success(true);
     }
 }
@@ -1125,37 +1165,40 @@ public class UpdateDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (demande.ResponseSentAt is not null || demande.ReviewedAt is not null)
             return Result<bool>.Failure("Cette demande a déjà été traitée et ne peut plus être modifiée.");
 
+        var before = ApplicantHelpers.ChildSignature(demande);
         ApplicantHelpers.Apply(demande, request.Data);
+        if (demande.Status == DemandeStatus.Submitted && ApplicantHelpers.ChildSignature(demande) != before)
+            demande.LastEditedAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }
 }
 
-public record SubmitDemandeCommand(Guid Id) : IRequest<Result<bool>>;
+public record SubmitDemandeCommand(Guid Id) : IRequest<Result<string>>;
 
-public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue, INotificationService notifications) : IRequestHandler<SubmitDemandeCommand, Result<bool>>
+public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IEmailQueue emailQueue, INotificationService notifications) : IRequestHandler<SubmitDemandeCommand, Result<string>>
 {
-    public async ValueTask<Result<bool>> Handle(SubmitDemandeCommand request, CancellationToken ct)
+    public async ValueTask<Result<string>> Handle(SubmitDemandeCommand request, CancellationToken ct)
     {
         var id = current.ApplicantAccountId;
-        if (id is null) return Result<bool>.Failure("Non autorisé.");
+        if (id is null) return Result<string>.Failure("Non autorisé.");
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
-        if (account is null) return Result<bool>.Failure("Compte introuvable.");
+        if (account is null) return Result<string>.Failure("Compte introuvable.");
         // Submission blocked once the window closes — unless this account holds a CG late-submission grant.
         var closed = ApplicantHelpers.SubmissionsClosedError(config, account.LateSubmissionUntil);
-        if (closed is not null) return Result<bool>.Failure(closed);
+        if (closed is not null) return Result<string>.Failure(closed);
 
         if (config.RequireEmailVerification && !account.EmailVerified)
-            return Result<bool>.Failure("Veuillez vérifier votre adresse email avant de soumettre une demande.");
+            return Result<string>.Failure("Veuillez vérifier votre adresse email avant de soumettre une demande.");
         // Terms of service: the portal (ApplicantTermsGate) blocks the UI until accepted, but enforce it at the
         // API too (defense-in-depth) so the accepted-terms consent is real even for a crafted/direct submission.
         if (account.TermsAcceptedAt is null)
-            return Result<bool>.Failure("Veuillez accepter les conditions d'inscription avant de soumettre une demande.");
+            return Result<string>.Failure("Veuillez accepter les conditions d'inscription avant de soumettre une demande.");
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
-        if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        if (demande is null) return Result<string>.Failure("Demande introuvable.");
 
         // Required member-equivalent fields
         var missing = new List<string>();
@@ -1167,28 +1210,30 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         if (string.IsNullOrWhiteSpace(demande.School)) missing.Add("école");
         if (string.IsNullOrWhiteSpace(demande.Classe)) missing.Add("classe");
         if (missing.Count > 0)
-            return Result<bool>.Failure($"Informations manquantes : {string.Join(", ", missing)}.");
+            return Result<string>.Failure($"Informations manquantes : {string.Join(", ", missing)}.");
 
         // Enrolment cut-off: a configured grade (default 6ème) cannot submit. The wizard already hides it
         // from the dropdown; this rejects a crafted submission too (defense-in-depth).
         if (!string.IsNullOrWhiteSpace(config.ExcludedClasse) &&
             string.Equals(demande.Classe?.Trim(), config.ExcludedClasse.Trim(), StringComparison.OrdinalIgnoreCase))
-            return Result<bool>.Failure($"Un enfant en {config.ExcludedClasse} ne peut pas s'inscrire.");
+            return Result<string>.Failure($"Un enfant en {config.ExcludedClasse} ne peut pas s'inscrire.");
 
         var guardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
         if (guardians.Count == 0)
-            return Result<bool>.Failure("Veuillez renseigner au moins un parent/tuteur avant de soumettre.");
+            return Result<string>.Failure("Veuillez renseigner au moins un parent/tuteur avant de soumettre.");
         // #3 — every living parent/tuteur must have a phone number.
         if (guardians.Any(g => !g.IsDeceased && string.IsNullOrWhiteSpace(g.PhoneNumber)))
-            return Result<bool>.Failure("Le numéro de téléphone de chaque parent/tuteur est obligatoire.");
+            return Result<string>.Failure("Le numéro de téléphone de chaque parent/tuteur est obligatoire.");
         // #4 — the parents' situation (unis / séparés / divorcés) is required.
         if (string.IsNullOrWhiteSpace(account.ParentsSituation))
-            return Result<bool>.Failure("Veuillez préciser la situation des parents (unis / séparés / divorcés).");
+            return Result<string>.Failure("Veuillez préciser la situation des parents (unis / séparés / divorcés).");
 
         // Only send the confirmation on the first Draft → Submitted transition (not on a re-submit).
         var wasSubmitted = demande.Status == DemandeStatus.Submitted;
         demande.Status = DemandeStatus.Submitted;
-        demande.SubmittedAt = DateTime.UtcNow;
+        // The submission date is the FIRST submission; a later « Mettre à jour » keeps it (changes are tracked in
+        // LastEditedAt by the update / household saves).
+        demande.SubmittedAt ??= DateTime.UtcNow;
         // Assign the human-facing reference on the first submission only (drafts stay unnumbered). Retry on the
         // unique index in case two parents submit at the same instant and race the read-max+1 (the Status/
         // SubmittedAt changes ride along and persist on the successful save).
@@ -1221,7 +1266,8 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
                 $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber}).", "/admin/demandes", ct: ct);
         }
 
-        return Result<bool>.Success(true);
+        // Returns the demande number for the « Demande reçue » popup.
+        return Result<string>.Success(demande.SerialNumber ?? "");
     }
 }
 

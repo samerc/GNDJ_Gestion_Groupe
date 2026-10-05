@@ -171,6 +171,11 @@ export default function ApplicantPortalPage() {
                   <div className="min-w-0">
                     <p className="font-semibold">{d.firstName} {d.lastName}</p>
                     {d.serialNumber && <p className="font-mono text-xs text-muted-foreground">N° {d.serialNumber}</p>}
+                    {d.submittedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Soumise le {formatDate(d.submittedAt)}{d.lastEditedAt ? ` · modifiée le ${formatDate(d.lastEditedAt)}` : ''}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       {d.dateOfBirth ? `Né(e) le ${formatDateLong(d.dateOfBirth)}` : 'Naissance non renseignée'}
                     </p>
@@ -227,6 +232,7 @@ export default function ApplicantPortalPage() {
                     </td>
                     <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground md:table-cell">
                       {d.submittedAt ? formatDate(d.submittedAt) : '—'}
+                      {d.lastEditedAt && <div className="text-xs">modifiée le {formatDate(d.lastEditedAt)}</div>}
                     </td>
                     <td className="px-4 py-3">{r.badge}</td>
                     <td className="px-4 py-3">

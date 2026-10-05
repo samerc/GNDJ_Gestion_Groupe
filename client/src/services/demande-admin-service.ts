@@ -36,6 +36,7 @@ export interface DemandeReview {
   decidedUnitName: string | null
   decisionNotes: string | null
   submittedAt: string | null
+  lastEditedAt?: string | null // last change by the family after submitting
   responseSentAt: string | null
   createdMemberId: string | null
   accountId: string

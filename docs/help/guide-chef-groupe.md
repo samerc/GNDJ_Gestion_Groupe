@@ -103,6 +103,7 @@ Dans **Paramètres → Inscriptions** :
 | **Classe exclue** | La classe qui ne peut pas s'inscrire (par défaut 6ème) |
 | **Nombre maximum de demandes par compte** | Limite par famille |
 | **Motifs de refus** | Les motifs proposés quand vous refusez (avec leur texte envoyé aux familles) |
+| **Date de la réponse aux familles** | Quand les familles auront la réponse (texte libre, par ex. « la deuxième semaine d'octobre ») : affiché dans la fenêtre « Demande reçue » juste après la soumission |
 | **Textes de la page de résultat** | Ce que voit la famille acceptée ou refusée |
 
 ### Étudier les demandes
