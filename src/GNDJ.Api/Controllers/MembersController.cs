@@ -311,6 +311,17 @@ public class MembersController : BaseApiController
 
     public record SetPrimaryEmailRequest(string? Email);
 
+    /// <summary>« Emails reçus »: the app's emails sent / waiting / failed to any address on this member's file (own,
+    /// main contact, parents, enrolment account), newest first (max 100), plus each address's bounce state. Subjects
+    /// only, never the content. Any reader of the member (handler: CanViewMemberAsync).</summary>
+    [HttpGet("{id:guid}/emails-received")]
+    public async Task<IActionResult> GetEmailsReceived(Guid id)
+    {
+        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberEmailsReceivedQuery(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>
     /// Captures/confirms a leaving member's personal email + phone (used at passage "Quitte le groupe") so the
     /// group can re-contact them next year as an alumnus. Adds the email/phone to the member's own contacts if

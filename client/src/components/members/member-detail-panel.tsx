@@ -27,6 +27,7 @@ import { MemberAssignments } from '@/components/members/member-assignments'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
 import { HouseholdContacts } from '@/components/members/household-contacts'
+import { MemberEmailsReceived } from '@/components/members/member-emails-received'
 import { MemberDocuments } from '@/components/members/member-documents'
 import { MemberCotisations } from '@/components/members/member-cotisations'
 import { MemberProgression } from '@/components/members/member-progression'
@@ -613,6 +614,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
             <HouseholdContacts memberId={memberId} canEdit={canEdit} />
             <MemberGuardians memberId={memberId} hideContacts readOnly={!canEdit} />
             <MemberSiblings memberId={memberId} canManage={canManageSiblings} linkable />
+            <MemberEmailsReceived memberId={memberId} />
           </TabsContent>
 
           <TabsContent value="unites" className="mt-0">

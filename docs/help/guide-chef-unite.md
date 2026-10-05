@@ -177,6 +177,13 @@ Les icônes à droite de chaque numéro permettent de **copier** le numéro ou d
 > 💡 Les frères et sœurs reconnus par le chef de groupe partagent les mêmes parents : une correction faite sur
 > la fiche d'un enfant s'applique aussi à ses frères et sœurs.
 
+En bas de l'onglet, **Emails reçus** (cliquez pour ouvrir) liste les emails envoyés par l'application à toutes
+les adresses de la fiche — le membre, ses parents, le compte d'inscription : date, sujet, à qui, et l'état
+(**Envoyé**, **En attente**, **Échec** avec la raison). Pratique quand une famille dit « je n'ai rien reçu ». Une
+adresse qui ne fonctionne pas (l'email revient) est signalée : l'application ne lui écrit plus, corrigez-la ou
+choisissez un autre courriel principal. Les emails partagés avec un frère ou une sœur (même parent) y figurent
+aussi : le sujet indique de quel enfant il s'agit.
+
 ### Le menu « Actions »
 
 ![Le menu Actions](img/cu-fiche-actions.png)

@@ -578,3 +578,19 @@ export function useDeletePhoto(memberId: string) {
     },
   })
 }
+
+// « Emails reçus » on the member fiche: the app's emails to any address on the member's file (own, main contact,
+// parents, enrolment account) + each address's bounce state. Subjects only. Loaded only when the card is opened.
+export interface MemberEmailAddress { address: string; owner: string; bounced: boolean; bounceReason: string | null }
+export interface MemberEmailReceived {
+  id: string; createdAt: string; sentAt: string | null; status: 'Pending' | 'Sent' | 'Failed'
+  toEmail: string; owner: string; templateName: string; subject: string; lastError: string | null
+}
+export function useMemberEmailsReceived(memberId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['members', memberId, 'emails-received'],
+    queryFn: () => apiClient.get<{ addresses: MemberEmailAddress[]; emails: MemberEmailReceived[] }>(`/members/${memberId}/emails-received`).then((r) => r.data),
+    enabled: enabled && !!memberId,
+    staleTime: 30_000,
+  })
+}

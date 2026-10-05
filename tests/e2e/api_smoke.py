@@ -147,6 +147,8 @@ def main() -> int:
         check("member reads their own file", s == 200, s)
         s, _ = call("GET", f"/members/{cu_member}", token=youth)
         check("member cannot read someone else's file", s in (400, 403, 404), s)
+        s, _ = call("GET", f"/members/{cu_member}/emails-received", token=youth)
+        check("member cannot read someone else's Emails reçus", s in (400, 403, 404), s)
         s, lst = call("GET", "/members?pageSize=5", token=youth)
         check("member gets no member list", s in (403, 200) and (s == 403 or lst.get("totalCount", 0) == 0), (s, lst if s != 200 else lst.get("totalCount")))
         for path in ["/audit-logs", "/sessions", "/data-quality", "/settings", "/demandes?scoutYear=2026-2027"]:
@@ -163,6 +165,8 @@ def main() -> int:
         check("CG members list", s == 200 and m.get("totalCount", 0) > 0, s)
         s, _ = call("GET", f"/members/{youth_member}", token=cg)
         check("CG opens a member file", s == 200, s)
+        s, er = call("GET", f"/members/{youth_member}/emails-received", token=cg)
+        check("CG reads a member's Emails reçus", s == 200 and "emails" in er, s)
         s, _ = call("GET", "/rentree/tasks?scoutYear=2026-2027", token=cg)
         check("CG rentree checklist", s == 200, s)
         units = (me.get("unitAccess") or []) if isinstance(me, dict) else []

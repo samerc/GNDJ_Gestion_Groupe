@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-05", "text": "Fiche d'un membre, onglet « Contact & famille » : nouvelle partie « Emails reçus » — les emails envoyés par l'application au membre, à ses parents et au compte d'inscription (date, sujet, destinataire, Envoyé / En attente / Échec avec la raison), et les adresses qui ne fonctionnent plus. Le contenu des emails n'est jamais affiché."},
       {"date": "2026-10-05", "text": "« Envoyer les réponses » et « Publier le passage » : la fenêtre de confirmation affiche maintenant « Ce qui va se passer » avec les chiffres exacts (membres créés par unité, refus, emails aux familles, chefs d'unité prévenus ; pour le passage : lignes publiées, changements d'unité par destination, départs, changements de maîtrise prévus) et ce qui bloque encore — le bouton reste grisé tant que l'action serait refusée."},
       {"date": "2026-10-05", "text": "« Mon unité » : nouvelle ligne « À traiter » pour le chef d'unité — membres sans équipe, documents à vérifier, modifications à valider, réunions d'un chef d'équipe à approuver, passage à terminer ; un clic mène au bon endroit (« sans équipe » filtre la liste). « Rien à traiter » quand tout est fait."},
       {"date": "2026-10-05", "text": "Un « ? » à côté du titre des pages ouvre directement la partie du guide qui explique la page (membre, chef d'unité, chef de groupe ou administration, selon la personne)."},
