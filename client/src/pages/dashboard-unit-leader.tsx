@@ -28,6 +28,7 @@ import { useSettingValue } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { Users, Search, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, CalendarCheck, UsersRound, SlidersHorizontal, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { BirthdaysButton } from '@/components/shared/birthdays-card'
+import { UnitTodoStrip } from '@/components/dashboard/unit-todo-strip'
 
 interface Props { unitId: string }
 
@@ -257,6 +258,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           </Tip>
           {/* Custom reports live in their own "Rapports" sidebar section now (was a dropdown here). */}
         </div>
+        {/* « À traiter »: shortcuts to what needs the chef's action in this unit (or « Rien à traiter »). */}
+        <UnitTodoStrip unitId={unitId} onShowWithoutTeam={() => { setTeamFilter('none'); setSearch('') }} />
         <div className="flex gap-2">
           <SearchInput className="flex-1" placeholder="Rechercher un membre…" value={search} onChange={setSearch} />
           <Select value={teamFilter || 'all'} onValueChange={(v) => setTeamFilter(v === 'all' ? '' : v)}>

@@ -25,6 +25,16 @@ public class DashboardController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>« À traiter » counts for the unit leader's « Mon unité » (members without équipe, documents to verify,
+    /// change requests, réunions to approve, passage choices missing). 403 when the caller doesn't lead the unit.</summary>
+    [HttpGet("unit/{unitId:guid}/todo")]
+    public async Task<IActionResult> GetUnitTodo(Guid unitId)
+    {
+        var result = await Mediator.Send(new GetUnitTodoQuery(unitId));
+        if (result is null) return Forbid();
+        return Ok(result);
+    }
+
     /// <summary>
     /// Returns the CG/admin overview (totals, gender, units, ages, unpaid, docs). Super-admin or group-level access
     /// enforced in the handler.

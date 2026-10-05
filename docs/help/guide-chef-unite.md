@@ -95,6 +95,7 @@ prévenu quand un membre dépose un document ou propose une modification.
 - **La loupe** (ou `Ctrl` + `K` sur ordinateur) : tapez quelques lettres d'un nom pour ouvrir directement la fiche
   d'un membre.
 - **Votre nom** en haut à droite : votre fiche, vos appareils, le thème clair / sombre, l'aide, la déconnexion.
+- **Le ?** à côté du titre d'une page ouvre directement la partie de ce guide qui l'explique.
 
 ![Les notifications](img/cu-notifications.png)
 
@@ -119,6 +120,11 @@ premier). Cliquez sur un nom pour ouvrir sa fiche à droite.
 
 La **barre de recherche** filtre par nom ; la liste déroulante **Toutes les équipes** filtre par équipe (et par
 groupe, si le chef de groupe en a créé pour votre unité).
+
+**À traiter** : sous les boutons, une ligne vous montre ce qui attend une action de votre part dans l'unité — membres
+sans équipe (par exemple les nouveaux arrivés), documents à vérifier, modifications à valider, réunions d'un chef
+d'équipe à approuver, passage à terminer. Un clic vous emmène au bon endroit (« sans équipe » filtre la liste
+directement). Quand tout est fait, la ligne affiche « Rien à traiter dans l'unité pour le moment ».
 
 ### Personnaliser la page
 

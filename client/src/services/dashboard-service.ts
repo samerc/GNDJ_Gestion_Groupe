@@ -77,6 +77,26 @@ export function useDashboardOverview(enabled = true) {
 
 // GET /dashboard/unit/{unitId} — unit roster grouped by team (Maîtrise first) for the CU dashboard.
 // Unit-scoped. Keyed ['dashboard','unit',unitId].
+// GET /dashboard/unit/{id}/todo — « À traiter » counts for the chef d'unité. Under ['dashboard'] so the
+// mutations that already refresh the dashboard (document reviews, …) refresh it too.
+export interface UnitTodoDto {
+  withoutTeam: number
+  documentsToVerify: number
+  changeRequests: number
+  meetingsToApprove: number
+  passageOpen: boolean
+  passageFinished: boolean
+  passageMissing: number
+}
+export function useUnitTodo(unitId: string | undefined) {
+  return useQuery({
+    queryKey: ['dashboard', 'unit', unitId, 'todo'],
+    queryFn: () => apiClient.get<UnitTodoDto>(`/dashboard/unit/${unitId}/todo`).then(r => r.data),
+    enabled: !!unitId,
+    staleTime: 30_000,
+  })
+}
+
 export function useUnitDashboard(unitId: string | undefined) {
   return useQuery({
     queryKey: ['dashboard', 'unit', unitId],

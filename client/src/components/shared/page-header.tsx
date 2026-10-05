@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PageHelpButton } from '@/components/shared/page-help-button'
 
 interface PageHeaderProps {
   title: React.ReactNode
@@ -14,7 +15,7 @@ interface PageHeaderProps {
 // Standard page title block: a tinted accent icon tile (or a custom `avatar`), a consistent h1
 // (size/weight/tracking), an optional subtitle, a right-aligned actions cluster, and a hairline divider that
 // visually separates the header from the page body. Use on every top-level page so the header treatment
-// never drifts page to page.
+// never drifts page to page. A « ? » after the title links to this page's guide section (lib/page-help).
 // On a phone: no icon tile (the avatar, e.g. an editable photo, stays) (it eats a fifth of the width), the title wraps instead of being cut with "…",
 // the subtitle is kept to two lines, and the actions take the full width.
 export function PageHeader({ title, description, icon: Icon, avatar, actions, className }: PageHeaderProps) {
@@ -34,7 +35,11 @@ export function PageHeader({ title, description, icon: Icon, avatar, actions, cl
           </span>
         ) : null}
         <div className="min-w-0 space-y-0.5">
-          <h1 className="break-words text-xl font-semibold tracking-tight sm:truncate sm:text-2xl">{title}</h1>
+          {/* Title + the « ? » that opens the guide section for this page (when there is one). */}
+          <div className="flex min-w-0 items-center gap-1">
+            <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight sm:truncate sm:text-2xl">{title}</h1>
+            <PageHelpButton />
+          </div>
           {description && <p className="line-clamp-2 text-sm text-muted-foreground sm:line-clamp-none">{description}</p>}
         </div>
       </div>
