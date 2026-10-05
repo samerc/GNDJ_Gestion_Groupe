@@ -163,6 +163,17 @@ public class PassagesController : BaseApiController
 
     public record FinalizeBody(string ScoutYear);
 
+    /// <summary>« Ce qui va se passer » before « Publier le passage »: lines published, unit changes per destination,
+    /// leavers, planned maîtrise changes, chefs d'unité notified, plus what would block it. Read-only. Requires passage.manage.</summary>
+    [HttpGet("finalize/preview")]
+    [HasPermission(Permissions.PassageManage)]
+    public async Task<IActionResult> FinalizePreview([FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new GetFinalizePreviewQuery(scoutYear ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>The scheduled automatic « Publier le passage » (Lebanon time) + the result of the last automatic run.
     /// Requires passage.manage.</summary>
     [HttpGet("finalize-schedule")]

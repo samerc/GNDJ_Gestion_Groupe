@@ -23,6 +23,8 @@ interface ConfirmDialogProps {
   children?: ReactNode
   /** The action is impossible (e.g. a delete the server would refuse): show only a "Fermer" button. */
   hideConfirm?: boolean
+  /** Keep the confirm button visible but disabled (e.g. a preview says the action is blocked right now). */
+  confirmDisabled?: boolean
 }
 
 // Reusable confirm/cancel modal (used for deletes, archives, etc.). `variant="destructive"` reddens the
@@ -39,6 +41,7 @@ export function ConfirmDialog({
   onConfirm,
   children,
   hideConfirm = false,
+  confirmDisabled = false,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,7 +56,7 @@ export function ConfirmDialog({
             {hideConfirm ? 'Fermer' : cancelLabel}
           </Button>
           {!hideConfirm && (
-            <Button variant={variant === 'destructive' ? 'destructive' : 'default'} onClick={onConfirm} disabled={loading}>
+            <Button variant={variant === 'destructive' ? 'destructive' : 'default'} onClick={onConfirm} disabled={loading || confirmDisabled}>
               {loading ? 'Patientez…' : confirmLabel}
             </Button>
           )}

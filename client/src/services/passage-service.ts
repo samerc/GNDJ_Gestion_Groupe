@@ -4,6 +4,7 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
+import type { ActionPreview } from '@/components/shared/action-preview'
 import { filenameFromDisposition } from '@/lib/download'
 
 export interface PassageDto {
@@ -247,6 +248,16 @@ export function useSetPassageFinalizeSchedule() {
   return useMutation({
     mutationFn: (scheduledAt: string | null) => apiClient.put('/passages/finalize-schedule', { scheduledAt }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passages', 'finalize-schedule'] }),
+  })
+}
+
+// « Ce qui va se passer » before « Publier le passage » (counts + blockers), fetched fresh while the confirm is open.
+export function useFinalizePreview(scoutYear: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['passages', 'finalize-preview', scoutYear],
+    queryFn: () => apiClient.get<ActionPreview>('/passages/finalize/preview', { params: { scoutYear } }).then(r => r.data),
+    enabled: enabled && !!scoutYear,
+    staleTime: 0,
   })
 }
 

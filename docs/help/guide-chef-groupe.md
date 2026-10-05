@@ -134,6 +134,10 @@ acceptée, **le membre est créé** (fiche, affectation dans l'unité, parents, 
 l'identifiant et un lien pour définir le mot de passe. Chaque chef d'unité reçoit un email avec la liste Excel de
 ses nouveaux membres. Vous pouvez envoyer en plusieurs fois : seules les nouvelles décisions partent.
 
+> 💡 Avant de confirmer, la fenêtre affiche **Ce qui va se passer** : le nombre de membres créés (par unité), de refus,
+> d'emails aux familles et de chefs d'unité prévenus, et ce qui manque encore (demandes sans décision, famille sans
+> email, unité sans chef d'unité). Le bouton **Envoyer** reste grisé tant que quelque chose bloque.
+
 > 💡 **Programmer l'envoi** : choisissez une date et une heure (heure du Liban) ; les réponses partent toutes seules
 > à ce moment-là, et vous êtes prévenu(e) du résultat dans les notifications. S'il reste des demandes non décidées,
 > rien ne part et la notification explique pourquoi.
@@ -228,6 +232,10 @@ part **automatiquement** ou par **envoi manuel**, et à quel moment.
 
 > ⚠️ **Publier** n'est possible que lorsque **chaque membre actif** a une ligne de passage et que **toutes les
 > unités** ont terminé leur passage.
+
+> 💡 En cliquant **Publier le passage**, la fenêtre affiche **Ce qui va se passer** : lignes publiées (dont celles
+> encore en attente), membres qui changent d'unité (par unité d'arrivée), qui restent, qui quittent le groupe,
+> changements de maîtrise prévus et chefs d'unité prévenus. Ce qui bloque encore y est listé et le bouton reste grisé.
 
 > 💡 **Programmer la publication** : sous l'étape « Publier le passage », choisissez une date et une heure (heure du
 > Liban) ; le passage est publié tout seul à ce moment-là, exactement comme avec le bouton, et vous êtes prévenu(e) du

@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
+import type { ActionPreview } from '@/components/shared/action-preview'
 import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput } from '@/services/applicant-service'
 
 export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean }
@@ -288,6 +289,17 @@ export function useSendResponses() {
   return useMutation({
     mutationFn: (scoutYear: string) => apiClient.post<{ approved: number; declined: number }>('/demandes/send-responses', { scoutYear }).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }); qc.invalidateQueries({ queryKey: ['members'] }) },
+  })
+}
+
+// « Ce qui va se passer » before « Envoyer les réponses » (counts + blockers). Fetched only while the confirm is open,
+// always fresh (staleTime 0) so the numbers match the decisions taken a second ago.
+export function useSendResponsesPreview(scoutYear: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['demandes', 'send-responses-preview', scoutYear],
+    queryFn: () => apiClient.get<ActionPreview>('/demandes/send-responses/preview', { params: { scoutYear } }).then((r) => r.data),
+    enabled: enabled && !!scoutYear,
+    staleTime: 0,
   })
 }
 

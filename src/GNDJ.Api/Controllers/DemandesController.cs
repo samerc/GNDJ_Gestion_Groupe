@@ -228,6 +228,17 @@ public class DemandesController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>« Ce qui va se passer » before « Envoyer les réponses »: members created per unit, refusals, emails to families,
+    /// chefs d'unité notified, plus what would block the send. Read-only. Requires demande.view (+ group manager).</summary>
+    [HttpGet("send-responses/preview")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> SendResponsesPreview([FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new GetSendResponsesPreviewQuery(scoutYear ?? ""));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
     /// <summary>The scheduled automatic « Envoyer les réponses » (Lebanon time) + the result of the last automatic run.
     /// Requires demande.view (+ group manager in the handler).</summary>
     [HttpGet("responses-schedule")]

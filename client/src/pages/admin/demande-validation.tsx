@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
 import {
-  useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useCloseCampaign,
+  useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useSendResponsesPreview, useCloseCampaign,
   useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
@@ -26,6 +26,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { ActionPreviewPanel } from '@/components/shared/action-preview'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { DemandeGrid } from '@/components/admin/demande-grid'
 import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
@@ -238,6 +239,7 @@ export default function DemandeValidationPage() {
   const [pickUnit, setPickUnit] = useState('')
   const [decisionNote, setDecisionNote] = useState('')
   const [sendOpen, setSendOpen] = useState(false)
+  const sendPreview = useSendResponsesPreview(scoutYear, sendOpen)
   const [closeOpen, setCloseOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DemandeReview | null>(null)  // single delete confirm
@@ -962,9 +964,12 @@ export default function DemandeValidationPage() {
       <ConfirmDialog
         open={sendOpen} onOpenChange={setSendOpen}
         title="Envoyer les réponses ?"
-        description={`Ceci va convertir les demandes acceptées en membres (avec identifiants) et envoyer à chaque famille sa réponse (à l'email qui a ouvert le compte d'inscription). ${pendingSend} décision(s) seront envoyées. Cette action est définitive. Continuer ?`}
+        description="Les demandes acceptées deviennent des membres (avec identifiant) et chaque famille reçoit sa réponse à l'email qui a ouvert son compte d'inscription. Cette action est définitive."
         confirmLabel="Envoyer" loading={sendMutation.isPending} onConfirm={handleSend}
-      />
+        confirmDisabled={!sendPreview.data || sendPreview.data.blockers.length > 0}
+      >
+        <ActionPreviewPanel data={sendPreview.data} isLoading={sendPreview.isLoading} error={sendPreview.error} />
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={closeOpen} onOpenChange={setCloseOpen}

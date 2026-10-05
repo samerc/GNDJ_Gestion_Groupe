@@ -16,6 +16,7 @@ import {
   useReviewPassage,
   useBulkReviewPassage,
   useFinalizePassages,
+  useFinalizePreview,
   useSubmitPassageUnit,
   useReopenPassageUnit,
   useRemindPassageUnits,
@@ -42,6 +43,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { ActionPreviewPanel } from '@/components/shared/action-preview'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Page } from '@/components/shared/page'
@@ -122,6 +124,7 @@ export default function PassageValidationPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editDialog, setEditDialog] = useState<PassageDto | null>(null)
   const [finalizeDialog, setFinalizeDialog] = useState(false)
+  const finalizePreview = useFinalizePreview(scoutYear, finalizeDialog)
   // Opening/closing the passage changes what every chef d'unité can do, so it asks for confirmation first.
   const [toggleDialog, setToggleDialog] = useState(false)
   // "Changer la sélection": same decision for every selected line.
@@ -941,15 +944,14 @@ export default function PassageValidationPage() {
         open={finalizeDialog}
         onOpenChange={setFinalizeDialog}
         title="Publier le passage ?"
-        description={
-          `${approvedCount} ligne(s) acceptée(s)` + (pendingCount > 0 ? ` + ${pendingCount} en attente, acceptée(s) automatiquement` : '') +
-          ` seront publiées pour tout le groupe : les affectations actuelles seront clôturées et les nouvelles créées. ` +
-          `Chaque chef d'unité qui reçoit des membres recevra leur liste par email. Cette action est définitive. Continuer ?`
-        }
+        description="Le passage est publié pour tout le groupe : les affectations actuelles sont clôturées et les nouvelles créées. Cette action est définitive."
         confirmLabel="Publier"
         loading={finalizeMutation.isPending}
+        confirmDisabled={!finalizePreview.data || finalizePreview.data.blockers.length > 0}
         onConfirm={handleFinalize}
-      />
+      >
+        <ActionPreviewPanel data={finalizePreview.data} isLoading={finalizePreview.isLoading} error={finalizePreview.error} />
+      </ConfirmDialog>
 
       {/* Open / close confirm — explains what changes for the chefs d'unité. */}
       <ConfirmDialog
