@@ -77,7 +77,20 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
 
     // A fill line whose label ends with « Signature » (e.g. « Signature : ____ ») is where the online signature goes.
     private static bool IsSignatureLine(HtmlNode fill)
+        => TextNormalizationLite(FillLabel(fill)).TrimEnd(' ', ':', ' ', '.', '-').EndsWith("signature");
+
+    // The text written just before a blank on its line (« Médicaments : »), up to the previous blank / split.
+    // For a box (a block of its own): the text of the block just above it (its heading).
+    private static string FillLabel(HtmlNode fill)
     {
+        if (fill.Attributes.Contains("data-box"))
+        {
+            var b = fill;
+            while (b.PreviousSibling is null && b.ParentNode is { } bp && bp.Name != "#document") b = bp;
+            for (var n = b.PreviousSibling; n is not null; n = n.PreviousSibling)
+                if (!string.IsNullOrWhiteSpace(n.InnerText)) return Decode(n.InnerText).Trim();
+            return "";
+        }
         // The editor often wraps each blank in its own font <span>: climb out of wrappers that hold only the blank.
         var start = fill;
         while (start.PreviousSibling is null && start.ParentNode is { Name: "span" or "strong" or "b" or "em" or "i" or "u" } p)
@@ -90,8 +103,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             if (n.NodeType == HtmlNodeType.Element && n.SelectSingleNode(".//*[@data-fill or @data-split]") is not null) break;
             label.Insert(0, n.InnerText);
         }
-        var key = TextNormalizationLite(Decode(label.ToString())).TrimEnd(' ', ':', '\u00a0', '.', '-');
-        return key.EndsWith("signature");
+        return Decode(label.ToString()).Trim();
     }
 
     private static string TextNormalizationLite(string s)
@@ -116,9 +128,11 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             var key = $"f{i++}";
             n.SetAttributeValue("data-key", key);
             var kind = n.Attributes.Contains("data-box") ? "box" : n.Attributes.Contains("data-checkbox") ? "checkbox"
-                : IsSignatureLine(n) ? "signature" : "fill";
+                : IsSignatureLine(n) ? "signature" : n.Attributes.Contains("data-date") ? "date" : "fill";
             if (kind == "signature") n.SetAttributeValue("data-signature", "1");
-            list.Add(new TemplateFormField(key, kind));
+            var save = kind is "fill" or "date" or "box" ? n.GetAttributeValue("data-save", "") : "";
+            var label = FillLabel(n).Trim(' ', ':', ' ', '.', '-', '—');
+            list.Add(new TemplateFormField(key, kind, save.Length > 0 ? save : null, label));
         }
         return list;
     }
@@ -127,7 +141,10 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     {
         var key = node.GetAttributeValue("data-key", "");
         if (key.Length == 0) return null;
-        return values.TryGetValue(TemplateFormAnswers.Key(key), out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
+        if (!values.TryGetValue(TemplateFormAnswers.Key(key), out var v) || string.IsNullOrWhiteSpace(v)) return null;
+        v = v.Trim();
+        // A date blank's answer arrives as yyyy-MM-dd (date picker) → printed JJ/MM/AAAA.
+        return node.Attributes.Contains("data-date") ? TemplateFormAnswers.DisplayDate(v) : v;
     }
 
     // The online signature: "Signé électroniquement par …" + the drawn signature + date and reference (audit trail).

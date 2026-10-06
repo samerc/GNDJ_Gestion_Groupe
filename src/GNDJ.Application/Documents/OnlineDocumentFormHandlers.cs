@@ -109,6 +109,12 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
 
         var values = await GenerateMemberDocumentTemplateQueryHandler.ResolveMemberValuesAsync(context, request.MemberId, ct);
         if (values is null) return Result<Guid>.Failure("Membre introuvable.");
+        // The form's blanks (kind, label, member-file target) — keys f0, f1… match the answers.
+        var fields = renderer.PrepareForm(dt.TemplateHtml!, values).Fields;
+        foreach (var f in fields.Where(f => f.Kind == "date"))
+            if (request.Answers.TryGetValue(f.Key, out var dv) && !string.IsNullOrWhiteSpace(dv)
+                && !DateOnly.TryParseExact(dv.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+                return Result<Guid>.Failure($"Date invalide{(string.IsNullOrWhiteSpace(f.Label) ? "" : $" : {f.Label}")}.");
         foreach (var (key, value) in request.Answers)
             if (!string.IsNullOrWhiteSpace(value)) values[TemplateFormAnswers.Key(key)] = value.Trim();
 
@@ -146,6 +152,55 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
             Member = memberName, Document = dt.Name, Signataire = request.SignerName.Trim(), Lien = request.SignerRelation,
             Reference = reference, Certifie = request.Certified, Empreinte = pdfHash, Appareil = user.UserAgent, Ip = user.IpAddress,
         }, cancellationToken: ct);
+
+        await SaveIntoMemberFileAsync(request.MemberId, fields, request.Answers, memberName, dt.Name, ct);
         return result;
+    }
+
+    // « — du médecin de famille » → « Médecin de famille » (the form's sentence fragments read badly on the fiche).
+    private static string CleanLabel(string? label)
+    {
+        var l = (label ?? "").Trim().TrimStart('—', '-', '–', ' ');
+        foreach (var p in new[] { "de la ", "de l'", "de l’", "du ", "des ", "de " })
+            if (l.StartsWith(p, StringComparison.OrdinalIgnoreCase)) { l = l[p.Length..]; break; }
+        return l.Length == 0 ? l : char.ToUpper(l[0]) + l[1..];
+    }
+
+    // Blanks linked to the member's file (data-save) update the Médical tab: one line per answered blank,
+    // « Label : réponse », in form order. A field is only replaced when at least one of its blanks was answered,
+    // so an untouched part of the form never wipes what is already on the fiche.
+    private async Task SaveIntoMemberFileAsync(Guid memberId, IReadOnlyList<TemplateFormField> fields,
+        Dictionary<string, string> answers, string memberName, string documentName, CancellationToken ct)
+    {
+        string? Combine(string target)
+        {
+            var lines = fields.Where(f => f.Save == target)
+                .Select(f => (f, v: answers.TryGetValue(f.Key, out var a) ? a?.Trim() : null))
+                .Where(x => !string.IsNullOrWhiteSpace(x.v))
+                .Select(x =>
+                {
+                    var v = x.f.Kind == "date" ? TemplateFormAnswers.DisplayDate(x.v!) : x.v!;
+                    var label = CleanLabel(x.f.Label);
+                    return label.Length == 0 ? v : $"{label} : {v}";
+                }).ToList();
+            if (lines.Count == 0) return null;
+            var text = string.Join("\n", lines);
+            return text.Length > 2000 ? text[..2000] : text; // same cap as the member form
+        }
+
+        var allergies = Combine(TemplateFormAnswers.SaveAllergies);
+        var notes = Combine(TemplateFormAnswers.SaveMedicalNotes);
+        if (allergies is null && notes is null) return;
+
+        var member = await context.Members.FirstOrDefaultAsync(m => m.Id == memberId, ct);
+        if (member is null) return;
+        var old = new { member.Allergies, member.MedicalNotes };
+        if (allergies is not null) member.Allergies = allergies;
+        if (notes is not null) member.MedicalNotes = notes;
+        if (old.Allergies == member.Allergies && old.MedicalNotes == member.MedicalNotes) return;
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = memberName, old.Allergies, old.MedicalNotes },
+            newValues: new { Member = memberName, member.Allergies, member.MedicalNotes, Source = $"{documentName} (formulaire en ligne)" },
+            cancellationToken: ct);
     }
 }

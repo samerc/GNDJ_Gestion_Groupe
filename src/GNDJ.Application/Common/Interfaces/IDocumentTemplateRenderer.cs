@@ -16,9 +16,11 @@ public interface IDocumentTemplateRenderer
     TemplateForm PrepareForm(string html, IReadOnlyDictionary<string, string?> values);
 }
 
-// One blank of the form: Kind = "fill" (one line), "box" (several lines), "checkbox", or "signature" (a fill line
-// labelled « Signature » — the drawn signature is printed there instead of in a block at the end).
-public record TemplateFormField(string Key, string Kind);
+// One blank of the form: Kind = "fill" (one line), "date" (a line answered with the date picker), "box" (several
+// lines), "checkbox", or "signature" (a fill line labelled « Signature » — the drawn signature is printed there
+// instead of in a block at the end). Save = the member-file field the answer is saved into when signed online
+// (allergies | medicalNotes), Label = the text just before the blank (or the heading above a box).
+public record TemplateFormField(string Key, string Kind, string? Save = null, string? Label = null);
 public record TemplateForm(string Html, IReadOnlyList<TemplateFormField> Fields);
 
 // The signature printed at the bottom of an online-filled form: the drawn image (PNG) + who signed and when.
@@ -28,4 +30,13 @@ public static class TemplateFormAnswers
 {
     // Answers travel in the same values dictionary under a prefix that can't clash with {{tokens}} ([a-zA-Z0-9_]).
     public static string Key(string fieldKey) => "#" + fieldKey;
+
+    // A date answer (yyyy-MM-dd from the date picker) shown as JJ/MM/AAAA; anything else unchanged.
+    public static string DisplayDate(string v)
+        => DateOnly.TryParseExact(v, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            ? d.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) : v;
+
+    // Member-file fields an answer can be saved into (data-save on a blank).
+    public const string SaveAllergies = "allergies";
+    public const string SaveMedicalNotes = "medicalNotes";
 }

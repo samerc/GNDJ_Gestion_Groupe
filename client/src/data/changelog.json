@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-06", "text": "Fiche médicale en ligne : les dates (vaccins, date de signature) se choisissent dans un calendrier, et les allergies, antécédents, traitements et médecin de famille indiqués par la famille sont enregistrés dans l'onglet Médical du membre. Dans l'éditeur de modèle, un clic sur une ligne ou un cadre permet d'en faire une date et/ou de la lier à la fiche."},
       {"date": "2026-10-06", "text": "Ma fiche : un réglage (Paramètres → Inscriptions) choisit qui voit « Inscrire un frère ou une sœur » : jeunes membres uniquement (par défaut, plus les chefs), tous les membres, ou personne."},
       {"date": "2026-10-06", "text": "Site public : une équipe sans aucun membre n'apparaît plus sur la page de l'unité. Une équipe créée avant le passage reste donc invisible jusqu'à ce que le passage y place des membres."},
       {"date": "2026-10-06", "text": "Demandes : une demande refusée alors que la famille indique une demande une année précédente est aussi signalée (« Refus · déjà demandé »), avec les autres décisions à vérifier."},

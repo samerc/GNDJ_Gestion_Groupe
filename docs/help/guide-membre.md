@@ -122,7 +122,8 @@ Chaque année, le groupe demande quelques documents (autorisation des parents, f
    Quand le bouton **Remplir et signer en ligne** apparaît, vous pouvez tout faire sur votre téléphone : complétez
    les champs, indiquez votre nom et qui vous êtes (père, mère…), cochez « Je certifie », **signez avec le doigt**
    dans le cadre, puis **Signer et envoyer**. Le document signé arrive directement dans le dossier : pas besoin
-   d'imprimer ni de scanner.
+   d'imprimer ni de scanner. Les dates se choisissent dans un calendrier. Pour la fiche médicale, les allergies et
+   remarques indiquées sont aussi enregistrées dans votre fiche (onglet Médical).
 2. Cliquez sur **Envoyer** sur la ligne du document, choisissez le fichier (PDF, photo JPG ou PNG).
 3. Sur téléphone, l'icône **appareil photo** permet de photographier directement la feuille.
 

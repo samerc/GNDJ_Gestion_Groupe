@@ -292,6 +292,15 @@ alors les lignes, cadres et cases sur son téléphone et **signe avec le doigt**
 le document du membre et arrive « à vérifier » chez le chef d'unité ; il compte pour le dossier comme un document
 envoyé. Si le modèle contient une ligne « Signature : … », la signature s'y place ; sinon elle est ajoutée à la
 fin. Le nom du signataire, la date, l'appareil et une empreinte du PDF sont gardés dans le journal d'audit.
+
+Dans l'éditeur du modèle, **cliquez sur une ligne ou un cadre à remplir** : une barre apparaît sous les outils.
+- **Date (calendrier)** (lignes) : la famille choisit la date dans un calendrier sur son téléphone, et le PDF
+  l'écrit en JJ/MM/AAAA. Le menu « Insérer un champ » propose aussi **Date à remplir (calendrier)**.
+- **Enregistrer dans la fiche** : **Allergies** ou **Remarques médicales**. Quand la famille signe en ligne, ses
+  réponses sont aussi écrites dans l'onglet **Médical** du membre (une ligne par réponse, « Libellé : réponse »).
+  Une partie laissée vide ne touche pas ce qui est déjà sur la fiche. Les lignes liées apparaissent teintées dans
+  l'éditeur. La fiche médicale est déjà réglée ainsi (vaccins en dates, allergies, antécédents, médecin…).
+
 Décochez l'option pour revenir au seul téléchargement : la famille peut toujours imprimer, remplir à la main et
 envoyer une photo.
 

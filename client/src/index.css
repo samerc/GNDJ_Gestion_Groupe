@@ -303,6 +303,23 @@
   vertical-align: baseline;
   height: 1.1em;
 }
+/* A date blank shows a small "JJ/MM/AAAA" hint, a blank saved into the member's file a teal tint, so the
+   author can tell them apart in the editor. */
+.gndj-date {
+  position: relative;
+}
+.gndj-date::after {
+  content: 'JJ/MM/AAAA';
+  position: absolute;
+  left: 4px;
+  bottom: 1px;
+  font-size: 9px;
+  color: oklch(0.6 0 0);
+}
+.gndj-fill[data-save],
+.gndj-box[data-save] {
+  background: oklch(0.93 0.05 190 / 0.6);
+}
 .gndj-checkbox {
   display: inline-block;
   width: 13px;

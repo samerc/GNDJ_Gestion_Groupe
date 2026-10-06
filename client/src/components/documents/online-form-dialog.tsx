@@ -27,7 +27,7 @@ interface OnlineForm {
   documentTypeName: string
   memberName: string
   html: string
-  fields: { key: string; kind: 'fill' | 'box' | 'checkbox' | 'signature' }[]
+  fields: { key: string; kind: 'fill' | 'date' | 'box' | 'checkbox' | 'signature'; save?: string | null; label?: string | null }[]
   templateHash: string
 }
 
@@ -86,6 +86,9 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
         <div className="flex-1 overflow-y-auto p-4">
           {error ? <Callout tone="danger">{parseApiError(error)}</Callout> : isLoading || !form ? <LoadingSpinner /> : (
             <div className="space-y-6">
+              {form.fields.some((f) => f.save) && (
+                <Callout tone="info">Les allergies et les remarques médicales que vous indiquez seront aussi enregistrées dans la fiche du membre (onglet Médical).</Callout>
+              )}
               <div className="online-form space-y-2 rounded-lg border bg-white p-4 text-sm leading-relaxed text-gray-900 shadow-sm dark:bg-white">{body}</div>
 
               <section className="space-y-4 rounded-lg border p-4">
@@ -145,6 +148,12 @@ function toReact(node: Node, key: string, answers: Record<string, string>, set: 
   // The « Signature : ___ » line gets the signature drawn at the bottom — nothing to type here.
   if (fieldKey && el.hasAttribute('data-signature')) {
     return <span key={key} className="mx-1 inline-block rounded bg-muted px-2 py-0.5 text-xs italic text-gray-600">signature ci-dessous ↓</span>
+  }
+  // A date blank: the phone's own date picker (value yyyy-MM-dd; the PDF prints it JJ/MM/AAAA).
+  if (fieldKey && el.hasAttribute('data-fill') && el.hasAttribute('data-date')) {
+    return <input key={key} type="date" aria-label="Date" value={answers[fieldKey] ?? ''} max="2100-12-31"
+      onChange={(e) => set(fieldKey, e.target.value)}
+      className="mx-1 inline-block rounded border-b-2 border-dashed border-primary/50 bg-primary/5 px-1 py-0.5 align-baseline text-gray-900 outline-none focus:border-primary" />
   }
   // The blanks to fill.
   if (fieldKey && el.hasAttribute('data-fill')) {

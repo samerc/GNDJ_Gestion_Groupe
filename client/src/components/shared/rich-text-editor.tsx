@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
-import type { Extensions } from '@tiptap/core'
+import type { Editor, Extensions } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
@@ -51,6 +51,8 @@ interface Props {
   placeholder?: string
   className?: string
   onImageUpload?: (file: File) => Promise<string> // when provided, enables the image-insert button; returns the served URL
+  // Optional bar under the toolbar for the current selection (the form builder uses it to set a blank's options).
+  selectionPanel?: (editor: Editor) => React.ReactNode
 }
 
 // A single toolbar icon button (module-scope so its component identity is stable across renders).
@@ -73,7 +75,7 @@ function ToolbarButton({ onClick, active, children, title }: { onClick: () => vo
 // TipTap-based WYSIWYG editor used by the email-template editor and the public CMS (news/pages).
 // Toolbar = formatting + lists + link + optional image upload + undo/redo + a module-specific
 // variable-insertion dropdown. Emits HTML via onChange.
-export function RichTextEditor({ content, onChange, variables, insertMenu, extraExtensions, enableFont, placeholder, className, onImageUpload }: Props) {
+export function RichTextEditor({ content, onChange, variables, insertMenu, extraExtensions, enableFont, placeholder, className, onImageUpload, selectionPanel }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const editor = useEditor({
@@ -303,6 +305,8 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
           </>
         )}
       </div>
+
+      {selectionPanel && editor && selectionPanel(editor)}
 
       {/* Editor — capped height with internal scroll so long content never pushes the dialog's actions off-screen.
           The `prose` classes are inert (no @tailwindcss/typography plugin), so list markers, headings and links
