@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-06", "text": "Demandes : la page signale les décisions de famille à vérifier — une même famille avec un enfant accepté et un autre refusé, ou une demande refusée alors qu'un frère ou une sœur est déjà membre du groupe (bandeau, badges, encadré dans le dossier, filtre, et rappel dans « Ce qui va se passer » avant l'envoi)."},
       {"date": "2026-10-06", "text": "Rentrée scoute : la tâche « Imprimer les cartes membres » est masquée tant que la création des cartes est désactivée dans les Paramètres ; elle ne bloque plus les tâches qui en dépendent et réapparaît si les cartes sont réactivées."},
       {"date": "2026-10-06", "text": "Correction : la page d'une demande dans le portail des parents pouvait s'afficher en erreur (bulle d'aide utilisée hors de son conteneur). Les bulles d'aide fonctionnent maintenant sur toutes les pages, y compris le portail et le site public."},
       {"date": "2026-10-06", "text": "Documents : « Remplir et signer en ligne ». Pour un type de document avec un modèle créé dans l'application, l'option « Remplissable en ligne (avec signature) » permet à la famille de remplir les champs sur son téléphone et de signer avec le doigt. Le PDF signé arrive « à vérifier » chez le chef d'unité, comme un document envoyé, et compte pour le dossier. La signature se place sur la ligne « Signature » du modèle ; le signataire, la date, l'appareil et l'empreinte du PDF sont gardés dans le journal d'audit."},

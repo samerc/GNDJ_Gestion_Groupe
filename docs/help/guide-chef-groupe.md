@@ -123,6 +123,13 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 - Les **proches scouts** peuvent être **liés** à un membre existant (bouton **Lier**) : les frères et sœurs
   partageront alors les mêmes parents à l'inscription.
 
+> ⚠️ **Décisions de famille à vérifier** : la page signale (bandeau orange, badges rouges sur les lignes, encadré
+> dans le dossier) deux cas à revoir. **Réponses différentes** : une même famille a un enfant accepté et un autre
+> refusé (les enfants d'une famille devraient tous être acceptés ou tous refusés). **Refus · fratrie membre** : une
+> demande refusée alors qu'un frère ou une sœur est déjà membre du groupe. Le bouton **Afficher** du bandeau (ou le
+> filtre **Décisions de famille à vérifier**) ne montre que ces demandes. Ce sont des avertissements : l'envoi reste
+> possible, et ils sont rappelés dans **Ce qui va se passer**.
+
 > 💡 **Travailler dans Excel** : **Exporter (Excel)** donne un fichier avec une colonne **Décision** à remplir
 > (code de l'unité pour accepter, code de motif pour refuser, `--` = motif par défaut). **Importer les décisions**
 > les applique. Rien n'est envoyé aux familles avant **Envoyer les réponses**.

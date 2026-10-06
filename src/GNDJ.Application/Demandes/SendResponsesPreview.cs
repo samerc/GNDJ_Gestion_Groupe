@@ -52,6 +52,42 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
         if (noEmail.Count > 0)
             warnings.Add($"Sans email, aucune réponse ne partira pour : {string.Join(", ", noEmail)}.");
 
+        // Family consistency (warnings only — the CG may have a reason): (1) one account with both an accepted and a
+        // refused child this year; (2) a refusal while a brother/sister is already in the group (declared as a
+        // current member, or linked to a member with an active post).
+        var yearDecisions = await context.Demandes
+            .Where(d => d.ScoutYear == request.ScoutYear && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined))
+            .Select(d => new { d.ApplicantAccountId, d.Status, d.FirstName, d.LastName })
+            .ToListAsync(ct);
+        var mixed = yearDecisions.GroupBy(d => d.ApplicantAccountId)
+            .Where(g => g.Any(x => x.Status == DemandeStatus.Approved) && g.Any(x => x.Status == DemandeStatus.Declined))
+            .Select(g => string.Join(" / ", g.Select(x => $"{x.FirstName} {x.LastName} ({(x.Status == DemandeStatus.Approved ? "acceptée" : "refusée")})")))
+            .ToList();
+        if (mixed.Count > 0)
+            warnings.Add($"{mixed.Count} famille(s) avec des réponses différentes (acceptée et refusée) : {string.Join(" ; ", mixed)}.");
+
+        var declinedAccounts = pending.Where(d => d.Status == DemandeStatus.Declined).Select(d => d.ApplicantAccountId).Distinct().ToList();
+        if (declinedAccounts.Count > 0)
+        {
+            var rels = await context.ApplicantScoutRelations
+                .Where(r => declinedAccounts.Contains(r.ApplicantAccountId))
+                .Select(r => new
+                {
+                    r.ApplicantAccountId, r.Relationship, r.Status,
+                    LinkedActive = r.RelatedMemberId != null
+                        && context.MemberAssignments.Any(a => a.MemberId == r.RelatedMemberId && a.EndDate == null),
+                })
+                .ToListAsync(ct);
+            var withSibling = rels
+                .Where(r => ScoutRelationKind.IsSibling(r.Relationship) && (r.Status == "CurrentInGroup" || r.LinkedActive))
+                .Select(r => r.ApplicantAccountId).ToHashSet();
+            var refusedWithSibling = pending
+                .Where(d => d.Status == DemandeStatus.Declined && withSibling.Contains(d.ApplicantAccountId))
+                .Select(d => $"{d.FirstName} {d.LastName}").ToList();
+            if (refusedWithSibling.Count > 0)
+                warnings.Add($"Refus alors qu'un frère ou une sœur est déjà membre du groupe : {string.Join(", ", refusedWithSibling)}.");
+        }
+
         // Accepted members per unit + the chefs d'unité who will get the Excel.
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
         var units = await context.Units.Where(u => unitIds.Contains(u.Id))
