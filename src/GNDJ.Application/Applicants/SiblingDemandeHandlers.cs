@@ -31,6 +31,18 @@ public class StartSiblingDemandeCommandHandler(IApplicationDbContext context, IC
         var config = await ApplicantHelpers.BuildConfig(context, ct);
         if (!config.IsOpen) return Result<ApplicantAuthDto>.Failure("Les inscriptions ne sont pas ouvertes pour le moment.");
 
+        // Who may use it: setting demande.sibling_enroll_audience = off | youth (default: no chefs) | all.
+        var audience = (await context.Settings.Where(s => s.Key == "demande.sibling_enroll_audience")
+            .Select(s => s.Value).FirstOrDefaultAsync(ct))?.Trim() ?? "youth";
+        if (audience == "off") return Result<ApplicantAuthDto>.Failure("Cette fonction n'est pas disponible.");
+        if (audience != "all")
+        {
+            var isChef = currentUser.IsSuperAdmin || await context.MemberAssignments.AnyAsync(a => a.MemberId == memberId && a.EndDate == null
+                && (a.FunctionalRole.IsMaitrise || a.FunctionalRole.SecurityProfile.IsGroupLevel
+                    || a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit)), ct);
+            if (isChef) return Result<ApplicantAuthDto>.Failure("Cette fonction est réservée aux jeunes membres et à leurs parents.");
+        }
+
         // 1. The family email on this member's file.
         var member = await context.Members.Where(m => m.Id == memberId)
             .Select(m => new { m.PrimaryContactEmail }).FirstOrDefaultAsync(ct);

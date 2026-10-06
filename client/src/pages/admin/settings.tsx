@@ -105,6 +105,11 @@ const SETTING_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'maitrise', label: 'Maîtrise uniquement' },
     { value: 'all', label: 'Tous les membres' },
   ],
+  'demande.sibling_enroll_audience': [
+    { value: 'off', label: 'Désactivé (personne)' },
+    { value: 'youth', label: 'Jeunes membres uniquement' },
+    { value: 'all', label: 'Tous les membres (chefs compris)' },
+  ],
   'scan_upload.audience': [
     { value: 'off', label: 'Désactivé (personne)' },
     { value: 'maitrise', label: 'Maîtrise uniquement' },

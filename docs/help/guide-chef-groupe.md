@@ -120,6 +120,9 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 - **Refuser** : choisissez un **motif** (son texte est envoyé à la famille).
 - **Modifier** (dans le dossier) corrige une demande, même après la date limite (par exemple un parent oublié).
 - **Remettre à étudier** annule une décision prise par erreur.
+- Pendant la période d'inscription, **Ma fiche** propose **Inscrire un frère ou une sœur** (la demande s'ouvre avec
+  les parents, l'adresse et la fratrie déjà remplis). Paramètres → Inscriptions choisit qui le voit : jeunes membres
+  uniquement (par défaut), tous les membres (chefs compris) ou personne.
 - Les **proches scouts** peuvent être **liés** à un membre existant (bouton **Lier**) : les frères et sœurs
   partageront alors les mêmes parents à l'inscription.
 
