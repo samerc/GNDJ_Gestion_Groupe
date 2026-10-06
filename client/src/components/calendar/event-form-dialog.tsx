@@ -1,6 +1,7 @@
 // Create / edit a calendar event. The « Pour qui » choices come from the server (GET /calendar/options): the Chef de
 // Groupe team picks any audience; a chef d'unité only « Une unité » with their own unit(s). Editing loads the full
-// event (repetition, reminder, publication). A repeating event is edited as a whole series.
+// event (repetition, reminder, publication). A repeating event is edited as a whole series, or — with occurrenceDate —
+// only that one date (« Modifier cette date seulement »: the copy doesn't repeat).
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,7 +15,7 @@ import { DateInput } from '@/components/shared/date-input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { parseApiError } from '@/lib/error-utils'
 import {
-  AUDIENCE_LABELS, useCalendarEvent, useCalendarOptions, useCreateCalendarEvent, useUpdateCalendarEvent,
+  AUDIENCE_LABELS, useCalendarEvent, useCalendarOptions, useCreateCalendarEvent, useEditCalendarDate, useUpdateCalendarEvent,
   type CalendarAudience, type CalendarEventInput, type CalendarRecurrence,
 } from '@/services/calendar-service'
 import { REMINDER_OPTIONS } from './calendar-utils'
@@ -25,8 +26,15 @@ const blank = (date: string, audience: CalendarAudience, unitId: string | null):
   reminderMinutes: null, publishOnSite: false,
 })
 
-export function EventFormDialog({ open, onOpenChange, eventId, defaultDate }: {
-  open: boolean; onOpenChange: (o: boolean) => void; eventId: string | null; defaultDate: string
+// The series' details moved onto one of its dates (same length for a multi-day event), not repeating.
+function onlyThisDate(e: CalendarEventInput, date: string): CalendarEventInput {
+  const days = e.endDate ? Math.round((Date.parse(e.endDate) - Date.parse(e.startDate)) / 86_400_000) : 0
+  const end = days > 0 ? new Date(Date.parse(date) + days * 86_400_000).toISOString().slice(0, 10) : null
+  return { ...e, startDate: date, endDate: end, recurrence: 'None', recurrenceInterval: 1, recurrenceUntil: null, publishOnSite: false }
+}
+
+export function EventFormDialog({ open, onOpenChange, eventId, defaultDate, occurrenceDate = null }: {
+  open: boolean; onOpenChange: (o: boolean) => void; eventId: string | null; defaultDate: string; occurrenceDate?: string | null
 }) {
   const { data: options } = useCalendarOptions()
   const { data: existing, isLoading } = useCalendarEvent(open ? eventId : null)
@@ -35,12 +43,15 @@ export function EventFormDialog({ open, onOpenChange, eventId, defaultDate }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-[95vw] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{eventId ? "Modifier l'événement" : 'Nouvel événement'}</DialogTitle>
-          <DialogDescription>Il apparaît dans le calendrier des personnes concernées.</DialogDescription>
+          <DialogTitle>{occurrenceDate ? 'Modifier cette date seulement' : eventId ? "Modifier l'événement" : 'Nouvel événement'}</DialogTitle>
+          <DialogDescription>{occurrenceDate
+            ? "Les changements ne concernent que cette date ; les autres dates de l'événement restent comme elles sont."
+            : 'Il apparaît dans le calendrier des personnes concernées.'}</DialogDescription>
         </DialogHeader>
         {(eventId && (isLoading || !existing)) || !options ? <LoadingSpinner /> : (
-          <EventForm key={eventId ?? 'new'} eventId={eventId} options={options} onDone={() => onOpenChange(false)}
-            initial={existing ?? blank(defaultDate, options.audiences.includes('Group') ? 'Group' : 'Unit',
+          <EventForm key={`${eventId ?? 'new'}:${occurrenceDate ?? ''}`} eventId={eventId} occurrenceDate={occurrenceDate}
+            options={options} onDone={() => onOpenChange(false)}
+            initial={existing ? (occurrenceDate ? onlyThisDate(existing, occurrenceDate) : existing) : blank(defaultDate, options.audiences.includes('Group') ? 'Group' : 'Unit',
               options.audiences.includes('Group') ? null : options.units[0]?.id ?? null)} />
         )}
       </DialogContent>
@@ -48,8 +59,8 @@ export function EventFormDialog({ open, onOpenChange, eventId, defaultDate }: {
   )
 }
 
-function EventForm({ eventId, initial, options, onDone }: {
-  eventId: string | null; initial: CalendarEventInput; options: NonNullable<ReturnType<typeof useCalendarOptions>['data']>; onDone: () => void
+function EventForm({ eventId, occurrenceDate, initial, options, onDone }: {
+  eventId: string | null; occurrenceDate: string | null; initial: CalendarEventInput; options: NonNullable<ReturnType<typeof useCalendarOptions>['data']>; onDone: () => void
 }) {
   const [f, setF] = useState<CalendarEventInput>(() => ({
     ...initial,
@@ -59,9 +70,10 @@ function EventForm({ eventId, initial, options, onDone }: {
   const [multiDay, setMultiDay] = useState(!!initial.endDate)
   const create = useCreateCalendarEvent()
   const update = useUpdateCalendarEvent()
+  const editDate = useEditCalendarDate()
   const set = <K extends keyof CalendarEventInput>(k: K, v: CalendarEventInput[K]) => setF((x) => ({ ...x, [k]: v }))
   const canPublish = ['Group', 'Branch', 'Unit'].includes(f.audience) && f.recurrence === 'None'
-  const busy = create.isPending || update.isPending
+  const busy = create.isPending || update.isPending || editDate.isPending
 
   const save = async () => {
     if (!f.title.trim()) { toast.error('Le titre est requis.'); return }
@@ -74,9 +86,10 @@ function EventForm({ eventId, initial, options, onDone }: {
       publishOnSite: canPublish && f.publishOnSite,
     }
     try {
-      if (eventId) await update.mutateAsync({ id: eventId, data })
+      if (eventId && occurrenceDate) await editDate.mutateAsync({ id: eventId, date: occurrenceDate, data })
+      else if (eventId) await update.mutateAsync({ id: eventId, data })
       else await create.mutateAsync(data)
-      toast.success(eventId ? 'Événement modifié.' : 'Événement ajouté au calendrier.')
+      toast.success(occurrenceDate ? 'Date modifiée.' : eventId ? 'Événement modifié.' : 'Événement ajouté au calendrier.')
       onDone()
     } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -145,7 +158,7 @@ function EventForm({ eventId, initial, options, onDone }: {
         <Textarea id="ev-desc" rows={3} value={f.description ?? ''} maxLength={4000} onChange={(e) => set('description', e.target.value || null)} />
       </div>
 
-      <div className="space-y-1.5">
+      {!occurrenceDate && <div className="space-y-1.5">
         <Label>Répétition</Label>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Select value={f.recurrence === 'None' ? 'None' : `${f.recurrence}:${f.recurrenceInterval}`}
@@ -169,7 +182,7 @@ function EventForm({ eventId, initial, options, onDone }: {
           )}
         </div>
         {f.recurrence !== 'None' && <p className="text-xs text-muted-foreground">Sans date de fin, il se répète jusqu'à ce que vous le supprimiez.</p>}
-      </div>
+      </div>}
 
       <div className="space-y-1.5">
         <Label>Rappel</Label>

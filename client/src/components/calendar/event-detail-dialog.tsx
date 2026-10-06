@@ -1,5 +1,6 @@
 // What an item of the calendar is: date, time, place, for whom, description. Editors of an event get Modifier,
-// Supprimer (the whole series) and — for a repeating event — « Annuler cette date » (only this occurrence).
+// Supprimer (the whole series) and — for a repeating event — « Modifier cette date » / « Annuler cette date » (only
+// this occurrence).
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { CalendarDays, Clock, MapPin, Users, Repeat, Pencil, Trash2, CalendarX } from 'lucide-react'
@@ -11,8 +12,9 @@ import { useCancelCalendarDate, useDeleteCalendarEvent, type CalendarItem } from
 import { dayTitle, itemColor, timeLabel } from './calendar-utils'
 import { cn } from '@/lib/utils'
 
-export function EventDetailDialog({ item, onClose, onEdit, canOpenMeetings }: {
-  item: CalendarItem | null; onClose: () => void; onEdit: (eventId: string) => void; canOpenMeetings: boolean
+export function EventDetailDialog({ item, onClose, onEdit, onEditDate, canOpenMeetings }: {
+  item: CalendarItem | null; onClose: () => void; onEdit: (eventId: string) => void
+  onEditDate: (eventId: string, date: string) => void; canOpenMeetings: boolean
 }) {
   const del = useDeleteCalendarEvent()
   const cancelDate = useCancelCalendarDate()
@@ -65,10 +67,13 @@ export function EventDetailDialog({ item, onClose, onEdit, canOpenMeetings }: {
           {item.kind === 'event' && item.canEdit && (
             <>
               {item.recurring && (
-                <Button variant="outline" onClick={cancelThis} disabled={cancelDate.isPending}><CalendarX className="mr-1.5 h-4 w-4" />Annuler cette date</Button>
+                <>
+                  <Button variant="outline" onClick={cancelThis} disabled={cancelDate.isPending}><CalendarX className="mr-1.5 h-4 w-4" />Annuler cette date</Button>
+                  <Button variant="outline" onClick={() => item.eventId && onEditDate(item.eventId, item.date)}><Pencil className="mr-1.5 h-4 w-4" />Modifier cette date</Button>
+                </>
               )}
-              <Button variant="outline" className="text-destructive" onClick={remove} disabled={del.isPending}><Trash2 className="mr-1.5 h-4 w-4" />Supprimer</Button>
-              <Button onClick={() => item.eventId && onEdit(item.eventId)}><Pencil className="mr-1.5 h-4 w-4" />Modifier</Button>
+              <Button variant="outline" className="text-destructive" onClick={remove} disabled={del.isPending}><Trash2 className="mr-1.5 h-4 w-4" />{item.recurring ? 'Supprimer tout' : 'Supprimer'}</Button>
+              <Button onClick={() => item.eventId && onEdit(item.eventId)}><Pencil className="mr-1.5 h-4 w-4" />{item.recurring ? 'Modifier tout' : 'Modifier'}</Button>
             </>
           )}
           {!(item.kind === 'event' && item.canEdit) && <Button variant="outline" onClick={onClose}>Fermer</Button>}

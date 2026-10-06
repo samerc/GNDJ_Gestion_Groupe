@@ -171,7 +171,7 @@ public static class CalendarFeed
         }
 
         // 2. Réunions / sorties / camps of the viewer's units (all of them for that unit's chefs; for the others the
-        //    approved ones of the whole unit or of their own team). Group-roster réunions are not shown here.
+        //    approved ones of the whole unit or of their own team). Réunions of a member group come in step 2b.
         var meetingUnits = viewer.UnitIds.ToHashSet();
         if (meetingUnitId is Guid mu && (viewer.IsManager || viewer.UnitIds.Contains(mu))) meetingUnits.Add(mu);
         if (meetingUnits.Count > 0)
@@ -196,6 +196,10 @@ public static class CalendarFeed
             }
         }
 
+        // 2b. Réunions of a member group (Grande Maîtrise, Haute Patrouille…): shown to the members of its roster, to
+        //     the CG team for a group-wide one, and to the unit's chefs for one held inside a unit.
+        await AddGroupMeetingsAsync(context, viewer, from, to, meetingUnitId, units.ToDictionary(u => u.Key, u => (u.Value.Code, u.Value.Name)), items, ct);
+
         // 3. Important dates of the year (settings).
         var keys = ImportantDates.Select(d => d.Key).ToList();
         var values = await context.Settings.Where(s => keys.Contains(s.Key)).ToDictionaryAsync(s => s.Key, s => s.Value, ct);
@@ -210,6 +214,53 @@ public static class CalendarFeed
         }
 
         return items.OrderBy(i => i.Date).ThenBy(i => i.StartTime ?? TimeOnly.MinValue).ThenBy(i => i.Title).ToList();
+    }
+
+    private static async Task AddGroupMeetingsAsync(IApplicationDbContext context, CalendarViewer viewer, DateOnly from, DateOnly to,
+        Guid? meetingUnitId, Dictionary<Guid, (string? Code, string Name)> units, List<CalendarItemDto> items, CancellationToken ct)
+    {
+        var meetings = await context.Meetings
+            .Where(m => m.MemberGroupId != null && m.Date <= to && (m.EndDate ?? m.Date) >= from)
+            .Select(m => new { m.Id, m.UnitId, GroupId = m.MemberGroupId!.Value, m.Type, m.Title, m.Date, m.EndDate, m.Status, m.Notes })
+            .ToListAsync(ct);
+        if (meetings.Count == 0) return;
+
+        var groupIds = meetings.Select(m => m.GroupId).Distinct().ToList();
+        var groups = await context.MemberGroups.Include(g => g.Rules).Where(g => groupIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id, ct);
+        // Is the viewer in the roster? One query per (group, unit) — réunions of groups are few.
+        var inRoster = new Dictionary<(Guid, Guid?), bool>();
+        foreach (var m in meetings)
+        {
+            if (!groups.TryGetValue(m.GroupId, out var g)) continue;
+            var topLevel = MemberGroupModes.IsTopLevel(g.ScopeType, g.PerUnit);
+            var leads = topLevel ? viewer.IsManager : viewer.IsManager || viewer.LeadUnitIds.Contains(m.UnitId);
+            var key = (g.Id, topLevel ? (Guid?)null : m.UnitId);
+            if (!inRoster.TryGetValue(key, out var member))
+            {
+                member = false;
+                if (viewer.MemberId is Guid me)
+                {
+                    var roster = MemberGroupResolver.RosterQuery(context, g);
+                    if (!topLevel) roster = roster.Where(a => a.UnitId == m.UnitId);
+                    member = await roster.AnyAsync(a => a.MemberId == me, ct);
+                }
+                inRoster[key] = member;
+            }
+            // A chef sees their unit's group réunions; a manager looking at one unit sees that unit's too.
+            var shown = member || (topLevel ? viewer.IsManager
+                : viewer.LeadUnitIds.Contains(m.UnitId) || (viewer.IsManager && meetingUnitId == m.UnitId));
+            if (!shown) continue;
+            if (!leads && m.Status != MeetingStatuses.Approved) continue;
+
+            var typeLabel = m.Type switch { MeetingTypes.Sortie => "Sortie", MeetingTypes.Camp => "Camp", _ => "Réunion" };
+            var title = string.IsNullOrWhiteSpace(m.Title) ? $"{typeLabel} : {g.Name}" : $"{typeLabel} : {m.Title}";
+            if (m.Status != MeetingStatuses.Approved) title += " (à approuver)";
+            var unit = units.GetValueOrDefault(m.UnitId);
+            var label = topLevel ? g.Name : $"{g.Name} · {unit.Name}";
+            items.Add(new CalendarItemDto($"m:{m.Id}", CalendarItemKinds.Meeting, null, m.Id, title, m.Notes, null,
+                m.Date, m.EndDate, null, null, topLevel ? CalendarAudiences.Group : CalendarAudiences.Unit,
+                label, topLevel ? null : m.UnitId, topLevel ? null : unit.Code, false, false, m.Type));
+        }
     }
 
     public static string AudienceLabel(string audience, string? unitName, string? unitTypeName) => audience switch

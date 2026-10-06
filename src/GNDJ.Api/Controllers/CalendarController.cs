@@ -75,6 +75,18 @@ public class CalendarController : BaseApiController
         return NoContent();
     }
 
+    public record EditDateBody(DateOnly Date, CalendarEventInput Data);
+
+    /// <summary>« Modifier cette date seulement »: gives one occurrence of a repeating event its own details (the
+    /// series skips that date, a one-off event replaces it). Returns the new event id.</summary>
+    [HttpPost("events/{id:guid}/edit-date")]
+    public async Task<IActionResult> EditDate(Guid id, [FromBody] EditDateBody body)
+    {
+        var result = await Mediator.Send(new EditCalendarOccurrenceCommand(id, body.Date, body.Data));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { id = result.Value });
+    }
+
     public record FeedLinkBody(bool Reset = false);
 
     /// <summary>The caller's personal phone-calendar link token (created the first time; reset = a new one, the old

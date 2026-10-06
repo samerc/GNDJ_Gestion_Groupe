@@ -157,7 +157,8 @@ ou en totalité, et permet de télécharger les **reçus**. Le paiement se fait 
 ## Le calendrier
 
 **Calendrier** (dans le menu) réunit tout ce qui est daté : les événements du groupe, de votre branche et de votre
-unité, les réunions, sorties et camps de votre unité (ou de votre équipe), et les dates importantes de l'année
+unité, les réunions, sorties et camps de votre unité (ou de votre équipe, ou d'un groupe dont vous faites partie), et
+les dates importantes de l'année
 (documents à rendre, passage, première réunion). Vue **Mois** ou **Liste** ; touchez un jour ou un événement pour le détail.
 
 > 💡 **Dans mon téléphone** : ajoutez votre lien personnel à l'agenda de votre téléphone (iPhone : « Ajouter à mon

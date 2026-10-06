@@ -363,9 +363,10 @@ maîtrise sont créés par l'équipe du Chef de Groupe) :
 - **Rappel** : une notification à tous les membres de l'unité avant l'événement (1 heure à 1 semaine avant) ;
 - **Publier aussi sur le site** : l'événement apparaît dans l'agenda public (pas pour un événement qui se répète).
 
-Cliquez sur un événement pour le **modifier** ou le **supprimer** ; pour un événement qui se répète, **Annuler cette
-date** n'annule qu'un jour. Les réunions, sorties et camps se gèrent toujours dans **Réunions et absences** : ils
-apparaissent automatiquement dans le calendrier.
+Cliquez sur un événement pour le **modifier** ou le **supprimer**. Pour un événement qui se répète : **Modifier cette
+date** change un seul jour (heure, lieu…), **Annuler cette date** le retire, **Modifier tout** / **Supprimer tout**
+agit sur toutes les dates. Les réunions, sorties et camps se gèrent toujours dans **Réunions et absences** : ils
+apparaissent automatiquement dans le calendrier, y compris ceux d'un groupe de membres (Haute Patrouille…).
 
 ## Session photo
 

@@ -165,8 +165,12 @@ public class UpdateCalendarEventCommandHandler(IApplicationDbContext context, IC
             return Result<bool>.Failure("Vous ne pouvez pas modifier cet événement.");
         var old = new { e.Title, e.StartDate, e.Audience };
         // A changed start date or repetition makes the cancelled dates meaningless — drop them.
+        // The one-date copies (« Modifier cette date seulement ») replaced dates that no longer exist either.
         if (e.StartDate != request.Data.StartDate || e.Recurrence != request.Data.Recurrence || e.RecurrenceInterval != request.Data.RecurrenceInterval)
+        {
             e.ExceptionDatesJson = null;
+            await CalendarSeries.RemoveCopiesAsync(context, e.Id, null, ct);
+        }
         CalendarEventMapping.Apply(e, request.Data);
         await context.SaveChangesAsync(ct);
         await CalendarPublish.SyncAsync(context, e, ct);
@@ -212,6 +216,7 @@ public class DeleteCalendarEventCommandHandler(IApplicationDbContext context, IC
         if (!viewer.CanEdit(e.Audience, e.UnitId)) return Result<bool>.Failure("Vous ne pouvez pas supprimer cet événement.");
         e.PublishOnSite = false;
         await CalendarPublish.SyncAsync(context, e, ct); // removes the public copy
+        await CalendarSeries.RemoveCopiesAsync(context, e.Id, null, ct); // a series takes its one-date copies with it
         context.CalendarEvents.Remove(e);
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("Delete", "CalendarEvent", e.Id, oldValues: new { e.Title, e.StartDate, e.Audience }, cancellationToken: ct);
@@ -233,10 +238,78 @@ public class CancelCalendarOccurrenceCommandHandler(IApplicationDbContext contex
         if (!viewer.CanEdit(e.Audience, e.UnitId)) return Result<bool>.Failure("Vous ne pouvez pas modifier cet événement.");
         if (e.Recurrence == CalendarRecurrences.None) return Result<bool>.Failure("Cet événement ne se répète pas : supprimez-le.");
         var dates = CalendarRecurrence.Exceptions(e.ExceptionDatesJson);
-        if (request.Restore) dates.Remove(request.Date); else dates.Add(request.Date);
+        if (request.Restore)
+        {
+            dates.Remove(request.Date);
+            await CalendarSeries.RemoveCopiesAsync(context, e.Id, request.Date, ct); // the series date comes back instead
+        }
+        else dates.Add(request.Date);
         e.ExceptionDatesJson = CalendarRecurrence.SerializeExceptions(dates);
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
+    }
+}
+
+// « Modifier cette date seulement »: one occurrence of a repeating event gets its own details (time, place, title…).
+// The series skips that date (exception) and a one-off event replaces it, linked back by SeriesEventId/SeriesDate.
+// The copy never repeats; later it is edited / deleted like any single event.
+public record EditCalendarOccurrenceCommand(Guid Id, DateOnly Date, CalendarEventInput Data) : IRequest<Result<Guid>>;
+
+public class EditCalendarOccurrenceCommandValidator : AbstractValidator<EditCalendarOccurrenceCommand>
+{
+    public EditCalendarOccurrenceCommandValidator()
+    {
+        RuleFor(x => x.Data).NotNull().SetValidator(new CalendarEventInputValidator());
+        RuleFor(x => x.Data.Recurrence).Equal(CalendarRecurrences.None).When(x => x.Data is not null)
+            .WithMessage("Une date modifiée ne se répète pas.");
+    }
+}
+
+public class EditCalendarOccurrenceCommandHandler(IApplicationDbContext context, ICurrentUserService user, IAuditService audit)
+    : IRequestHandler<EditCalendarOccurrenceCommand, Result<Guid>>
+{
+    public async ValueTask<Result<Guid>> Handle(EditCalendarOccurrenceCommand request, CancellationToken ct)
+    {
+        var series = await context.CalendarEvents.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (series is null) return Result<Guid>.Failure("Événement introuvable.");
+        var viewer = await CalendarAccess.ViewerAsync(context, user, ct);
+        if (!viewer.CanEdit(series.Audience, series.UnitId) || !viewer.CanEdit(request.Data.Audience, request.Data.UnitId))
+            return Result<Guid>.Failure("Vous ne pouvez pas modifier cet événement.");
+        if (series.Recurrence == CalendarRecurrences.None)
+            return Result<Guid>.Failure("Cet événement ne se répète pas : modifiez-le directement.");
+        // The date must be a real (not cancelled) occurrence of the series.
+        if (!CalendarRecurrence.Occurrences(series, request.Date, request.Date).Contains(request.Date))
+            return Result<Guid>.Failure("Cette date ne fait pas partie de l'événement.");
+
+        var copy = new CalendarEvent { CreatedByMemberId = user.MemberId, SeriesEventId = series.Id, SeriesDate = request.Date };
+        CalendarEventMapping.Apply(copy, request.Data);
+        context.CalendarEvents.Add(copy);
+        var dates = CalendarRecurrence.Exceptions(series.ExceptionDatesJson);
+        dates.Add(request.Date);
+        series.ExceptionDatesJson = CalendarRecurrence.SerializeExceptions(dates);
+        await context.SaveChangesAsync(ct);
+        await CalendarPublish.SyncAsync(context, copy, ct);
+        await audit.LogAsync("Update", "CalendarEvent", series.Id,
+            newValues: new { series.Title, Date = request.Date, ChangedTo = new { copy.Title, copy.StartDate, copy.StartTime, copy.Location } },
+            cancellationToken: ct);
+        return Result<Guid>.Success(copy.Id);
+    }
+}
+
+internal static class CalendarSeries
+{
+    // Removes the one-date copies of a series (all of them, or only the one for `date`), with their public copies.
+    // The caller saves.
+    public static async Task RemoveCopiesAsync(IApplicationDbContext context, Guid seriesId, DateOnly? date, CancellationToken ct)
+    {
+        var copies = await context.CalendarEvents
+            .Where(c => c.SeriesEventId == seriesId && (date == null || c.SeriesDate == date)).ToListAsync(ct);
+        foreach (var c in copies)
+        {
+            c.PublishOnSite = false;
+            await CalendarPublish.SyncAsync(context, c, ct);
+            context.CalendarEvents.Remove(c);
+        }
     }
 }
 

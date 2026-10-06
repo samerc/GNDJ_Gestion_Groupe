@@ -31,7 +31,7 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(today)
   const [meetingUnit, setMeetingUnit] = useState(MY_UNITS)
   const [detail, setDetail] = useState<CalendarItem | null>(null)
-  const [form, setForm] = useState<{ eventId: string | null; date: string } | null>(null)
+  const [form, setForm] = useState<{ eventId: string | null; date: string; occurrence?: string } | null>(null)
   const [phoneOpen, setPhoneOpen] = useState(false)
   const hasPermission = useAuthStore((s) => s.hasPermission)
   const user = useAuthStore((s) => s.user)
@@ -155,8 +155,10 @@ export default function CalendarPage() {
       )}
 
       <EventDetailDialog item={detail} onClose={() => setDetail(null)} canOpenMeetings={canOpenMeetings}
-        onEdit={(id) => { setDetail(null); setForm({ eventId: id, date: today }) }} />
-      <EventFormDialog open={form !== null} onOpenChange={(o) => { if (!o) setForm(null) }} eventId={form?.eventId ?? null} defaultDate={form?.date ?? today} />
+        onEdit={(id) => { setDetail(null); setForm({ eventId: id, date: today }) }}
+        onEditDate={(id, date) => { setDetail(null); setForm({ eventId: id, date, occurrence: date }) }} />
+      <EventFormDialog open={form !== null} onOpenChange={(o) => { if (!o) setForm(null) }} eventId={form?.eventId ?? null}
+        defaultDate={form?.date ?? today} occurrenceDate={form?.occurrence ?? null} />
       <PhoneLinkDialog open={phoneOpen} onOpenChange={setPhoneOpen} />
     </Page>
   )

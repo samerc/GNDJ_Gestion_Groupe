@@ -417,9 +417,12 @@ Ces dates viennent des **Paramètres** : les changer met le calendrier à jour.
 Options : plusieurs jours, heures, lieu, **répétition** (chaque semaine / 2 semaines / mois, jusqu'à une date),
 **rappel** (notification à tous les concernés, de 1 heure à 1 semaine avant), **Publier aussi sur le site** (groupe,
 branche ou unité, sans répétition : l'événement est ajouté à l'agenda public et retiré si vous le supprimez).
-**Annuler cette date** retire un seul jour d'un événement qui se répète.
+Pour un événement qui se répète : **Modifier cette date** change un seul jour (heure, lieu, titre…) sans toucher aux
+autres, **Annuler cette date** le retire ; **Modifier tout** / **Supprimer tout** agit sur toutes les dates.
 
 Par défaut vous voyez les réunions de vos propres unités ; le menu **Réunions : …** affiche celles d'une autre unité.
+Les réunions d'un **groupe de membres** (Grande Maîtrise, Chefs d'unité…) apparaissent aussi : chacun voit celles des
+groupes dont il fait partie.
 Chacun peut ajouter le calendrier à son téléphone (**Dans mon téléphone**).
 
 ## Notifications et messages

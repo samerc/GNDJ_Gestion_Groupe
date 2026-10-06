@@ -43,6 +43,12 @@ public class CalendarEvent : BaseEntity
 
     public Guid? CreatedByMemberId { get; set; }
 
+    // « Modifier cette date seulement »: a one-off copy of ONE occurrence of a repeating event. The series keeps the
+    // date in its ExceptionDatesJson and this row replaces it. SeriesEventId = the series, SeriesDate = the original
+    // occurrence date. Deleting the series (or changing its dates / repetition) removes these copies too.
+    public Guid? SeriesEventId { get; set; }
+    public DateOnly? SeriesDate { get; set; }
+
     public UnitType? UnitType { get; set; }
     public Unit? Unit { get; set; }
 }

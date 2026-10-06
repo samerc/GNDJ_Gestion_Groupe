@@ -102,6 +102,10 @@ export const useDeleteCalendarEvent = () =>
 export const useCancelCalendarDate = () =>
   useCalendarMutation(({ id, date, restore = false }: { id: string; date: string; restore?: boolean }) =>
     apiClient.post(`/calendar/events/${id}/cancel-date`, { date, restore }))
+// « Modifier cette date seulement »: one occurrence of a repeating event gets its own details.
+export const useEditCalendarDate = () =>
+  useCalendarMutation(({ id, date, data }: { id: string; date: string; data: CalendarEventInput }) =>
+    apiClient.post<{ id: string }>(`/calendar/events/${id}/edit-date`, { date, data }).then((r) => r.data))
 
 // The personal phone-calendar link (token → full URL built here). Asking for it is idempotent (created the first
 // time), so it's a query; « Nouveau lien » is a mutation that replaces it (the old link stops working).

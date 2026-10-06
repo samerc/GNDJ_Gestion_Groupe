@@ -21,6 +21,7 @@ public class CalendarEventConfiguration : IEntityTypeConfiguration<CalendarEvent
         builder.HasOne(e => e.Unit).WithMany().HasForeignKey(e => e.UnitId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(e => e.StartDate);
         builder.HasIndex(e => new { e.Audience, e.UnitId });
+        builder.HasIndex(e => e.SeriesEventId);
     }
 }
 
