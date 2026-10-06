@@ -6445,3 +6445,30 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
 - Live-tested: past/garbage time 400, CU 403, failure path (undecided → nothing sent + notification), success path
   (fired on the minute, 161/83, notification), UI schedule + cancel in Edge.
 
+
+### Oct 2026 improvement plan + group calendar (2026-10-05/06, DEV until deploy)
+- **Member « Ma rentrée » card** (GET /my-profile/todo): state-driven to-do on Ma fiche; contact review yearly from
+  `documents.deposit_start` (Common/ContactReview); cotisation line behind `cotisation.show_in_rentree` (OFF).
+- **CU « À traiter » strip** on Mon unité (GET /dashboard/unit/{id}/todo) + **« ? »** next to every page title
+  (PageHeader → `client/src/lib/page-help.ts` route → guide heading; keep in sync when guide headings change).
+- **« Ce qui va se passer »** in the confirm of Envoyer les réponses (GET /demandes/send-responses/preview) and
+  Publier le passage (GET /passages/finalize/preview): shared ActionPreviewDto/ActionPreviewPanel; blockers disable
+  the confirm (`ConfirmDialog.confirmDisabled`).
+- **« Emails reçus »** card on the member fiche (GET /members/{id}/emails-received; outbox matched by address,
+  secret-looking variables masked, bounced addresses flagged).
+- **Demandes:** « Demande reçue » popup after the first submit (serial + `demande.response_expected` free text);
+  re-submitting keeps SubmittedAt; `Demande.LastEditedAt` set only on a real change of child/household data.
+- **Group calendar** (`/calendrier`, everyone; Application/Calendar): `CalendarEvent` audiences Group / Branch / Unit /
+  Maitrise / CgTeam (CG team creates any, a chef d'unité only their unit — `CalendarViewer`), multi-day, times,
+  weekly / 2-weekly / monthly repeats (one row, expanded on read; cancelled dates in ExceptionDatesJson), reminders
+  (CalendarReminderBackgroundService → bell + push, once per occurrence), « Publier aussi sur le site » (synced public
+  Event), personal iCal link (`Member.CalendarFeedToken`, anonymous `/calendar/feed/{token}.ics`). Feed adds the
+  viewer's units' réunions, **member-group réunions** (roster members; CG team for group-wide; the unit's chefs for
+  unit ones) and the year's important dates (settings). **« Modifier cette date »** (`POST /calendar/events/{id}/
+  edit-date`): the series skips the date and a one-off copy (`SeriesEventId` + `SeriesDate`, migration
+  AddCalendarEventSeries) replaces it; copies are removed with the series, on a change of its dates/repetition, or
+  when the date is restored.
+- **Camp BP « Fiches médicales »** (`GET /camps/{id}/medical/pdf[?famille=N]`, Familles view, audited "Download"):
+  per famille (A4 landscape, one page), Père/Mère first, age / blood type / allergies / medical remarks / own phone /
+  up to 2 parents' phones (emergency contact first), red allergy box at the top. Buttons in the Familles tab
+  toolbar + per famille column.

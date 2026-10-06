@@ -133,6 +133,86 @@ public class CampReportService : ICampReportService
             }
         });
 
+    // « Fiches médicales »: A4 landscape, one famille per page (ScaleToFit keeps a big famille on one page). A red box
+    // at the top lists the allergies; rows with something to know are tinted amber; Père / Mère tinted blue.
+    public byte[] MedicalCards(string campName, string scoutYear, IReadOnlyList<CampMedicalFamille> familles) =>
+        Document.Create(c =>
+        {
+            foreach (var f in familles)
+                c.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(22);
+                    page.DefaultTextStyle(x => x.FontSize(8.5f));
+                    page.Content().ScaleToFit().Element(e => MedicalBlock(e, campName, scoutYear, f));
+                    page.Footer().Row(row =>
+                    {
+                        row.RelativeItem().Text($"Confidentiel — à remettre au responsable santé · Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(7).Italic();
+                        row.RelativeItem().AlignRight().DefaultTextStyle(x => x.FontSize(7))
+                            .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span("/"); t.TotalPages(); });
+                    });
+                });
+        }).GeneratePdf();
+
+    private static void MedicalBlock(IContainer container, string campName, string scoutYear, CampMedicalFamille f) =>
+        container.Column(col =>
+        {
+            col.Item().Row(r =>
+            {
+                r.RelativeItem().Text(t =>
+                {
+                    t.Span($"Fiche médicale — Famille {f.Number}").FontSize(17).Bold();
+                    if (!string.IsNullOrWhiteSpace(f.Name)) t.Span($"  {f.Name}").FontSize(12).Light();
+                });
+                r.AutoItem().AlignBottom().Text($"{f.Members.Count} personnes").FontSize(9).Light();
+            });
+            col.Item().Text($"{campName} — Année scoute {scoutYear}").FontSize(9).Light();
+
+            var allergic = f.Members.Where(m => m.Allergies != null).ToList();
+            col.Item().PaddingTop(6).Border(1).BorderColor(allergic.Count > 0 ? Colors.Red.Medium : Colors.Grey.Lighten1)
+                .Background(allergic.Count > 0 ? Colors.Red.Lighten5 : Colors.Grey.Lighten5).Padding(5).Column(box =>
+                {
+                    if (allergic.Count == 0) { box.Item().Text("Aucune allergie signalée dans cette famille.").Italic(); return; }
+                    box.Item().Text("Allergies").Bold().FontColor(Colors.Red.Darken3);
+                    foreach (var m in allergic)
+                        box.Item().Text(t => { t.Span($"{m.Name} : ").SemiBold(); t.Span(m.Allergies!); });
+                });
+
+            col.Item().PaddingTop(8).Table(table =>
+            {
+                table.ColumnsDefinition(d =>
+                {
+                    d.ConstantColumn(16); d.RelativeColumn(2.6f); d.ConstantColumn(34); d.ConstantColumn(26); d.ConstantColumn(30);
+                    d.RelativeColumn(2.4f); d.RelativeColumn(3.2f); d.RelativeColumn(3.6f);
+                });
+                table.Header(h =>
+                {
+                    foreach (var head in new[] { "#", "Nom", "Unité", "Âge", "Sang", "Allergies", "Remarques médicales", "Contacts" })
+                        h.Cell().Element(HeadCell).Text(head);
+                });
+                var i = 1;
+                foreach (var m in f.Members)
+                {
+                    var bg = m.Role != null ? Colors.Blue.Lighten5
+                        : m.Allergies != null || m.MedicalNotes != null ? Colors.Amber.Lighten5 : Colors.White;
+                    IContainer Cell(IContainer c) => c.Background(bg).BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten2).Padding(3);
+                    table.Cell().Element(Cell).Text((i++).ToString());
+                    table.Cell().Element(Cell).Text(t =>
+                    {
+                        t.Span(m.Name).SemiBold();
+                        if (m.Role != null) t.Span($" ({m.Role})").Italic().FontColor(Colors.Blue.Darken2);
+                        if (m.OwnPhone != null) t.Span("\n" + m.OwnPhone).FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+                    });
+                    table.Cell().Element(Cell).Text(m.UnitCode ?? "");
+                    table.Cell().Element(Cell).Text(m.Age?.ToString() ?? "");
+                    table.Cell().Element(Cell).Text(m.BloodType ?? "");
+                    table.Cell().Element(Cell).Text(m.Allergies ?? "—").FontColor(m.Allergies != null ? Colors.Red.Darken3 : Colors.Grey.Medium);
+                    table.Cell().Element(Cell).Text(m.MedicalNotes ?? "—").FontColor(m.MedicalNotes != null ? Colors.Black : Colors.Grey.Medium);
+                    table.Cell().Element(Cell).Text(m.Contacts.Count == 0 ? "—" : string.Join("\n", m.Contacts));
+                }
+            });
+        });
+
     // ── shared ──
     private static void Setup(PageDescriptor page)
     {

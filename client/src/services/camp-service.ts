@@ -243,6 +243,11 @@ export const printGame = (gameId: string, name: string) => downloadPdf(`/camps/g
 export const printFamille = (campId: string, number: number) => downloadPdf(`/camps/${campId}/familles/${number}/pdf`, `Famille_${number}.pdf`)
 // GET /camps/{id}/familles/pdf → all familles, one per page (blob → save).
 export const printAllFamilles = (campId: string) => downloadPdf(`/camps/${campId}/familles/pdf`, 'Familles.pdf')
+// GET /camps/{id}/medical/pdf[?famille=N] → « Fiches médicales »: per famille, age, blood type, allergies, medical
+// remarks and parents' phones (one page per famille). Same right as the Familles tab; each download is audited.
+export const printMedicalCards = (campId: string, famille?: number) =>
+  downloadPdf(`/camps/${campId}/medical/pdf${famille ? `?famille=${famille}` : ''}`,
+    famille ? `Fiche_medicale_famille_${famille}.pdf` : 'Fiches_medicales.pdf')
 // GET /camps/{id}/unit-list/pdf → members grouped by unit with famille number (blob → save).
 export const printUnitList = (campId: string) => downloadPdf(`/camps/${campId}/unit-list/pdf`, 'Liste_par_unite.pdf')
 // GET /camps/{id}/presence/xlsx → « Liste de présence » Excel, one sheet per unit in my scope (absents marked).

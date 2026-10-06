@@ -15,7 +15,14 @@ public interface ICampReportService
     byte[] Famille(CampReportData data, int familleNumber);   // one famille
     byte[] AllFamilles(CampReportData data);                  // all familles, one per page
     byte[] UnitList(CampReportData data);                     // members grouped by unit, with famille number
+    byte[] MedicalCards(string campName, string scoutYear, IReadOnlyList<CampMedicalFamille> familles); // one page per famille
 }
+
+// « Fiches médicales »: per famille, every camper (Père / Mère first) with age, blood type, allergies, medical
+// remarks, their own phone and up to two parents to call.
+public record CampMedicalMember(string Name, string? Role, string? UnitCode, int? Age, string? BloodType,
+    string? Allergies, string? MedicalNotes, IReadOnlyList<string> Contacts, string? OwnPhone);
+public record CampMedicalFamille(int Number, string? Name, IReadOnlyList<CampMedicalMember> Members);
 
 // ── Grand jeu printouts ──
 // A famille's passport: who they are + their 25 steps (time, game, place, opponent) with blank boxes

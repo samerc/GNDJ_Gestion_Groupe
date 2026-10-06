@@ -15,7 +15,7 @@ import {
   useCamp, useUpdateCamp, useArchiveCamp, useDeleteCamp,
   useCampFamilles, useRunDraft, useMoveParticipant, useSetLeaders, useLeaderCandidates,
   useCampGames, useCreateGame, useUpdateGame, printGame, useDeleteGame, useSetEtapistes, useEtapisteCandidates,
-  printFamille, printAllFamilles, printUnitList, downloadPresenceList,
+  printFamille, printAllFamilles, printUnitList, printMedicalCards, downloadPresenceList,
   type CampFamilleDto, type CampGameDto, useAutoAssignPlaces, type CampPlacesAssignResult,
   useCamps,
 } from '@/services/camp-service'
@@ -40,7 +40,7 @@ import { rotationProblem } from '@/lib/camp-rotation'
 import { GameCard } from '@/components/camp/game-card'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import { Tent, Shuffle, Save, Trash2, Crown, Plus, Printer, Pencil, Archive, Wand2, CheckCircle2, FileSpreadsheet, Users, Lock, Gamepad2, SearchX } from 'lucide-react'
+import { Tent, Shuffle, Save, Trash2, Crown, Plus, Printer, Pencil, Archive, Wand2, CheckCircle2, FileSpreadsheet, Users, Lock, Gamepad2, SearchX, HeartPulse } from 'lucide-react'
 import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSetting } from '@/services/settings-service'
@@ -356,6 +356,9 @@ function FamillesTab({ campId, readOnly }: { campId: string; readOnly: boolean }
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => printAllFamilles(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Toutes les familles</Button>
           <Button variant="outline" size="sm" onClick={() => printUnitList(campId).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="mr-1 h-4 w-4" />Liste par unité</Button>
+          <Tip content="Âge, groupe sanguin, allergies, remarques médicales et téléphones des parents — une page par famille. Confidentiel.">
+            <Button variant="outline" size="sm" onClick={() => printMedicalCards(campId).catch(async e => toast.error(await parseBlobError(e)))}><HeartPulse className="mr-1 h-4 w-4" />Fiches médicales</Button>
+          </Tip>
           <Button variant="outline" size="sm" onClick={() => downloadPresenceList(campId).catch(async e => toast.error(await parseBlobError(e)))}><FileSpreadsheet className="mr-1 h-4 w-4" />Liste de présence</Button>
           <Button variant="outline" size="sm" onClick={() => setSupersOpen(true)}>Superfamilles</Button>
           {!readOnly && <Button onClick={() => setConfirmDraft(true)} disabled={draft.isPending}><Shuffle className="mr-1 h-4 w-4" />{draft.isPending ? 'Tirage…' : 'Lancer le tirage'}</Button>}
@@ -450,6 +453,7 @@ function FamilleColumn({ campId, f, label, readOnly, onEditLeaders, onEditInfo }
             <span className="ml-1 text-muted-foreground">M:</span> <b>{f.mereName ?? '—'}</b>
           </button>
           <Tip content="Imprimer la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" aria-label="Imprimer la famille" onClick={() => printFamille(campId, f.number).catch(async e => toast.error(await parseBlobError(e)))}><Printer className="h-3.5 w-3.5" /></Button></Tip>
+          <Tip content="Fiche médicale de la famille (PDF)"><Button variant="outline" size="icon" className="h-7 w-7" aria-label="Fiche médicale de la famille" onClick={() => printMedicalCards(campId, f.number).catch(async e => toast.error(await parseBlobError(e)))}><HeartPulse className="h-3.5 w-3.5" /></Button></Tip>
         </div>
       </div>
       <div className="max-h-[60vh] space-y-1 overflow-y-auto p-2">

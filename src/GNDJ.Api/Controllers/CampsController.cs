@@ -150,6 +150,14 @@ public class CampsController : BaseApiController
     public async Task<IActionResult> UnitListPdf(Guid id)
         => Pdf(await Mediator.Send(new GenerateCampReportQuery(id, "units", null)), "Liste_par_unite.pdf");
 
+    /// <summary>« Fiches médicales »: one page per famille (or only <paramref name="famille"/>) with each camper's age,
+    /// blood type, allergies, medical remarks and parents' phones. Same right as the Familles tab; audited.</summary>
+    [HttpGet("{id:guid}/medical/pdf")]
+    [HasPermission(Permissions.CampGrade)]
+    public async Task<IActionResult> MedicalCardsPdf(Guid id, [FromQuery] int? famille)
+        => Pdf(await Mediator.Send(new GenerateCampMedicalCardsQuery(id, famille)),
+            famille is int n ? $"Fiche_medicale_famille_{n}.pdf" : "Fiches_medicales.pdf");
+
     /// <summary>Downloads the « Liste de présence » Excel: one sheet per unit in the caller's scope (or <paramref name="unitId"/>),
     /// Prénom / Nom / Présence / Cotisation; members marked "ne vient pas" show « Absent(e) ». Requires camp.grade.</summary>
     [HttpGet("{id:guid}/presence/xlsx")]
