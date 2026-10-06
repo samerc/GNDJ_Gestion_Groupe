@@ -147,6 +147,10 @@ function siblingsInGroup(d: DemandeReview) {
 function isDeclinedWithSiblingInGroup(d: DemandeReview): boolean {
   return d.status === 'Declined' && siblingsInGroup(d).length > 0
 }
+// Flag 3: a refusal for a child whose family says a demande was already made in a previous year.
+function isDeclinedWithPreviousDemande(d: DemandeReview): boolean {
+  return d.status === 'Declined' && !!d.hasPreviousDemande
+}
 function relationName(r: { firstName?: string | null; lastName?: string | null; relatedMemberName?: string | null }): string {
   return r.relatedMemberName || [r.firstName, r.lastName].filter(Boolean).join(' ') || '—'
 }
@@ -305,7 +309,7 @@ export default function DemandeValidationPage() {
     (!fHasRelations || d.scoutRelations.length > 0) &&
     (!fSibling || !!siblingProche(d) || (accountCounts[d.accountId] ?? 0) > 1) &&
     (!fPrevious || !!d.hasPreviousDemande) &&
-    (!fConflict || hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d)),
+    (!fConflict || hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d) || isDeclinedWithPreviousDemande(d)),
   [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fHasRelations, fSibling, fPrevious, fConflict, accountCounts])
 
   // How many extra filters are active (for the "Réinitialiser" button + a count badge).
@@ -369,6 +373,7 @@ export default function DemandeValidationPage() {
   // Family consistency counts (banner): accounts with mixed answers, and refusals with a sibling already a member.
   const familyMixedCount = useMemo(() => new Set(all.filter(hasMixedFamilyDecision).map((d) => d.accountId)).size, [all])
   const refusedWithSiblingCount = useMemo(() => all.filter(isDeclinedWithSiblingInGroup).length, [all])
+  const refusedWithPreviousCount = useMemo(() => all.filter(isDeclinedWithPreviousDemande).length, [all])
   const canManageDemandes = useAuthStore((st) => st.hasPermission(PERMISSIONS.DEMANDE_MANAGE))
 
   const detailIndex = rows.findIndex((d) => d.id === detailId)
@@ -585,12 +590,13 @@ export default function DemandeValidationPage() {
           Toutes les demandes doivent être acceptées ou refusées avant de pouvoir envoyer les réponses.
         </Callout>
       )}
-      {(familyMixedCount > 0 || refusedWithSiblingCount > 0) && (
-        <Callout tone="warning" icon={AlertTriangle} title="Décisions de famille à vérifier">
+      {(familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
+        <Callout tone="warning" icon={AlertTriangle} title="Décisions à vérifier">
           <div className="flex flex-wrap items-center gap-3">
             <ul className="list-disc space-y-0.5 pl-5">
               {familyMixedCount > 0 && <li>{familyMixedCount} famille(s) avec des réponses différentes : un enfant accepté, un autre refusé.</li>}
               {refusedWithSiblingCount > 0 && <li>{refusedWithSiblingCount} demande(s) refusée(s) alors qu'un frère ou une sœur est déjà membre du groupe.</li>}
+              {refusedWithPreviousCount > 0 && <li>{refusedWithPreviousCount} demande(s) refusée(s) alors qu'une demande a déjà été faite une année précédente.</li>}
             </ul>
             <Button variant="outline" size="sm" className="ml-auto" onClick={() => { setFConflict(true); setShowFilters(true) }}>Afficher</Button>
           </div>
@@ -722,7 +728,7 @@ export default function DemandeValidationPage() {
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fHasRelations} onChange={(e) => setFHasRelations(e.target.checked)} />Avec proches scouts</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fSibling} onChange={(e) => setFSibling(e.target.checked)} />Fratrie / frère-sœur</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fPrevious} onChange={(e) => setFPrevious(e.target.checked)} />Demande précédente</label>
-          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fConflict} onChange={(e) => setFConflict(e.target.checked)} />Décisions de famille à vérifier</label>
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fConflict} onChange={(e) => setFConflict(e.target.checked)} />Décisions à vérifier</label>
           <span className="ml-auto text-xs text-muted-foreground">{rows.length} résultat(s)</span>
           {activeExtraFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={resetExtraFilters}><X className="mr-1 h-3.5 w-3.5" />Réinitialiser ({activeExtraFilters})</Button>
@@ -1160,7 +1166,8 @@ function UnitHint({ u, d }: { u: UnitOccupancy; d: DemandeReview }) {
 function FamilyFlags({ d }: { d: DemandeReview }) {
   const mixed = hasMixedFamilyDecision(d)
   const inGroup = isDeclinedWithSiblingInGroup(d) ? siblingsInGroup(d) : []
-  if (!mixed && inGroup.length === 0) return null
+  const previous = isDeclinedWithPreviousDemande(d)
+  if (!mixed && inGroup.length === 0 && !previous) return null
   return (
     <>
       {mixed && (
@@ -1171,6 +1178,11 @@ function FamilyFlags({ d }: { d: DemandeReview }) {
       {inGroup.length > 0 && (
         <Tip content={`Refusée alors que ${inGroup.map(relationName).join(', ')} ${inGroup.length > 1 ? 'sont' : 'est'} déjà membre du groupe`}>
           <Badge variant="danger" className="px-1.5 text-[10px]">Refus · fratrie membre</Badge>
+        </Tip>
+      )}
+      {previous && (
+        <Tip content={`Refusée alors qu'une demande a déjà été faite${d.previousDemandeYear ? ` en ${d.previousDemandeYear}` : ' une année précédente'}`}>
+          <Badge variant="danger" className="px-1.5 text-[10px]">Refus · déjà demandé</Badge>
         </Tip>
       )}
     </>
@@ -1296,6 +1308,11 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
         {isDeclinedWithSiblingInGroup(d) && (
           <Callout tone="danger" icon={AlertTriangle} title="Refus alors qu'un frère ou une sœur est déjà membre">
             {siblingsInGroup(d).map((r) => `${relationName(r)}${r.relatedMemberUnit ? ` (${r.relatedMemberUnit})` : ' (déclaré membre actuel)'}`).join(', ')}.
+          </Callout>
+        )}
+        {isDeclinedWithPreviousDemande(d) && (
+          <Callout tone="danger" icon={AlertTriangle} title="Refus alors qu'une demande a déjà été faite">
+            La famille indique une demande précédente{d.previousDemandeYear ? ` (${d.previousDemandeYear})` : ''}. Vérifiez dans les Archives des demandes.
           </Callout>
         )}
         <Section icon={User} title="Enfant">

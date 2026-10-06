@@ -32,7 +32,7 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
         var pending = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null
                 && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined))
-            .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email })
+            .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email, d.HasPreviousDemande, d.PreviousDemandeYear })
             .ToListAsync(ct);
         var approved = pending.Where(d => d.Status == DemandeStatus.Approved).ToList();
         var declined = pending.Count - approved.Count;
@@ -87,6 +87,12 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
             if (refusedWithSibling.Count > 0)
                 warnings.Add($"Refus alors qu'un frère ou une sœur est déjà membre du groupe : {string.Join(", ", refusedWithSibling)}.");
         }
+
+        // (3) a refusal for a child whose family declared a demande in a previous year.
+        var refusedAgain = pending.Where(d => d.Status == DemandeStatus.Declined && d.HasPreviousDemande)
+            .Select(d => $"{d.FirstName} {d.LastName}{(string.IsNullOrWhiteSpace(d.PreviousDemandeYear) ? "" : $" ({d.PreviousDemandeYear})")}").ToList();
+        if (refusedAgain.Count > 0)
+            warnings.Add($"Refus alors qu'une demande a déjà été faite une année précédente : {string.Join(", ", refusedAgain)}.");
 
         // Accepted members per unit + the chefs d'unité who will get the Excel.
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
