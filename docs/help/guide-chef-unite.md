@@ -303,6 +303,10 @@ Pour chaque membre, trois choix :
 - Quand vous choisissez **Quitte le groupe**, une fenêtre vous demande l'email et le téléphone **personnels** du
   membre (pas ceux de ses parents) : ils permettent de rester en contact avec les anciens.
 
+> 💡 **Nouvelle équipe pour l'année prochaine** : créez-la avant le passage (bouton **Équipes**), puis choisissez-la
+> dans **Proposer** pour les membres concernés. Tant qu'elle n'a aucun membre, elle n'apparaît pas sur le site
+> public ; les membres la voient seulement une fois le passage publié.
+
 Quand chaque membre a une ligne, cliquez sur **Terminer le passage de l'unité** (en haut de la page).
 
 > 💡 Tant que votre unité n'est pas terminée, vous recevez un rappel (notification et email) 7 jours puis 2 jours

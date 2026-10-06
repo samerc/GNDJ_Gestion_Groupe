@@ -142,9 +142,10 @@ public class GetPublicUnitDetailQueryHandler(IApplicationDbContext context)
                 LeaderPhone(g.Key)))
             .ToList();
 
-        // Teams (non-leadership): name + active youth count only.
+        // Teams (non-leadership): name + active youth count only. A team with nobody in it is not shown — so a
+        // team created ahead of the passage stays private until the passage places members in it.
         var teams = await context.Teams
-            .Where(t => t.UnitId == unit.Id && !t.IsMaitrise)
+            .Where(t => t.UnitId == unit.Id && !t.IsMaitrise && t.Assignments.Any(a => a.EndDate == null))
             .OrderBy(t => t.DisplayOrder).ThenBy(t => t.Name)
             .Select(t => new PublicTeamDto(t.Name, t.Assignments.Count(a => a.EndDate == null), t.Color1, t.Color2))
             .ToListAsync(ct);
