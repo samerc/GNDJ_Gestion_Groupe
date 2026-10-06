@@ -23,7 +23,7 @@ import { Callout } from '@/components/shared/callout'
 import { BackToSettings } from '@/components/shared/back-to-settings'
 import { SearchInput } from '@/components/shared/search-input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, FileText, GripVertical, X, Upload, Download, FileSignature } from 'lucide-react'
+import { Plus, Pencil, Trash2, FileText, GripVertical, X, Upload, Download, FileSignature, PenLine } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -31,7 +31,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null, templateHtml: null }
+const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null, templateHtml: null, onlineFillable: false }
 
 // `embedded` = rendered inside the Paramètres → Documents tab (suppresses the page's own big heading).
 export default function DocumentTypesPage({ embedded = false }: { embedded?: boolean } = {}) {
@@ -88,7 +88,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
   const openEdit = (item: DocumentTypeDto) => {
     setEditing(item)
     setSeededTemplateFor(null) // templateHtml is filled by the detail query once it loads
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName, templateHtml: null })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName, templateHtml: null, onlineFillable: item.onlineFillable })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -267,6 +267,15 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
                   <FileSignature className="mr-1.5 h-4 w-4" />{templateLoading ? 'Chargement…' : 'Créer un modèle'}
                 </Button>
               )}
+              {/* Fill online + finger signature: only with an in-app template. Off = download / fill by hand / upload only. */}
+              {form.templateHtml && (
+                <label className="flex items-start gap-2 rounded-md border p-2 text-sm">
+                  <input type="checkbox" className="mt-0.5" checked={!!form.onlineFillable} onChange={(e) => setForm(f => ({ ...f, onlineFillable: e.target.checked }))} />
+                  <span>Remplissable en ligne (avec signature)
+                    <span className="block text-xs text-muted-foreground">Le parent remplit les champs sur son téléphone et signe avec le doigt ; le PDF signé arrive « à vérifier » comme un document envoyé.</span>
+                  </span>
+                </label>
+              )}
             </div>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">
@@ -362,6 +371,11 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
           {item.hasHtmlTemplate && (
             <Tip content="Modèle généré dans l'application (PDF pré-rempli avec les données du membre).">
               <span className="inline-flex"><Badge variant="outline" className="gap-1 text-primary"><FileSignature className="h-3 w-3" />Modèle app</Badge></span>
+            </Tip>
+          )}
+          {item.hasHtmlTemplate && item.onlineFillable && (
+            <Tip content="Peut être rempli et signé en ligne.">
+              <span className="inline-flex"><Badge variant="outline" className="gap-1 text-primary"><PenLine className="h-3 w-3" />En ligne</Badge></span>
             </Tip>
           )}
         </div>

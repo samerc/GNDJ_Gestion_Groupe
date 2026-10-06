@@ -276,6 +276,14 @@ flowchart LR
 télécharge **déjà rempli** avec les informations du membre (autorisation des parents, fiche médicale…). Le modèle
 se crée dans l'application (texte, champs du membre, lignes à remplir, cases à cocher, en-tête).
 
+Avec un modèle créé dans l'application, cochez **Remplissable en ligne (avec signature)** : la famille remplit
+alors les lignes, cadres et cases sur son téléphone et **signe avec le doigt**. Le PDF signé est enregistré comme
+le document du membre et arrive « à vérifier » chez le chef d'unité ; il compte pour le dossier comme un document
+envoyé. Si le modèle contient une ligne « Signature : … », la signature s'y place ; sinon elle est ajoutée à la
+fin. Le nom du signataire, la date, l'appareil et une empreinte du PDF sont gardés dans le journal d'audit.
+Décochez l'option pour revenir au seul téléchargement : la famille peut toujours imprimer, remplir à la main et
+envoyer une photo.
+
 ## Les cotisations
 
 **Suivi → Cotisations** : payés, partiels, impayés et exemptés, par unité ; la liste des membres à relancer avec

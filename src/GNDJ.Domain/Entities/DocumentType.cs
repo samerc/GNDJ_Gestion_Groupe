@@ -27,5 +27,10 @@ public class DocumentType : BaseEntity
     // Takes precedence over TemplateFileUrl on the member screen. Null = no in-app template.
     public string? TemplateHtml { get; set; }
 
+    // « Remplissable en ligne (avec signature) »: with an in-app template, a parent can fill the blanks on their
+    // phone and sign with a finger; the app saves the signed PDF as this document (pending check like an upload).
+    // Off = only the download / fill by hand / upload way. Meaningless without TemplateHtml.
+    public bool OnlineFillable { get; set; }
+
     public ICollection<MemberDocument> Documents { get; set; } = [];
 }

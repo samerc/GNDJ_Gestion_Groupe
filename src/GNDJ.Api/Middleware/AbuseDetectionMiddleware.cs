@@ -53,6 +53,13 @@ public partial class AbuseDetectionMiddleware
     // and the report is only logged (never rendered as HTML or run as SQL).
     private const string ErrorReportPath = "/api/v1/errors/report";
 
+    // Endpoints whose body legitimately carries one very long token — the online form's finger signature is a
+    // base64 PNG. Only the oversized-token check is skipped there; the script / SQL scan still runs.
+    private static readonly string[] LongTokenPaths = { "/api/v1/documents/online-form" };
+
+    private static bool AllowsLongToken(PathString path) =>
+        LongTokenPaths.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase));
+
     private static bool IsRichContentPath(PathString path) =>
         RichContentPrefixes.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase))
         || path.StartsWithSegments(ErrorReportPath, StringComparison.OrdinalIgnoreCase);
@@ -88,7 +95,7 @@ public partial class AbuseDetectionMiddleware
                     string? matched =
                         ScriptPattern().IsMatch(body) ? "script/xss" :
                         SqlPattern().IsMatch(body) ? "sql-injection" :
-                        HasExtremelyLongToken(body) ? "oversized-token" : null;
+                        !AllowsLongToken(context.Request.Path) && HasExtremelyLongToken(body) ? "oversized-token" : null;
 
                     if (matched is not null)
                     {

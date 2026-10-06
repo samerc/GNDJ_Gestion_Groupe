@@ -6468,6 +6468,15 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   edit-date`): the series skips the date and a one-off copy (`SeriesEventId` + `SeriesDate`, migration
   AddCalendarEventSeries) replaces it; copies are removed with the series, on a change of its dates/repetition, or
   when the date is restored.
+- **« Remplir et signer en ligne »** (`DocumentType.OnlineFillable`, migration AddDocumentTypeOnlineFillable; only with
+  an in-app template): `IDocumentTemplateRenderer.PrepareForm` gives every blank a key f0, f1… in document order (fill /
+  box / checkbox; a fill labelled « Signature » = kind "signature") with the member's values written in;
+  `GET|POST /documents/online-form` (`OnlineDocumentFormHandlers`, same access + campaign/on-hold gate as an upload,
+  refused while a doc of that type is Pending, template hash guards a template edited meanwhile). Render prints the
+  answers + the finger signature (on the « Signature » line, else a block at the end) → saved via
+  MemberDocumentWriter as Pending; audit "Signature" keeps signer, relation, ref, PDF SHA-256, user agent, IP. Client:
+  `components/documents/online-form-dialog.tsx` (template HTML → React nodes, never innerHTML) + `signature-pad.tsx`.
+  The abuse middleware skips ONLY the oversized-token check on that path (base64 signature).
 - **Camp BP « Fiches médicales »** (`GET /camps/{id}/medical/pdf[?famille=N]`, Familles view, audited "Download"):
   per famille (A4 landscape, one page), Père/Mère first, age / blood type / allergies / medical remarks / own phone /
   up to 2 parents' phones (emergency contact first), red allergy box at the top. Buttons in the Familles tab

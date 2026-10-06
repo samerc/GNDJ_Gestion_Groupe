@@ -74,6 +74,7 @@ export const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   AddPages: { label: 'Ajout de pages', color: BLUE },
   DeletePage: { label: 'Suppression de page', color: RED },
   Download: { label: 'Téléchargement', color: PURPLE },
+  Signature: { label: 'Signature en ligne', color: GREEN },
   UpdateDocumentCampaign: { label: 'Campagne documents modifiée', color: BLUE },
   SendDocumentCampaignErrors: { label: "Emails d'erreur (campagne)", color: GRAY },
   ApplyDocumentCampaignHold: { label: 'Dossiers mis en attente', color: ORANGE },
@@ -156,6 +157,7 @@ export const ENTITY_LABELS: Record<string, string> = {
 
 // Human labels for the raw snapshot field names, so the detail reads in French instead of PascalCase keys.
 export const FIELD_LABELS: Record<string, string> = {
+  Signataire: 'Signataire', Lien: 'Lien', Reference: 'Référence', Certifie: 'Certifié exact', Empreinte: 'Empreinte du PDF', Appareil: 'Appareil', Ip: 'Adresse IP',
   Member: 'Membre', Unit: 'Unité', Team: 'Équipe', Role: 'Fonction',
   StartDate: 'Début', EndDate: 'Fin', Name: 'Nom', Totem: 'Totem', Adjective: 'Adjectif',
   Description: 'Description', Color1: 'Couleur 1', Color2: 'Couleur 2', DisplayOrder: 'Ordre',

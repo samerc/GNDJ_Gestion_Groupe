@@ -41,6 +41,26 @@ public class DocumentsController : BaseApiController
         return Ok(result.Value);
     }
 
+    /// <summary>« Remplir en ligne »: the form of a document type that can be filled online (the template with the
+    /// member's data written in + the keys of its blanks). Same access/campaign rules as an upload.</summary>
+    [HttpGet("online-form")]
+    public async Task<IActionResult> GetOnlineForm([FromQuery] Guid memberId, [FromQuery] Guid documentTypeId)
+    {
+        var r = await Mediator.Send(new GetOnlineDocumentFormQuery(memberId, documentTypeId));
+        return r.IsSuccess ? Ok(r.Value) : BadRequest(new { error = r.Error });
+    }
+
+    /// <summary>Sends an online-filled form: answers + finger signature → the signed PDF is saved as the member's
+    /// document (Pending, checked by the chef d'unité like an upload). The signature proof is audited.</summary>
+    [HttpPost("online-form")]
+    [EnableRateLimiting("upload")]
+    [RequestSizeLimit(2 * 1024 * 1024)]
+    public async Task<IActionResult> SubmitOnlineForm([FromBody] SubmitOnlineDocumentFormCommand command)
+    {
+        var r = await Mediator.Send(command);
+        return r.IsSuccess ? Ok(new { id = r.Value }) : BadRequest(new { error = r.Error });
+    }
+
     /// <summary>
     /// Uploads a document file for a member (multipart form). Validates size, extension and magic bytes
     /// (PDF/JPG/PNG); rate-limited; 20MB hard cap. Auth-only: members upload their own, a CU uploads for members in

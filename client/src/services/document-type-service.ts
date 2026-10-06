@@ -18,6 +18,7 @@ export interface DocumentTypeDto {
   templateFileName: string | null
   hasHtmlTemplate: boolean // has an in-app template (member downloads a prefilled PDF)
   createdAt: string
+  onlineFillable: boolean // « Remplissable en ligne (avec signature) »
 }
 
 // Full detail (GET /document-types/{id}) — carries the template HTML for the editor (not in the list DTO).
@@ -35,6 +36,7 @@ export interface DocumentTypeDetailDto {
   templateHtml: string | null
   createdAt: string
   updatedAt: string
+  onlineFillable: boolean
 }
 
 export interface DocumentTypeListDto {
@@ -46,6 +48,7 @@ export interface DocumentTypeListDto {
   templateFileUrl: string | null
   templateFileName: string | null
   hasHtmlTemplate: boolean // when true the member downloads a server-generated prefilled PDF (not a static file)
+  onlineFillable: boolean // the in-app template can also be filled on the phone and signed with a finger
 }
 
 export interface DocumentTypeFormData {
@@ -59,6 +62,7 @@ export interface DocumentTypeFormData {
   templateFileUrl?: string | null
   templateFileName?: string | null
   templateHtml?: string | null // in-app rich-text template (null = none)
+  onlineFillable?: boolean // fill online + finger signature (needs templateHtml)
 }
 
 // A member-field placeholder the CG can insert into an in-app template ({{key}}).

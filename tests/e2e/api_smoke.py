@@ -157,6 +157,12 @@ def main() -> int:
         check("member cannot create a calendar event", s == 400, s)
         s, _ = call("GET", "/calendar/feed/doesnotexist.ics")
         check("unknown phone-calendar link refused", s == 404, s)
+        s, _ = call("GET", f"/documents/online-form?memberId={cu_member}&documentTypeId={cu_member}", token=youth)
+        check("member cannot open someone else's online form", s == 400, s)
+        s, _ = call("POST", "/documents/online-form", {"memberId": youth_member, "documentTypeId": youth_member, "templateHash": "x",
+                                                        "answers": {}, "signerName": "Smoke", "signerRelation": "Mère",
+                                                        "signaturePng": "", "certified": False}, token=youth)
+        check("online form without signature refused", s == 400, s)
         s, lst = call("GET", "/members?pageSize=5", token=youth)
         check("member gets no member list", s in (403, 200) and (s == 403 or lst.get("totalCount", 0) == 0), (s, lst if s != 200 else lst.get("totalCount")))
         for path in ["/audit-logs", "/sessions", "/data-quality", "/settings", "/demandes?scoutYear=2026-2027"]:

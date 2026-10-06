@@ -198,7 +198,7 @@ public static class CalendarFeed
 
         // 2b. Réunions of a member group (Grande Maîtrise, Haute Patrouille…): shown to the members of its roster, to
         //     the CG team for a group-wide one, and to the unit's chefs for one held inside a unit.
-        await AddGroupMeetingsAsync(context, viewer, from, to, meetingUnitId, units.ToDictionary(u => u.Key, u => (u.Value.Code, u.Value.Name)), items, ct);
+        await AddGroupMeetingsAsync(context, viewer, from, to, meetingUnitId, units.ToDictionary(u => u.Key, u => ((string?)u.Value.Code, u.Value.Name)), items, ct);
 
         // 3. Important dates of the year (settings).
         var keys = ImportantDates.Select(d => d.Key).ToList();

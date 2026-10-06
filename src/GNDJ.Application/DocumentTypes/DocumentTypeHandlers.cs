@@ -12,12 +12,12 @@ namespace GNDJ.Application.DocumentTypes;
 // expiry date on upload; RequiresApproval routes uploads through the Pending→Approved review flow.
 
 // DTOs
-public record DocumentTypeDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, int DocumentCount, string? TemplateFileUrl, string? TemplateFileName, bool HasHtmlTemplate, DateTime CreatedAt);
-public record DocumentTypeDetailDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, string? TemplateHtml, DateTime CreatedAt, DateTime UpdatedAt);
+public record DocumentTypeDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, int DocumentCount, string? TemplateFileUrl, string? TemplateFileName, bool HasHtmlTemplate, DateTime CreatedAt, bool OnlineFillable = false);
+public record DocumentTypeDetailDto(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, string? TemplateHtml, DateTime CreatedAt, DateTime UpdatedAt, bool OnlineFillable = false);
 // TemplateFileUrl/Name are included so the member upload screen can offer a "Télécharger le modèle" link per type.
 // HasHtmlTemplate = the type has an IN-APP template (the member downloads a server-generated prefilled PDF instead);
 // the full HTML is not sent to members, only the flag that routes the download to the PDF endpoint.
-public record DocumentTypeListDto(Guid Id, string Name, string Code, bool RequiresExpiry, bool RequiresApproval, string? TemplateFileUrl, string? TemplateFileName, bool HasHtmlTemplate);
+public record DocumentTypeListDto(Guid Id, string Name, string Code, bool RequiresExpiry, bool RequiresApproval, string? TemplateFileUrl, string? TemplateFileName, bool HasHtmlTemplate, bool OnlineFillable = false);
 
 // GetAll (admin — shows all including inactive)
 public record GetDocumentTypesQuery(string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<DocumentTypeDto>>;
@@ -39,7 +39,8 @@ public class GetDocumentTypesQueryHandler(IApplicationDbContext context) : IRequ
             dt.Documents.Count(d => !d.IsDeleted),
             dt.TemplateFileUrl, dt.TemplateFileName,
             dt.TemplateHtml != null && dt.TemplateHtml != "",
-            dt.CreatedAt
+            dt.CreatedAt,
+            dt.OnlineFillable
         ));
 
         return await PaginatedList<DocumentTypeDto>.CreateAsync(projected, request.Page, request.PageSize, ct);
@@ -55,7 +56,7 @@ public class GetDocumentTypeByIdQueryHandler(IApplicationDbContext context) : IR
     {
         return await context.DocumentTypes
             .Where(dt => dt.Id == request.Id)
-            .Select(dt => new DocumentTypeDetailDto(dt.Id, dt.Name, dt.Code, dt.Description, dt.RequiresExpiry, dt.RequiresApproval, dt.IsActive, dt.DisplayOrder, dt.TemplateFileUrl, dt.TemplateFileName, dt.TemplateHtml, dt.CreatedAt, dt.UpdatedAt))
+            .Select(dt => new DocumentTypeDetailDto(dt.Id, dt.Name, dt.Code, dt.Description, dt.RequiresExpiry, dt.RequiresApproval, dt.IsActive, dt.DisplayOrder, dt.TemplateFileUrl, dt.TemplateFileName, dt.TemplateHtml, dt.CreatedAt, dt.UpdatedAt, dt.OnlineFillable))
             .FirstOrDefaultAsync(ct);
     }
 }
@@ -70,13 +71,14 @@ public class GetDocumentTypeListQueryHandler(IApplicationDbContext context) : IR
         return await context.DocumentTypes
             .Where(dt => dt.IsActive)
             .OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
-            .Select(dt => new DocumentTypeListDto(dt.Id, dt.Name, dt.Code, dt.RequiresExpiry, dt.RequiresApproval, dt.TemplateFileUrl, dt.TemplateFileName, dt.TemplateHtml != null && dt.TemplateHtml != ""))
+            .Select(dt => new DocumentTypeListDto(dt.Id, dt.Name, dt.Code, dt.RequiresExpiry, dt.RequiresApproval, dt.TemplateFileUrl, dt.TemplateFileName, dt.TemplateHtml != null && dt.TemplateHtml != "",
+                dt.OnlineFillable && dt.TemplateHtml != null && dt.TemplateHtml != ""))
             .ToListAsync(ct);
     }
 }
 
 // Create
-public record CreateDocumentTypeCommand(string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, string? TemplateHtml) : IRequest<Result<Guid>>;
+public record CreateDocumentTypeCommand(string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, string? TemplateHtml, bool OnlineFillable = false) : IRequest<Result<Guid>>;
 
 public class CreateDocumentTypeCommandValidator : AbstractValidator<CreateDocumentTypeCommand>
 {
@@ -112,7 +114,8 @@ public class CreateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
             DisplayOrder = request.DisplayOrder,
             TemplateFileUrl = request.TemplateFileUrl,
             TemplateFileName = request.TemplateFileName,
-            TemplateHtml = string.IsNullOrWhiteSpace(request.TemplateHtml) ? null : request.TemplateHtml
+            TemplateHtml = string.IsNullOrWhiteSpace(request.TemplateHtml) ? null : request.TemplateHtml,
+            OnlineFillable = request.OnlineFillable && !string.IsNullOrWhiteSpace(request.TemplateHtml)
         };
 
         context.DocumentTypes.Add(entity);
@@ -124,7 +127,7 @@ public class CreateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
 }
 
 // Update
-public record UpdateDocumentTypeCommand(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, string? TemplateHtml) : IRequest<Result<bool>>;
+public record UpdateDocumentTypeCommand(Guid Id, string Name, string Code, string? Description, bool RequiresExpiry, bool RequiresApproval, bool IsActive, int DisplayOrder, string? TemplateFileUrl, string? TemplateFileName, string? TemplateHtml, bool OnlineFillable = false) : IRequest<Result<bool>>;
 
 public class UpdateDocumentTypeCommandValidator : AbstractValidator<UpdateDocumentTypeCommand>
 {
@@ -164,6 +167,7 @@ public class UpdateDocumentTypeCommandHandler(IApplicationDbContext context, IAu
         entity.TemplateFileUrl = request.TemplateFileUrl;
         entity.TemplateFileName = request.TemplateFileName;
         entity.TemplateHtml = string.IsNullOrWhiteSpace(request.TemplateHtml) ? null : request.TemplateHtml;
+        entity.OnlineFillable = request.OnlineFillable && entity.TemplateHtml is not null;
 
         await context.SaveChangesAsync(ct);
         await auditService.LogAsync("Update", "DocumentType", entity.Id, oldValues: oldValues, newValues: new { entity.Name, entity.Code, entity.IsActive }, cancellationToken: ct);

@@ -4,7 +4,28 @@ namespace GNDJ.Application.Common.Interfaces;
 // with a member's resolved field values. Implemented with HtmlAgilityPack (parse) + QuestPDF (layout) in
 // Infrastructure. `values` maps placeholder key → resolved text (a missing/blank value renders empty, leaving
 // a blank the member completes by hand). The document's title/heading is authored in the template itself.
+//
+// Online filling (« Remplir en ligne »): every blank of the template (fill line, box, checkbox) gets a stable key
+// "f0", "f1"… in document order. PrepareForm returns the template with those keys + the member's values already
+// written in, for the phone form; Render then accepts the answers (TemplateFormAnswers.Key("f3") → value, "1" for a
+// ticked checkbox) and an optional signature block printed at the end.
 public interface IDocumentTemplateRenderer
 {
-    byte[] Render(string html, IReadOnlyDictionary<string, string?> values);
+    byte[] Render(string html, IReadOnlyDictionary<string, string?> values, TemplateSignature? signature = null);
+
+    TemplateForm PrepareForm(string html, IReadOnlyDictionary<string, string?> values);
+}
+
+// One blank of the form: Kind = "fill" (one line), "box" (several lines), "checkbox", or "signature" (a fill line
+// labelled « Signature » — the drawn signature is printed there instead of in a block at the end).
+public record TemplateFormField(string Key, string Kind);
+public record TemplateForm(string Html, IReadOnlyList<TemplateFormField> Fields);
+
+// The signature printed at the bottom of an online-filled form: the drawn image (PNG) + who signed and when.
+public record TemplateSignature(byte[] ImagePng, string SignerName, string SignerRelation, string SignedAt, string Reference);
+
+public static class TemplateFormAnswers
+{
+    // Answers travel in the same values dictionary under a prefix that can't clash with {{tokens}} ([a-zA-Z0-9_]).
+    public static string Key(string fieldKey) => "#" + fieldKey;
 }

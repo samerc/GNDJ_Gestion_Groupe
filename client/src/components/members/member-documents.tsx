@@ -8,6 +8,7 @@ import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { useDocumentCampaign } from '@/services/documents-campaign-service'
 import { useScanUploadEnabled } from '@/hooks/use-scan-upload-audience'
 import { ScanUploadDialog } from '@/components/members/scan-upload-dialog'
+import { OnlineFormDialog } from '@/components/documents/online-form-dialog'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,7 @@ import { Callout } from '@/components/shared/callout'
 import { EmptyState } from '@/components/shared/empty-state'
 import { confirmAsync } from '@/lib/confirm'
 import { formatDate } from '@/lib/utils'
-import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera, Smartphone } from 'lucide-react'
+import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera, Smartphone, PenLine } from 'lucide-react'
 import { DateInput } from '@/components/shared/date-input'
 
 // Document row actions share one size: 40px on phones (easy to tap), 36px on larger screens.
@@ -56,6 +57,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   // your phone while ON the phone is pointless), so also require a fine pointer (mouse/trackpad).
   const scanEnabled = useScanUploadEnabled()
   const isFinePointer = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches
+  const [onlineFormType, setOnlineFormType] = useState<string | null>(null) // « Remplir en ligne » dialog (doc type id)
   const [scanOpen, setScanOpen] = useState(false)
   // When the scan dialog is opened from a specific document-type row, the QR pre-targets that type so the phone
   // skips the "choose type" step; null = the generic top button (phone picks the type).
@@ -426,6 +428,14 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       template (hasHtmlTemplate) downloads a server-generated PDF pre-filled with the member's own
                       data; otherwise a static uploaded file. The in-app template takes precedence. Shown only
                       when the member still needs to (re)submit (canDownloadTemplate). */}
+                  {/* « Remplir en ligne »: fill the blanks on the phone + sign with a finger → the signed PDF arrives
+                      « à vérifier » like an upload. Only for types the admin made fillable online. */}
+                  {canDownloadTemplate && canUpload && dt.onlineFillable && (
+                    <button type="button" onClick={() => setOnlineFormType(dt.id)}
+                      className="mr-2 mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:h-9">
+                      <PenLine className="h-4 w-4" />Remplir et signer en ligne
+                    </button>
+                  )}
                   {canDownloadTemplate && (dt.hasHtmlTemplate ? (
                     <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
                       className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60 sm:h-9">
@@ -760,6 +770,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       />
 
       {/* Desktop QR dialog for scanning a document with the phone. */}
+      {onlineFormType && <OnlineFormDialog memberId={memberId} documentTypeId={onlineFormType} onClose={() => setOnlineFormType(null)} />}
       <ScanUploadDialog memberId={memberId} open={scanOpen} onOpenChange={setScanOpen} documentTypeId={scanDocType?.id} documentTypeName={scanDocType?.name} />
     </div>
   )
