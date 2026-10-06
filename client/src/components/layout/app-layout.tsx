@@ -5,7 +5,6 @@ import { useIsManager } from '@/lib/use-is-manager'
 import { Header } from './header'
 import { SessionWarning } from '@/components/shared/session-warning'
 import { RentreeOverduePopup } from '@/components/rentree/overdue-popup'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMaintenance } from '@/services/maintenance-service'
 import { MaintenancePage } from '@/components/shared/maintenance-page'
@@ -82,7 +81,7 @@ export function AppLayout() {
   // fits better as dropdowns and frees the width for the data-dense tables. Non-managers keep the left sidebar.
   // On mobile, everyone uses the hamburger drawer (MobileSidebar); AdminTopNav is desktop-only (hidden < lg).
   return (
-    <TooltipProvider delayDuration={250} skipDelayDuration={300}>
+    <>
     <div className="flex h-screen flex-col">
       {/* Full-width impersonation bar (above sidebar + content) so "Quitter" is always reachable. */}
       <ImpersonationBanner />
@@ -120,6 +119,6 @@ export function AppLayout() {
         </div>
       </div>
     </div>
-    </TooltipProvider>
+    </>
   )
 }

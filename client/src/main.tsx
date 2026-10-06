@@ -12,6 +12,7 @@ import { queryClient } from '@/lib/query-client'
 import { initPwa } from '@/lib/pwa'
 import { ConfirmHostGate } from '@/components/shared/confirm-host-gate'
 import { Toaster } from 'sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 // PWA: capture the install prompt, listen for install, register the service worker (installability).
 initPwa()
@@ -33,7 +34,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <App />
+        {/* ONE tooltip provider for every page: the parent portal and public site use <Tip> too (a portal page
+            crashed when it was only inside the members' AppLayout). */}
+        <TooltipProvider delayDuration={250} skipDelayDuration={300}>
+          <App />
+        </TooltipProvider>
         <ConfirmHostGate />
         {/* The ONE toast area for every page (app, portal, public site, sign-in pages). */}
         <Toaster richColors position="top-center" />
