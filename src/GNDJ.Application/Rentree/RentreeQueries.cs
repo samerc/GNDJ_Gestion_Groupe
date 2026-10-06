@@ -75,6 +75,11 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
             .Where(t => t.ScoutYear == request.ScoutYear)
             .OrderBy(t => t.DisplayOrder).ThenBy(t => t.Title)
             .ToListAsync(ct);
+        // Tasks of a switched-off feature (e.g. member cards) are hidden but count as done for their dependents.
+        var off = await RentreeFeatureGates.OffActionsAsync(context, ct);
+        var offIds = tasks.Where(t => RentreeFeatureGates.IsOff(t, off)).Select(t => t.Id).ToHashSet();
+        var allTasks = tasks;
+        tasks = tasks.Where(t => !offIds.Contains(t.Id)).ToList();
 
         var unitIds = tasks.Where(t => t.UnitId.HasValue).Select(t => t.UnitId!.Value).Distinct().ToList();
         var unitRows = await context.Units.Where(u => unitIds.Contains(u.Id))
@@ -100,7 +105,8 @@ public class GetRentreeTasksQueryHandler(IApplicationDbContext context, ICurrent
         bool EffectiveDone(Domain.Entities.RentreeTask t) =>
             t.Status == "done" || (progress.TryGetValue(t.Id, out var p) && p.Complete);
         var doneIds = tasks.Where(EffectiveDone).Select(t => t.Id).ToHashSet();
-        var titleById = tasks.ToDictionary(t => t.Id, t => t.Title);
+        doneIds.UnionWith(offIds);
+        var titleById = allTasks.ToDictionary(t => t.Id, t => t.Title);
         var myMemberId = currentUser.MemberId;
         var today = LebanonClock.Today;
 
@@ -157,6 +163,8 @@ public class GetMyOverdueRentreeTasksQueryHandler(IApplicationDbContext context,
         var candidates = await context.RentreeTasks
             .Where(t => t.Status != "done" && (t.DueDate != null || t.DeadlineAnchor != null))
             .ToListAsync(ct);
+        var off = await RentreeFeatureGates.OffActionsAsync(context, ct);
+        candidates = candidates.Where(t => !RentreeFeatureGates.IsOff(t, off)).ToList();
         var tasks = candidates.Where(t => t.AssigneeType == "role"
             ? (t.UnitId.HasValue ? myUnits.Contains(t.UnitId.Value) : myCodes.Contains(t.AssigneeRole))
             : t.AssigneeMemberIds.Contains(myId)).ToList();

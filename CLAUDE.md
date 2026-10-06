@@ -6477,6 +6477,10 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   MemberDocumentWriter as Pending; audit "Signature" keeps signer, relation, ref, PDF SHA-256, user agent, IP. Client:
   `components/documents/online-form-dialog.tsx` (template HTML → React nodes, never innerHTML) + `signature-pad.tsx`.
   The abuse middleware skips ONLY the oversized-token check on that path (base64 signature).
+- **Rentrée tasks gated by a feature** (`RentreeFeatureGates`, Rentree/RentreeActions.cs): a task whose ActionKey maps to a
+  switched-off setting is hidden everywhere (list, overdue popup, weekly reminders, dashboard count) and counts as done
+  for its dependents. Only `goto-cards` ↔ `reports.cards_enabled` today (patch 036 gives « Imprimer les cartes membres »
+  that action).
 - **Camp BP « Fiches médicales »** (`GET /camps/{id}/medical/pdf[?famille=N]`, Familles view, audited "Download"):
   per famille (A4 landscape, one page), Père/Mère first, age / blood type / allergies / medical remarks / own phone /
   up to 2 parents' phones (emergency contact first), red allergy box at the top. Buttons in the Familles tab

@@ -528,7 +528,7 @@ public static class SeedData
             ["Organiser la séance photo"] = "goto-photo",
             ["Répartir les membres en sizaines / équipes"] = "goto-my-unit",
             ["Vérifier le trombinoscope / la liste"] = "goto-my-unit",
-            ["Imprimer les cartes membres"] = "goto-my-unit",
+            ["Imprimer les cartes membres"] = "goto-cards",
             ["Confirmer les étapes et badges de l'année"] = "goto-progression",
         };
 

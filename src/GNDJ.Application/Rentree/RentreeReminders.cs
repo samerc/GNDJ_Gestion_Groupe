@@ -46,6 +46,8 @@ public static class RentreeReminders
         var tasks = await context.RentreeTasks
             .Where(t => t.Status != "done" && (t.DueDate != null || t.DeadlineAnchor != null))
             .ToListAsync(ct);
+        var off = await RentreeFeatureGates.OffActionsAsync(context, ct);
+        tasks = tasks.Where(t => !RentreeFeatureGates.IsOff(t, off)).ToList(); // switched-off feature → no reminder
         if (tasks.Count == 0) return 0;
 
         var dueByTask = await RentreeAnchors.ResolveDueDatesAsync(context, tasks, ct);

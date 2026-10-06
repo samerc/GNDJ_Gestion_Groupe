@@ -92,6 +92,8 @@ public class GetDashboardOverviewQueryHandler(IApplicationDbContext context, ICu
         // collapse into a single row; a rollup is done when every instance is effectively done). ──
         RentreeSummaryDto? rentree = null;
         var rentreeTasks = await context.RentreeTasks.Where(t => t.ScoutYear == operatingYear).ToListAsync(ct);
+        var rentreeOff = await GNDJ.Application.Rentree.RentreeFeatureGates.OffActionsAsync(context, ct);
+        rentreeTasks = rentreeTasks.Where(t => !GNDJ.Application.Rentree.RentreeFeatureGates.IsOff(t, rentreeOff)).ToList();
         if (rentreeTasks.Count > 0)
         {
             var progress = await RentreeProgress.ComputeAsync(context, rentreeTasks, operatingYear, ct);

@@ -30,6 +30,8 @@ export const RENTREE_ACTIONS: Record<string, RentreeActionDef> = {
   'goto-email': { label: 'Modèles d\'email / pièces jointes', kind: 'goto', route: '/admin/settings?tab=cfg:email-templates' },
   'goto-demande-archives': { label: 'Archives des demandes', kind: 'goto', route: '/admin/demande-archives' },
   'goto-document-types': { label: 'Types de documents (modèles)', kind: 'goto', route: '/admin/document-types' },
+  // Hidden from the checklist while member cards are switched off (Paramètres → Création des cartes).
+  'goto-cards': { label: 'Cartes membres (Mon unité)', kind: 'goto', route: '/dashboard' },
 }
 
 // Options for the template-editor dropdown ("Aucune action" first).

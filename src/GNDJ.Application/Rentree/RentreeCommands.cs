@@ -568,6 +568,9 @@ public static class RentreeBlocking
         if (task.DependsOnTaskIds.Length == 0) return false;
         var prereqs = await context.RentreeTasks.Where(t => task.DependsOnTaskIds.Contains(t.Id)).ToListAsync(ct);
         if (prereqs.Count == 0) return false;
+        var off = await RentreeFeatureGates.OffActionsAsync(context, ct); // a switched-off feature's task never blocks
+        prereqs = prereqs.Where(p => !RentreeFeatureGates.IsOff(p, off)).ToList();
+        if (prereqs.Count == 0) return false;
         var progress = await RentreeProgress.ComputeAsync(context, prereqs, task.ScoutYear, ct);
         return prereqs.Any(p => p.Status != "done" && !(progress.TryGetValue(p.Id, out var ps) && ps.Complete));
     }
