@@ -90,7 +90,7 @@ effacez la copie après usage.
 
 - Images plus petites (plus rapide, écriture fine moins lisible) : essai sur 5 fiches d'une unité déjà lue, dans le
   dossier d'essai (les vrais résultats ne bougent pas), puis comparez avec les lignes déjà lues :
-  `run-ocr.ps1 -Unit C1 -Trial 5 -MaxPx 1200 -Threads 8` → `C:\gndj-ocr\essaiiches-medicales.xlsx`.
+  `run-ocr.ps1 -Unit C1 -Trial 5 -MaxPx 1200 -Threads 8` → `C:\gndj-ocr\essai\fiches-medicales.xlsx`.
   Supprimez `C:\gndj-ocr\essai` avant un nouvel essai (sinon les fiches déjà essayées sont sautées).
 
 - Plus rapide, moins précis : `qwen2.5vl:3b` (`ollama pull qwen2.5vl:3b`, puis `-Model qwen2.5vl:3b`).
