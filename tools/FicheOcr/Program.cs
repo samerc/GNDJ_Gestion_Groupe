@@ -215,8 +215,9 @@ record Options
     public int Trial { get; init; }
     public int Limit { get; init; }
     public TimeOnly? Until { get; init; }
-    // First page only by default: the fiche fits on one page and each extra page costs as much time as the first.
-    public int MaxPages { get; init; } = 1;
+    // 2 pages: some fiches put the allergies / contacts / signature on the back (first-page-only lost them in the
+    // C1 test); a 3rd page is rare and each page costs as much time as the first. Longer documents are flagged.
+    public int MaxPages { get; init; } = 2;
     public int MaxPixels { get; init; } = 1600;
     public int Dpi { get; init; } = 150;
     public bool AllMembers { get; init; }
@@ -295,7 +296,7 @@ record Options
           --manifest <fichier>  lit les fiches d'un export au lieu de la base
           --connection <cs>     chaîne de connexion (sinon lue dans les appsettings du site)
           --doc-type <code>     type de document                                             [FM]
-          --max-pages <N>       pages lues par fiche                                          [1]
+          --max-pages <N>       pages lues par fiche                                          [2]
           --max-px / --dpi / --ollama <url> / --app-url <url>
         """);
 }
