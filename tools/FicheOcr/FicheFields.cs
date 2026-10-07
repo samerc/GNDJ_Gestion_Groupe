@@ -38,6 +38,30 @@ public static class FicheFields
         new("dateSignature", "Date de signature", FieldKind.Date, "date next to the signature"),
     ];
 
+    /// <summary>The answers a leader must know about (allergies, illnesses, treatments): a real answer in one of them
+    /// is flagged « Infos médicales à relire » so the checking can focus on those rows.</summary>
+    static readonly HashSet<string> MedicalKeys =
+        ["antecedents", "maladieChronique", "allergiesAliments", "allergiesMedicaments", "allergiesAutre", "traitementCrise", "regime"];
+
+    /// <summary>The one spelling kept for « nothing to declare ».</summary>
+    public const string No = "Non";
+
+    // « nothing » as parents write it, compared without accents, case, spaces or punctuation.
+    static readonly HashSet<string> NegativeKeys =
+    [
+        "", "non", "no", "na", "nan", "neant", "ras", "rien", "rienasignaler", "riendeparticulier", "aucun", "aucune",
+        "x", "xx", "xnon", "nonx", "none", "nil", "nothing", "0", "pas", "pasdallergie", "pasdallergies", "sansobjet", "so",
+        "nonapplicable", "notapplicable",
+    ];
+
+    // A tick or « oui » with nothing else: something is declared, but not what.
+    static readonly HashSet<string> BareYesKeys = ["oui", "yes", "o", "v", "✓", "✔", "☑", "✅", "ok"];
+
+    static string AnswerKey(string v) =>
+        new string(RemoveDiacritics(v).ToLowerInvariant().Where(c => char.IsLetterOrDigit(c) || c is '✓' or '✔' or '☑' or '✅').ToArray());
+
+    public static bool IsNegative(string v) => v.Length > 0 && NegativeKeys.Contains(AnswerKey(v));
+
     /// <summary>The instruction sent with the scan pages.</summary>
     public static string Prompt()
     {
@@ -92,6 +116,12 @@ public static class FicheFields
             var v = (raw.TryGetValue(f.Key, out var x) ? x : "").Trim();
             if (string.Equals(v, Unreadable, StringComparison.OrdinalIgnoreCase)) { clean[f.Key] = Unreadable; illegible.Add(f.Label); continue; }
             if (v.Length == 0) { clean[f.Key] = ""; continue; }
+            if (IsNegative(v))
+            {
+                // « non », « N/A », « RAS », « Néant », « X »… → one spelling. A blood type « non » = not given.
+                clean[f.Key] = f.Kind == FieldKind.BloodType ? "" : No;
+                continue;
+            }
             switch (f.Kind)
             {
                 case FieldKind.BloodType:
@@ -111,11 +141,18 @@ public static class FicheFields
                     break;
                 default:
                     clean[f.Key] = v;
+                    if (MedicalKeys.Contains(f.Key) && BareYesKeys.Contains(AnswerKey(v)))
+                        reasons.Add($"Coché ou « oui » sans précision : {f.Label}");
                     break;
             }
         }
+        var medical = All.Where(f => MedicalKeys.Contains(f.Key)
+                                     && clean[f.Key] is { Length: > 0 } a && a != No && a != Unreadable
+                                     && !BareYesKeys.Contains(AnswerKey(a)))   // a bare tick has its own flag
+                         .Select(f => f.Label).ToList();
+        if (medical.Count > 0) reasons.Insert(0, "Infos médicales à relire : " + string.Join(", ", medical));
         if (illegible.Count > 0) reasons.Insert(0, "Illisible : " + string.Join(", ", illegible));
-        if (clean.Values.All(v => v.Length == 0)) reasons.Add("Aucune réponse lue (fiche vide ?)");
+        if (clean.Values.All(v => v.Length == 0 || v == No)) reasons.Add("Aucune réponse lue (fiche vide ?)");
         if (!signed) reasons.Add("Pas de signature détectée");
         return clean;
     }
