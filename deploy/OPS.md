@@ -174,6 +174,14 @@ compares the latest migration, drops the scratch database and emails **[GNDJ Res
   data. Look at the details in the email before the next backup overwrites anything.
 
 
+## Fiche médicale reader (FicheOcr) — offline, at night
+
+Reads this year's scanned paper fiches médicales into an Excel to check by hand (to pre-fill next year's online
+form). Local vision model in Ollama (127.0.0.1 only), night task `GNDJ-FicheOcr` 23:00–06:00, results in
+`C:\gndj-ocr` (admins only). Setup: `deploy\ocr\setup-ocr.ps1` (elevated) — downloads Ollama + the model (~6 GB)
+ON THE SERVER, registers the task disabled. Trial: `deploy\ocr\run-ocr.ps1 -Trial 20 -Until ''`, then
+`Enable-ScheduledTask -TaskName GNDJ-FicheOcr`. Pause: create `C:\gndj-ocr\PAUSE`. Details: `tools/FicheOcr/README.md`.
+
 ## Système page, daily alert, disk space
 
 - **Système** page (Configuration → Système, super-admin): background jobs (last success / last error), email +

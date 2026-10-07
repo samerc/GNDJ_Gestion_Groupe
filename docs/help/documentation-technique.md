@@ -286,6 +286,14 @@ advisory lock.
 **Reliable delivery:** emails and push notifications are first written to the database (`email_outbox`,
 `push_outbox`) and then sent by the service: they survive a restart (at-least-once delivery).
 
+### Fiche médicale reader (offline)
+
+`tools/FicheOcr` (.NET console, not part of the app) reads the scanned paper fiches médicales with a local vision
+model (Ollama + `qwen2.5vl:7b`, on the server at night) and writes an Excel to check by hand: one row per active
+member, the 16 fiche fields (column labels = the online form's labels), « ILLISIBLE » cells and an « À vérifier »
+column (bad dates, unknown or different blood type, not a fiche, no signature). Resumable (`resultats.jsonl`),
+trial mode, laptop export. Server scripts in `deploy/ocr/`; how-to in `tools/FicheOcr/README.md`.
+
 ## Tests
 
 | Command | What it checks |

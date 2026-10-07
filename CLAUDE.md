@@ -6485,3 +6485,19 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   per famille (A4 landscape, one page), Père/Mère first, age / blood type / allergies / medical remarks / own phone /
   up to 2 parents' phones (emergency contact first), red allergy box at the top. Buttons in the Familles tab
   toolbar + per famille column.
+
+### Paper fiche médicale reader — offline OCR → Excel (2026-10-07, tool only)
+- `tools/FicheOcr` (.NET 10 console, NOT in the app): one fiche per ACTIVE member (accepted first, else newest,
+  rejected skipped) from the DB + files under the site folder (PDF pages via PDFtoImage, photos turned upright from
+  EXIF, longest side ≤1600 px, ≤3 pages) → local **Ollama** `/api/chat` (`qwen2.5vl:7b`, JSON-schema structured
+  output, temperature 0, `num_thread` 4) → `FicheFields.Check` (blood type normalized + compared to the member's
+  fiche, dates → DD/MM/YYYY, ILLISIBLE, not-a-fiche, unsigned, empty) → `C:\gndj-ocr\fiches-medicales.xlsx`
+  (Lisez-moi / Fiches / Erreurs; column labels = the online form labels; hidden MemberId/DocumentId for a future
+  import into member_form_answers + the Médical tab). Resumable via `resultats.jsonl`; Ollama down/slow is NOT saved
+  (retried next run, 3 in a row = stop); `--essai N` (separate `essai` folder), `--until HH:mm`, `--export` /
+  `--manifest` (laptop), `--check`. Lock file prevents two runs on one folder.
+- Server: `deploy/ocr/setup-ocr.ps1` (elevated: Ollama zip → C:\ollama, model pulled ON THE SERVER, publish to
+  C:\gndj-ocr\tool, ACL admins+SYSTEM, task `GNDJ-FicheOcr` 23:00 registered DISABLED) and `run-ocr.ps1` (starts
+  Ollama 127.0.0.1 below-normal, runs until 06:00, stops Ollama; `C:\gndj-ocr\PAUSE` skips nights). Tested here
+  against a fake Ollama (rotation, flags, resume, export/manifest, script wrapper); the real model is only on the server.
+- Not built yet: the import of the checked Excel; the « En ligne uniquement » document-type option for next year.
