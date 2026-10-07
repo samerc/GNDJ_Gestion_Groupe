@@ -6519,7 +6519,9 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   both resolve to the same main contact email (`ContactEmailResolver`) and NEITHER is protected (active maîtrise or
   group-level function, delegated access, super-admin). `POST /auth/switch-sibling {memberId}` (`SwitchToSiblingCommand`,
   needs a real device session, same maintenance gate, audited Login "Changement de compte", keeps the current
-  session's remember-me). `SwitchAccountDto.Passwordless`. Client `hooks/use-sibling-switch.tsx`: pooled → instant,
+  session's remember-me). `SwitchAccountDto.Passwordless` + `.Protected`; `MeResponse.ProtectedAccount`. A protected
+  account (incl. any members.edit function) is NEVER kept in the client account pool → its password is asked EVERY
+  time (2026-10-08). Client `hooks/use-sibling-switch.tsx`: pooled → instant,
   else passwordless → server, else password dialog once (used by the account menu and Ma famille).
 - **« Ma famille »** (`/ma-famille`, `GET /my-profile/family`, `GetMyFamilyQuery`): caller + confirmed siblings, each
   with the « Ma rentrée » to-do (`MemberTodo.ComputeAsync`, shared with GET /my-profile/todo); a protected sibling

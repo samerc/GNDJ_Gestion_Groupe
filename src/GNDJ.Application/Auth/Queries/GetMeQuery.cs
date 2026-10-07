@@ -95,7 +95,8 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             isMaitrise,
             needsContactReview,
             user.Member.AppInstalledAt != null,
-            isCampEtapiste
+            isCampEtapiste,
+            await GNDJ.Application.Members.FamilyAccess.IsProtectedAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken)
         ));
     }
 }

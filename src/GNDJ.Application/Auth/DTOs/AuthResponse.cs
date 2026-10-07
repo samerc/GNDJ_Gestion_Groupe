@@ -49,7 +49,10 @@ public record MeResponse(
     bool AppInstalled = false,
     // True when the member is an étapiste (head) of at least one game of a live Camp BP (not archived) — shows
     // the "Mes jeux" page, where they read each game's description to explain it during the camp.
-    bool IsCampEtapiste = false
+    bool IsCampEtapiste = false,
+    // True for a chef's account (maîtrise / leader / group function, delegated access, super-admin): the client never
+    // keeps it in the sibling-switch pool, so switching back to it always asks its password (Members/FamilyAccess).
+    bool ProtectedAccount = false
 );
 
 public record UnitAccessDto(

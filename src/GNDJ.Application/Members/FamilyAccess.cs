@@ -1,5 +1,6 @@
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Members;
@@ -7,11 +8,27 @@ namespace GNDJ.Application.Members;
 // Rules for moving between the accounts of one family (a CONFIRMED fratrie = same SiblingGroupId).
 //   • Switching WITHOUT a password is allowed when both accounts lead to the same main contact email (the parent
 //     already proved they own it) and NEITHER account is "protected".
-//   • Protected = holds an active maîtrise function, a group-level function, delegated access, or is super-admin:
-//     those accounts carry more than a child's data, so their password is always asked.
+//   • Protected = holds an active maîtrise function, a leader function (members.edit), a group-level function,
+//     delegated access, or is super-admin: those accounts carry more than a child's data, so their password is
+//     asked EVERY time (the client never remembers them in its account pool, and no password-free switch).
 //   • « Ma famille » shows each child's to-do, except for a protected sibling (name only).
 public static class FamilyAccess
 {
+    // An active post that makes an account "protected": maîtrise, group-level, or a function granting members.edit.
+    public static readonly System.Linq.Expressions.Expression<Func<MemberAssignment, bool>> LeaderPost = a =>
+        a.EndDate == null && !a.IsDeleted
+        && (a.FunctionalRole.IsMaitrise || a.FunctionalRole.SecurityProfile.IsGroupLevel
+            || a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit));
+
+    // Is this one account protected? (Same rule as LoadAsync, for the signed-in member's own account.)
+    public static async Task<bool> IsProtectedAsync(IApplicationDbContext ctx, Guid memberId, bool isSuperAdmin, CancellationToken ct)
+    {
+        if (isSuperAdmin) return true;
+        if (await ctx.MemberAssignments.Where(a => a.MemberId == memberId).AnyAsync(LeaderPost, ct)) return true;
+        return await ctx.Members.AnyAsync(m => m.Id == memberId
+            && (m.DelegatedPermissionsJson != null || m.DelegatedGroupAccess || m.DelegatedProfileId != null), ct);
+    }
+
     public record FamilyMember(Guid MemberId, string FirstName, string LastName, DateOnly? DateOfBirth,
         Guid? UserId, string? Username, bool Protected, string? MainEmail);
 
@@ -28,8 +45,7 @@ public static class FamilyAccess
             {
                 m.Id, m.FirstName, m.LastName, m.DateOfBirth, m.PrimaryContactEmail,
                 Delegated = m.DelegatedPermissionsJson != null || m.DelegatedGroupAccess || m.DelegatedProfileId != null,
-                Leader = m.Assignments.Any(a => a.EndDate == null && !a.IsDeleted
-                    && (a.FunctionalRole.IsMaitrise || a.FunctionalRole.SecurityProfile.IsGroupLevel)),
+                Leader = m.Assignments.AsQueryable().Any(LeaderPost),
                 User = ctx.Users.Where(u => u.MemberId == m.Id && u.IsActive && !u.IsDeleted)
                     .Select(u => new { u.Id, u.Email, u.IsSuperAdmin }).FirstOrDefault(),
             })

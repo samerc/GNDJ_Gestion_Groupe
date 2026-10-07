@@ -114,7 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   switchToAccount: async (memberId: string) => {
     const cur = get().user
     const curToken = getRefreshToken('member')
-    if (cur && curToken) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
+    if (cur && curToken && !cur.protectedAccount) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
 
     const target = getPooledAccount(memberId)
     if (!target?.refreshToken) throw new Error('NO_SESSION') // not remembered yet → caller prompts for the password
@@ -146,7 +146,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   switchSibling: async (memberId: string) => {
     const cur = get().user
     const curToken = getRefreshToken('member')
-    if (cur && curToken) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
+    if (cur && curToken && !cur.protectedAccount) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
     const { data } = await apiClient.post<AuthResponse>('/auth/switch-sibling', { memberId })
     setTokens('member', data.accessToken, data.refreshToken)
     queryClient.clear()
@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   addAndSwitchAccount: async (username: string, password: string) => {
     const cur = get().user
     const curToken = getRefreshToken('member')
-    if (cur && curToken) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
+    if (cur && curToken && !cur.protectedAccount) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
 
     const rememberMe = getRemember('member')
     const { data } = await apiClient.post<AuthResponse>('/auth/login', { email: username, password, rememberMe })
@@ -181,7 +181,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Keep the active account in the switch pool with its freshest refresh token + real display name, so
       // switching away (and back) works and the switcher can label it.
       const rt = getRefreshToken('member')
-      if (rt) savePooledAccount({ memberId: data.me.memberId, name: `${data.me.firstName} ${data.me.lastName}`, username: data.me.email, refreshToken: rt })
+      // A chef's account is never remembered for switching: its password is asked every time.
+      if (data.me.protectedAccount) removePooledAccount(data.me.memberId)
+      else if (rt) savePooledAccount({ memberId: data.me.memberId, name: `${data.me.firstName} ${data.me.lastName}`, username: data.me.email, refreshToken: rt })
       // Record the account IDENTITY in the persistent device list (survives logout) so it appears on the
       // « Choisir un compte » screen next time — see lib/device-accounts.
       rememberDeviceAccount({ memberId: data.me.memberId, name: `${data.me.firstName} ${data.me.lastName}`, username: data.me.email })

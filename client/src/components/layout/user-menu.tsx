@@ -128,11 +128,11 @@ export function UserMenu() {
                   <span className="flex-1 truncate">{acc.name}</span>
                   {switchingId === acc.memberId
                     ? <span className="text-xs text-muted-foreground">…</span>
-                    : pooledIds.has(acc.memberId) || acc.passwordless
+                    : !acc.protected && (pooledIds.has(acc.memberId) || acc.passwordless)
                       ? <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
                           title="Bascule immédiate, sans mot de passe">{pooledIds.has(acc.memberId) ? 'Mémorisé' : 'Sans mot de passe'}</span>
                       : <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
-                          title="La première bascule vers ce compte demandera son mot de passe">
+                          title={acc.protected ? 'Compte de chef : mot de passe demandé à chaque fois' : 'La première bascule vers ce compte demandera son mot de passe'}>
                           <KeyRound className="h-3 w-3" />Mot de passe
                         </span>}
                 </DropdownMenuItem>

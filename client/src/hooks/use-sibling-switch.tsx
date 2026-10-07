@@ -2,6 +2,7 @@
 // Order: (1) the account is remembered on this device → instant; (2) the server allows it without a password (same
 // main email, no maîtrise account on either side) → instant; (3) otherwise ask that account's password once
 // (the dialog returned by the hook). The current account stays in the device pool, so switching back works.
+// A chef's account (maîtrise / leader) is never remembered: its password is asked EVERY time.
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -14,7 +15,7 @@ import { RequiredLabel } from '@/components/shared/required-label'
 import { Callout } from '@/components/shared/callout'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
-export interface SwitchTarget { memberId: string; name: string; username: string; passwordless?: boolean }
+export interface SwitchTarget { memberId: string; name: string; username: string; passwordless?: boolean; protected?: boolean }
 
 export function useSiblingSwitch() {
   const { switchToAccount, switchSibling, addAndSwitchAccount } = useAuthStore()
@@ -33,6 +34,7 @@ export function useSiblingSwitch() {
   const switchTo = async (acc: SwitchTarget) => {
     setSwitchingId(acc.memberId)
     try {
+      if (acc.protected) { setPassword(''); setError(''); setPwTarget(acc); return }
       try {
         await switchToAccount(acc.memberId) // remembered on this device
         return done(acc.name)
@@ -76,8 +78,9 @@ export function useSiblingSwitch() {
         <DialogHeader><DialogTitle>Se connecter en tant que {pwTarget?.name}</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Entrez le mot de passe de ce compte une première fois. Il sera mémorisé sur cet appareil pour
-            changer de compte instantanément ensuite.
+            {pwTarget?.protected
+              ? 'Compte de chef : son mot de passe est demandé à chaque changement de compte.'
+              : 'Entrez le mot de passe de ce compte une première fois. Il sera mémorisé sur cet appareil pour changer de compte instantanément ensuite.'}
           </p>
           {error && <Callout tone="danger">{error}</Callout>}
           <div className="space-y-2">

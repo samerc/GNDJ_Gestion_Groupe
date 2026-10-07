@@ -169,6 +169,8 @@ export interface SwitchAccountDto {
   username: string
   // No password needed: same main email and no maîtrise account on either side.
   passwordless: boolean
+  // A chef's account (maîtrise / leader): its password is asked every time.
+  protected: boolean
 }
 
 // The caller's confirmed-sibling accounts (auth-only; empty when the member has no confirmed fratrie). Powers

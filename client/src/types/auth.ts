@@ -43,6 +43,8 @@ export interface MeResponse {
   appInstalled?: boolean
   // Étapiste of a game in a live Camp BP → "Mes jeux" page (read each game's description).
   isCampEtapiste?: boolean
+  // A chef's account: never kept in the sibling-switch pool (its password is asked every time).
+  protectedAccount?: boolean
 }
 
 export interface UnitAccess {

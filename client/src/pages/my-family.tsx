@@ -24,7 +24,7 @@ export default function MyFamilyPage() {
 
   const open = (c: FamilyChild) => {
     const acc = accounts?.find((a) => a.memberId === c.memberId)
-    if (acc) void switchTo({ ...acc, passwordless: c.passwordless })
+    if (acc) void switchTo({ ...acc, passwordless: c.passwordless, protected: c.protected })
   }
 
   return (
@@ -71,7 +71,7 @@ export default function MyFamilyPage() {
                       )
                     ) : (
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <ShieldCheck className="h-4 w-4 shrink-0" />Compte de chef : son mot de passe est demandé.
+                        <ShieldCheck className="h-4 w-4 shrink-0" />Compte de chef : son mot de passe est demandé à chaque fois.
                       </p>
                     )}
                   </div>
