@@ -7,16 +7,20 @@ namespace FicheOcr;
 /// turned upright (EXIF) and shrunk so the longest side is at most <c>maxPixels</c>.</summary>
 public static class PageImages
 {
-    public static List<byte[]> Load(IEnumerable<string> files, int maxPages, int maxPixels, int dpi)
+    /// <summary>Renders at most <c>maxPages</c> pages; <c>totalPages</c> = all pages of the document (files + PDF
+    /// pages), so a skipped back page can be flagged.</summary>
+    public static List<byte[]> Load(IEnumerable<string> files, int maxPages, int maxPixels, int dpi, out int totalPages)
     {
         var pages = new List<byte[]>();
+        totalPages = 0;
         foreach (var file in files)
         {
-            if (pages.Count >= maxPages) break;
+            if (pages.Count >= maxPages) { totalPages++; continue; } // a further file = at least one more page
             var bytes = File.ReadAllBytes(file);
             if (IsPdf(bytes))
             {
                 var count = Conversion.GetPageCount(bytes);
+                totalPages += count;
                 for (var i = 0; i < count && pages.Count < maxPages; i++)
                 {
                     using var bmp = Conversion.ToImage(bytes, page: i, options: new RenderOptions(Dpi: dpi));
@@ -27,6 +31,7 @@ public static class PageImages
             {
                 using var bmp = DecodeUpright(bytes) ?? throw new InvalidDataException($"Image illisible : {Path.GetFileName(file)}");
                 pages.Add(EncodeShrunk(bmp, maxPixels));
+                totalPages++;
             }
         }
         return pages;

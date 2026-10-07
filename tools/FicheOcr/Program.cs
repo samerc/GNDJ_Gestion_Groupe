@@ -142,11 +142,14 @@ using (runLock)
             var absent = files.FirstOrDefault(f => !File.Exists(f));
             if (absent is not null) throw new FileNotFoundException($"Fichier introuvable : {absent}");
 
-            var pages = PageImages.Load(files, opt.MaxPages, opt.MaxPixels, opt.Dpi);
+            var pages = PageImages.Load(files, opt.MaxPages, opt.MaxPixels, opt.Dpi, out var totalPages);
             var reading = await ollama.ReadAsync(pages, cts.Token);
             var reasons = new List<string>();
             var values = FicheFields.Check(reading.Values, reading.IsFiche, reading.Signed, d.MemberBloodType, reasons);
-            if (d.Pages.Count > opt.MaxPages) reasons.Add($"Seules les {opt.MaxPages} premières pages ont été lues");
+            if (totalPages > pages.Count)
+                reasons.Add(pages.Count == 1
+                    ? $"Pages non lues : seule la 1re page a été lue (le document en a {totalPages}+)"
+                    : $"Pages non lues : seules les {pages.Count} premières pages ont été lues (le document en a {totalPages}+)");
             result = MakeResult(d, true, null, values, reading.IsFiche, reading.Signed, reasons, sw.Elapsed.TotalSeconds, opt.Model);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested) { break; }
@@ -212,7 +215,8 @@ record Options
     public int Trial { get; init; }
     public int Limit { get; init; }
     public TimeOnly? Until { get; init; }
-    public int MaxPages { get; init; } = 3;
+    // First page only by default: the fiche fits on one page and each extra page costs as much time as the first.
+    public int MaxPages { get; init; } = 1;
     public int MaxPixels { get; init; } = 1600;
     public int Dpi { get; init; } = 150;
     public bool AllMembers { get; init; }
@@ -291,6 +295,7 @@ record Options
           --manifest <fichier>  lit les fiches d'un export au lieu de la base
           --connection <cs>     chaîne de connexion (sinon lue dans les appsettings du site)
           --doc-type <code>     type de document                                             [FM]
-          --max-pages / --max-px / --dpi / --ollama <url> / --app-url <url>
+          --max-pages <N>       pages lues par fiche                                          [1]
+          --max-px / --dpi / --ollama <url> / --app-url <url>
         """);
 }

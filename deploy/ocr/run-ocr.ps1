@@ -22,6 +22,7 @@ param(
     [string[]]$Unit = @(),
     [switch]$ListUnits,
     [int]$Threads = 4,
+    [int]$MaxPages = 1,       # pages read per fiche (first page only by default; longer documents are flagged)
     [int]$Trial = 0,
     [int]$Limit = 0,
     [switch]$RetryErrors,
@@ -58,7 +59,7 @@ try {
     $started = Start-OllamaIfNeeded -OllamaExe (Join-Path $OllamaDir 'ollama.exe') -ModelsDir (Join-Path $OllamaDir 'models')
     if ($started) { Log "Ollama started (pid $($started.Id))." } else { Log 'Ollama already running.' }
 
-    $argList = @('--site', $SiteDir, '--out', $OutDir, '--model', $Model, '--threads', $Threads)
+    $argList = @('--site', $SiteDir, '--out', $OutDir, '--model', $Model, '--threads', $Threads, '--max-pages', $MaxPages)
     if ($Until) { $argList += @('--until', $Until) }
     if ($Unit.Count -gt 0) { $argList += @('--unit', ($Unit -join ',')) }
     if ($Trial -gt 0) { $argList += @('--essai', $Trial) }

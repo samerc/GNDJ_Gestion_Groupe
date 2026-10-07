@@ -16,7 +16,7 @@ public record FicheResult(
         if (!Ok || Values is null) return this;
         var reasons = new List<string>();
         var values = FicheFields.Check(Values, IsFiche, Signed, MemberBloodType, reasons);
-        reasons.AddRange(Reasons.Where(r => r.StartsWith("Seules les", StringComparison.Ordinal)
+        reasons.AddRange(Reasons.Where(r => (r.StartsWith("Seules les", StringComparison.Ordinal) || r.StartsWith("Pages non lues", StringComparison.Ordinal))
             // Rows read by an older version have no MemberBloodType: keep their blood-type comparison as it was.
             || (MemberBloodType is null && IsFiche && r.StartsWith("Groupe sanguin différent", StringComparison.Ordinal))));
         return this with { Values = values, Reasons = reasons };
