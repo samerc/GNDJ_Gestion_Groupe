@@ -301,7 +301,7 @@ Dans l'éditeur du modèle, **cliquez sur une ligne ou un cadre à remplir** : u
   réponses sont aussi écrites dans l'onglet **Médical** du membre (une ligne par réponse, « Libellé : réponse »).
   Une partie laissée vide ne touche pas ce qui est déjà sur la fiche. Les lignes liées apparaissent teintées dans
   l'éditeur. La fiche médicale est déjà réglée ainsi (groupe sanguin, vaccins en dates, allergies, antécédents,
-  médecin…) et elle est remplissable en ligne par défaut.
+  médecin…) ; cochez « Remplissable en ligne » pour l'ouvrir aux familles.
 - **D'une année à l'autre** : le formulaire s'ouvre déjà rempli avec les réponses données la dernière fois (et le
   dernier signataire) ; la famille vérifie, corrige si besoin et signe. La date de signature est celle du jour.
 
