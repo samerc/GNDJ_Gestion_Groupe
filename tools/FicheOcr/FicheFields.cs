@@ -56,6 +56,7 @@ public static class FicheFields
         sb.AppendLine($"- Something is written but you cannot read it with confidence: return \"{Unreadable}\" for that key.");
         sb.AppendLine("- Dates: return them as DD/MM/YYYY when the full date is readable, otherwise as written.");
         sb.AppendLine("- If a page is rotated or upside down, still read it.");
+        sb.AppendLine("- If these pages are NOT this medical form (an authorization, an ID card, another document): set estFicheMedicale to false and return \"\" for every answer.");
         return sb.ToString();
     }
 
@@ -78,6 +79,14 @@ public static class FicheFields
     {
         var clean = new Dictionary<string, string>();
         var illegible = new List<string>();
+        if (!isFiche)
+        {
+            // Another document uploaded as the fiche (an autorisation, an old form…): whatever the model read on it
+            // is not a medical answer — keep the boxes empty and only say so.
+            foreach (var f in All) clean[f.Key] = "";
+            reasons.Add("Ce document ne semble pas être une fiche médicale");
+            return clean;
+        }
         foreach (var f in All)
         {
             var v = (raw.TryGetValue(f.Key, out var x) ? x : "").Trim();
@@ -106,8 +115,7 @@ public static class FicheFields
             }
         }
         if (illegible.Count > 0) reasons.Insert(0, "Illisible : " + string.Join(", ", illegible));
-        if (!isFiche) reasons.Insert(0, "Ce document ne semble pas être une fiche médicale");
-        else if (clean.Values.All(v => v.Length == 0)) reasons.Add("Aucune réponse lue (fiche vide ?)");
+        if (clean.Values.All(v => v.Length == 0)) reasons.Add("Aucune réponse lue (fiche vide ?)");
         if (!signed) reasons.Add("Pas de signature détectée");
         return clean;
     }
@@ -125,14 +133,38 @@ public static class FicheFields
     static readonly string[] DateFormats =
         ["d/M/yyyy", "d-M-yyyy", "d.M.yyyy", "d/M/yy", "d-M-yy", "d.M.yy", "yyyy-M-d", "d M yyyy"];
 
-    /// <summary>Returns (value to keep, problem or null). A full date becomes DD/MM/YYYY.</summary>
+    // French month names / abbreviations → month number (keys without accents, lower case).
+    static readonly (string Name, int Month)[] Months =
+    [
+        ("janvier", 1), ("janv", 1), ("jan", 1), ("fevrier", 2), ("fevr", 2), ("fev", 2), ("mars", 3), ("mar", 3),
+        ("avril", 4), ("avr", 4), ("mai", 5), ("juin", 6), ("juillet", 7), ("juil", 7), ("aout", 8),
+        ("septembre", 9), ("sept", 9), ("sep", 9), ("octobre", 10), ("oct", 10), ("novembre", 11), ("nov", 11),
+        ("decembre", 12), ("dec", 12),
+    ];
+
+    /// <summary>Returns (value to keep, problem or null). A full date becomes DD/MM/YYYY; a year alone (« 2013 ») or
+    /// a month and year (« 05/2013 ») is a valid answer on paper and is kept as written.</summary>
     public static (string Value, string? Problem) NormalizeDate(string v)
     {
         var s = v.Trim();
+        // « 20 sept 2026 », « 20 septembre 2026 » → 20/9/2026
+        var words = RemoveDiacritics(s).ToLowerInvariant().Replace(".", " ").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 3 && Months.FirstOrDefault(m => m.Name == words[1]) is { Month: > 0 } month)
+            s = $"{words[0]}/{month.Month}/{words[2]}";
+
         if (DateTime.TryParseExact(s, DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
         {
             if (d.Year < 1990 || d > DateTime.Today.AddDays(1)) return (d.ToString("dd/MM/yyyy"), $"date improbable « {v} »");
             return (d.ToString("dd/MM/yyyy"), null);
+        }
+        var partial = System.Text.RegularExpressions.Regex.Match(s, @"^(?:(\d{1,2})\s*[/.-]\s*)?((?:19|20)\d{2})$");
+        if (partial.Success)
+        {
+            var year = int.Parse(partial.Groups[2].Value, CultureInfo.InvariantCulture);
+            var mon = partial.Groups[1].Success ? int.Parse(partial.Groups[1].Value, CultureInfo.InvariantCulture) : 1;
+            if (year >= 1990 && year <= DateTime.Today.Year && mon is >= 1 and <= 12)
+                return (partial.Groups[1].Success ? $"{mon:00}/{year}" : $"{year}", null);
+            return (s, $"date improbable « {v} »");
         }
         // Answers such as « non », « - », « aucun » are not dates: keep them, no flag.
         if (!s.Any(char.IsDigit)) return (s, null);

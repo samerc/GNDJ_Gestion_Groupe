@@ -8,7 +8,18 @@ public record FicheResult(
     Guid DocumentId, Guid MemberId, string LastName, string FirstName, string? CardNumber, string? UnitCode,
     string? UnitName, string Status, DateTime UploadedAt, int PageCount, string FirstFile,
     bool Ok, string? Error, Dictionary<string, string>? Values, bool IsFiche, bool Signed,
-    List<string> Reasons, double Seconds, DateTime ProcessedAt, string Model);
+    List<string> Reasons, double Seconds, DateTime ProcessedAt, string Model, string? MemberBloodType = null)
+{
+    /// <summary>The checks re-applied to the stored values, so rows read earlier follow the current rules.</summary>
+    public FicheResult Rechecked()
+    {
+        if (!Ok || Values is null) return this;
+        var reasons = new List<string>();
+        var values = FicheFields.Check(Values, IsFiche, Signed, MemberBloodType, reasons);
+        reasons.AddRange(Reasons.Where(r => r.StartsWith("Seules les", StringComparison.Ordinal)));
+        return this with { Values = values, Reasons = reasons };
+    }
+}
 
 public sealed class ResultStore
 {

@@ -65,6 +65,15 @@ if (opt.Export is not null)
     return 0;
 }
 
+if (opt.Report)
+{
+    // Rewrites the Excel from the saved results (current checks), without reading any fiche.
+    var reportDir = opt.Trial > 0 ? Path.Combine(opt.Out, "essai") : opt.Out;
+    var saved = new ResultStore(reportDir);
+    Console.WriteLine($"Excel : {ExcelReport.Write(saved.All, reportDir, opt.AppUrl, filesRoot, allDocsCount)} ({saved.All.Count} fiche(s)).");
+    return 0;
+}
+
 using var ollama = new OllamaClient(opt.OllamaUrl, opt.Model, opt.Threads);
 
 if (opt.Check)
@@ -180,7 +189,7 @@ static FicheResult MakeResult(FicheDoc d, bool ok, string? error, Dictionary<str
     bool signed, List<string> reasons, double seconds, string model) =>
     new(d.DocumentId, d.MemberId, d.LastName, d.FirstName, d.CardNumber, d.UnitCode, d.UnitName, d.Status,
         d.UploadedAt, d.Pages.Count, d.Pages[0].Path, ok, error, values, isFiche, signed, reasons, seconds,
-        DateTime.Now, model);
+        DateTime.Now, model, d.MemberBloodType);
 
 // "06:00" → the next 06:00 from now (tomorrow when it has passed).
 static DateTime NextOccurrence(TimeOnly t)
@@ -210,6 +219,7 @@ record Options
     public bool RetryErrors { get; init; }
     public bool Check { get; init; }
     public bool ListUnits { get; init; }
+    public bool Report { get; init; }
     public List<string> Units { get; init; } = [];
     public string? Export { get; init; }
     public string? Manifest { get; init; }
@@ -243,6 +253,7 @@ record Options
                     "--retry-errors" => o with { RetryErrors = true },
                     "--check" => o with { Check = true },
                     "--list-units" => o with { ListUnits = true },
+                    "--report" => o with { Report = true },
                     "--unit" => o with { Units = [.. o.Units, .. Next().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)] },
                     "--export" => o with { Export = Next() },
                     "--manifest" => o with { Manifest = Next() },
@@ -267,6 +278,7 @@ record Options
           --out <dossier>       dossier des résultats (hors du site !)                      [C:\gndj-ocr]
           --unit <code>         seulement cette unité (code, ex. C1 ; plusieurs : C1,T3)
           --list-units          liste les unités, avec les fiches lues et restantes
+          --report              réécrit l'Excel à partir des résultats déjà lus (sans relire)
           --essai <N>           mode essai : N fiches, résultats dans <out>\essai
           --until HH:mm         s'arrête avant de commencer une fiche après cette heure (ex. 06:00)
           --limit <N>           lit au plus N fiches pendant ce passage

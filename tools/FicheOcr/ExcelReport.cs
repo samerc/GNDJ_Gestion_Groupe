@@ -13,6 +13,7 @@ public static class ExcelReport
     public static string Write(IEnumerable<FicheResult> results, string outDir, string appUrl, string siteRoot, int totalDocs)
     {
         using var wb = new XLWorkbook();
+        results = results.Select(r => r.Rechecked()).ToList();
         var ok = results.Where(r => r.Ok).OrderBy(r => r.UnitCode ?? "~").ThenBy(r => r.LastName).ThenBy(r => r.FirstName).ToList();
         var errors = results.Where(r => !r.Ok).OrderBy(r => r.UnitCode ?? "~").ThenBy(r => r.LastName).ToList();
 

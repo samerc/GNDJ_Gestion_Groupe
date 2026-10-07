@@ -6495,7 +6495,10 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   (Lisez-moi / Fiches / Erreurs; column labels = the online form labels; hidden MemberId/DocumentId for a future
   import into member_form_answers + the Médical tab). Resumable via `resultats.jsonl`; Ollama down/slow is NOT saved
   (retried next run, 3 in a row = stop); `--essai N` (separate `essai` folder), `--until HH:mm`, `--export` /
-  `--manifest` (laptop), `--check`. Lock file prevents two runs on one folder.
+  `--manifest` (laptop), `--check`. Lock file prevents two runs on one folder. `--report` rewrites the Excel from resultats.jsonl; the checks are
+  RE-APPLIED at every Excel write (`FicheResult.Rechecked`), so rule changes reach rows read earlier. Rules after the
+  first real run (prod, 4 Clan fiches, ~4–6 min/fiche at 6 threads): not-a-fiche → all boxes empty; a year or
+  month/year alone is a valid vaccine date (no flag); French month names (« 20 sept 2026 ») parsed.
 - Server: `deploy/ocr/setup-ocr.ps1` (elevated: Ollama zip → C:\ollama, model pulled ON THE SERVER, publish to
   C:\gndj-ocr\tool, ACL admins+SYSTEM, optional night task `GNDJ-FicheOcr` registered DISABLED) and `run-ocr.ps1`, run
   ON DEMAND (`-ListUnits`, `-Unit C1[,T3]` = FicheOcr `--list-units`/`--unit`, `-Trial N`, optional `-Until HH:mm`;
