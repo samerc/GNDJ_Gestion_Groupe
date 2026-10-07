@@ -7,7 +7,8 @@
 #   2. Downloads the vision model (~6 GB) into C:\ollama\models
 #   3. Builds FicheOcr into C:\gndj-ocr\tool
 #   4. Locks C:\gndj-ocr to Administrators + SYSTEM (the results are medical data)
-#   5. Registers the night task "GNDJ-FicheOcr" (23:00), DISABLED until you enable it after the trial
+#   5. Registers an OPTIONAL night task "GNDJ-FicheOcr" (23:00-06:00), DISABLED: runs are on demand with
+#      run-ocr.ps1 (-ListUnits, -Unit C1, -Trial 20)
 #
 # Ollama only listens on 127.0.0.1 (never on the network); nothing is opened in the firewall or IIS.
 # Everything here is ASCII on purpose (Windows PowerShell 5.1 reads non-BOM scripts as ANSI).
@@ -83,7 +84,7 @@ Write-Host "$OutDir is readable by Administrators and SYSTEM only."
 # ---- 5. Night task ----
 $runScript = Join-Path $PSScriptRoot 'run-ocr.ps1'
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$runScript`" -OutDir `"$OutDir`" -OllamaDir `"$OllamaDir`" -Model $Model"
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$runScript`" -OutDir `"$OutDir`" -OllamaDir `"$OllamaDir`" -Model $Model -Until 06:00 -Night"
 $trigger = New-ScheduledTaskTrigger -Daily -At $StartAt
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 8) -Priority 7 `
     -MultipleInstances IgnoreNew -StartWhenAvailable:$false
@@ -95,7 +96,8 @@ if ($EnableNightly) {
     Write-Host "Night task GNDJ-FicheOcr registered and ENABLED ($StartAt)."
 } else {
     Disable-ScheduledTask -TaskName 'GNDJ-FicheOcr' | Out-Null
-    Write-Host "Night task GNDJ-FicheOcr registered but DISABLED. Run the trial first:"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File deploy\ocr\run-ocr.ps1 -Trial 20 -Until ''"
-    Write-Host "then enable it: Enable-ScheduledTask -TaskName GNDJ-FicheOcr"
+    Write-Host "Optional night task GNDJ-FicheOcr registered but DISABLED: runs are on demand."
+    Write-Host "  List the units: powershell -ExecutionPolicy Bypass -File deploy\ocr\run-ocr.ps1 -ListUnits"
+    Write-Host "  Read one unit:  powershell -ExecutionPolicy Bypass -File deploy\ocr\run-ocr.ps1 -Unit C1"
+    Write-Host "  Nightly runs:   Enable-ScheduledTask -TaskName GNDJ-FicheOcr"
 }

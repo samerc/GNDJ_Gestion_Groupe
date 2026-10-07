@@ -37,35 +37,39 @@ Le script :
 2. télécharge le modèle **`qwen2.5vl:7b`** (~6 Go, reprend si coupé) dans `C:\ollama\models` ;
 3. compile le programme dans `C:\gndj-ocr\tool` (le SDK .NET est déjà sur le serveur) ;
 4. réserve `C:\gndj-ocr` aux administrateurs et à SYSTEM (données médicales) ;
-5. crée la tâche de nuit **GNDJ-FicheOcr** (23:00) **désactivée**.
+5. crée une tâche de nuit **GNDJ-FicheOcr** (23:00–06:00), **désactivée** : par défaut on lance à la demande.
 
 Si le téléchargement d'Ollama est bloqué, téléchargez `ollama-windows-amd64.zip` à la main depuis
 <https://github.com/ollama/ollama/releases> et passez `-OllamaZip C:\chemin\ollama-windows-amd64.zip`.
 
-## Essai (20 fiches)
+## Lancer à la demande
+
+Dans un PowerShell administrateur, depuis le clone du dépôt (`$r` = le script) :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File deploy\ocr\run-ocr.ps1 -Trial 20 -Until ''
+$r = 'deploy\ocr\run-ocr.ps1'
+powershell -ExecutionPolicy Bypass -File $r -ListUnits        # unités : fiches, traitées, restantes
+powershell -ExecutionPolicy Bypass -File $r -Unit C1          # une unité (plusieurs : -Unit C1,T3)
+powershell -ExecutionPolicy Bypass -File $r -Trial 20         # essai : 20 fiches au hasard, dans C:\gndj-ocr\essai
+powershell -ExecutionPolicy Bypass -File $r                   # tout ce qui reste
+powershell -ExecutionPolicy Bypass -File $r -Unit C1 -Until 18:00   # s'arrête avant 18:00
 ```
 
-Résultat dans `C:\gndj-ocr\essai\fiches-medicales.xlsx` ; le journal dans `C:\gndj-ocr\logs`. Lancez-le un soir
-(le serveur est partagé). Comparez quelques lignes avec les scans : si la qualité convient, activez la nuit :
+- Les fiches déjà lues sont sautées : les passages s'additionnent dans **un seul Excel**
+  (`C:\gndj-ocr\fiches-medicales.xlsx`, toutes les unités lues jusque-là). Le journal est dans `C:\gndj-ocr\logs`.
+- **Ctrl+C** arrête proprement : la fiche en cours se termine et l'Excel est écrit.
+- Ollama démarre (priorité basse, 1 modèle, 1 fiche à la fois, 4 cœurs sur 8 avec `-Threads`) puis **s'arrête** à la
+  fin (libère ~8 Go de mémoire). Le site reste prioritaire, mais évitez les heures de pointe.
+- Compter **quelques minutes par fiche** (processeur, pas de carte graphique) : une unité de ~70 fiches ≈ quelques
+  heures. Le « Temps moyen par fiche » est affiché à la fin de chaque passage.
+- Relire les fiches en erreur : ajoutez `-RetryErrors`.
 
-```powershell
-Enable-ScheduledTask -TaskName GNDJ-FicheOcr
-```
+## Option : la nuit
 
-## Fonctionnement de nuit
-
-- 23:00 → démarre Ollama (priorité basse, 1 modèle, 1 fiche à la fois), lit les fiches **jusqu'à 06:00** (ne
-  commence plus de fiche après), écrit l'Excel, **arrête Ollama** (libère ~8 Go de mémoire pour la journée).
-- 4 cœurs sur 8 (`-Threads`), priorité basse : le site reste prioritaire.
-- Compter **quelques minutes par fiche** sur le processeur (pas de carte graphique) : ~800 fiches ≈ 1 à 2 semaines
-  de nuits. Le « Temps moyen par fiche » est affiché à la fin de chaque passage.
-- **Pause** (inscriptions, rentrée…) : créez le fichier `C:\gndj-ocr\PAUSE` ; supprimez-le pour reprendre.
-- Relire les fiches en erreur : `run-ocr.ps1 -RetryErrors`.
-- Une fois tout lu : `Disable-ScheduledTask -TaskName GNDJ-FicheOcr`, puis supprimez le modèle si besoin
-  (`C:\ollama\ollama.exe rm qwen2.5vl:7b`, avec `OLLAMA_MODELS=C:\ollama\models`).
+`Enable-ScheduledTask -TaskName GNDJ-FicheOcr` lance tout ce qui reste chaque nuit de 23:00 à 06:00. Pause (inscriptions,
+rentrée…) : créez le fichier `C:\gndj-ocr\PAUSE` (la tâche de nuit le respecte ; les lancements à la demande non).
+Une fois tout lu : `Disable-ScheduledTask -TaskName GNDJ-FicheOcr`, puis supprimez le modèle si besoin
+(`C:\ollama\ollama.exe rm qwen2.5vl:7b`, avec `OLLAMA_MODELS=C:\ollama\models`).
 
 ## Sur un autre PC (portable)
 

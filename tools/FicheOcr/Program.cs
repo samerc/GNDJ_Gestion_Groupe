@@ -33,6 +33,31 @@ else
     filesRoot = opt.Site;
 }
 Console.WriteLine($"{docs.Count} fiche(s) « {opt.DocType} » trouvée(s) (une par membre).");
+var allDocsCount = docs.Count; // for the Excel summary, which always covers every unit read so far
+
+if (opt.ListUnits)
+{
+    // Units with their fiches, and how many are already read (main results folder).
+    var read = new ResultStore(opt.Out);
+    Console.WriteLine();
+    Console.WriteLine("Unité      Fiches  Traitées  Restantes");
+    foreach (var g in docs.GroupBy(d => d.UnitCode ?? "-").OrderBy(g => g.Key))
+    {
+        var n = g.Count(d => read.IsDone(d.DocumentId, retryErrors: false));
+        Console.WriteLine($"{g.Key,-10} {g.Count(),6} {n,9} {g.Count() - n,10}");
+    }
+    return 0;
+}
+
+if (opt.Units.Count > 0)
+{
+    var unknown = opt.Units.Where(u => !docs.Any(d => string.Equals(d.UnitCode, u, StringComparison.OrdinalIgnoreCase))).ToList();
+    if (unknown.Count > 0)
+        Console.WriteLine($"Aucune fiche pour : {string.Join(", ", unknown)} (voir --list-units).");
+    docs = docs.Where(d => opt.Units.Any(u => string.Equals(d.UnitCode, u, StringComparison.OrdinalIgnoreCase))).ToList();
+    Console.WriteLine($"Unité(s) {string.Join(", ", opt.Units)} : {docs.Count} fiche(s).");
+    if (docs.Count == 0) return 0;
+}
 
 if (opt.Export is not null)
 {
@@ -135,17 +160,18 @@ using (runLock)
                           (result.Ok ? $"{(result.Reasons.Count > 0 ? "à vérifier" : "OK")}" : $"ERREUR : {result.Error}") +
                           $" — {result.Seconds:0}s");
 
-        if (done % 10 == 0) ExcelReport.Write(store.All, outDir, opt.AppUrl, filesRoot, docs.Count);
+        if (done % 10 == 0) ExcelReport.Write(store.All, outDir, opt.AppUrl, filesRoot, allDocsCount);
     }
 
-    var path = ExcelReport.Write(store.All, outDir, opt.AppUrl, filesRoot, docs.Count);
-    var ok = store.All.Count(r => r.Ok);
+    var path = ExcelReport.Write(store.All, outDir, opt.AppUrl, filesRoot, allDocsCount);
+    // Figures for the fiches chosen in this run (one unit, or all).
+    var mine = store.All.Where(r => docs.Any(d => d.DocumentId == r.DocumentId)).ToList();
     Console.WriteLine($"Excel : {path}");
-    Console.WriteLine($"Total lu : {ok}/{docs.Count}, dont {store.All.Count(r => r.Ok && r.Reasons.Count > 0)} à vérifier ; erreurs : {store.All.Count(r => !r.Ok)}.");
+    Console.WriteLine($"Lues : {mine.Count(r => r.Ok)}/{docs.Count}, dont {mine.Count(r => r.Ok && r.Reasons.Count > 0)} à vérifier ; erreurs : {mine.Count(r => !r.Ok)}.");
     if (done > 0)
     {
         var avg = store.All.Where(r => r.Ok).Select(r => r.Seconds).DefaultIfEmpty(0).Average();
-        Console.WriteLine($"Temps moyen par fiche : {avg:0}s. Restant : {docs.Count - store.All.Count} fiche(s).");
+        Console.WriteLine($"Temps moyen par fiche : {avg:0}s. Restant : {docs.Count - mine.Count} fiche(s).");
     }
 }
 return 0;
@@ -183,6 +209,8 @@ record Options
     public bool AllMembers { get; init; }
     public bool RetryErrors { get; init; }
     public bool Check { get; init; }
+    public bool ListUnits { get; init; }
+    public List<string> Units { get; init; } = [];
     public string? Export { get; init; }
     public string? Manifest { get; init; }
 
@@ -214,6 +242,8 @@ record Options
                     "--all-members" => o with { AllMembers = true },
                     "--retry-errors" => o with { RetryErrors = true },
                     "--check" => o with { Check = true },
+                    "--list-units" => o with { ListUnits = true },
+                    "--unit" => o with { Units = [.. o.Units, .. Next().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)] },
                     "--export" => o with { Export = Next() },
                     "--manifest" => o with { Manifest = Next() },
                     "-h" or "--help" => null,
@@ -235,6 +265,8 @@ record Options
 
           --site <dossier>      dossier du site (uploads\ + appsettings.Production.json)   [dossier courant]
           --out <dossier>       dossier des résultats (hors du site !)                      [C:\gndj-ocr]
+          --unit <code>         seulement cette unité (code, ex. C1 ; plusieurs : C1,T3)
+          --list-units          liste les unités, avec les fiches lues et restantes
           --essai <N>           mode essai : N fiches, résultats dans <out>\essai
           --until HH:mm         s'arrête avant de commencer une fiche après cette heure (ex. 06:00)
           --limit <N>           lit au plus N fiches pendant ce passage

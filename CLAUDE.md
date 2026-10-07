@@ -6497,7 +6497,9 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   (retried next run, 3 in a row = stop); `--essai N` (separate `essai` folder), `--until HH:mm`, `--export` /
   `--manifest` (laptop), `--check`. Lock file prevents two runs on one folder.
 - Server: `deploy/ocr/setup-ocr.ps1` (elevated: Ollama zip → C:\ollama, model pulled ON THE SERVER, publish to
-  C:\gndj-ocr\tool, ACL admins+SYSTEM, task `GNDJ-FicheOcr` 23:00 registered DISABLED) and `run-ocr.ps1` (starts
-  Ollama 127.0.0.1 below-normal, runs until 06:00, stops Ollama; `C:\gndj-ocr\PAUSE` skips nights). Tested here
+  C:\gndj-ocr\tool, ACL admins+SYSTEM, optional night task `GNDJ-FicheOcr` registered DISABLED) and `run-ocr.ps1`, run
+  ON DEMAND (`-ListUnits`, `-Unit C1[,T3]` = FicheOcr `--list-units`/`--unit`, `-Trial N`, optional `-Until HH:mm`;
+  starts Ollama 127.0.0.1 below-normal, stops it after; runs add up in one Excel; the night task passes
+  `-Until 06:00 -Night` and only it honours `C:\gndj-ocr\PAUSE`). Tested here
   against a fake Ollama (rotation, flags, resume, export/manifest, script wrapper); the real model is only on the server.
 - Not built yet: the import of the checked Excel; the « En ligne uniquement » document-type option for next year.
