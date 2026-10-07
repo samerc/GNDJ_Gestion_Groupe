@@ -86,6 +86,7 @@ public interface IApplicationDbContext
     DbSet<MemberDuplicateRejection> MemberDuplicateRejections { get; }
     DbSet<SiblingReport> SiblingReports { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<MemberFormAnswers> MemberFormAnswers { get; }
     DbSet<NotificationBroadcast> NotificationBroadcasts { get; }
     DbSet<ContactMessage> ContactMessages { get; }
     DbSet<ContactMessageReply> ContactMessageReplies { get; }

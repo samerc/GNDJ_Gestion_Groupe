@@ -58,6 +58,8 @@ public class MemberMergeService : IMemberMergeService
                 await Exec("DELETE FROM member_custom_field_values l WHERE l.member_id = {1} AND EXISTS (SELECT 1 FROM member_custom_field_values k WHERE k.member_id = {0} AND k.custom_field_id = l.custom_field_id)", p, ct);
                 await Exec("UPDATE member_custom_field_values SET member_id = {0} WHERE member_id = {1}", p, ct);
                 // Camp participants (one per camp).
+                await Exec("DELETE FROM member_form_answers l WHERE l.member_id = {1} AND EXISTS (SELECT 1 FROM member_form_answers k WHERE k.member_id = {0} AND k.document_type_id = l.document_type_id)", p, ct);
+                await Exec("UPDATE member_form_answers SET member_id = {0} WHERE member_id = {1}", p, ct);
                 await Exec("DELETE FROM camp_participants l WHERE l.member_id = {1} AND EXISTS (SELECT 1 FROM camp_participants k WHERE k.member_id = {0} AND k.camp_id = l.camp_id)", p, ct);
                 await Exec("UPDATE camp_participants SET member_id = {0} WHERE member_id = {1}", p, ct);
                 // Camp game étapistes (one per game).

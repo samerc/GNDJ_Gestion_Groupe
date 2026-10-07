@@ -39,4 +39,6 @@ public static class TemplateFormAnswers
     // Member-file fields an answer can be saved into (data-save on a blank).
     public const string SaveAllergies = "allergies";
     public const string SaveMedicalNotes = "medicalNotes";
+    public const string SaveBloodType = "bloodType";
+    public static readonly string[] BloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 }

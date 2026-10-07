@@ -44,8 +44,53 @@ internal static class OnlineFormGate
     public static string Hash(string html) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(html)))[..16].ToLowerInvariant();
 }
 
+// Prefill = starting answers (key -> value): the answers given last time for this document (matched by label, so a
+// template edited since still pre-fills what it can), the member's current blood type for a blank linked to it,
+// and today for a plain « Date » blank (the signing date). SignerName / SignerRelation = last signer.
 public record OnlineDocumentFormDto(Guid DocumentTypeId, string DocumentTypeName, string MemberName, string Html,
-    IReadOnlyList<TemplateFormField> Fields, string TemplateHash);
+    IReadOnlyList<TemplateFormField> Fields, string TemplateHash,
+    IReadOnlyDictionary<string, string>? Prefill = null, string? SignerName = null, string? SignerRelation = null);
+
+// One remembered answer (MemberFormAnswers.AnswersJson).
+internal record SavedFormAnswer(string Key, string? Label, string Kind, string Value);
+
+internal static class OnlineFormPrefill
+{
+    private static string Norm(string? s) => TextNormalization.NormalizeKey(s ?? "");
+
+    public static async Task<(Dictionary<string, string> Values, string? Signer, string? Relation)> BuildAsync(
+        IApplicationDbContext context, Guid memberId, Guid documentTypeId, IReadOnlyList<TemplateFormField> fields, CancellationToken ct)
+    {
+        var result = new Dictionary<string, string>();
+        var saved = await context.MemberFormAnswers.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.MemberId == memberId && a.DocumentTypeId == documentTypeId, ct);
+        var previous = new List<SavedFormAnswer>();
+        if (saved is not null)
+            try { previous = System.Text.Json.JsonSerializer.Deserialize<List<SavedFormAnswer>>(saved.AnswersJson) ?? []; }
+            catch (System.Text.Json.JsonException) { /* unreadable: start empty */ }
+
+        // Previous answers: same label + kind (each remembered answer used once, in order, so two blanks with the
+        // same label both pre-fill); a blank without a label falls back to the same key.
+        var used = new HashSet<SavedFormAnswer>();
+        foreach (var f in fields.Where(f => f.Kind is "fill" or "date" or "box" or "checkbox"))
+        {
+            var match = previous.FirstOrDefault(p => !used.Contains(p) && p.Kind == f.Kind
+                && (string.IsNullOrWhiteSpace(f.Label) ? p.Key == f.Key : Norm(p.Label) == Norm(f.Label)));
+            if (match is null) continue;
+            used.Add(match);
+            result[f.Key] = match.Value;
+        }
+
+        // The fiche wins for the blood type; a plain « Date » blank is today's date (never the previous one).
+        var blood = await context.Members.Where(m => m.Id == memberId).Select(m => m.BloodType).FirstOrDefaultAsync(ct);
+        foreach (var f in fields)
+        {
+            if (f.Save == TemplateFormAnswers.SaveBloodType && blood is not null && TemplateFormAnswers.BloodTypes.Contains(blood)) result[f.Key] = blood;
+            if (f.Kind == "date" && f.Save is null && Norm(f.Label) == "date") result[f.Key] = LebanonClock.Today.ToString("yyyy-MM-dd");
+        }
+        return (result, saved?.SignerName, saved?.SignerRelation);
+    }
+}
 
 public record GetOnlineDocumentFormQuery(Guid MemberId, Guid DocumentTypeId) : IRequest<Result<OnlineDocumentFormDto>>;
 
@@ -59,8 +104,10 @@ public class GetOnlineDocumentFormQueryHandler(IApplicationDbContext context, IC
         var values = await GenerateMemberDocumentTemplateQueryHandler.ResolveMemberValuesAsync(context, request.MemberId, ct);
         if (values is null) return Result<OnlineDocumentFormDto>.Failure("Membre introuvable.");
         var form = renderer.PrepareForm(dt.TemplateHtml!, values);
+        var (prefill, signer, relation) = await OnlineFormPrefill.BuildAsync(context, request.MemberId, dt.Id, form.Fields, ct);
         return Result<OnlineDocumentFormDto>.Success(new OnlineDocumentFormDto(dt.Id, dt.Name,
-            values.GetValueOrDefault("nomComplet") ?? "", form.Html, form.Fields, OnlineFormGate.Hash(dt.TemplateHtml!)));
+            values.GetValueOrDefault("nomComplet") ?? "", form.Html, form.Fields, OnlineFormGate.Hash(dt.TemplateHtml!),
+            prefill, signer, relation));
     }
 }
 
@@ -115,6 +162,9 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
             if (request.Answers.TryGetValue(f.Key, out var dv) && !string.IsNullOrWhiteSpace(dv)
                 && !DateOnly.TryParseExact(dv.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
                 return Result<Guid>.Failure($"Date invalide{(string.IsNullOrWhiteSpace(f.Label) ? "" : $" : {f.Label}")}.");
+        foreach (var f in fields.Where(f => f.Save == TemplateFormAnswers.SaveBloodType))
+            if (request.Answers.TryGetValue(f.Key, out var bv) && !string.IsNullOrWhiteSpace(bv) && !TemplateFormAnswers.BloodTypes.Contains(bv.Trim()))
+                return Result<Guid>.Failure("Groupe sanguin invalide.");
         foreach (var (key, value) in request.Answers)
             if (!string.IsNullOrWhiteSpace(value)) values[TemplateFormAnswers.Key(key)] = value.Trim();
 
@@ -154,7 +204,28 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         }, cancellationToken: ct);
 
         await SaveIntoMemberFileAsync(request.MemberId, fields, request.Answers, memberName, dt.Name, ct);
+        await RememberAnswersAsync(request, fields, ct);
         return result;
+    }
+
+    // Keep these answers to pre-fill the form next time (one row per member + document type, replaced each time).
+    private async Task RememberAnswersAsync(SubmitOnlineDocumentFormCommand request, IReadOnlyList<TemplateFormField> fields, CancellationToken ct)
+    {
+        var list = fields.Where(f => f.Kind is "fill" or "date" or "box" or "checkbox")
+            .Select(f => (f, v: request.Answers.TryGetValue(f.Key, out var a) ? a?.Trim() : null))
+            .Where(x => !string.IsNullOrWhiteSpace(x.v))
+            .Select(x => new SavedFormAnswer(x.f.Key, x.f.Label, x.f.Kind, x.v!)).ToList();
+        var row = await context.MemberFormAnswers.FirstOrDefaultAsync(a => a.MemberId == request.MemberId && a.DocumentTypeId == request.DocumentTypeId, ct);
+        if (row is null)
+        {
+            row = new MemberFormAnswers { MemberId = request.MemberId, DocumentTypeId = request.DocumentTypeId };
+            context.MemberFormAnswers.Add(row);
+        }
+        row.AnswersJson = System.Text.Json.JsonSerializer.Serialize(list);
+        row.SignerName = request.SignerName.Trim();
+        row.SignerRelation = request.SignerRelation;
+        row.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync(ct);
     }
 
     // « — du médecin de famille » → « Médecin de famille » (the form's sentence fragments read badly on the fiche).
@@ -190,17 +261,22 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
 
         var allergies = Combine(TemplateFormAnswers.SaveAllergies);
         var notes = Combine(TemplateFormAnswers.SaveMedicalNotes);
-        if (allergies is null && notes is null) return;
+        // Blood type: the value itself (checked against the 8 groups before the PDF was made).
+        var blood = fields.Where(f => f.Save == TemplateFormAnswers.SaveBloodType)
+            .Select(f => answers.TryGetValue(f.Key, out var a) ? a?.Trim() : null)
+            .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+        if (allergies is null && notes is null && blood is null) return;
 
         var member = await context.Members.FirstOrDefaultAsync(m => m.Id == memberId, ct);
         if (member is null) return;
-        var old = new { member.Allergies, member.MedicalNotes };
+        var old = new { member.Allergies, member.MedicalNotes, member.BloodType };
         if (allergies is not null) member.Allergies = allergies;
         if (notes is not null) member.MedicalNotes = notes;
-        if (old.Allergies == member.Allergies && old.MedicalNotes == member.MedicalNotes) return;
+        if (blood is not null) member.BloodType = blood;
+        if (old.Allergies == member.Allergies && old.MedicalNotes == member.MedicalNotes && old.BloodType == member.BloodType) return;
         await context.SaveChangesAsync(ct);
-        await audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = memberName, old.Allergies, old.MedicalNotes },
-            newValues: new { Member = memberName, member.Allergies, member.MedicalNotes, Source = $"{documentName} (formulaire en ligne)" },
+        await audit.LogAsync("Update", "Member", memberId, oldValues: new { Member = memberName, old.Allergies, old.MedicalNotes, old.BloodType },
+            newValues: new { Member = memberName, member.Allergies, member.MedicalNotes, member.BloodType, Source = $"{documentName} (formulaire en ligne)" },
             cancellationToken: ct);
     }
 }

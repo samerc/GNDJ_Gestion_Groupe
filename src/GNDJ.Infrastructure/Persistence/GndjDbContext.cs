@@ -89,6 +89,7 @@ public class GndjDbContext : DbContext, IApplicationDbContext
     public DbSet<MemberDuplicateRejection> MemberDuplicateRejections => Set<MemberDuplicateRejection>();
     public DbSet<SiblingReport> SiblingReports => Set<SiblingReport>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<MemberFormAnswers> MemberFormAnswers => Set<MemberFormAnswers>();
     public DbSet<NotificationBroadcast> NotificationBroadcasts => Set<NotificationBroadcast>();
     public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     public DbSet<ContactMessageReply> ContactMessageReplies => Set<ContactMessageReply>();

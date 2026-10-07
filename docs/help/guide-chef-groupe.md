@@ -296,10 +296,17 @@ fin. Le nom du signataire, la date, l'appareil et une empreinte du PDF sont gard
 Dans l'éditeur du modèle, **cliquez sur une ligne ou un cadre à remplir** : une barre apparaît sous les outils.
 - **Date (calendrier)** (lignes) : la famille choisit la date dans un calendrier sur son téléphone, et le PDF
   l'écrit en JJ/MM/AAAA. Le menu « Insérer un champ » propose aussi **Date à remplir (calendrier)**.
-- **Enregistrer dans la fiche** : **Allergies** ou **Remarques médicales**. Quand la famille signe en ligne, ses
+- **Enregistrer dans la fiche** : **Allergies**, **Remarques médicales** ou **Groupe sanguin** (une liste des
+  8 groupes, déjà remplie avec celui de la fiche). Quand la famille signe en ligne, ses
   réponses sont aussi écrites dans l'onglet **Médical** du membre (une ligne par réponse, « Libellé : réponse »).
   Une partie laissée vide ne touche pas ce qui est déjà sur la fiche. Les lignes liées apparaissent teintées dans
-  l'éditeur. La fiche médicale est déjà réglée ainsi (vaccins en dates, allergies, antécédents, médecin…).
+  l'éditeur. La fiche médicale est déjà réglée ainsi (groupe sanguin, vaccins en dates, allergies, antécédents,
+  médecin…) et elle est remplissable en ligne par défaut.
+- **D'une année à l'autre** : le formulaire s'ouvre déjà rempli avec les réponses données la dernière fois (et le
+  dernier signataire) ; la famille vérifie, corrige si besoin et signe. La date de signature est celle du jour.
+
+Pour un document remplissable en ligne, **Remplir et signer en ligne** est le bouton principal ; le modèle papier
+reste disponible par le petit lien « ou télécharger pour remplir sur papier ».
 
 Décochez l'option pour revenir au seul téléchargement : la famille peut toujours imprimer, remplir à la main et
 envoyer une photo.

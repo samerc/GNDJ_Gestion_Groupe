@@ -164,6 +164,7 @@ export const FillBoxNode = Node.create({
 export const SAVE_TARGETS: { value: string; label: string }[] = [
   { value: 'allergies', label: 'Allergies (onglet Médical)' },
   { value: 'medicalNotes', label: 'Remarques médicales (onglet Médical)' },
+  { value: 'bloodType', label: 'Groupe sanguin (onglet Médical, liste)' },
 ]
 
 // The bundle passed to the RichTextEditor's `extraExtensions` prop by the document-template builder.

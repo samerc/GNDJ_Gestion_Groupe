@@ -436,7 +436,13 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       <PenLine className="h-4 w-4" />Remplir et signer en ligne
                     </button>
                   )}
-                  {canDownloadTemplate && (dt.hasHtmlTemplate ? (
+                  {canDownloadTemplate && dt.hasHtmlTemplate && dt.onlineFillable && canUpload ? (
+                    // Online is the main way; paper stays available as a small link.
+                    <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60">
+                      <Download className="h-3.5 w-3.5" />{templatePdfLoadingId === dt.id ? 'Préparation…' : 'ou télécharger pour remplir sur papier'}
+                    </button>
+                  ) : canDownloadTemplate && (dt.hasHtmlTemplate ? (
                     <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
                       className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/20 disabled:opacity-60 sm:h-9">
                       <Download className="h-4 w-4" />{templatePdfLoadingId === dt.id ? 'Préparation…' : 'Télécharger le modèle pré-rempli'}
@@ -484,7 +490,8 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                   {uploadable && (
                     <>
                       <Button
-                        variant={doc ? 'outline' : 'default'}
+                        // Not the main action when the document can be signed online (the scan of a paper copy).
+                        variant={doc || (dt.onlineFillable && dt.hasHtmlTemplate) ? 'outline' : 'default'}
                         size="sm"
                         className={TEXT_BTN}
                         onClick={() => {

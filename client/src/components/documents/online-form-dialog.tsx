@@ -29,7 +29,12 @@ interface OnlineForm {
   html: string
   fields: { key: string; kind: 'fill' | 'date' | 'box' | 'checkbox' | 'signature'; save?: string | null; label?: string | null }[]
   templateHash: string
+  prefill?: Record<string, string> | null // last time's answers / blood type / today for the signing date
+  signerName?: string | null
+  signerRelation?: string | null
 }
+
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
 const RELATIONS = ['Père', 'Mère', 'Tuteur', 'Tutrice', 'Le membre lui-même']
 
@@ -46,6 +51,15 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
   const [relation, setRelation] = useState('')
   const [certified, setCertified] = useState(false)
   const [signature, setSignature] = useState<string | null>(null)
+
+  // Start from last time's answers (and the last signer) once the form arrives — render-phase, once per form.
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null)
+  if (form && hydratedFor !== form.templateHash) {
+    setHydratedFor(form.templateHash)
+    setAnswers(form.prefill ?? {})
+    if (form.signerName) setSignerName(form.signerName)
+    if (form.signerRelation && RELATIONS.includes(form.signerRelation)) setRelation(form.signerRelation)
+  }
 
   const submit = useMutation({
     mutationFn: () => apiClient.post('/documents/online-form', {
@@ -86,9 +100,6 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
         <div className="flex-1 overflow-y-auto p-4">
           {error ? <Callout tone="danger">{parseApiError(error)}</Callout> : isLoading || !form ? <LoadingSpinner /> : (
             <div className="space-y-6">
-              {form.fields.some((f) => f.save) && (
-                <Callout tone="info">Les allergies et les remarques médicales que vous indiquez seront aussi enregistrées dans la fiche du membre (onglet Médical).</Callout>
-              )}
               <div className="online-form space-y-2 rounded-lg border bg-white p-4 text-sm leading-relaxed text-gray-900 shadow-sm dark:bg-white">{body}</div>
 
               <section className="space-y-4 rounded-lg border p-4">
@@ -148,6 +159,14 @@ function toReact(node: Node, key: string, answers: Record<string, string>, set: 
   // The « Signature : ___ » line gets the signature drawn at the bottom — nothing to type here.
   if (fieldKey && el.hasAttribute('data-signature')) {
     return <span key={key} className="mx-1 inline-block rounded bg-muted px-2 py-0.5 text-xs italic text-gray-600">signature ci-dessous ↓</span>
+  }
+  // A blank linked to the fiche's blood type: a list of the 8 groups.
+  if (fieldKey && el.hasAttribute('data-fill') && el.getAttribute('data-save') === 'bloodType') {
+    return <select key={key} aria-label="Groupe sanguin" value={answers[fieldKey] ?? ''} onChange={(e) => set(fieldKey, e.target.value)}
+      className="mx-1 inline-block rounded border-b-2 border-dashed border-primary/50 bg-primary/5 px-1 py-0.5 align-baseline text-gray-900 outline-none focus:border-primary">
+      <option value="">—</option>
+      {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+    </select>
   }
   // A date blank: the phone's own date picker (value yyyy-MM-dd; the PDF prints it JJ/MM/AAAA).
   if (fieldKey && el.hasAttribute('data-fill') && el.hasAttribute('data-date')) {

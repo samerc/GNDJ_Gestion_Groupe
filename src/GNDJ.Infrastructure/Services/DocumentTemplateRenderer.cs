@@ -141,7 +141,13 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
     {
         var key = node.GetAttributeValue("data-key", "");
         if (key.Length == 0) return null;
-        if (!values.TryGetValue(TemplateFormAnswers.Key(key), out var v) || string.IsNullOrWhiteSpace(v)) return null;
+        if (!values.TryGetValue(TemplateFormAnswers.Key(key), out var v) || string.IsNullOrWhiteSpace(v))
+        {
+            // A blank linked to the blood type prints the fiche's value when nothing was answered (paper download).
+            if (node.GetAttributeValue("data-save", "") == TemplateFormAnswers.SaveBloodType
+                && values.TryGetValue("groupeSanguin", out var bt) && !string.IsNullOrWhiteSpace(bt)) return bt.Trim();
+            return null;
+        }
         v = v.Trim();
         // A date blank's answer arrives as yyyy-MM-dd (date picker) → printed JJ/MM/AAAA.
         return node.Attributes.Contains("data-date") ? TemplateFormAnswers.DisplayDate(v) : v;
