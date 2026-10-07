@@ -123,7 +123,7 @@ groupe, si le chef de groupe en a créé pour votre unité).
 
 **À traiter** : sous les boutons, une ligne vous montre ce qui attend une action de votre part dans l'unité — membres
 sans équipe (par exemple les nouveaux arrivés), documents à vérifier, modifications à valider, réunions d'un chef
-d'équipe à approuver, passage à terminer. Un clic vous emmène au bon endroit (« sans équipe » filtre la liste
+d'équipe à approuver, passage à terminer, membres absents plusieurs réunions de suite. Un clic vous emmène au bon endroit (« sans équipe » filtre la liste
 directement). Quand tout est fait, la ligne affiche « Rien à traiter dans l'unité pour le moment ».
 
 ### Personnaliser la page
@@ -354,6 +354,9 @@ les absents (avec un motif si vous le connaissez).
 ![Nouvelle réunion](img/cu-reunion-nouvelle.png)
 
 Le nombre d'absences de l'année s'affiche sur la fiche du membre et dans la liste de **Mon unité**.
+
+Quand un membre manque **plusieurs réunions de suite** (3 par défaut, réglé par le chef de groupe), vous recevez
+une notification, et son nom apparaît dans **À traiter** jusqu'à ce qu'il revienne. Les parents ne sont pas prévenus.
 
 > 💡 Les **chefs d'équipe** (CP, sizenier…) peuvent aussi créer une réunion pour leur équipe : elle vous arrive
 > **à approuver**.

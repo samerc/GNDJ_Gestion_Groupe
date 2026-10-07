@@ -9,11 +9,11 @@ import { parseApiError } from '@/lib/error-utils'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/password-input'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Callout } from '@/components/shared/callout'
-import { useSwitchAccounts, type SwitchAccountDto } from '@/services/my-profile-service'
+import { useSwitchAccounts } from '@/services/my-profile-service'
+import { useSiblingSwitch } from '@/hooks/use-sibling-switch'
 import { getPool } from '@/lib/account-pool'
 import { useImpersonationStore } from '@/stores/impersonation-store'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -35,7 +35,7 @@ import { useThemeStore, type Theme } from '@/stores/theme-store'
 // manager top bar. Merges the personal pages (Ma fiche / Mes documents / Trombinoscope) with the account
 // actions (change password, sign out other devices, logout) + their dialogs, so there's ONE menu everywhere.
 export function UserMenu() {
-  const { user, logout, applyTokens, switchToAccount, addAndSwitchAccount } = useAuthStore()
+  const { user, logout, applyTokens } = useAuthStore()
   const navigate = useNavigate()
 
   // ── Sibling account switching ──────────────────────────────────────────
@@ -44,45 +44,7 @@ export function UserMenu() {
   const impersonating = useImpersonationStore((s) => s.active)
   const { data: siblingAccounts } = useSwitchAccounts(!!user?.memberId && !impersonating)
   const pooledIds = new Set(getPool().map((a) => a.memberId))
-  const [switchingId, setSwitchingId] = useState<string | null>(null)
-  const [pwTarget, setPwTarget] = useState<SwitchAccountDto | null>(null)
-  const [switchPassword, setSwitchPassword] = useState('')
-  const [switchError, setSwitchError] = useState('')
-  const [switchLoggingIn, setSwitchLoggingIn] = useState(false)
-
-  const handleSwitch = async (acc: SwitchAccountDto) => {
-    setSwitchingId(acc.memberId)
-    try {
-      await switchToAccount(acc.memberId) // instant, from the pooled token
-      toast.success(`Connecté en tant que ${acc.name}`)
-      navigate('/dashboard', { replace: true })
-    } catch (e) {
-      // Not remembered on this device yet → ask for the sibling's password (opens after the menu closes).
-      if (e instanceof Error && e.message === 'NO_SESSION') {
-        setSwitchPassword(''); setSwitchError(''); setPwTarget(acc)
-      } else {
-        toast.error('Impossible de changer de compte. Réessayez.')
-      }
-    } finally {
-      setSwitchingId(null)
-    }
-  }
-
-  const handleSwitchLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!pwTarget) return
-    setSwitchError(''); setSwitchLoggingIn(true)
-    try {
-      await addAndSwitchAccount(pwTarget.username, switchPassword)
-      toast.success(`Connecté en tant que ${pwTarget.name}`)
-      setPwTarget(null); setSwitchPassword('')
-      navigate('/dashboard', { replace: true })
-    } catch (err) {
-      setSwitchError(parseApiError(err) || 'Mot de passe incorrect.')
-    } finally {
-      setSwitchLoggingIn(false)
-    }
-  }
+  const { switchTo: handleSwitch, switchingId, dialog: switchDialog } = useSiblingSwitch()
   // Managers use the horizontal top nav (no left sidebar), so the personal pages live here for them. Regular
   // members already have those links in their sidebar/drawer, so we don't duplicate them in this menu.
   const isManager = useIsManager()
@@ -166,15 +128,19 @@ export function UserMenu() {
                   <span className="flex-1 truncate">{acc.name}</span>
                   {switchingId === acc.memberId
                     ? <span className="text-xs text-muted-foreground">…</span>
-                    : pooledIds.has(acc.memberId)
+                    : pooledIds.has(acc.memberId) || acc.passwordless
                       ? <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
-                          title="Compte mémorisé sur cet appareil — bascule immédiate, sans mot de passe">Mémorisé</span>
+                          title="Bascule immédiate, sans mot de passe">{pooledIds.has(acc.memberId) ? 'Mémorisé' : 'Sans mot de passe'}</span>
                       : <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
                           title="La première bascule vers ce compte demandera son mot de passe">
                           <KeyRound className="h-3 w-3" />Mot de passe
                         </span>}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem onClick={() => navigate('/ma-famille')}>
+                <Users className="mr-2 h-4 w-4" />
+                Ma famille
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
@@ -289,31 +255,7 @@ export function UserMenu() {
         </DialogContent>
       </Dialog>
 
-      {/* First switch to a sibling on this device — enter its password once; then it's remembered (instant). */}
-      <Dialog open={!!pwTarget} onOpenChange={(o) => !o && setPwTarget(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Se connecter en tant que {pwTarget?.name}</DialogTitle></DialogHeader>
-          <form onSubmit={handleSwitchLogin} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Entrez le mot de passe de ce compte une première fois. Il sera mémorisé sur cet appareil pour
-              changer de compte instantanément ensuite.
-            </p>
-            {switchError && <Callout tone="danger">{switchError}</Callout>}
-            <div className="space-y-2">
-              <RequiredLabel>Identifiant</RequiredLabel>
-              <Input value={pwTarget?.username ?? ''} disabled className="bg-muted" />
-            </div>
-            <div className="space-y-2">
-              <RequiredLabel required>Mot de passe</RequiredLabel>
-              <PasswordInput value={switchPassword} onChange={(e) => setSwitchPassword(e.target.value)} required autoFocus autoComplete="current-password" />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setPwTarget(null)}>Annuler</Button>
-              <Button type="submit" disabled={switchLoggingIn}>{switchLoggingIn ? 'Connexion…' : 'Se connecter'}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {switchDialog}
 
       <MyDevicesDialog open={devicesOpen} onOpenChange={setDevicesOpen} />
     </>

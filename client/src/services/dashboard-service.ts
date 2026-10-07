@@ -87,6 +87,8 @@ export interface UnitTodoDto {
   passageOpen: boolean
   passageFinished: boolean
   passageMissing: number
+  // Members whose run of missed réunions reaches the alert setting (empty when the alert is off).
+  repeatedAbsences?: { memberId: string; name: string; count: number }[] | null
 }
 export function useUnitTodo(unitId: string | undefined) {
   return useQuery({

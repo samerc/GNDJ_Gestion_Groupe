@@ -480,6 +480,9 @@ techniques (emails, sécurité, maintenance) sont réservés au super-administra
 Un encadré en haut de la page signale les **réglages contradictoires** (dates dans le désordre, années scoutes
 différentes…) avec un lien pour corriger.
 
+Dans **Membres**, « Alerte après absences de suite » fixe le nombre de réunions manquées de suite au-delà duquel le
+chef d'unité est prévenu (0 = pas d'alerte).
+
 > 💡 Renommer une école ou une ville dans **Listes** la renomme aussi sur toutes les fiches. Supprimer une valeur
 > utilisée l'**archive** (elle reste sur les fiches mais disparaît des choix).
 

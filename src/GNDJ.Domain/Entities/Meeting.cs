@@ -35,6 +35,9 @@ public class MeetingAbsence : BaseEntity
     public Guid MeetingId { get; set; }
     public Guid MemberId { get; set; }
     public string? Reason { get; set; }
+    // Set on the absence that triggered a "repeated absences" alert to the chef d'unité, so the same run of
+    // absences is never alerted twice (carried over when the attendance is saved again).
+    public DateTime? AlertSentAt { get; set; }
 
     public Meeting Meeting { get; set; } = null!;
     public Member Member { get; set; } = null!;

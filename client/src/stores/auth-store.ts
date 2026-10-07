@@ -39,6 +39,8 @@ interface AuthState {
   // password and calls addAndSwitchAccount, a login that keeps the current account in the pool to switch back).
   switchToAccount: (memberId: string) => Promise<void>
   addAndSwitchAccount: (username: string, password: string) => Promise<void>
+  // Switch with no password when the server allows it (confirmed sibling, same main email, no maîtrise account).
+  switchSibling: (memberId: string) => Promise<void>
   hasPermission: (permission: string) => boolean
   canAccessUnit: (unitId: string) => boolean
 }
@@ -137,6 +139,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       throw e
     }
+  },
+
+  // Server-approved switch without a password (POST /auth/switch-sibling, called with the CURRENT session). The
+  // current account is pooled first so switching back works; loadUser pools the new one with its real name.
+  switchSibling: async (memberId: string) => {
+    const cur = get().user
+    const curToken = getRefreshToken('member')
+    if (cur && curToken) savePooledAccount({ memberId: cur.memberId, name: `${cur.firstName} ${cur.lastName}`, username: cur.email, refreshToken: curToken })
+    const { data } = await apiClient.post<AuthResponse>('/auth/switch-sibling', { memberId })
+    setTokens('member', data.accessToken, data.refreshToken)
+    queryClient.clear()
+    set({ isAuthenticated: true })
+    await get().loadUser()
   },
 
   // First switch to a sibling on this device: a normal login for that account. The CURRENT account is pooled

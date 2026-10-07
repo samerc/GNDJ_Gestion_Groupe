@@ -10,6 +10,7 @@ public static class NotificationTypes
     public const string Hold = "hold";
     public const string Info = "info";
     public const string Calendar = "calendar"; // calendar event reminders
+    public const string Absence = "absence";   // a member missed several réunions in a row (to the chef d'unité)
 }
 
 // Best-effort in-app notifications. Implementations MUST never throw — a notification failure must not mask

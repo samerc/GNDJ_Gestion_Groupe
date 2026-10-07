@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check, Trash2, X, Settings2, CalendarDays } from 'lucide-react'
+import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check, Trash2, X, Settings2, CalendarDays, CalendarX } from 'lucide-react'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ const META: Record<NotificationType, { icon: typeof Bell; cls: string }> = {
   hold: { icon: PauseCircle, cls: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50' },
   info: { icon: Bell, cls: 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800' },
   calendar: { icon: CalendarDays, cls: 'text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-950/50' },
+  absence: { icon: CalendarX, cls: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50' },
 }
 
 // Compact French relative time ("il y a 3 min", "hier", "il y a 5 j").
@@ -176,6 +177,7 @@ const MUTABLE: { type: NotificationType; label: string; help: string }[] = [
   { type: 'hold', label: 'Suspensions de compte', help: 'Mise en attente d\'un dossier' },
   { type: 'info', label: 'Informations générales', help: 'Messages de contact, annonces, divers' },
   { type: 'calendar', label: 'Rappels du calendrier', help: 'Rappel avant un événement du calendrier' },
+  { type: 'absence', label: 'Absences répétées', help: "Un membre de votre unité a manqué plusieurs réunions de suite (chefs d'unité)" },
 ]
 
 // A small dialog to mute/unmute notification categories. A checked box = RECEIVE that category; unchecking mutes it.

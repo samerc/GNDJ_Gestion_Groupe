@@ -10,6 +10,7 @@ using GNDJ.Application.Auth.Commands.Register;
 using GNDJ.Application.Auth.Commands.RequestPasswordReset;
 using GNDJ.Application.Auth.Commands.ResetPassword;
 using GNDJ.Application.Auth.Commands.SignOutOtherDevices;
+using GNDJ.Application.Auth.Commands.SwitchSibling;
 using GNDJ.Application.Auth.Queries;
 using GNDJ.Application.Sessions;
 using GNDJ.Domain.Enums;
@@ -62,6 +63,19 @@ public class AuthController : BaseApiController
     [AllowAnonymous]
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> RequestLoginCode([FromBody] RequestLoginCodeCommand command)
+    {
+        var result = await Mediator.Send(command);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>« Changer de compte » without a password: opens a session on a confirmed sibling's account when both
+    /// accounts share the same main email and neither is a maîtrise / protected account. Otherwise 400 (the client
+    /// asks for the sibling's password).</summary>
+    [HttpPost("switch-sibling")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> SwitchSibling([FromBody] SwitchToSiblingCommand command)
     {
         var result = await Mediator.Send(command);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });

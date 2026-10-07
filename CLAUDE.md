@@ -6506,3 +6506,23 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   `-Until 06:00 -Night` and only it honours `C:\gndj-ocr\PAUSE`). Tested here
   against a fake Ollama (rotation, flags, resume, export/manifest, script wrapper); the real model is only on the server.
 - Not built yet: the import of the checked Excel; the « En ligne uniquement » document-type option for next year.
+
+### Absence alerts + sibling switch without password + « Ma famille » (2026-10-07, DEV until deploy)
+- **Absences de suite** (`Application/Meetings/AbsenceStreaks.cs`): a member's run = consecutive absences on their
+  most recent APPROVED réunions of their current unit (whole unit or their current team; member-group réunions not
+  counted; last 365 days). Setting `attendance.absence_alert_count` (category members, default 3, 0 = off).
+  `SaveMeetingAttendance` notifies the unit's chefs (active post IN the unit with a members.edit function = CU + ACU,
+  not the CG, not parents; type `absence`, mutable) when the run reaches the setting on the member's latest réunion;
+  once per run via `MeetingAbsence.AlertSentAt` (migration `AddMeetingAbsenceAlert`, carried over on re-save).
+  « À traiter » (`UnitTodoDto.RepeatedAbsences`: id/name/count) → dropdown opening the member file.
+- **Sibling switch without password** (`Application/Members/FamilyAccess.cs`): allowed between confirmed siblings when
+  both resolve to the same main contact email (`ContactEmailResolver`) and NEITHER is protected (active maîtrise or
+  group-level function, delegated access, super-admin). `POST /auth/switch-sibling {memberId}` (`SwitchToSiblingCommand`,
+  needs a real device session, same maintenance gate, audited Login "Changement de compte", keeps the current
+  session's remember-me). `SwitchAccountDto.Passwordless`. Client `hooks/use-sibling-switch.tsx`: pooled → instant,
+  else passwordless → server, else password dialog once (used by the account menu and Ma famille).
+- **« Ma famille »** (`/ma-famille`, `GET /my-profile/family`, `GetMyFamilyQuery`): caller + confirmed siblings, each
+  with the « Ma rentrée » to-do (`MemberTodo.ComputeAsync`, shared with GET /my-profile/todo); a protected sibling
+  shows the name only. Link in the account menu (when siblings exist) + `FamilyCta` on Ma fiche. `lib/my-todo.ts`
+  `todoLeft()`. On hold: family notifications (bell for any child).
+

@@ -167,6 +167,8 @@ export interface SwitchAccountDto {
   memberId: string
   name: string
   username: string
+  // No password needed: same main email and no maîtrise account on either side.
+  passwordless: boolean
 }
 
 // The caller's confirmed-sibling accounts (auth-only; empty when the member has no confirmed fratrie). Powers
@@ -177,5 +179,26 @@ export function useSwitchAccounts(enabled = true) {
     queryFn: () => apiClient.get<SwitchAccountDto[]>('/my-profile/switch-accounts').then((r) => r.data),
     enabled,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+// GET /my-profile/family → « Ma famille »: the caller + their confirmed siblings, each with their yearly to-do
+// (null for a chef's account, shown by name only). Empty when there is no confirmed fratrie.
+export interface FamilyChild {
+  memberId: string
+  name: string
+  unitName: string | null
+  isMe: boolean
+  hasLogin: boolean
+  protected: boolean
+  passwordless: boolean
+  todo: MyTodo | null
+}
+export function useMyFamily(enabled = true) {
+  return useQuery({
+    queryKey: ['members', 'family'],
+    queryFn: () => apiClient.get<FamilyChild[]>('/my-profile/family').then((r) => r.data),
+    enabled,
+    staleTime: 60_000,
   })
 }

@@ -1,11 +1,12 @@
 // « À traiter » on the chef d'unité's « Mon unité »: one compact row of shortcuts to what needs their action in this
 // unit right now (members without équipe, documents to check, change requests, réunions to approve, passage choices
-// missing). Only non-zero items show; when there is nothing, a single green line says so. Counts come from
+// missing, members absent several réunions in a row). Only non-zero items show; when there is nothing, a single green line says so. Counts come from
 // GET /dashboard/unit/{id}/todo. « Sans équipe » filters the roster below instead of leaving the page.
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { CheckCircle2, UsersRound, FileCheck, ClipboardCheck, CalendarCheck, ArrowRightLeft } from 'lucide-react'
+import { CheckCircle2, UsersRound, FileCheck, ClipboardCheck, CalendarCheck, ArrowRightLeft, CalendarX } from 'lucide-react'
 import { useUnitTodo } from '@/services/dashboard-service'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 function Chip({ icon, children, onClick }: { icon: ReactNode; children: ReactNode; onClick: () => void }) {
   return (
@@ -18,7 +19,9 @@ function Chip({ icon, children, onClick }: { icon: ReactNode; children: ReactNod
 
 const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`
 
-export function UnitTodoStrip({ unitId, onShowWithoutTeam }: { unitId: string; onShowWithoutTeam: () => void }) {
+export function UnitTodoStrip({ unitId, onShowWithoutTeam, onOpenMember }: {
+  unitId: string; onShowWithoutTeam: () => void; onOpenMember: (memberId: string) => void
+}) {
   const navigate = useNavigate()
   const { data } = useUnitTodo(unitId)
   if (!data) return null
@@ -41,6 +44,28 @@ export function UnitTodoStrip({ unitId, onShowWithoutTeam }: { unitId: string; o
       {data.passageMissing > 0
         ? `Passage : ${plural(data.passageMissing, 'membre sans choix', 'membres sans choix')}`
         : 'Passage : à terminer'}</Chip>)
+
+  const absent = data.repeatedAbsences ?? []
+  if (absent.length > 0)
+    items.push(
+      <DropdownMenu key="absent">
+        <DropdownMenuTrigger asChild>
+          <button type="button"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/70">
+            <CalendarX className="h-4 w-4" />
+            {plural(absent.length, 'membre absent plusieurs fois de suite', 'membres absents plusieurs fois de suite')}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
+          <DropdownMenuLabel>Réunions manquées de suite</DropdownMenuLabel>
+          {absent.map(a => (
+            <DropdownMenuItem key={a.memberId} onSelect={() => onOpenMember(a.memberId)} className="justify-between gap-4">
+              <span>{a.name}</span>
+              <span className="tabular-nums text-muted-foreground">{a.count}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>)
 
   if (items.length === 0)
     return (

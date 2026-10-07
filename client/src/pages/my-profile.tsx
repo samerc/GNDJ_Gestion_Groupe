@@ -22,6 +22,7 @@ import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
 import { HouseholdContacts } from '@/components/members/household-contacts'
 import { MyRentree } from '@/components/members/my-rentree'
+import { FamilyCta } from '@/components/members/family-cta'
 import { SiblingEnrollCta } from '@/components/members/sibling-enroll-cta'
 import { MemberProgression } from '@/components/members/member-progression'
 import { MemberCustomFields } from '@/components/members/member-custom-fields'
@@ -131,6 +132,7 @@ export default function MyProfilePage() {
 
       {/* « Ma rentrée »: what is left to do this year (contacts, documents, cotisation, app) — ticks itself off. */}
       <MyRentree />
+      <FamilyCta />
       <SiblingEnrollCta />
 
       {error && <Callout tone="danger">{error}</Callout>}

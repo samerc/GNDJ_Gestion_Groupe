@@ -576,7 +576,8 @@ public class SaveMeetingAttendanceCommandValidator : AbstractValidator<SaveMeeti
     }
 }
 
-public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit)
+public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit,
+    INotificationService notifications)
     : IRequestHandler<SaveMeetingAttendanceCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(SaveMeetingAttendanceCommand request, CancellationToken ct)
@@ -596,16 +597,41 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
         var rosterIds = (await rosterQ.Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
 
         var existing = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id).ToListAsync(ct);
+        // Keep the "alert already sent" mark of members still absent, so saving again never re-alerts.
+        var alertedAt = existing.Where(a => a.AlertSentAt != null).ToDictionary(a => a.MemberId, a => a.AlertSentAt);
         context.MeetingAbsences.RemoveRange(existing);
         var kept = request.Absences.Where(a => rosterIds.Contains(a.MemberId)).DistinctBy(a => a.MemberId).ToList();
+        var rows = new Dictionary<Guid, MeetingAbsence>();
         foreach (var a in kept)
-            context.MeetingAbsences.Add(new MeetingAbsence
+        {
+            var row = new MeetingAbsence
             {
                 MeetingId = m.Id, MemberId = a.MemberId,
                 Reason = string.IsNullOrWhiteSpace(a.Reason) ? null : a.Reason.Trim(),
-            });
+                AlertSentAt = alertedAt.GetValueOrDefault(a.MemberId),
+            };
+            context.MeetingAbsences.Add(row);
+            rows[a.MemberId] = row;
+        }
 
         await context.SaveChangesAsync(ct);
+
+        // Repeated absences → the unit's chefs (CU + ACU) are told once per run (setting attendance.absence_alert_count).
+        var alerts = await AbsenceStreaks.FindNewAlertsAsync(context, m, rows.Keys.ToList(), ct);
+        if (alerts.Count > 0)
+        {
+            foreach (var (memberId, _) in alerts) rows[memberId].AlertSentAt = DateTime.UtcNow;
+            await context.SaveChangesAsync(ct);
+            var chefs = await AbsenceStreaks.UnitChefIdsAsync(context, m.UnitId, ct);
+            var ids = alerts.Select(x => x.MemberId).ToList();
+            var names = await context.Members.Where(x => ids.Contains(x.Id))
+                .Select(x => new { x.Id, Name = x.FirstName + " " + x.LastName }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+            foreach (var (memberId, count) in alerts)
+                await notifications.NotifyMembersAsync(chefs.Where(c => c != memberId), NotificationTypes.Absence,
+                    "Absences répétées",
+                    $"{names.GetValueOrDefault(memberId, "Un membre")} a manqué {count} réunions de suite.",
+                    $"/members/{memberId}", ct);
+        }
         await audit.LogAsync("SaveAttendance", "Meeting", m.Id, newValues: new
         {
             Unit = await AuditNames.UnitAsync(context, m.UnitId, ct), m.Type, Date = m.Date.ToString("yyyy-MM-dd"), Absences = kept.Count

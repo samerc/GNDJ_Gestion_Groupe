@@ -1,5 +1,6 @@
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
+using GNDJ.Application.Meetings;
 using GNDJ.Application.Passages;
 using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
@@ -15,10 +16,12 @@ namespace GNDJ.Application.Dashboard;
 //   • DocumentsToVerify  — documents waiting for the chef's check (active document types);
 //   • ChangeRequests     — members' requests (progression / unit, équipe, fonction) waiting for confirmation;
 //   • MeetingsToApprove  — réunions created by a chef d'équipe, waiting for the chef's approval;
-//   • PassageMissing     — while the passage is open and the unit isn't finished: youth with no passage choice yet.
+//   • PassageMissing     — while the passage is open and the unit isn't finished: youth with no passage choice yet;
+//   • RepeatedAbsences   — members whose current run of missed réunions reaches attendance.absence_alert_count.
 // Gated like the unit dashboard: a leader of this unit (members.edit) or super-admin.
 public record UnitTodoDto(int WithoutTeam, int DocumentsToVerify, int ChangeRequests, int MeetingsToApprove,
-    bool PassageOpen, bool PassageFinished, int PassageMissing);
+    bool PassageOpen, bool PassageFinished, int PassageMissing, IReadOnlyList<RepeatedAbsenceDto>? RepeatedAbsences = null);
+public record RepeatedAbsenceDto(Guid MemberId, string Name, int Count);
 
 public record GetUnitTodoQuery(Guid UnitId) : IRequest<UnitTodoDto?>;
 
@@ -60,6 +63,22 @@ public class GetUnitTodoQueryHandler(IApplicationDbContext context, ICurrentUser
             missing = await youth.Where(id => !withLine.Contains(id)).CountAsync(ct);
         }
 
-        return new UnitTodoDto(withoutTeam, documents, requests, meetings, passageOpen, finished, missing);
+        var threshold = await AbsenceStreaks.ThresholdAsync(context, ct);
+        var repeated = new List<RepeatedAbsenceDto>();
+        if (threshold > 0)
+        {
+            var runs = (await AbsenceStreaks.ComputeAsync(context, unitId, null, ct)).Where(r => r.Value.Count >= threshold)
+                .ToDictionary(r => r.Key, r => r.Value.Count);
+            if (runs.Count > 0)
+            {
+                var ids = runs.Keys.ToList();
+                var people = await context.Members.Where(m => ids.Contains(m.Id))
+                    .Select(m => new { m.Id, m.FirstName, m.LastName }).ToListAsync(ct);
+                repeated = people.Select(p => new RepeatedAbsenceDto(p.Id, $"{p.LastName} {p.FirstName}", runs[p.Id]))
+                    .OrderByDescending(r => r.Count).ThenBy(r => r.Name).ToList();
+            }
+        }
+
+        return new UnitTodoDto(withoutTeam, documents, requests, meetings, passageOpen, finished, missing, repeated);
     }
 }

@@ -29,9 +29,15 @@ public record GetMyTodoQuery : IRequest<MyTodoDto?>;
 public class GetMyTodoQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetMyTodoQuery, MyTodoDto?>
 {
-    public async ValueTask<MyTodoDto?> Handle(GetMyTodoQuery request, CancellationToken ct)
+    public async ValueTask<MyTodoDto?> Handle(GetMyTodoQuery request, CancellationToken ct) =>
+        currentUser.MemberId is Guid memberId ? await MemberTodo.ComputeAsync(context, memberId, ct) : null;
+}
+
+// The to-do of one member — shared by « Ma rentrée » (own) and « Ma famille » (each confirmed sibling).
+public static class MemberTodo
+{
+    public static async Task<MyTodoDto?> ComputeAsync(IApplicationDbContext context, Guid memberId, CancellationToken ct)
     {
-        if (currentUser.MemberId is not Guid memberId) return null;
         var me = await context.Members.Where(m => m.Id == memberId)
             .Select(m => new { m.IsOnHold, m.ContactReviewedAt, m.AppInstalledAt }).FirstOrDefaultAsync(ct);
         if (me is null) return null;

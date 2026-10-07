@@ -34,7 +34,7 @@ l'avez reçu par email, avec un lien **Activer mon compte** pour choisir votre m
 | Première fois | Cliquez sur **Activer mon compte** dans l'email, choisissez votre mot de passe |
 | Mot de passe oublié | **Mot de passe oublié ?** (un lien vous est envoyé), ou **Se connecter avec un code** (un code à 6 chiffres arrive par email) |
 | Identifiant oublié | **Identifiant oublié ?** : saisissez votre email personnel ou celui d'un parent, l'identifiant vous est renvoyé |
-| Plusieurs enfants dans le groupe | Chaque enfant a son propre identifiant. Une fois connecté, passez de l'un à l'autre par le menu de votre nom → **Changer de compte** |
+| Plusieurs enfants dans le groupe | Chaque enfant a son propre identifiant. Une fois connecté, passez de l'un à l'autre par le menu de votre nom → **Changer de compte**. Si les enfants ont le même email principal, aucun mot de passe n'est demandé ; sinon, ou si l'un d'eux est chef, le mot de passe de l'autre compte est demandé la première fois |
 | Rien ne marche | Écrivez à l'adresse indiquée en bas de la page de connexion |
 
 > 💡 **Rester connecté sur cet appareil** (coché par défaut) vous évite de vous reconnecter pendant 90 jours.
@@ -98,6 +98,10 @@ coordonnées se modifient directement dans l'onglet **Contact & famille** (crayo
 
 Si plusieurs enfants de la famille sont au groupe, ils apparaissent dans **Contact & famille**. Si l'un d'eux est
 faux ou manquant, utilisez **Signaler une erreur** : le chef de groupe corrigera.
+
+**Ma famille** (menu de votre nom → **Ma famille**, ou le lien sous « Ma rentrée ») montre tous les frères et sœurs
+reliés, avec ce qu'il reste à faire pour chacun cette année (coordonnées, documents, cotisation). **Ouvrir son
+compte** passe directement sur le compte de l'enfant. Le compte d'un frère ou d'une sœur chef n'affiche que son nom.
 
 Pour **inscrire un frère ou une sœur** qui n'est pas encore au groupe, utilisez le bouton **Commencer la demande**
 en haut de **Ma fiche** (visible pendant la période d'inscription) : les parents et l'adresse sont déjà remplis.

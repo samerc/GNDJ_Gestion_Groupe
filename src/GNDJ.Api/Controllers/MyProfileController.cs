@@ -45,6 +45,12 @@ public class MyProfileController : BaseApiController
     }
 
 
+    /// <summary>« Ma famille »: the caller and their confirmed siblings, each with what is left to do this year
+    /// (a maîtrise sibling shows the name only). Empty when there is no confirmed fratrie.</summary>
+    [HttpGet("family")]
+    public async Task<IActionResult> Family() =>
+        Ok(await Mediator.Send(new GNDJ.Application.Members.Queries.MyFamily.GetMyFamilyQuery()));
+
     /// <summary>One-time contact-review popup « Confirmer »: applies the caller's chosen courriel/téléphone
     /// principal + parents' situation + per-parent urgence/décédé, and stamps ContactReviewedAt so it stops showing.</summary>
     [HttpPost("review-contacts")]

@@ -259,7 +259,7 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
           {/* Custom reports live in their own "Rapports" sidebar section now (was a dropdown here). */}
         </div>
         {/* « À traiter »: shortcuts to what needs the chef's action in this unit (or « Rien à traiter »). */}
-        <UnitTodoStrip unitId={unitId} onShowWithoutTeam={() => { setTeamFilter('none'); setSearch('') }} />
+        <UnitTodoStrip unitId={unitId} onShowWithoutTeam={() => { setTeamFilter('none'); setSearch('') }} onOpenMember={openMember} />
         <div className="flex gap-2">
           <SearchInput className="flex-1" placeholder="Rechercher un membre…" value={search} onChange={setSearch} />
           <Select value={teamFilter || 'all'} onValueChange={(v) => setTeamFilter(v === 'all' ? '' : v)}>
