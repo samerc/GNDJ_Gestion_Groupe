@@ -29,6 +29,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# FicheOcr writes UTF-8; without this, PowerShell 5.1 decodes its output with the old console code page and the
+# French accents come out garbled (on screen and in the log).
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 . (Join-Path $PSScriptRoot 'ollama-common.ps1')
 
 $exe = Join-Path $OutDir 'tool\FicheOcr.exe'
