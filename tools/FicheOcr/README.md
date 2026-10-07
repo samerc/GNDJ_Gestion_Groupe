@@ -88,6 +88,11 @@ effacez la copie après usage.
 
 ## Si la lecture est trop lente ou pas assez bonne
 
+- Images plus petites (plus rapide, écriture fine moins lisible) : essai sur 5 fiches d'une unité déjà lue, dans le
+  dossier d'essai (les vrais résultats ne bougent pas), puis comparez avec les lignes déjà lues :
+  `run-ocr.ps1 -Unit C1 -Trial 5 -MaxPx 1200 -Threads 8` → `C:\gndj-ocr\essaiiches-medicales.xlsx`.
+  Supprimez `C:\gndj-ocr\essai` avant un nouvel essai (sinon les fiches déjà essayées sont sautées).
+
 - Plus rapide, moins précis : `qwen2.5vl:3b` (`ollama pull qwen2.5vl:3b`, puis `-Model qwen2.5vl:3b`).
 - Plus de cœurs la nuit : `-Threads 6`.
 - Le prompt et les vérifications sont dans `FicheFields.cs`.
