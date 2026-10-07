@@ -64,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File $r -Unit C1 -Until 18:00   # s'arrête 
   heures. Le « Temps moyen par fiche » est affiché à la fin de chaque passage.
 - Relire les fiches en erreur : ajoutez `-RetryErrors`.
 - Après une mise à jour du programme (nouvelles vérifications), réécrire l'Excel sans rien relire :
-  `C:\gndj-ocr	ool\FicheOcr.exe --site C:\inetpub\www\gndj --out C:\gndj-ocr --report`.
+  `C:\gndj-ocr\tool\FicheOcr.exe --site C:\inetpub\www\gndj --out C:\gndj-ocr --report`.
 
 ## Option : la nuit
 
