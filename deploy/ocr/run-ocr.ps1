@@ -22,7 +22,7 @@ param(
     [string[]]$Unit = @(),
     [switch]$ListUnits,
     [int]$Threads = 4,
-    [int]$MaxPages = 1,
+    [int]$MaxPages = 2,       # pages read per fiche (recto/verso; longer documents are flagged)
     [int]$MaxPx = 1600,       # longest side of each page sent to the model (smaller = faster, harder to read)       # pages read per fiche (first page only by default; longer documents are flagged)
     [int]$Trial = 0,
     [int]$Limit = 0,
