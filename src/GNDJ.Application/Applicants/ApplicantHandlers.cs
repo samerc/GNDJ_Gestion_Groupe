@@ -63,7 +63,9 @@ public record ApplicantScoutRelationDto(Guid? Id, string Status, string? Relatio
     // Left null in the applicant portal path (privacy — applicants must not learn who is in the group).
     string? RelatedMemberName = null, string? RelatedMemberUnit = null,
     // CG-only: a SUGGESTED match (name match / family lookup) awaiting the CG's "Lier". Null in the portal path.
-    Guid? SuggestedMemberId = null, string? SuggestedMemberName = null, string? SuggestedMemberUnit = null);
+    Guid? SuggestedMemberId = null, string? SuggestedMemberName = null, string? SuggestedMemberUnit = null,
+    // CG-only: the suggested member's birth date and parents, compared side by side with the family before « Lier ».
+    DateOnly? SuggestedMemberDateOfBirth = null, IReadOnlyList<GNDJ.Application.Demandes.MemberParentDto>? SuggestedMemberParents = null);
 
 public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string? Gender,
     string? Nationality, string? School, string? Classe, string? Section, string? BloodType, string? MedicalNotes, string? Allergies,

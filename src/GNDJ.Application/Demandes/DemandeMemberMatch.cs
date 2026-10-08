@@ -27,7 +27,11 @@ public record MemberMatchDto(
     bool IsActive, string? Username,
     string Reason,       // why it was flagged, in French
     string? Status,      // null = to check · Confirmed · (Rejected matches are not returned)
-    bool Merged);        // the demande's member IS this member (sent and handled)
+    bool Merged,         // the demande's member IS this member (sent and handled)
+    IReadOnlyList<MemberParentDto>? Parents = null); // the member's parents, compared with the family's on review
+
+// A parent of an existing member (« Père » + full name) — shown next to the family's parents so the CG can compare.
+public record MemberParentDto(string Relationship, string Name);
 
 public static class DemandeMemberMatch
 {
@@ -124,6 +128,7 @@ public static class DemandeMemberMatch
             .ToListAsync(ct);
         var usernames = await context.Users.Where(u => pickedIds.Contains(u.MemberId))
             .Select(u => new { u.MemberId, u.Email }).ToListAsync(ct);
+        var parents = await ParentsAsync(context, pickedIds, ct);
 
         foreach (var d in demandes)
         {
@@ -138,9 +143,22 @@ public static class DemandeMemberMatch
                 c.Id, $"{c.FirstName} {c.LastName}", c.CardNumber, c.DateOfBirth, unitLabel, active is not null,
                 usernames.FirstOrDefault(u => u.MemberId == c.Id)?.Email, p.Reason,
                 d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed ? DemandeMemberMatchStatus.Confirmed : null,
-                d.CreatedMemberId == c.Id);
+                d.CreatedMemberId == c.Id, parents.GetValueOrDefault(c.Id) ?? []);
         }
         return result;
+    }
+
+    // Parents of several members in one query (père / mère first), keyed by member.
+    public static async Task<Dictionary<Guid, List<MemberParentDto>>> ParentsAsync(
+        IApplicationDbContext context, IReadOnlyCollection<Guid> memberIds, CancellationToken ct)
+    {
+        if (memberIds.Count == 0) return [];
+        var rows = await context.GuardianLinks.Where(l => memberIds.Contains(l.MemberId))
+            .Select(l => new { l.MemberId, l.RelationshipType, l.Guardian.FirstName, l.Guardian.LastName })
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.MemberId).ToDictionary(g => g.Key, g => g
+            .OrderBy(r => ParentRoles.IsFather(r.RelationshipType) ? 0 : ParentRoles.IsMother(r.RelationshipType) ? 1 : 2)
+            .Select(r => new MemberParentDto(r.RelationshipType, $"{r.FirstName} {r.LastName}".Trim())).ToList());
     }
 
     // Letters and digits only, lowercase, no accents: « Abi-Nassif » ≡ « abi nassif ».

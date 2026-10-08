@@ -3,7 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
-      {"date": "2026-10-08", "text": "Demandes : dans l'encadré « À vérifier », le bouton « Vérifier » des « Déjà membre ? » et des frères et sœurs à lier ouvre une liste claire — l'enfant de la demande à gauche, le membre du groupe à droite — avec les réponses directement sur chaque ligne."},
+      {"date": "2026-10-08", "text": "Demandes : dans l'encadré « À vérifier », le bouton « Vérifier » des « Déjà membre ? » et des frères et sœurs à lier ouvre une liste claire : les mêmes informations des deux côtés (nom, date de naissance, unité, parents) — la demande à gauche, le membre du groupe à droite, ce qui est identique en vert — avec les réponses directement sur chaque ligne."},
       {"date": "2026-10-08", "text": "Demandes : un encadré « À vérifier » en haut de la page compte les « Déjà membre ? » sans réponse, les frères et sœurs à lier et les décisions à vérifier, avec un bouton « Afficher » pour chacun ; nouveau filtre « Frère / sœur à lier »."},
       {"date": "2026-10-08", "text": "Postes : les marques « Passage20 » / « Passage21 » recopiées sur de nombreux postes par l'import de l'ancien logiciel sont supprimées ; une note déjà présente sur un poste peut maintenant être corrigée ou effacée dans « Modifier le poste »."},
       {"date": "2026-10-08", "text": "Passage : les enfants acceptés par les demandes ne bloquent plus la publication du passage quand les réponses sont envoyées avant (ils sont déjà dans leur unité de l'année prochaine) et restent comptés comme arrivées dans la projection ; à la publication, les anciennes lignes des chefs sont archivées, pour qu'elles ne réapparaissent plus « à finaliser » quand un chef quitte la maîtrise."},

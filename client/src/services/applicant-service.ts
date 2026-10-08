@@ -73,7 +73,12 @@ export interface ApplicantScoutRelation {
   suggestedMemberId?: string | null
   suggestedMemberName?: string | null
   suggestedMemberUnit?: string | null
+  suggestedMemberDateOfBirth?: string | null
+  suggestedMemberParents?: MemberParent[] | null
 }
+
+// A parent of an existing member (CG review only) — compared with the family's parents.
+export interface MemberParent { relationship: string; name: string }
 
 export interface Demande {
   id: string

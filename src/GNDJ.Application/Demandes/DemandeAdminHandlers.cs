@@ -241,16 +241,21 @@ static class DemandeReviewProjection
             .SelectMany(r => new[] { r.RelatedMemberId, r.SuggestedMemberId })
             .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
         var relatedMembers = relatedMemberIds.Count == 0
-            ? new Dictionary<Guid, (string Name, string? Unit)>()
+            ? new Dictionary<Guid, (string Name, string? Unit, DateOnly? Dob)>()
             : await context.Members.Where(m => relatedMemberIds.Contains(m.Id))
                 .Select(m => new
                 {
                     m.Id,
                     Name = m.FirstName + " " + m.LastName,
                     // Their current (open) assignment's unit, if any — gives the CG context for the match.
-                    Unit = m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault()
+                    Unit = m.Assignments.Where(a => a.EndDate == null).Select(a => a.Unit.Name).FirstOrDefault(),
+                    m.DateOfBirth,
                 })
-                .ToDictionaryAsync(x => x.Id, x => (x.Name, x.Unit), ct);
+                .ToDictionaryAsync(x => x.Id, x => (x.Name, x.Unit, Dob: x.DateOfBirth), ct);
+        // Parents of the SUGGESTED members only (compared with the family's parents in the « À lier » review).
+        var suggestedIds = relations.Values.SelectMany(rs => rs).Where(r => r.SuggestedMemberId.HasValue && r.RelatedMemberId == null)
+            .Select(r => r.SuggestedMemberId!.Value).Distinct().ToList();
+        var suggestedParents = await DemandeMemberMatch.ParentsAsync(context, suggestedIds, ct);
 
         // « Déjà membre ? » flags, computed live for the whole list in one batch.
         var memberMatches = await DemandeMemberMatch.FindAsync(context, demandes.Select(DemandeMemberMatch.Input).ToList(), ct);
@@ -276,7 +281,9 @@ static class DemandeReviewProjection
                     var match = r.RelatedMemberId.HasValue ? relatedMembers.GetValueOrDefault(r.RelatedMemberId.Value) : default;
                     var sugg = r.SuggestedMemberId.HasValue ? relatedMembers.GetValueOrDefault(r.SuggestedMemberId.Value) : default;
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
-                        r.OtherGroupIsFormer, match.Name, match.Unit, r.SuggestedMemberId, sugg.Name, sugg.Unit);
+                        r.OtherGroupIsFormer, match.Name, match.Unit, r.SuggestedMemberId, sugg.Name, sugg.Unit,
+                        r.SuggestedMemberId.HasValue ? sugg.Dob : null,
+                        r.SuggestedMemberId.HasValue ? suggestedParents.GetValueOrDefault(r.SuggestedMemberId.Value) : null);
                 }).ToList(),
                 sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode, d.LastEditedAt,
                 memberMatches.GetValueOrDefault(d.Id));

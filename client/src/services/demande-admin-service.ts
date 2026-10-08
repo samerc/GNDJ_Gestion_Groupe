@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
 import type { ActionPreview } from '@/components/shared/action-preview'
-import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput } from '@/services/applicant-service'
+import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput, MemberParent } from '@/services/applicant-service'
 
 export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean }
 
@@ -65,6 +65,7 @@ export interface MemberMatch {
   reason: string
   status: 'Confirmed' | null
   merged: boolean
+  parents?: MemberParent[] | null
 }
 
 export interface UnitOccupancy {
