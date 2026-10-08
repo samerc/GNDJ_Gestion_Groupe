@@ -21,17 +21,20 @@ import { useQueryClient } from '@tanstack/react-query'
 const KEEP_TYPES = 'newyear.keep_document_types'
 const KEEP_APPROVAL = 'newyear.keep_id_approval'
 
+// Human-readable size of the documents / archive (Mo or Go).
 function formatBytes(n: number | null | undefined) {
   if (!n) return '0 Mo'
   return n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} Go` : `${Math.max(1, Math.round(n / 1024 ** 2))} Mo`
 }
 
+// The card itself (also embedded in the prompt dialog below).
 export function NewYearCleanupPanel() {
   const qc = useQueryClient()
   const isSuperAdmin = useAuthStore((s) => !!s.user?.isSuperAdmin)
   const { data, isLoading } = useNewYearCleanup()
   const { data: docTypes } = useDocumentTypeList()
   const keepCodes = useSettingArray(KEEP_TYPES)
+  // Default true: only an explicit 'false' puts the kept documents back to « En attente ».
   const keepApproval = useSettingValue(KEEP_APPROVAL) !== 'false'
   const update = useUpdateSetting()
   const start = useStartNewYearCleanup()
@@ -44,6 +47,7 @@ export function NewYearCleanupPanel() {
       await qc.invalidateQueries({ queryKey: ['new-year-cleanup'] }) // the preview depends on these settings
     } catch (err) { toast.error(parseApiError(err)) }
   }
+  // Codes compared case-insensitively; each tick saves the setting right away (no Save button).
   const toggleType = (code: string, on: boolean) => {
     const upper = keepCodes.map((c) => c.toUpperCase())
     const next = on ? [...keepCodes, code] : keepCodes.filter((c) => c.toUpperCase() !== code.toUpperCase())
@@ -60,6 +64,7 @@ export function NewYearCleanupPanel() {
   }
 
   if (isLoading || !data) return <LoadingSpinner />
+  // preview = live counts for the current scout year; lastRun = latest background run (the hook polls while it runs).
   const p = data.preview
   const last = data.lastRun
   const running = data.running
@@ -122,6 +127,7 @@ export function NewYearCleanupPanel() {
           </span>
         </Callout>
       )}
+      {/* A failed run rolled the database back, so it can simply be started again. */}
       {!running && last?.state === 'failed' && last.scoutYear === p.scoutYear && (
         <Callout tone="danger" icon={AlertTriangle} title="Le nettoyage a échoué">
           {last.error} — rien n'a été modifié dans la base ; vous pouvez le relancer.
@@ -136,6 +142,7 @@ export function NewYearCleanupPanel() {
             {' '}{last.deleted} documents supprimés · {last.approvalsReset} validations remises · {last.sectionsCleared} sections vidées ·
             {' '}{last.classesPromoted} classes avancées
           </p>
+          {/* Archive download is super-admin only (server rule); others just see its name. */}
           {last.archiveFile && (
             isSuperAdmin ? (
               <Button variant="outline" size="sm" onClick={() => downloadNewYearArchive(last.archiveFile!).catch(async (e) => toast.error(await parseBlobError(e)))}>
@@ -147,6 +154,7 @@ export function NewYearCleanupPanel() {
         </Callout>
       )}
 
+      {/* Once per scout year: the button disappears when this year's cleanup is done. */}
       {!done && (
         <Button onClick={() => setConfirmOpen(true)} disabled={running || start.isPending}>
           {last?.state === 'failed' ? <RefreshCw className="mr-1.5 h-4 w-4" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
@@ -154,6 +162,7 @@ export function NewYearCleanupPanel() {
         </Button>
       )}
 
+      {/* Confirmation: « Lancer » stays disabled until « J'ai compris » is ticked. */}
       <Dialog open={confirmOpen} onOpenChange={(o) => { setConfirmOpen(o); if (!o) setUnderstood(false) }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
@@ -189,6 +198,7 @@ export function NewYearCleanupPrompt({ open, onOpenChange, year }: { open: boole
           <DialogTitle>Nouvelle année scoute {year}</DialogTitle>
           <DialogDescription>Voulez-vous faire maintenant le nettoyage de début d'année ? Vous pourrez aussi le lancer plus tard depuis Paramètres → Passage.</DialogDescription>
         </DialogHeader>
+        {/* Mounted only while open so the panel's queries don't run in the background. */}
         {open && <NewYearCleanupPanel />}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Plus tard</Button>

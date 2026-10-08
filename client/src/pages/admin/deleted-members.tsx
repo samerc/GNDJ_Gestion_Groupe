@@ -15,10 +15,12 @@ import { formatDate } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
+// Whole days left before the automatic purge (purgeAt is computed server-side); ≤ 0 = imminent.
 function daysUntil(purgeAt: string): number {
   return Math.ceil((new Date(purgeAt).getTime() - Date.now()) / 86_400_000)
 }
 
+// Route /admin/deleted-members. One confirm dialog serves both actions (restore / purge), driven by `action.kind`.
 export default function DeletedMembersPage() {
   const { data: members, isLoading } = useDeletedMembers()
   const restore = useRestoreMember()

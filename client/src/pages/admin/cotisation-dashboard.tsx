@@ -22,7 +22,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
 import { confirmAsync } from '@/lib/confirm'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
-import { formatMoney, formatDate, cn } from '@/lib/utils'
+import { formatMoney, formatDate, cn, todayIso, normalizeSearch } from '@/lib/utils'
 import { SearchInput } from '@/components/shared/search-input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -94,7 +94,7 @@ export default function CotisationDashboardPage() {
 
   const openPayDialog = (m: UnpaidCotisationDto) => {
     setPayFor(m)
-    setPayDate(new Date().toISOString().split('T')[0])
+    setPayDate(todayIso())
     const dpl = defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount)
     setPayLines([{ amount: dpl.amount ? String(dpl.amount) : '', currency: dpl.currency, paymentMethod: 'Cash' }])
   }
@@ -239,7 +239,7 @@ export default function CotisationDashboardPage() {
 
   // The member lists for the selected scope, filtered by the (accent/case-insensitive) name search.
   const lists = useMemo(() => {
-    const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const norm = normalizeSearch
     const q = norm(memberSearch.trim())
     const pick = <T extends { memberName: string }>(all: T[] | undefined, byUnit: Map<string, T[]>) =>
       (selUnit === 'all' ? (all ?? []) : (byUnit.get(selUnit) ?? [])).filter(m => !q || norm(m.memberName).includes(q))

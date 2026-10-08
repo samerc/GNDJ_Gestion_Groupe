@@ -23,7 +23,7 @@ public record MemberGroupDto(
 // Only a group manager (super-admin or maitrise.manage = CG/ACG) may see/manage member groups.
 internal static class MemberGroupAccess
 {
-    public static bool CanManage(ICurrentUserService u) => u.IsSuperAdmin || u.Permissions.Contains(Permissions.MaitriseManage);
+    public static bool CanManage(ICurrentUserService u) => MemberAccess.IsGroupManager(u);
 }
 
 // ── List ──

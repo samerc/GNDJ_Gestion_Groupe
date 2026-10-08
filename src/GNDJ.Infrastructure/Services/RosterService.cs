@@ -7,7 +7,7 @@ namespace GNDJ.Infrastructure.Services;
 
 // Generates a printable unit roster as an A4-landscape PDF table (QuestPDF). Columns are
 // caller-selectable from a fixed set; members are grouped under a per-team subheader (omitted when
-// there's a single team), with zebra striping. Unknown column keys resolve to member custom fields.
+// there's a single team), with zebra striping. Column keys not in ColumnDefs are dropped by Generate.
 public class RosterService : IRosterService
 {
     // Column key → (French header label, relative width). RelativeColumn widths share the page
@@ -44,9 +44,12 @@ public class RosterService : IRosterService
         ["startDate"] = ("Arriv\u00e9e", 1.5f),
     };
 
+    // Called by GenerateRosterQuery (unit report) and the custom-report templates; access + data collection are done
+    // upstream (ReportDataCollector) — this only renders.
     public byte[] Generate(RosterData data)
     {
         var columns = data.Columns.Where(c => ColumnDefs.ContainsKey(c)).ToList();
+        // Nothing usable selected → a sensible default column set instead of an empty table.
         if (columns.Count == 0) columns = ["name", "cardNumber", "age", "phone", "role"];
 
         var document = Document.Create(container =>
@@ -108,9 +111,10 @@ public class RosterService : IRosterService
                     }
                 });
 
+                // Footer date is server-local time (cosmetic only).
                 page.Footer().Row(row =>
                 {
-                    row.RelativeItem().Text($"G\u00e9n\u00e9r\u00e9 le {DateTime.Now:dd/MM/yyyy}").FontSize(6).Italic();
+                    row.RelativeItem().Text($"G\u00e9n\u00e9r\u00e9 le {GNDJ.Application.Common.LebanonClock.Now:dd/MM/yyyy}").FontSize(6).Italic();
                     row.RelativeItem().AlignRight().DefaultTextStyle(x => x.FontSize(6))
                         .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span("/"); t.TotalPages(); });
                 });
@@ -150,6 +154,7 @@ public class RosterService : IRosterService
         "role" => m.RoleName ?? "",
         "team" => m.TeamName ?? "",
         "startDate" => m.StartDate ?? "",
+        // Custom-field fallback: unreachable from Generate today (unknown keys are filtered out above).
         _ => m.CustomFields.FirstOrDefault(cf => cf.Name == col)?.Value ?? ""
     };
 }

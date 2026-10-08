@@ -6,6 +6,7 @@
 // regenerated on view). The leader picks which teams to include and whether to print photos.
 // Year = the active scout year (follows the passage year).
 import { useState } from 'react'
+import { formatDate } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import {
   archiveTrombinoscope,
@@ -126,7 +127,7 @@ export function TrombinoscoreDialog({ unitId, unitName, open, onOpenChange }: Pr
             <div className={`flex items-start gap-2 rounded-md border p-3 text-sm ${archiveInfo.published ? 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300' : 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'}`}>
               {archiveInfo.published ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <EyeOff className="mt-0.5 h-4 w-4 shrink-0" />}
               <div className="flex-1">
-                <p className="font-medium">Version enregistrée{archiveInfo.savedAt ? ` le ${new Date(archiveInfo.savedAt).toLocaleDateString('fr-FR')}` : ''}</p>
+                <p className="font-medium">Version enregistrée{archiveInfo.savedAt ? ` le ${formatDate(archiveInfo.savedAt)}` : ''}</p>
                 <p className={`text-xs ${archiveInfo.published ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
                   {archiveInfo.memberCount} membres · {archiveInfo.published ? 'visible par les membres' : 'non visible par les membres (usage interne)'}. Générer à nouveau la remplacera.
                 </p>

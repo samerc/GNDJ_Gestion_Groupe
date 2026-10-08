@@ -8,6 +8,7 @@ import { CheckCircle2, UsersRound, FileCheck, ClipboardCheck, CalendarCheck, Arr
 import { useUnitTodo } from '@/services/dashboard-service'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
+// Amber shortcut pill (same look as the absences dropdown trigger below).
 function Chip({ icon, children, onClick }: { icon: ReactNode; children: ReactNode; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick}
@@ -17,8 +18,10 @@ function Chip({ icon, children, onClick }: { icon: ReactNode; children: ReactNod
   )
 }
 
+// « 1 membre … » / « 3 membres … ».
 const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`
 
+// onShowWithoutTeam filters the roster on the same page; onOpenMember opens a member's file there.
 export function UnitTodoStrip({ unitId, onShowWithoutTeam, onOpenMember }: {
   unitId: string; onShowWithoutTeam: () => void; onOpenMember: (memberId: string) => void
 }) {
@@ -39,12 +42,14 @@ export function UnitTodoStrip({ unitId, onShowWithoutTeam, onOpenMember }: {
   if (data.meetingsToApprove > 0)
     items.push(<Chip key="meet" icon={<CalendarCheck className="h-4 w-4" />} onClick={() => navigate('/attendance')}>
       {plural(data.meetingsToApprove, 'réunion à approuver', 'réunions à approuver')}</Chip>)
+  // Passage chip only while the passage is open and the unit hasn't finished it yet.
   if (data.passageOpen && !data.passageFinished)
     items.push(<Chip key="passage" icon={<ArrowRightLeft className="h-4 w-4" />} onClick={() => navigate('/passage')}>
       {data.passageMissing > 0
         ? `Passage : ${plural(data.passageMissing, 'membre sans choix', 'membres sans choix')}`
         : 'Passage : à terminer'}</Chip>)
 
+  // Repeated absences: a dropdown listing each member with their run of missed réunions (threshold = setting).
   const absent = data.repeatedAbsences ?? []
   if (absent.length > 0)
     items.push(

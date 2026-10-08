@@ -6,7 +6,7 @@ import { useMemberCotisations, useCreateCotisation, useUpdateCotisation, useDele
 import { useSettingValue } from '@/services/settings-service'
 import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/options'
-import { formatMoney, formatDate } from '@/lib/utils'
+import { formatMoney, formatDate, todayIso } from '@/lib/utils'
 import { Callout } from '@/components/shared/callout'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DateInput } from '@/components/shared/date-input'
@@ -73,8 +73,8 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
   // Exemption is per current scout year; detected from the marker row's willNotPay flag. The marker's
   // notes hold the optional reason ("pourquoi il ne paiera pas").
-  // Fallback while the setting loads: the scout year containing today (it starts in October).
-  const year = currentScoutYear ?? (() => { const d = new Date(); const y = d.getMonth() >= 9 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${y + 1}` })()
+  // (useCurrentScoutYear already falls back to the year containing today while the setting loads.)
+  const year = currentScoutYear
   const exemptMarker = cotisations?.find(c => c.scoutYear === year && c.willNotPay)
   const isExempt = !!exemptMarker
   const exemptReason = exemptMarker?.notes ?? null
@@ -116,7 +116,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
   const [deleting, setDeleting] = useState<MemberCotisationDto | null>(null)
   const [error, setError] = useState('')
 
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [paymentDate, setPaymentDate] = useState(todayIso())
   const [notes, setNotes] = useState('')
   const [payments, setPayments] = useState<PaymentLineInput[]>([
     { ...defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount), paymentMethod: 'Cash' }
@@ -124,7 +124,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
 
   const openCreate = () => {
     setEditing(null)
-    setPaymentDate(new Date().toISOString().split('T')[0])
+    setPaymentDate(todayIso())
     setNotes('')
     setPayments([{ ...defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount), paymentMethod: 'Cash' }])
     setError('')
@@ -360,7 +360,7 @@ export function MemberCotisations({ memberId, memberName, bare, selfView }: Prop
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <RequiredLabel>Année scoute</RequiredLabel>
-                <Input value={editing?.scoutYear ?? currentScoutYear ?? '2025-2026'} disabled className="bg-muted" />
+                <Input value={editing?.scoutYear ?? currentScoutYear} disabled className="bg-muted" />
               </div>
               <div className="space-y-2">
                 <RequiredLabel required>Date de paiement</RequiredLabel>

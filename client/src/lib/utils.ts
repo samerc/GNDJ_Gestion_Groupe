@@ -18,7 +18,6 @@ export function computeAge(dob: string | null | undefined): number | null {
   return age >= 0 && age < 130 ? age : null
 }
 
-// Long French date, e.g. "5 juillet 2026"; empty string for null/blank.
 // ── Dates: the ONE place the app formats dates, so every screen shows them the same way ──────────────
 // A bare 'yyyy-MM-dd' (DateOnly from the API) is read as a LOCAL calendar day — `new Date('2026-10-04')` would
 // be midnight UTC and could show the previous day in a timezone behind UTC.
@@ -42,6 +41,10 @@ export function formatDateTime(d: string | Date | null | undefined): string {
   if (!d) return ''
   const x = parseDay(d)
   return `${formatDate(x)} ${x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+}
+// « samedi 4 octobre » — a day heading without the year (camp rotation, lookup, scoring).
+export function formatDayLong(d: string | Date): string {
+  return parseDay(d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 // « oct. », « avr. » — the short French month (calendar tiles).
 export function formatMonthShort(d: string | Date): string {
@@ -86,4 +89,17 @@ export function metaFromHtml(html: string | null | undefined, max = 160): string
   const text = html.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim()
   if (!text) return undefined
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
+}
+
+// Today as yyyy-MM-dd in the DEVICE's local time (Lebanon for our users). Not toISOString(), which is UTC: between
+// midnight and 02:00/03:00 in Beirut it still gives yesterday's date.
+export function todayIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Lowercase without accents, for client-side search and matching (« Rhéa » ≡ « rhea »). The client counterpart of the
+// server's TextNormalization.NormalizeKey (minus the trim — callers trim the typed text when they need to).
+export function normalizeSearch(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }

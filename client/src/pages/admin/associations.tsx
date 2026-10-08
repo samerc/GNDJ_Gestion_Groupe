@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { BackToSettings } from '@/components/shared/back-to-settings'
 import { Callout } from '@/components/shared/callout'
 
+// `embedded` = rendered as the Associations tab of Paramètres (no own route): drops the back link + page header.
 export default function AssociationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search)
@@ -217,6 +218,7 @@ export default function AssociationsPage({ embedded = false }: { embedded?: bool
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'association ?"
+        // An association still holding units can't be deleted: the dialog explains why and hides the confirm button.
         description={deleting?.unitCount
           ? `Impossible de supprimer « ${deleting.name} » : ${deleting.unitCount} unité${deleting.unitCount > 1 ? 's y sont rattachées' : ' y est rattachée'}. Rattachez-les d'abord à une autre association.`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}

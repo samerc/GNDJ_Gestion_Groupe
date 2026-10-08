@@ -157,7 +157,7 @@ public class TrombinoscoreService : ITrombinoscoreService
                 page.Footer().Row(row =>
                 {
                     row.RelativeItem().AlignLeft()
-                        .Text($"Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(6).Italic();
+                        .Text($"Généré le {GNDJ.Application.Common.LebanonClock.Now:dd/MM/yyyy}").FontSize(6).Italic();
                     row.RelativeItem().AlignRight().DefaultTextStyle(x => x.FontSize(6))
                         .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span(" / "); t.TotalPages(); });
                 });

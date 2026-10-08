@@ -19,8 +19,10 @@ import { useDebounce } from '@/hooks/use-debounce'
 import apiClient from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
+// Display order of the audience groups. The server already filters the list to the guides this user may read.
 const ORDER: HelpAudience[] = ['public', 'member', 'cu', 'cg', 'admin', 'dev']
 
+// Side list of guides grouped by audience; `active` highlights the open guide.
 function GuideList({ docs, active }: { docs: HelpDocSummary[]; active?: string }) {
   return (
     <nav className="space-y-4">
@@ -46,6 +48,7 @@ function GuideList({ docs, active }: { docs: HelpDocSummary[]; active?: string }
   )
 }
 
+// Hits are per section: each links straight to that heading's anchor in its guide.
 function SearchResults({ q }: { q: string }) {
   const { data, isFetching } = useHelpSearch(q)
   if (isFetching && !data) return <LoadingSpinner />
@@ -65,6 +68,7 @@ function SearchResults({ q }: { q: string }) {
   )
 }
 
+// One guide: Markdown rendered by MarkdownView (images fetched with auth) + a sticky table of contents on wide screens.
 function GuideView({ slug }: { slug: string }) {
   const { data, isLoading, isError } = useHelpDoc(slug)
   const { hash } = useLocation()
@@ -79,6 +83,7 @@ function GuideView({ slug }: { slug: string }) {
   if (isLoading) return <LoadingSpinner variant="detail" />
   if (isError || !data) return <EmptyState icon={BookOpen} title="Guide introuvable" description="Ce guide n'existe pas ou ne vous est pas destiné." />
 
+  // Table of contents = the guide's level-2 headings (shown only when there are more than two).
   const sections = [...data.markdown.matchAll(/^## (.+)$/gm)].map((m) => m[1].trim())
 
   return (
@@ -112,6 +117,7 @@ function GuideView({ slug }: { slug: string }) {
   )
 }
 
+// Routes /aide and /aide/:slug (any signed-in user). A search of 2+ characters replaces the guide / card view.
 export default function HelpPage() {
   const { slug } = useParams()
   const navigate = useNavigate()

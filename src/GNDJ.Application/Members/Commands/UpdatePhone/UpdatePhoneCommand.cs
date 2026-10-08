@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.UpdatePhone;
 
 // Edits a member phone. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record UpdatePhoneCommand(Guid Id, string CountryCode, string Number, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<bool>>;
 
 public class UpdatePhoneCommandValidator : AbstractValidator<UpdatePhoneCommand>

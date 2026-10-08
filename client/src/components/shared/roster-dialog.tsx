@@ -26,6 +26,7 @@ interface ColumnGroup {
   columns: { key: string; label: string }[]
 }
 
+// Keys match the roster PDF column ids (RosterService); name + prénom aren't listed because they are always printed.
 const COLUMN_GROUPS: ColumnGroup[] = [
   {
     label: 'Identité',
@@ -70,6 +71,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 // Flat list of every selectable column key — used to seed/reset the selection to "all".
 const ALL_COLUMN_KEYS = COLUMN_GROUPS.flatMap(g => g.columns.map(c => c.key))
 
+// Every column ticked by default; the PDF is built for the current scout year.
 export function RosterDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
   const scoutYear = useCurrentScoutYear()
   const [selected, setSelected] = useState<Set<string>>(new Set(ALL_COLUMN_KEYS))

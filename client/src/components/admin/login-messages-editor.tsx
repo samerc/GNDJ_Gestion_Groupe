@@ -9,7 +9,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DateInput } from '@/components/shared/date-input'
 import { confirmAsync } from '@/lib/confirm'
-import { formatDate } from '@/lib/utils'
+import { formatDate, todayIso } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 
@@ -204,7 +204,7 @@ function scheduleLabel(m: Msg): string {
 
 // Live status chip — mirrors the server's inclusive [start, end] window (browser date; the server is authoritative).
 function status(m: Msg): { label: string; variant: 'secondary' | 'warning' | 'success' } {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIso()
   if (m.end && m.end < today) return { label: 'Expiré', variant: 'secondary' }
   if (m.start && m.start > today) return { label: 'Programmé', variant: 'warning' }
   return { label: 'Actif', variant: 'success' }

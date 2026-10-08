@@ -58,6 +58,7 @@ export function NotificationBell() {
   const items = data?.items ?? []
   const hasRead = items.some((n) => n.isRead)
 
+  // Opening an item marks it read (if unread), closes the dropdown and follows its link.
   const openItem = (n: NotificationDto) => {
     if (!n.isRead) markRead.mutate(n.id)
     setOpen(false)
@@ -100,6 +101,7 @@ export function NotificationBell() {
                 <Check className="h-3.5 w-3.5" />Tout marquer comme lu
               </button>
             )}
+            {/* Only offered when the loaded list has read notifications to clear. */}
             {hasRead && (
               <button
                 type="button"
@@ -120,6 +122,7 @@ export function NotificationBell() {
             <EmptyState icon={Bell} title="Aucune notification" />
           ) : (
             items.map((n) => {
+              // An unknown type (newer server) falls back to the generic info style.
               const meta = META[n.type] ?? META.info
               const Icon = meta.icon
               return (
@@ -187,6 +190,7 @@ function NotificationPreferencesDialog({ open, onOpenChange }: { open: boolean; 
   // Local editable copy of the muted set, seeded from the server value when the dialog opens.
   const [mutedSet, setMutedSet] = useState<NotificationType[]>([])
   const [seeded, setSeeded] = useState(false)
+  // Seeded once per opening (render-phase reset, no effect); closing lets the next opening re-seed.
   if (open && !seeded && muted) { setMutedSet(muted); setSeeded(true) }
   if (!open && seeded) setSeeded(false)
 

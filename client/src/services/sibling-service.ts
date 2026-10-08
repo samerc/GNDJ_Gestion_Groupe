@@ -200,16 +200,6 @@ export function useRejectSiblingSuggestion() {
   })
 }
 
-// POST /siblings/link → manually link two members as siblings.
-export function useLinkSiblings() {
-  const invalidate = useSiblingInvalidate()
-  return useMutation({
-    mutationFn: (data: { memberId: string; targetMemberId: string }) =>
-      apiClient.post<{ groupId: string }>('/siblings/link', data).then((r) => r.data),
-    onSuccess: invalidate,
-  })
-}
-
 // POST /siblings/unlink → remove a member from its fratrie.
 export function useUnlinkSibling() {
   const invalidate = useSiblingInvalidate()

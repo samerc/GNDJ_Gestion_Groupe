@@ -29,10 +29,13 @@ public class SlowRequestLog : ISlowRequestLog
 
     public int ThresholdMs { get; }
 
+    // Fed by SlowRequestMiddleware for every /api request over ThresholdMs; the route is already normalised
+    // (GUIDs/numbers → {id}) and the role is a coarse label, so no personal data is kept.
     public void Record(string method, string route, int statusCode, long elapsedMs, string role)
     {
         var now = DateTime.UtcNow;
         _recent.Enqueue(new SlowRequestEntry(now, method, route, statusCode, elapsedMs, role));
+        // Trim the ring; Count/TryDequeue are each thread-safe, a brief overshoot under contention is harmless.
         while (_recent.Count > MaxRecent && _recent.TryDequeue(out _)) { }
 
         var key = method + " " + route;
@@ -48,6 +51,7 @@ public class SlowRequestLog : ISlowRequestLog
         }
     }
 
+    // Read by SystemHealthService (Système page): slowest routes on average first.
     public IReadOnlyList<SlowRouteStat> ByRoute() =>
         _routes.Values.Select(a =>
         {

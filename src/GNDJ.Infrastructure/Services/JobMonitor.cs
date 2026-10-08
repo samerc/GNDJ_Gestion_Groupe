@@ -22,12 +22,14 @@ public class JobMonitor : IJobMonitor
     // and a slow run.
     private static readonly TimeSpan Grace = TimeSpan.FromMinutes(15);
 
+    // Called once by each background service at start-up; re-registering just refreshes the label / interval.
     public void Register(string key, string label, TimeSpan expectedInterval) =>
         _jobs.AddOrUpdate(key, _ => new Entry { Label = label, Interval = expectedInterval },
             (_, e) => { e.Label = label; e.Interval = expectedInterval; return e; });
 
     public void Succeeded(string key)
     {
+        // Unknown key (job never registered) is ignored rather than throwing inside a background loop.
         if (!_jobs.TryGetValue(key, out var e)) return;
         lock (e)
         {
@@ -48,6 +50,7 @@ public class JobMonitor : IJobMonitor
         }
     }
 
+    // Read by SystemHealthService for the Système page and the daily ops alert.
     public IReadOnlyList<JobStatus> Snapshot()
     {
         var now = DateTime.UtcNow;
@@ -56,8 +59,10 @@ public class JobMonitor : IJobMonitor
             var e = kv.Value;
             lock (e)
             {
+                // A job that never ran is measured from app start-up, so a job stuck before its first run still turns stale.
                 var reference = e.LastRunAt ?? StartedAt;
                 var stale = now - reference > e.Interval * 1.5 + Grace;
+                // Failing = the most recent run errored (a later success clears it).
                 var failing = e.LastErrorAt is not null && (e.LastSuccessAt is null || e.LastErrorAt > e.LastSuccessAt);
                 return new JobStatus(kv.Key, e.Label, (int)e.Interval.TotalMinutes, e.LastRunAt, e.LastSuccessAt,
                     e.LastErrorAt, e.LastError, e.ConsecutiveFailures, stale, failing);

@@ -791,7 +791,7 @@ public class ResendMemberActivationCommandHandler(IApplicationDbContext context,
         // Activation-link validity is configurable (member.activation_link_days, default 30).
         var activationDays = int.TryParse(await ApplicantHelpers.Setting(context, "member.activation_link_days", ct), out var ad) && ad > 0 ? ad : 30;
         // Fresh activation token (reuses the reset-token fields, redeemed at /reset-password?...&setup=1).
-        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+        var token = GNDJ.Application.Common.SecureTokens.UrlToken();
         user.PasswordResetToken = token;
         user.PasswordResetTokenExpiry = DateTime.UtcNow.AddDays(activationDays);
         await context.SaveChangesAsync(ct);

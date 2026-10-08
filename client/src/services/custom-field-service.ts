@@ -82,23 +82,6 @@ export function useCustomFields(enabled = true) {
   })
 }
 
-// GET /custom-fields/active — slim active fields for rendering on member forms.
-export function useActiveCustomFields() {
-  return useQuery({
-    queryKey: ['custom-fields', 'active'],
-    queryFn: () => apiClient.get<CustomFieldListDto[]>('/custom-fields/active').then(r => r.data),
-  })
-}
-
-// GET /custom-fields/member/{id} — a member's field values. Keyed ['custom-fields','member',memberId].
-export function useMemberCustomFieldValues(memberId: string) {
-  return useQuery({
-    queryKey: ['custom-fields', 'member', memberId],
-    queryFn: () => apiClient.get<MemberCustomFieldValueDto[]>(`/custom-fields/member/${memberId}`).then(r => r.data),
-    enabled: !!memberId,
-  })
-}
-
 // GET /custom-fields/member/{id}/applicable — the fields that APPLY to this member and the caller may VIEW,
 // with values merged. Drives the "Infos complémentaires" tab + Ma fiche. Sub-key of the member key so the
 // set/delete-value mutations (which invalidate ['custom-fields','member',id]) also refresh it.

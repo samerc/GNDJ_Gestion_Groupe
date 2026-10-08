@@ -46,7 +46,7 @@ public class GetDashboardOverviewQueryHandler(IApplicationDbContext context, ICu
     {
         // Same gate as the group overview: super-admin, Chef de Groupe (maitrise.manage), or a group-level
         // role holder (ACG). Everything below is group-wide, so no unit scoping is applied.
-        if (!currentUser.IsSuperAdmin && !currentUser.Permissions.Contains(Permissions.MaitriseManage))
+        if (!MemberAccess.IsGroupManager(currentUser))
         {
             var isGroupLevel = currentUser.MemberId is Guid mid && await context.MemberAssignments.AnyAsync(a =>
                 a.MemberId == mid && a.EndDate == null && !a.IsDeleted && a.FunctionalRole.SecurityProfile.IsGroupLevel, ct);

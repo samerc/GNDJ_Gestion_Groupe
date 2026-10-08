@@ -12,6 +12,7 @@ namespace GNDJ.Application.Calendar;
 // for every phone than RRULE + exceptions). Times are converted from Lebanon time to UTC; all-day items use DATE values.
 public static class CalendarIcs
 {
+    // Called by the anonymous personal feed (/calendar/feed/{token}.ics) with the already-expanded, viewer-filtered items.
     public static string Build(IEnumerable<CalendarItemDto> items)
     {
         var sb = new StringBuilder();
@@ -27,11 +28,13 @@ public static class CalendarIcs
         foreach (var i in items)
         {
             Line("BEGIN:VEVENT");
+            // Item ids can contain ":" (occurrence keys); swapped for "-" so the UID stays a plain, stable token.
             Line($"UID:{i.Id.Replace(':', '-')}@gndj.org");
             Line($"DTSTAMP:{stamp}");
             if (i.StartTime is TimeOnly st)
             {
                 var start = LebanonClock.ToUtc(i.Date, st);
+                // No end time → a default one-hour slot (phones show a zero-length event badly).
                 var end = i.EndTime is TimeOnly et ? LebanonClock.ToUtc(i.EndDate ?? i.Date, et) : start.AddHours(1);
                 Line($"DTSTART:{start:yyyyMMdd'T'HHmmss'Z'}");
                 Line($"DTEND:{end:yyyyMMdd'T'HHmmss'Z'}");
@@ -39,6 +42,7 @@ public static class CalendarIcs
             else
             {
                 Line($"DTSTART;VALUE=DATE:{i.Date:yyyyMMdd}");
+                // All-day DTEND is exclusive in iCalendar, hence the +1 day after the (inclusive) last day.
                 Line($"DTEND;VALUE=DATE:{(i.EndDate ?? i.Date).AddDays(1):yyyyMMdd}");
             }
             Line($"SUMMARY:{Escape(i.Title)}");
@@ -63,6 +67,7 @@ public static class CalendarIcs
             // UTF-8 size of the char without allocating a string: 1 (ASCII), 2, 3, or 4 for a surrogate pair —
             // counted on the high surrogate so a pair is never split across two lines.
             var n = ch < 0x80 ? 1 : ch < 0x800 ? 2 : char.IsHighSurrogate(ch) ? 4 : char.IsLowSurrogate(ch) ? 0 : 3;
+            // 74 + the leading space of the continuation line keeps every physical line within the 75-octet limit.
             if (n > 0 && bytes + n > 74) { sb.Append("\r\n "); bytes = 1; }
             sb.Append(ch);
             bytes += n;
@@ -90,12 +95,14 @@ public static class CalendarPublish
 
         if (existing is null)
         {
+            // Slug must be unique among ALL events, soft-deleted ones included (the unique index ignores the filter).
             var baseSlug = ContentText.Slugify(e.Title);
             var slug = baseSlug;
             for (var i = 2; await context.Events.IgnoreQueryFilters().AnyAsync(x => x.Slug == slug, ct); i++) slug = $"{baseSlug}-{i}";
             existing = new Event { Slug = slug, IsPublished = true, PublishedAt = DateTime.UtcNow };
             context.Events.Add(existing);
         }
+        // The calendar description is plain text: each non-empty line becomes an HTML-encoded <p> for the public page.
         var body = string.IsNullOrWhiteSpace(e.Description) ? ""
             : string.Concat(e.Description.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0)
                 .Select(l => $"<p>{System.Net.WebUtility.HtmlEncode(l)}</p>"));

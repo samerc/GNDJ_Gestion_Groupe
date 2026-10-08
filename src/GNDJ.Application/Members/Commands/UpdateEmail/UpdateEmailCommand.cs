@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.UpdateEmail;
 
 // Edits a member email. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record UpdateEmailCommand(Guid Id, string Address, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<bool>>;
 
 public class UpdateEmailCommandValidator : AbstractValidator<UpdateEmailCommand>
@@ -31,6 +33,7 @@ public class UpdateEmailCommandHandler(IApplicationDbContext context, ICurrentUs
         if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        // Captured before the edit so the audit row shows a before → after diff.
         var oldEmail = entity.Address;
         var oldType = entity.Type;
 

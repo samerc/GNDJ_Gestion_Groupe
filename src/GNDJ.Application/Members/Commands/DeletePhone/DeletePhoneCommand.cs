@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.DeletePhone;
 
 // Removes a member phone. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record DeletePhoneCommand(Guid Id) : IRequest<Result<bool>>;
 
 public class DeletePhoneCommandHandler : IRequestHandler<DeletePhoneCommand, Result<bool>>
@@ -30,6 +32,7 @@ public class DeletePhoneCommandHandler : IRequestHandler<DeletePhoneCommand, Res
         if (!await MemberAccess.CanAccessMemberAsync(_context, _currentUser, entity.MemberId, cancellationToken))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        // Snapshot the names/values for the audit row before the entity is removed (soft delete).
         var member = await AuditNames.MemberAsync(_context, entity.MemberId, cancellationToken);
         var phone = $"{entity.CountryCode} {entity.Number}".Trim();
         var memberId = entity.MemberId;

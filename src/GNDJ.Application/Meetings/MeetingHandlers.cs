@@ -34,8 +34,7 @@ public static class AttendanceAccess
 
     // Group-manager (super-admin or maitrise.manage = CG/ACG, or a delegated full-CG) — may create/manage
     // group-wide & unit-type member groups + define groups.
-    public static bool CanManageDynamic(ICurrentUserService u) =>
-        u.IsSuperAdmin || u.Permissions.Contains(Permissions.MaitriseManage);
+    public static bool CanManageDynamic(ICurrentUserService u) => MemberAccess.IsGroupManager(u);
 
     // Who may create/fill a member-group réunion. A TOP-LEVEL group (whole group, or a NON-split branch) is a
     // group-manager thing. A UNIT-CONTEXT group (a single unit, or a per-unit branch) appears inside a unit's

@@ -44,6 +44,7 @@ interface UnitView {
   changes: number
 }
 
+// Only lines not yet applied count (applied ones are already reflected in `unit.current` after the passage).
 function buildViews(plan: MaitrisePlan): UnitView[] {
   const pending = plan.lines.filter(l => !l.applied)
   const codeOf = new Map(plan.units.map(u => [u.unitId, u.unitCode]))
@@ -62,6 +63,7 @@ function buildViews(plan: MaitrisePlan): UnitView[] {
       const member = unit.current.find(m => m.assignmentId === line.assignmentId)!
       const start = pending.find(l => l.kind === 'Start' && l.memberId === line.memberId && l.unitId !== unit.unitId)
       const by = line.causedByLineId ? pending.find(l => l.id === line.causedByLineId && l.memberId !== line.memberId) : undefined
+      // Why a leader leaves: moves to another unit, is replaced by a new head (head swap), or simply stops.
       const where = start ? `va à ${codeOf.get(start.unitId)}` : by ? `remplacé(e) par ${by.firstName} ${by.lastName}` : 'arrête'
       return { member, line, where }
     }).filter(x => x.member)
@@ -77,9 +79,11 @@ function buildViews(plan: MaitrisePlan): UnitView[] {
       return { line, origin }
     })
     const headNowM = unit.current.find(m => m.isHead)
+    // Next year's head = a staying head, else an arriving line that gives a head function.
     const headNextM = staying.find(m => m.isHead) ?? arriving.find(a => a.line.isHead)?.line
     return {
       unit, staying, leaving, arriving,
+      // Counts are distinct MEMBERS (one person can hold two functions in the same unit).
       nowCount: distinct(unit.current.map(m => m.memberId)),
       nextCount: distinct([...staying.map(m => m.memberId), ...arriving.map(a => a.line.memberId)]),
       headNow: headNowM ? name(headNowM) : null,
@@ -89,6 +93,7 @@ function buildViews(plan: MaitrisePlan): UnitView[] {
   })
 }
 
+// Route /maitrises (maitrise.manage). One GET of the plan for the current scout year; every unit row is derived from it.
 export default function MaitrisesPage() {
   const { data: plan, isLoading } = useMaitrisePlan()
   const [open, setOpen] = useState<Set<string>>(new Set())
@@ -106,6 +111,7 @@ export default function MaitrisesPage() {
   )
 
   const pendingCount = plan.lines.filter(l => !l.applied).length
+  // Alerts (Groupe unit excluded): a unit that will have chefs but no chef d'unité, or no chef at all.
   const noHead = views.filter(v => !v.unit.isGroupUnit && v.nextCount > 0 && !v.headNext)
   const empty = views.filter(v => !v.unit.isGroupUnit && v.nextCount === 0 && v.nowCount > 0)
   const shown = onlyChanges ? views.filter(v => v.changes > 0 || noHead.includes(v) || empty.includes(v)) : views
@@ -209,6 +215,7 @@ export default function MaitrisesPage() {
   )
 }
 
+// Unit code pill tinted with its unit-type colour (the Groupe unit gets a crown badge instead).
 function UnitBadge({ unit }: { unit: MaitrisePlanUnit }) {
   const c = unit.unitTypeColor
   return unit.isGroupUnit
@@ -247,6 +254,7 @@ function UnitDetail({ view, published, onChange, onAdd, onUndo, undoing }: {
   )
 }
 
+// One of the three columns (Restent / Arrivent / Partent); an empty Arrivent shows only its "Ajouter" button.
 function Column({ title, count, tone, children }: { title: string; count: number; tone: 'neutral' | 'green' | 'red'; children: React.ReactNode }) {
   const color = { neutral: 'text-muted-foreground', green: 'text-green-700 dark:text-green-400', red: 'text-red-600 dark:text-red-400' }[tone]
   return (
@@ -258,6 +266,7 @@ function Column({ title, count, tone, children }: { title: string; count: number
   )
 }
 
+// A person line (crown = head of the unit) with an optional action on the right.
 function PersonRow({ name, detail, head, action }: { name: string; detail: string; head: boolean; action?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 rounded-md border bg-card px-2.5 py-1.5">
@@ -278,6 +287,7 @@ function UndoButton({ onClick, disabled }: { onClick: () => void; disabled: bool
   )
 }
 
+// Optional note kept on a planned change (not used for "maintenant" changes).
 function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <Textarea className="min-h-16" value={value}
     onChange={e => onChange(e.target.value)} placeholder="Note (facultatif)" maxLength={1000} />
@@ -405,6 +415,7 @@ function ChangeDialog({ plan, target, onClose }: { plan: MaitrisePlan; target: {
 function AddDialog({ plan, unit, onClose }: { plan: MaitrisePlan; unit: MaitrisePlanUnit; onClose: () => void }) {
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search)
+  // Candidates come from GET /maitrises/candidates (server excludes youth of the younger branches).
   const { data: results } = useMaitriseCandidates(debounced)
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null)
   const [roleId, setRoleId] = useState('')

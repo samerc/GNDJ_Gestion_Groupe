@@ -49,9 +49,11 @@ export default function PublicAgendaPage() {
   const [page, setPage] = useState(1)
   const [filter, setFilter] = useState<EventFilter>({})
   const { data, isLoading, isError } = usePublicEvents(page, 24, filter)
+  // The branch chips come from the public units list (only branches with a published unit appear).
   const { data: groups } = usePublicUnits()
 
   const applyFilter = (f: EventFilter) => { setFilter(f); setPage(1) }
+  // A chip is active when its filter equals the current one ({} = "Tout", groupOnly = "Le groupe", unitTypeId = a branch).
   const isActive = (f: EventFilter) => (f.groupOnly ?? false) === (filter.groupOnly ?? false) && (f.unitTypeId ?? null) === (filter.unitTypeId ?? null)
   const chip = (label: string, f: EventFilter) => (
     <button key={label} onClick={() => applyFilter(f)}
@@ -77,6 +79,7 @@ export default function PublicAgendaPage() {
       <PageHero title="Agenda" subtitle="Les prochains rendez-vous du groupe." />
       <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
         <div className="mb-10 flex flex-wrap gap-2">
+          {/* Changing filter always goes back to page 1 (applyFilter). */}
           {chip('Tout', {})}
           {chip('Le groupe', { groupOnly: true })}
           {(groups ?? []).map((g) => chip(g.unitTypeName, { unitTypeId: g.unitTypeId }))}

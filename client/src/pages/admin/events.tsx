@@ -32,8 +32,10 @@ import { Plus, Pencil, Trash2, CalendarDays, ImagePlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { confirmAsync } from '@/lib/confirm'
 
+// Blank draft: tagged "Tout le groupe", unpublished (dates are ISO yyyy-MM-dd strings, endDate optional).
 const emptyForm: EventFormData = { title: '', bodyHtml: '', startDate: '', endDate: null, timeLabel: null, location: null, isPublished: false, tagType: 'Group', tagUnitTypeId: null, tagUnitId: null, coverImagePath: null }
 
+// Route /admin/events (content.manage). Unit types / units feed the "Concerne" (tag) pickers.
 export default function AdminEventsPage() {
   const { data: events, isLoading } = useEventsAdmin()
   const { data: unitTypes } = useUnitTypes({ pageSize: 100 })
@@ -62,6 +64,7 @@ export default function AdminEventsPage() {
     }
   }
 
+  // Cover image goes through the shared content-image upload; only its URL is kept in the form until Save.
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
     setCoverUploading(true)
@@ -81,6 +84,7 @@ export default function AdminEventsPage() {
     setFormOpen(false)
   }
 
+  // Client-side checks mirror the server validator (title, start date, end ≥ start, non-empty body, tag target).
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -182,6 +186,7 @@ export default function AdminEventsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <RequiredLabel>Concerne</RequiredLabel>
+                // Changing the tag type clears both target ids (only the one matching the type is meaningful).
                 <Select value={form.tagType} onValueChange={(v) => { setForm(f => ({ ...f, tagType: v, tagUnitTypeId: null, tagUnitId: null })); setDirty(true) }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>

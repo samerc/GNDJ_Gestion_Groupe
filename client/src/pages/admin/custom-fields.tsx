@@ -35,6 +35,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+// French labels for the four field types (list badge).
 const FIELD_TYPE_LABELS: Record<string, string> = {
   text: 'Texte', number: 'Nombre', select: 'Liste', boolean: 'Oui/Non',
 }
@@ -43,6 +44,7 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
 const EDITABLE_BY_LABELS: Record<CustomFieldEditableBy, string> = {
   Member: 'Le membre', UnitLeader: "Chef d'unité", GroupLeader: 'Chef de groupe',
 }
+// Targeting by role: everyone, leaders (maîtrise) only, or youth only.
 const ROLE_LABELS: Record<CustomFieldRole, string> = {
   all: 'Tous', maitrise: 'Maîtrise', youth: 'Jeunes',
 }
@@ -76,6 +78,7 @@ function nameToCode(name: string): string {
   return name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 }
 
+// `embedded` = rendered as the "Champs personnalisés" tab of Paramètres (super-admin): no back link / page header.
 export default function CustomFieldsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<CustomFieldDto | null>(null)
@@ -114,6 +117,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
 
   const openEdit = (item: CustomFieldDto) => {
     setEditing(item)
+    // Stored options are a JSON string array → shown as "a, b, c" in the form (invalid JSON = empty).
     const opts = item.options ? (() => { try { return (JSON.parse(item.options) as string[]).join(', ') } catch { return '' } })() : ''
     setForm({
       name: item.name, code: item.code, fieldType: item.fieldType, options: opts, isActive: item.isActive,
@@ -172,6 +176,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
     }
   }
 
+  // Drop → reorder the local copy at once, then persist the full id order (an error only shows a toast).
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
     if (!over || active.id === over.id) return
@@ -379,6 +384,7 @@ export default function CustomFieldsPage({ embedded = false }: { embedded?: bool
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer le champ personnalisé ?"
+        // A field already filled for some members can't be deleted (values would be lost): only deactivation is offered.
         description={(deleting?.valueCount ?? 0) > 0
           ? `« ${deleting?.name} » est renseigné pour ${deleting?.valueCount} membre(s) : il ne peut pas être supprimé. Désactivez-le plutôt (bouton Modifier, puis décochez « Actif »).`
           : `Êtes-vous sûr de vouloir supprimer « ${deleting?.name} » ? Cette action est irréversible.`}

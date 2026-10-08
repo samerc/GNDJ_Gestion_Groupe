@@ -228,7 +228,7 @@ function MergeDialog({ group, onClose }: { group: DuplicateDemandeGroup; onClose
                   <input type="radio" name="keeper" checked={d.id === keeperId} onChange={() => setKeeperId(d.id)} />
                   <span className="font-medium">{d.serialNumber ?? '—'}</span>
                   <span className="text-muted-foreground">· {d.accountEmail}</span>
-                  <span className="text-muted-foreground">· {d.submittedAt ? new Date(d.submittedAt).toLocaleDateString('fr-FR') : 'non soumise'}</span>
+                  <span className="text-muted-foreground">· {d.submittedAt ? formatDate(d.submittedAt) : 'non soumise'}</span>
                   <Badge variant="secondary" className="ml-auto text-[10px]">{d.status}</Badge>
                 </label>
               ))}

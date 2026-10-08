@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ScrollText, Eye } from 'lucide-react'
 
+// Paged server-side; the backend matches rows about the member, by the member, and about their parents.
 export function MemberAuditLog({ memberId }: { memberId: string }) {
   const [page, setPage] = useState(1)
   const { data, isLoading } = useMemberAuditLogs(memberId, page)
@@ -62,6 +63,7 @@ export function MemberAuditLog({ memberId }: { memberId: string }) {
         </div>
       )}
 
+      {/* Detail: who / when / where + the before→after values (DiffViewer). */}
       <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Détail de l'audit</DialogTitle></DialogHeader>

@@ -29,6 +29,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { FolderTree, Shield, Star, Award, Pencil, ChevronDown, ChevronRight, Info as InfoIcon } from 'lucide-react'
 
+// Shape of GET /unit-types/{id} (fetched inline here; the list service only exposes the paged list).
 interface UnitTypeDetail {
   id: string; name: string; code: string; description: string | null
   numberOfYears: number | null; ageMin: number | null; ageMax: number | null
@@ -42,6 +43,7 @@ const EMPTY: UnitTypeFormData = { name: '', code: '', description: '', numberOfY
 const GENDER_NONE = '__none__'
 const GENDER_LABELS: Record<string, string> = { Masculin: 'Garçons', Féminin: 'Filles', Mixte: 'Mixte' }
 
+// Route /admin/unit-types/:id (AdminRoute, super-admin); `id === 'new'` = create mode.
 export default function UnitTypeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -50,6 +52,7 @@ export default function UnitTypeDetailPage() {
   const { data: unitType, isLoading } = useQuery({
     queryKey: ['unitTypes', id],
     queryFn: () => apiClient.get<UnitTypeDetail>(`/unit-types/${id}`).then(r => r.data),
+    // "new" is not a guid: never query it.
     enabled: !!id && !isNew,
   })
 
@@ -91,6 +94,7 @@ export default function UnitTypeDetailPage() {
         const res = await createMutation.mutateAsync(form)
         toast.success("Type d'unité créé")
         setEditing(false)
+        // Swap /new for the real id (replace, so Back doesn't return to a blank create form).
         navigate(`/admin/unit-types/${res.id}`, { replace: true })
       } else {
         await updateMutation.mutateAsync({ id: id!, ...form })
@@ -261,6 +265,7 @@ export default function UnitTypeDetailPage() {
   )
 }
 
+// One read-only label/value pair of the Informations card.
 function Info({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div className={className}>

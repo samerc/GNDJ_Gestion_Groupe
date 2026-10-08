@@ -75,7 +75,7 @@ public class RequestMyAccessCommandHandler(IApplicationDbContext context, IEmail
         {
             if (!nameById.TryGetValue(user.MemberId, out var name)) continue; // member soft-deleted → skip
 
-            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+            var token = GNDJ.Application.Common.SecureTokens.UrlToken();
             user.PasswordResetToken = token;
             user.PasswordResetTokenExpiry = expiry;
 

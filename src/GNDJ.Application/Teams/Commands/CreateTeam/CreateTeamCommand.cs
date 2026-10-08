@@ -31,6 +31,7 @@ public class CreateTeamCommandValidator : AbstractValidator<CreateTeamCommand>
     }
 }
 
+// POST /teams (teams.create). Audited "Create" with the unit name.
 public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;

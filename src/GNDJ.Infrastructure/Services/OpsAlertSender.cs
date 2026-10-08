@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace GNDJ.Infrastructure.Services;
 
 // Singleton. Owns its DB scope (the caller's may be faulted). See IOpsAlertSender.
+// Used by ErrorNotifier (500 / client-crash alerts) and OpsAlertBackgroundService (the daily "problems" email).
 public class OpsAlertSender : IOpsAlertSender
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -25,8 +26,11 @@ public class OpsAlertSender : IOpsAlertSender
         _logger = logger;
     }
 
+    // A dedicated alert SMTP (appsettings ErrorAlerts:Smtp) works even when app email is off or broken, and is never
+    // redirected by email.override_recipient.
     public bool HasDedicatedSmtp => !string.IsNullOrWhiteSpace(_config["ErrorAlerts:Smtp:Host"]);
 
+    // Recipient order: setting error.notify_email → config ErrorAlerts:Email → oldest active super-admin.
     public async Task<string?> ResolveRecipientAsync(CancellationToken ct = default)
     {
         try
@@ -67,6 +71,7 @@ public class OpsAlertSender : IOpsAlertSender
             if (HasDedicatedSmtp)
                 return await SendDirectAsync(recipient, subject, htmlBody);
 
+            // No dedicated SMTP: go through the durable outbox with the generic adhoc_message template (plain-text body).
             await _emailQueue.EnqueueAsync(new EmailJob("adhoc_message", recipient, new Dictionary<string, string>
             {
                 ["subject"] = subject,
@@ -114,5 +119,6 @@ public class OpsAlertSender : IOpsAlertSender
         }
     }
 
+    // Helper for callers building htmlBody: HTML-encode any value they insert.
     public static string Encode(string s) => WebUtility.HtmlEncode(s);
 }

@@ -12,6 +12,7 @@ import { useCancelCalendarDate, useDeleteCalendarEvent, type CalendarItem } from
 import { dayTitle, itemColor, timeLabel } from './calendar-utils'
 import { cn } from '@/lib/utils'
 
+// item = the clicked calendar entry (null = closed); onEdit / onEditDate open the event form for the series / one date.
 export function EventDetailDialog({ item, onClose, onEdit, onEditDate, canOpenMeetings }: {
   item: CalendarItem | null; onClose: () => void; onEdit: (eventId: string) => void
   onEditDate: (eventId: string, date: string) => void; canOpenMeetings: boolean
@@ -20,6 +21,7 @@ export function EventDetailDialog({ item, onClose, onEdit, onEditDate, canOpenMe
   const cancelDate = useCancelCalendarDate()
   if (!item) return null
   const time = timeLabel(item)
+  // Three kinds of items: unit réunions, important dates (from settings) and calendar events.
   const kindLabel = item.kind === 'meeting' ? 'Réunion de l\'unité' : item.kind === 'date' ? 'Date importante' : 'Événement'
 
   const remove = async () => {
@@ -61,9 +63,11 @@ export function EventDetailDialog({ item, onClose, onEdit, onEditDate, canOpenMe
         </ul>
         {item.description && <p className="whitespace-pre-line break-words rounded-lg bg-muted/50 p-3 text-sm">{item.description}</p>}
         <DialogFooter className="flex-wrap gap-2">
+          {/* Réunions are managed on the attendance page, not here. */}
           {item.kind === 'meeting' && canOpenMeetings && (
             <Button variant="outline" asChild><Link to="/attendance">Réunions & absences</Link></Button>
           )}
+          {/* Only calendar events are editable, and only by their editors (the server sets canEdit). */}
           {item.kind === 'event' && item.canEdit && (
             <>
               {item.recurring && (

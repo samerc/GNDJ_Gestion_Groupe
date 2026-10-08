@@ -56,12 +56,14 @@ function SectionCard({ icon: Icon, title, children }: { icon: typeof User; title
   )
 }
 
+// The edit form itself; `d` is the review row being edited, onSaved / onCancel switch the drawer back to read-only.
 export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; onSaved: () => void; onCancel: () => void }) {
   const edit = useAdminEditDemande()
   const cities = useCities()
   const schools = useSettingArray('member.schools')
   const classes = useSettingArray('member.classes')
   const professionDomains = useSettingArray('member.profession_domains')
+  // Active unit names feed the « Unité actuelle » picker of a current-member proche (free text when none load).
   const { data: unitsData } = useUnits({ isActive: true, pageSize: 200 })
   const unitNames = useMemo(
     () => (unitsData?.items ?? []).map((u) => u.name).sort((a, b) => a.localeCompare(b)),
@@ -164,6 +166,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
               <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </Field>
             <Field label="Nom">
+              {/* Family name is upper-cased as typed, like in the applicant wizard. */}
               <Input value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase())} />
             </Field>
             <Field label="Date de naissance">
@@ -185,6 +188,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
               </Select>
             </Field>
             <Field label="École">
+              {/* Free text + a datalist of the managed schools; on blur a typed name snaps onto the canonical entry (matchSchool). */}
               <Input value={school} onChange={(e) => setSchool(e.target.value)} onBlur={() => setSchool((s) => (s ? matchSchool(s, schools) : s))} list="edit-schools" />
               <datalist id="edit-schools">{schools.map((s) => <option key={s} value={s} />)}</datalist>
             </Field>
@@ -301,6 +305,7 @@ export function DemandeEditForm({ d, onSaved, onCancel }: { d: DemandeReview; on
                       <SelectContent>{R_REL.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent>
                     </Select>
                   </Field>
+                  {/* Extra fields depend on the proche's situation: current unit, last unit / function, or the other group's name. */}
                   {r.status === 'CurrentInGroup' && (
                     <Field label="Unité actuelle">
                       {unitNames.length > 0 ? (

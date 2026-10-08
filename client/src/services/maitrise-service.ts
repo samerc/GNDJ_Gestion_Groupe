@@ -24,14 +24,6 @@ export interface MaitriseUnitDto {
   members: MaitriseMemberDto[]
 }
 
-// GET /maitrises → leaders grouped by unit, members ordered by rank (group unit first).
-export function useMaitrises() {
-  return useQuery({
-    queryKey: ['maitrises'],
-    queryFn: () => apiClient.get<MaitriseUnitDto[]>('/maitrises').then(r => r.data),
-  })
-}
-
 // POST /maitrises/remove → ends the leadership assignment; invalidates the list.
 export function useRemoveFromMaitrise() {
   const qc = useQueryClient()

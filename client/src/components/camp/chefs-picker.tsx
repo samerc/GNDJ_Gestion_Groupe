@@ -1,6 +1,7 @@
 // Checkbox list of the assistants chef de groupe (active group-level role) the CG can name "Chef de commission":
 // they lead that camp with full rights on it. Used when creating a camp and on the camp's Commission tab.
 import { useMemo, useState } from 'react'
+import { normalizeSearch } from '@/lib/utils'
 import { useCampCommissionCandidates } from '@/services/camp-service'
 import { SearchInput } from '@/components/shared/search-input'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -9,7 +10,7 @@ export function ChefsPicker({ value, onChange }: { value: string[]; onChange: (i
   const { data: candidates, isLoading } = useCampCommissionCandidates(true, true)
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
-    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    const norm = normalizeSearch
     const q = norm(search.trim())
     return (candidates ?? []).filter((c) => !q || norm(`${c.firstName} ${c.lastName} ${c.roles ?? ''}`).includes(q))
   }, [candidates, search])

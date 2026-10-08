@@ -11,6 +11,7 @@ import { useMemberEmailsReceived } from '@/services/member-service'
 import { formatDateTime } from '@/lib/utils'
 import { parseApiError } from '@/lib/error-utils'
 
+// Outbox states → badge (Pending = queued or waiting for a retry).
 const STATUS = {
   Sent: { label: 'Envoyé', variant: 'success' },
   Pending: { label: 'En attente', variant: 'warning' },
@@ -19,6 +20,7 @@ const STATUS = {
 
 export function MemberEmailsReceived({ memberId }: { memberId: string }) {
   const [open, setOpen] = useState(false)
+  // Fetched only once the card is opened.
   const { data, isLoading, error } = useMemberEmailsReceived(memberId, open)
   const bounced = data?.addresses.filter((a) => a.bounced) ?? []
 
@@ -67,6 +69,7 @@ export function MemberEmailsReceived({ memberId }: { memberId: string }) {
               })}
             </ul>
           )}
+          {/* The server returns at most the 100 most recent emails. */}
           {data && data.emails.length >= 100 && <p className="text-xs text-muted-foreground">Les 100 plus récents sont affichés.</p>}
         </CardContent>
       )}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { DndContext, DragOverlay, useDraggable, useDroppable, pointerWithin, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
@@ -7,13 +8,12 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useUnits } from '@/services/unit-service'
 import { PERMISSIONS } from '@/lib/constants'
 import { parseApiError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, normalizeSearch } from '@/lib/utils'
 import apiClient from '@/lib/api-client'
 import {
   useUnitOrganization, useMovePlacements,
   type OrgMember, type OrgRole,
 } from '@/services/organization-service'
-import { useSettingValue } from '@/services/settings-service'
 import { usePassageStatus, usePassagesByUnit, useProposePassage, type PassageDto } from '@/services/passage-service'
 import { useFunctionalRoles, type FunctionalRoleDto as FunctionalRole } from '@/services/role-service'
 import { LeaverContactDialog } from '@/components/passage/leaver-contact-dialog'
@@ -41,7 +41,7 @@ interface PassageDestination {
 // Accent/case-insensitive normalize for the member search box.
 // "Quitte le groupe" action button — same outlined orange style here and on the passage table.
 const LEAVE_BUTTON_CLASS = 'border-orange-400 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950/40'
-const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+const norm = normalizeSearch
 
 // A "column" here is just a team of the unit, plus a virtual "Sans équipe" (teamId null) — used both to
 // group the vertical list and as the destinations in the move popup.
@@ -78,7 +78,7 @@ export default function OrganizeUnitPage() {
   // ── Passage (Mode B) ── When the CG has OPENED the passage, the board becomes a PROPOSAL surface: moves are
   // saved as passage proposals (nothing is applied until the CG finalizes), with branch/quitte options. When
   // passage is closed, the board is a live roster tidy (Mode A) exactly as before.
-  const scoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
+  const scoutYear = useCurrentScoutYear()
   const { data: passageStatus } = usePassageStatus(scoutYear)
   const proposalMode = !!passageStatus?.isOpen && !!unitId
   const { data: unitPassages } = usePassagesByUnit(proposalMode ? unitId : '', scoutYear)

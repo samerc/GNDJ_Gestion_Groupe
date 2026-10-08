@@ -77,7 +77,7 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
 
     // A fill line whose label ends with « Signature » (e.g. « Signature : ____ ») is where the online signature goes.
     private static bool IsSignatureLine(HtmlNode fill)
-        => TextNormalizationLite(FillLabel(fill)).TrimEnd(' ', ':', ' ', '.', '-').EndsWith("signature");
+        => GNDJ.Application.Common.TextNormalization.NormalizeKey(FillLabel(fill)).TrimEnd(' ', ':', ' ', '.', '-').EndsWith("signature");
 
     // The text written just before a blank on its line (« Médicaments : »), up to the previous blank / split.
     // For a box (a block of its own): the text of the block just above it (its heading).
@@ -104,15 +104,6 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             label.Insert(0, n.InnerText);
         }
         return Decode(label.ToString()).Trim();
-    }
-
-    private static string TextNormalizationLite(string s)
-    {
-        var d = s.Normalize(System.Text.NormalizationForm.FormD);
-        var sb = new System.Text.StringBuilder(d.Length);
-        foreach (var ch in d)
-            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark) sb.Append(char.ToLowerInvariant(ch));
-        return sb.ToString().Trim();
     }
 
     // Gives every blank (fill line / box / checkbox) a key f0, f1… in document order — the link between the phone

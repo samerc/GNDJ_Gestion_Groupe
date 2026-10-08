@@ -3,6 +3,7 @@
 // (lost / shared / public computer). This device is listed first and can't be signed out from here
 // (use "Déconnexion" for that).
 import { useState } from 'react'
+import { formatDateTime } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Laptop, Smartphone, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
@@ -15,14 +16,15 @@ import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 
+// Phone vs computer icon, guessed from the user agent.
 const isMobile = (ua: string | null) => !!ua && /Android|iPhone|iPad|iPod|Mobile/i.test(ua)
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
+// Short French date + time (shared format).
+const fmt = (iso: string) => formatDateTime(iso)
 
 export function MyDevicesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const applyTokens = useAuthStore((s) => s.applyTokens)
+  // The device list is fetched only while the dialog is open.
   const { data, isLoading, refetch } = useMyDevices(open)
   const endDevice = useEndMyDevice()
   const signOutOthers = useSignOutOtherDevices()
@@ -30,6 +32,7 @@ export function MyDevicesDialog({ open, onOpenChange }: { open: boolean; onOpenC
 
   const others = (data ?? []).filter((d) => !d.isCurrent)
 
+  // Ending a session stops its refresh: that device keeps working until its access token expires (≤ 15 min).
   const end = async (d: MyDevice) => {
     setBusyId(d.id)
     try {

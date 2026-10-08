@@ -3,6 +3,7 @@
 // Same gates as the button: if a member still has no line or a unit hasn't finished, nothing is published.
 // Pre-fills the day with « Date du passage » when it's still ahead.
 import { useEffect, useRef } from 'react'
+import { todayIso } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { ScheduledRunPanel } from '@/components/shared/scheduled-run-panel'
 import { usePassageFinalizeSchedule, useSetPassageFinalizeSchedule } from '@/services/passage-service'
@@ -30,7 +31,7 @@ export function PassageFinalizeSchedule({ published, hasLines, missing, unitsNot
     seen.current = lastAt ?? ''
   }, [lastAt, qc])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIso()
   const blockers = [
     missing > 0 ? `${missing} membre(s) sans ligne de passage` : '',
     unitsNotFinished > 0 ? `${unitsNotFinished} unité(s) pas terminée(s)` : '',

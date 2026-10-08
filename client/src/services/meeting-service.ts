@@ -7,10 +7,8 @@ import apiClient from '@/lib/api-client'
 // Queries key on ['meetings', ...].
 
 export const MEETING_TYPES = ['Reunion', 'Sortie', 'Camp'] as const
-export type MeetingType = (typeof MEETING_TYPES)[number]
 // French labels for the réunion types (Reunion=réunion, Sortie=sortie/outing, Camp=camp w/ date range).
 export const MEETING_TYPE_LABELS: Record<string, string> = { Reunion: 'Réunion', Sortie: 'Sortie', Camp: 'Camp' }
-export const MEETING_STATUS_LABELS: Record<string, string> = { Approved: 'Approuvée', Pending: 'En attente' }
 
 export interface MeetingDto {
   id: string

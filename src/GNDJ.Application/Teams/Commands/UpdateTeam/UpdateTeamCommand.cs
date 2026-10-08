@@ -28,6 +28,7 @@ public class UpdateTeamCommandValidator : AbstractValidator<UpdateTeamCommand>
     }
 }
 
+// PUT /teams/{id} (teams.edit). Audited "Update" with a full before → after snapshot.
 public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
@@ -47,7 +48,10 @@ public class UpdateTeamCommandHandler : IRequestHandler<UpdateTeamCommand, Resul
         if (entity is null)
             return Result<bool>.Failure("Équipe introuvable.");
 
-        if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(entity.UnitId))
+        // Both the team's current unit AND the unit it is moved to must be ones the caller may manage — otherwise a
+        // chef could move a team (and its members' équipe) into a unit they don't lead.
+        if (!_currentUser.IsSuperAdmin
+            && (!_currentUser.AuthorizedUnitIds.Contains(entity.UnitId) || !_currentUser.AuthorizedUnitIds.Contains(request.UnitId)))
             return Result<bool>.Failure("Accès non autorisé à cette unité.");
 
         var nameExists = await _context.Teams.AnyAsync(t => t.Name == request.Name && t.UnitId == request.UnitId && t.Id != request.Id, cancellationToken);

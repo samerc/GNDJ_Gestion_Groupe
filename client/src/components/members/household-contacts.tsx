@@ -5,6 +5,7 @@
 // (MemberGuardians with hideContacts) then shows only who the people are. Shared by Ma fiche (selfService, own
 // endpoints) and the CG/admin member panel (leader endpoints, gated by canEdit).
 import { useState } from 'react'
+import { normalizeSearch } from '@/lib/utils'
 import {
   useMember, useAddPhone, useUpdatePhone, useDeletePhone, useAddEmail, useUpdateEmail, useDeleteEmail,
   useAddAddress, useUpdateAddress, useDeleteAddress, useSetPrimaryContactEmail,
@@ -34,18 +35,10 @@ import { CopyButton } from '@/components/shared/copy-button'
 import { WhatsappLink } from '@/components/shared/whatsapp-link'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
-import { PHONE_COUNTRY_CODES, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, optionsWithCurrent } from '@/lib/options'
+import { PHONE_COUNTRY_CODES, ADDRESS_TYPE_OPTIONS, COUNTRY_OPTIONS, optionsWithCurrent, RELATIONSHIP_OPTIONS, relationshipLabel, canonicalRelationship } from '@/lib/options'
 import { parseApiError } from '@/lib/error-utils'
 import { Phone, Mail, MapPin, Plus, Pencil, Trash2, Star } from 'lucide-react'
 import { toast } from 'sonner'
-
-const RELATIONSHIP_OPTIONS = [
-  { value: 'Père', label: 'Père' }, { value: 'Mère', label: 'Mère' },
-  { value: 'Tuteur', label: 'Tuteur' }, { value: 'TuteurLégal', label: 'Tuteur légal' }, { value: 'Autre', label: 'Autre' },
-]
-const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-const relLabel = (v: string) => RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(v))?.label ?? v
-const canonicalRel = (v: string) => RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(v))?.value ?? v
 
 interface Props { memberId: string; selfService?: boolean; canEdit?: boolean }
 
@@ -84,8 +77,8 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
   const defaultCountry = useSettingValue('default_country')
   const cities = useCities()
 
-  const owners = [{ key: 'self', label: 'Vous' }, ...(guardians ?? []).map(g => ({ key: g.guardianId, label: `${relLabel(g.relationshipType)} · ${g.guardian.firstName}` }))]
-  const typeForOwner = (key: string) => key === 'self' ? 'Personnel' : (relLabel(guardians?.find(g => g.guardianId === key)?.relationshipType ?? '') || 'Parent')
+  const owners = [{ key: 'self', label: 'Vous' }, ...(guardians ?? []).map(g => ({ key: g.guardianId, label: `${relationshipLabel(g.relationshipType)} · ${g.guardian.firstName}` }))]
+  const typeForOwner = (key: string) => key === 'self' ? 'Personnel' : (relationshipLabel(guardians?.find(g => g.guardianId === key)?.relationshipType ?? '') || 'Parent')
 
   // Add / edit dialog state.
   const [phoneAdd, setPhoneAdd] = useState<{ owner: string; countryCode: string; number: string } | null>(null)
@@ -101,11 +94,11 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
   // Pooled rows (member's own + each parent's). Urgence: member = per-contact flag; parent = the link flag.
   const phoneRows = [
     ...member.phones.map(p => ({ owner: 'self', id: p.id, cc: p.countryCode, number: p.number, ownerLabel: 'Vous', urgence: p.isEmergency, isPrimary: p.isPrimary, isEmergency: p.isEmergency, linkId: null as string | null, relationship: '' })),
-    ...guardians.flatMap(gl => gl.guardian.phones.map(p => ({ owner: gl.guardianId, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, urgence: gl.isEmergencyContact, isPrimary: p.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
+    ...guardians.flatMap(gl => gl.guardian.phones.map(p => ({ owner: gl.guardianId, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: `${relationshipLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, urgence: gl.isEmergencyContact, isPrimary: p.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
   ]
   const emailRows = [
     ...member.emails.map(e => ({ owner: 'self', id: e.id, address: e.address, ownerLabel: 'Vous', urgence: e.isEmergency, isEmergency: e.isEmergency, linkId: null as string | null, relationship: '' })),
-    ...guardians.flatMap(gl => gl.guardian.emails.map(e => ({ owner: gl.guardianId, id: e.id, address: e.address, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, urgence: gl.isEmergencyContact, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
+    ...guardians.flatMap(gl => gl.guardian.emails.map(e => ({ owner: gl.guardianId, id: e.id, address: e.address, ownerLabel: `${relationshipLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, urgence: gl.isEmergencyContact, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
   ]
   const contactEmailOptions = Array.from(new Set(emailRows.map(r => r.address)))
 
@@ -113,7 +106,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
   const applyRelationship = async (owner: string, linkId: string | null, relationship: string) => {
     if (owner === 'self' || !linkId) return
     const g = guardians.find(x => x.guardianId === owner)
-    if (!g || normRel(g.relationshipType) === normRel(relationship)) return
+    if (!g || normalizeSearch(g.relationshipType) === normalizeSearch(relationship)) return
     await updGLink.mutateAsync({ linkId, relationshipType: relationship, isPrimaryContact: g.isPrimaryContact, isEmergencyContact: g.isEmergencyContact })
   }
 
@@ -130,7 +123,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
     e.preventDefault(); if (!phoneEdit) return
     try {
       if (phoneEdit.owner === 'self') await updPhone.mutateAsync({ id: phoneEdit.id, countryCode: phoneEdit.countryCode, number: phoneEdit.number, type: 'Personnel', isPrimary: phoneEdit.isPrimary, isEmergency: phoneEdit.isEmergency })
-      else await updGPhone.mutateAsync({ id: phoneEdit.id, countryCode: phoneEdit.countryCode, number: phoneEdit.number, type: relLabel(phoneEdit.relationship), isPrimary: phoneEdit.isPrimary })
+      else await updGPhone.mutateAsync({ id: phoneEdit.id, countryCode: phoneEdit.countryCode, number: phoneEdit.number, type: relationshipLabel(phoneEdit.relationship), isPrimary: phoneEdit.isPrimary })
       await applyRelationship(phoneEdit.owner, phoneEdit.linkId, phoneEdit.relationship)
       setPhoneEdit(null); toast.success('Téléphone enregistré')
     } catch (err) { toast.error(parseApiError(err)) }
@@ -148,7 +141,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
     e.preventDefault(); if (!emailEdit) return
     try {
       if (emailEdit.owner === 'self') await updEmail.mutateAsync({ id: emailEdit.id, address: emailEdit.address, type: 'Personnel', isPrimary: emailEdit.isPrimary, isEmergency: emailEdit.isEmergency })
-      else await updGEmail.mutateAsync({ id: emailEdit.id, address: emailEdit.address, type: relLabel(emailEdit.relationship), isPrimary: emailEdit.isPrimary })
+      else await updGEmail.mutateAsync({ id: emailEdit.id, address: emailEdit.address, type: relationshipLabel(emailEdit.relationship), isPrimary: emailEdit.isPrimary })
       await applyRelationship(emailEdit.owner, emailEdit.linkId, emailEdit.relationship)
       // Keep the "principal" email pointing at the (possibly changed) address.
       if (member.primaryContactEmail && member.primaryContactEmail.toLowerCase() === emailEdit.origAddress.toLowerCase() && emailEdit.address.trim().toLowerCase() !== emailEdit.origAddress.toLowerCase())
@@ -220,7 +213,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                   {!selfService && <CopyButton value={formatPhoneDisplay(r.cc, r.number)} label="Copier le numéro" />}
                   {!selfService && <WhatsappLink countryCode={r.cc} number={r.number} />}
                   {editable && <>
-                    <Tip content="Modifier le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier le téléphone" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                    <Tip content="Modifier le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier le téléphone" onClick={() => setPhoneEdit({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRelationship(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
                     <Tip content="Supprimer le téléphone"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer le téléphone" onClick={() => setDel({ kind: 'phone', owner: r.owner, id: r.id, label: formatPhoneDisplay(r.cc, r.number) })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                   </>}
                 </div>
@@ -250,7 +243,7 @@ export function HouseholdContacts({ memberId, selfService, canEdit }: Props) {
                     {r.urgence && <Badge variant="destructive" className="h-5 text-[10px]">Urgence</Badge>}
                     {!selfService && <CopyButton value={r.address} label="Copier l'email" />}
                     {editable && <>
-                      <Tip content="Modifier l'email"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier l'email" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
+                      <Tip content="Modifier l'email"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Modifier l'email" onClick={() => setEmailEdit({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: false, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRelationship(r.relationship) })}><Pencil className="h-3 w-3" /></Button></Tip>
                       <Tip content="Supprimer l'email"><Button variant="ghost" size="icon" className="h-9 w-9 sm:h-7 sm:w-7" aria-label="Supprimer l'email" onClick={() => setDel({ kind: 'email', owner: r.owner, id: r.id, label: r.address })}><Trash2 className="h-3 w-3 text-destructive" /></Button></Tip>
                     </>}
                   </div>

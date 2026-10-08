@@ -26,8 +26,10 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { Bell, Plus, X, Send, History, Users, RotateCcw } from 'lucide-react'
 
+// Exactly one audience is sent: a unit's active members, a member group's live roster, or picked members.
 type Audience = 'unit' | 'group' | 'members'
 
+// Route /admin/send-notification (maitrise.manage). The history below lists past manual sends (paged).
 export default function SendNotificationPage() {
   const [audience, setAudience] = useState<Audience>('unit')
   const [unitId, setUnitId] = useState('')
@@ -46,6 +48,7 @@ export default function SendNotificationPage() {
   const send = useSendPushNotification()
   const { data: history, isLoading: historyLoading } = useNotificationBroadcasts(historyPage)
 
+  // Picker callback: add once (duplicates ignored) and close the picker.
   const addMember = (m: { id: string; name: string }) => {
     setMembers((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
     setPickerOpen(false)
@@ -64,6 +67,7 @@ export default function SendNotificationPage() {
     toast.info('Message préparé — modifiez-le puis envoyez.')
   }
 
+  // Send stays disabled until the chosen audience actually has a target.
   const audienceReady =
     (audience === 'unit' && !!unitId) ||
     (audience === 'group' && !!groupId) ||
@@ -99,6 +103,7 @@ export default function SendNotificationPage() {
       })
       toast.success(`Notification envoyée à ${res.count} destinataire(s)`)
       setConfirmOpen(false)
+      // After a send, the message is cleared but the audience is kept (handy for a follow-up to the same people).
       setTitle(''); setBody(''); setUrl('')
     } catch (e) {
       toast.error(parseApiError(e))

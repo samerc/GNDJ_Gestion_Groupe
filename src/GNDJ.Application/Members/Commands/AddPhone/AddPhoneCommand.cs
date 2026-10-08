@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.AddPhone;
 
 // Adds a phone to a member. Access (IDOR guard): own profile, super-admin, or active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record AddPhoneCommand(Guid MemberId, string CountryCode, string Number, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<Guid>>;
 
 public class AddPhoneCommandValidator : AbstractValidator<AddPhoneCommand>
@@ -50,6 +52,7 @@ public class AddPhoneCommandHandler : IRequestHandler<AddPhoneCommand, Result<Gu
             IsPrimary = request.IsPrimary,
             IsEmergency = request.IsEmergency
         };
+        // IsPrimary is stored as given; the other phones' flags are not cleared here.
         _context.MemberPhones.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
         // Audit as a change on the owning Member (entity_type "Member"), with the member name resolved.

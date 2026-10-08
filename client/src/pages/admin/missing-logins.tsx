@@ -20,6 +20,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 
+// Sentinel select value for the group-wide scope (offered only to group managers).
 const ALL_ACTIVE = '__all_active__'
 
 // `embedded` = rendered as a tab elsewhere (hides its own header).
@@ -29,6 +30,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
   const isManager = useIsManager()
   const [unitId, setUnitId] = useState<string>(isManager ? ALL_ACTIVE : '')
   const isAll = unitId === ALL_ACTIVE
+  // Fetch only once a scope is chosen; the all-active scope is never queried for a non-manager (server refuses it).
   const enabled = isAll ? isManager : !!unitId
   const { data: missing, isLoading } = useMissingLogins(isAll ? undefined : (unitId || undefined), enabled)
   const createOne = useCreateMemberLogin()
@@ -39,6 +41,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
 
   const onScopeChange = (v: string) => { setUnitId(v); setCreds(null) }
 
+  // One member: emailed activation link when a contact email exists, else show the temp password in the dialog.
   const createFor = async (m: { memberId: string; memberName: string }) => {
     setBusyId(m.memberId)
     try {
@@ -48,6 +51,7 @@ export default function MissingLoginsPage({ embedded = false }: { embedded?: boo
     } catch (e) { toast.error(parseApiError(e)) } finally { setBusyId(null) }
   }
 
+  // Whole scope at once; members without email come back as credentials to relay by hand.
   const createBulk = async () => {
     try {
       const r = await createAll.mutateAsync(isAll ? { allActive: true } : { unitId })

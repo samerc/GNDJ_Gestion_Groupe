@@ -32,6 +32,7 @@ const LEVEL_LABELS: Record<string, string> = {
 }
 const levelLabel = (level: string) => LEVEL_LABELS[level.toLowerCase()] ?? level
 
+// One log line; when an exception is stored, a chevron expands it into a full-width <pre> row.
 function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {
   const [open, setOpen] = useState(false)
   const hasDetail = !!entry.exception
@@ -64,6 +65,7 @@ function LogRow({ entry, idx }: { entry: ErrorLogEntry; idx: number }) {
   )
 }
 
+// Route /admin/error-log (AdminRoute, super-admin). Level + debounced search are server-side filters (GET /logs).
 export default function ErrorLogPage() {
   const [level, setLevel] = useState('all')
   const [search, setSearch] = useState('')
@@ -77,6 +79,7 @@ export default function ErrorLogPage() {
 
   const clearLogs = useClearErrorLogs()
   const [confirmClear, setConfirmClear] = useState(false)
+  // "Vider le journal" deletes EVERY entry (not just the filtered ones) — back to page 1 afterwards.
   const handleClear = () => {
     clearLogs.mutate(undefined, {
       onSuccess: (r) => { setConfirmClear(false); setPage(1); toast.success(`Journal vidé (${r.deleted} entrée${r.deleted > 1 ? 's' : ''} supprimée${r.deleted > 1 ? 's' : ''})`) },

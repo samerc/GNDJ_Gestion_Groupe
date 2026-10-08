@@ -10,6 +10,7 @@ namespace GNDJ.Application.Teams.Queries;
 // only see teams in their authorized units. Ordered by unit, then DisplayOrder, then name.
 public record GetTeamsQuery(Guid? UnitId, string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<TeamDto>>;
 
+// GET /teams (teams.view). The member count = active (open-ended, not deleted) assignments on the team.
 public class GetTeamsQueryHandler : IRequestHandler<GetTeamsQuery, PaginatedList<TeamDto>>
 {
     private readonly IApplicationDbContext _context;

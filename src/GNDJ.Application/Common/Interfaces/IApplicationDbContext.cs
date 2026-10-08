@@ -99,5 +99,7 @@ public interface IApplicationDbContext
     // For handlers needing explicit serialization (e.g. passage finalize). Implemented in Infrastructure
     // so the relational/raw-SQL dependency stays out of the Application layer.
     Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+    // Transaction-scoped Postgres advisory lock (pg_advisory_xact_lock): call inside BeginTransactionAsync; it is
+    // released automatically at commit/rollback. Each serialized operation uses its own constant key.
     Task AcquireAdvisoryLockAsync(long key, CancellationToken cancellationToken = default);
 }

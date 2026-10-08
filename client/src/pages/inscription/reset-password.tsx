@@ -14,6 +14,8 @@ import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 
 // "Nouveau mot de passe" — applicant portal step 2: the parent lands here from the emailed reset link
 // (token + email query params) and chooses a new password.
+// Route /inscription/reset-password (ApplicantOpenRoute: reachable while the portal is open). Parent-portal accounts only —
+// members reset theirs on /reset-password.
 export default function ApplicantResetPasswordPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
@@ -34,6 +36,7 @@ export default function ApplicantResetPasswordPage() {
       setError('Les mots de passe ne correspondent pas.')
       return
     }
+    // Same configurable password policy as the server (security.password_* settings), checked here for instant feedback.
     if (!passwordMeetsPolicy(newPassword, policy)) {
       setError('Le mot de passe ne respecte pas toutes les exigences.')
       return

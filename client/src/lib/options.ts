@@ -1,3 +1,5 @@
+import { normalizeSearch } from '@/lib/utils'
+
 // Static {value,label} option lists for form selects (French labels). Values are the canonical
 // strings stored in the DB; keep in sync with the server's allowed-set validators. PINNED_* surface
 // common choices at the top of SearchableSelect. (Schools/cities/professions live in DB settings.)
@@ -117,28 +119,26 @@ export const COUNTRY_OPTIONS = [
   { value: 'Autre', label: 'Autre' },
 ]
 
-export const PROFESSION_OPTIONS = [
-  { value: 'Médecin', label: 'Médecin' },
-  { value: 'Ingénieur', label: 'Ingénieur' },
-  { value: 'Avocat', label: 'Avocat' },
-  { value: 'Enseignant', label: 'Enseignant' },
-  { value: 'Professeur', label: 'Professeur' },
-  { value: 'Architecte', label: 'Architecte' },
-  { value: 'Pharmacien', label: 'Pharmacien' },
-  { value: 'Dentiste', label: 'Dentiste' },
-  { value: 'Comptable', label: 'Comptable' },
-  { value: 'Banquier', label: 'Banquier' },
-  { value: 'Commerçant', label: 'Commerçant' },
-  { value: 'Entrepreneur', label: 'Entrepreneur' },
-  { value: 'Informaticien', label: 'Informaticien' },
-  { value: 'Journaliste', label: 'Journaliste' },
-  { value: 'Fonctionnaire', label: 'Fonctionnaire' },
-  { value: 'Militaire', label: 'Militaire' },
-  { value: 'Artisan', label: 'Artisan' },
-  { value: 'Agriculteur', label: 'Agriculteur' },
-  { value: 'Infirmier', label: 'Infirmier' },
-  { value: 'Au foyer', label: 'Au foyer' },
-  { value: 'Retraité', label: 'Retraité' },
-  { value: 'Sans emploi', label: 'Sans emploi' },
+// Relationship of a parent / tutor to the member (guardian links). Stored values may come from the old import without
+// accents (« Pere », « Mere »), so lookups are accent/case-insensitive. Shared by the Famille cards, the household
+// contacts and the contact-review popup.
+export const RELATIONSHIP_OPTIONS = [
+  { value: 'Père', label: 'Père' },
+  { value: 'Mère', label: 'Mère' },
+  { value: 'Tuteur', label: 'Tuteur' },
+  { value: 'TuteurLégal', label: 'Tuteur légal' },
   { value: 'Autre', label: 'Autre' },
 ]
+const relOption = (v: string) => RELATIONSHIP_OPTIONS.find((r) => normalizeSearch(r.value) === normalizeSearch(v))
+
+// Display label for a stored relationship (« Pere » → « Père »); unknown values are shown as stored.
+export function relationshipLabel(value: string): string {
+  return relOption(value)?.label ?? value
+}
+
+// The canonical option value for a stored relationship, so an imported « Mere » pre-selects « Mère » in a Select
+// (Radix matches by exact value); unknown values are kept as stored.
+export function canonicalRelationship(value: string): string {
+  return relOption(value)?.value ?? value
+}
+

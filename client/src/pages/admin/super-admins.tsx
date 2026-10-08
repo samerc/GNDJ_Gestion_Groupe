@@ -13,6 +13,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { Crown, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Section (not a page): rendered on "Accès & permissions" (roles-access) only when the viewer is super-admin.
 export function SuperAdminsSection() {
   const { data: admins, isLoading } = useSuperAdmins()
   const setSuperAdmin = useSetSuperAdmin()
@@ -80,6 +81,7 @@ export function SuperAdminsSection() {
       <MemberPickerDialog open={pickerOpen} onOpenChange={setPickerOpen}
         title="Ajouter un super-administrateur"
         description="Choisissez le membre à promouvoir. Il doit avoir un compte de connexion."
+        // Picking a member doesn't grant directly: it opens the grant confirmation first.
         onPick={(m) => { setPickerOpen(false); setGrantConfirm(m) }} />
 
       <ConfirmDialog open={!!grantConfirm} onOpenChange={(v) => { if (!v) setGrantConfirm(null) }}

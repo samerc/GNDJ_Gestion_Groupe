@@ -83,7 +83,7 @@ public class ReportsController : BaseApiController
     {
         var result = await Mediator.Send(new GenerateBulkCardsQuery(unitId));
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return File(result.Value!, "application/pdf", $"Cartes_Membres_{DateTime.Now:yyyyMMdd}.pdf");
+        return File(result.Value!, "application/pdf", $"Cartes_Membres_{GNDJ.Application.Common.LebanonClock.Now:yyyyMMdd}.pdf");
     }
 
     /// <summary>Generates the roster PDF (A4 landscape, selectable columns, grouped by team). Requires members.view.</summary>
@@ -93,7 +93,7 @@ public class ReportsController : BaseApiController
     {
         var result = await Mediator.Send(query);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return File(result.Value!, "application/pdf", $"Liste_{DateTime.Now:yyyyMMdd}.pdf");
+        return File(result.Value!, "application/pdf", $"Liste_{GNDJ.Application.Common.LebanonClock.Now:yyyyMMdd}.pdf");
     }
 
     /// <summary>Generates a member data export as an Excel (.xlsx) or CSV file; format and content-type come from the query result. Requires members.view.</summary>

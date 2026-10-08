@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.Associations.Queries;
 
+// Both queries are gated at the controller by associations.view; no unit scoping (associations are group-wide).
 // Paginated, searchable (name/code) list of associations for the admin org-structure page.
 public record GetAssociationsQuery(string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<AssociationDto>>;
 
@@ -27,6 +28,7 @@ public class GetAssociationsQueryHandler : IRequestHandler<GetAssociationsQuery,
 
         var projected = query.OrderBy(a => a.Name).Select(a => new AssociationDto(
             a.Id, a.Name, a.Code, a.Description,
+            // Explicit !IsDeleted: the count runs inside the projection, so the soft-delete filter is spelled out here.
             a.Units.Count(u => !u.IsDeleted),
             a.CreatedAt
         ));

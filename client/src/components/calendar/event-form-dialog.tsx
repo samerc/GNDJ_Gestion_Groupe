@@ -20,6 +20,7 @@ import {
 } from '@/services/calendar-service'
 import { REMINDER_OPTIONS } from './calendar-utils'
 
+// Empty event for « Nouvel événement »: one day, no time, no repetition, no reminder.
 const blank = (date: string, audience: CalendarAudience, unitId: string | null): CalendarEventInput => ({
   title: '', description: null, location: null, startDate: date, endDate: null, startTime: null, endTime: null,
   audience, unitTypeId: null, unitId, recurrence: 'None', recurrenceInterval: 1, recurrenceUntil: null,
@@ -33,10 +34,12 @@ function onlyThisDate(e: CalendarEventInput, date: string): CalendarEventInput {
   return { ...e, startDate: date, endDate: end, recurrence: 'None', recurrenceInterval: 1, recurrenceUntil: null, publishOnSite: false }
 }
 
+// Wrapper: waits for the audience options (and the event when editing) before mounting the form.
 export function EventFormDialog({ open, onOpenChange, eventId, defaultDate, occurrenceDate = null }: {
   open: boolean; onOpenChange: (o: boolean) => void; eventId: string | null; defaultDate: string; occurrenceDate?: string | null
 }) {
   const { data: options } = useCalendarOptions()
+  // The full event is fetched only while the dialog is open and editing.
   const { data: existing, isLoading } = useCalendarEvent(open ? eventId : null)
   if (!open) return null
   return (
@@ -48,6 +51,7 @@ export function EventFormDialog({ open, onOpenChange, eventId, defaultDate, occu
             ? "Les changements ne concernent que cette date ; les autres dates de l'événement restent comme elles sont."
             : 'Il apparaît dans le calendrier des personnes concernées.'}</DialogDescription>
         </DialogHeader>
+        {/* Keyed per event / date so reopening on another one re-seeds the form. A new event defaults to « Tout le groupe » when allowed, else the chef's first unit. */}
         {(eventId && (isLoading || !existing)) || !options ? <LoadingSpinner /> : (
           <EventForm key={`${eventId ?? 'new'}:${occurrenceDate ?? ''}`} eventId={eventId} occurrenceDate={occurrenceDate}
             options={options} onDone={() => onOpenChange(false)}
@@ -59,11 +63,13 @@ export function EventFormDialog({ open, onOpenChange, eventId, defaultDate, occu
   )
 }
 
+// The form proper; `initial` holds the series, the one-date copy, or a blank event.
 function EventForm({ eventId, occurrenceDate, initial, options, onDone }: {
   eventId: string | null; occurrenceDate: string | null; initial: CalendarEventInput; options: NonNullable<ReturnType<typeof useCalendarOptions>['data']>; onDone: () => void
 }) {
   const [f, setF] = useState<CalendarEventInput>(() => ({
     ...initial,
+    // Server times are HH:mm:ss; the time input wants HH:mm.
     startTime: initial.startTime?.slice(0, 5) ?? null,
     endTime: initial.endTime?.slice(0, 5) ?? null,
   }))
@@ -72,6 +78,7 @@ function EventForm({ eventId, occurrenceDate, initial, options, onDone }: {
   const update = useUpdateCalendarEvent()
   const editDate = useEditCalendarDate()
   const set = <K extends keyof CalendarEventInput>(k: K, v: CalendarEventInput[K]) => setF((x) => ({ ...x, [k]: v }))
+  // Only a one-off event for the group, a branch or a unit can be mirrored to the public agenda.
   const canPublish = ['Group', 'Branch', 'Unit'].includes(f.audience) && f.recurrence === 'None'
   const busy = create.isPending || update.isPending || editDate.isPending
 
@@ -80,12 +87,14 @@ function EventForm({ eventId, occurrenceDate, initial, options, onDone }: {
     if (!f.startDate) { toast.error('La date est requise.'); return }
     const data: CalendarEventInput = {
       ...f,
+      // Drop what the toggles hide: no end date unless multi-day, no end time without a start time.
       endDate: multiDay ? f.endDate : null,
       startTime: f.startTime || null,
       endTime: f.startTime ? f.endTime || null : null,
       publishOnSite: canPublish && f.publishOnSite,
     }
     try {
+      // One date of a series → edit-date (the series skips it, a one-off copy replaces it); else update or create.
       if (eventId && occurrenceDate) await editDate.mutateAsync({ id: eventId, date: occurrenceDate, data })
       else if (eventId) await update.mutateAsync({ id: eventId, data })
       else await create.mutateAsync(data)
@@ -158,9 +167,11 @@ function EventForm({ eventId, occurrenceDate, initial, options, onDone }: {
         <Textarea id="ev-desc" rows={3} value={f.description ?? ''} maxLength={4000} onChange={(e) => set('description', e.target.value || null)} />
       </div>
 
+      {/* Repetition is hidden when editing one date: the copy never repeats. */}
       {!occurrenceDate && <div className="space-y-1.5">
         <Label>Répétition</Label>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {/* Value encodes recurrence + interval (« Weekly:2 »); choosing a repetition turns off « Publier sur le site ». */}
           <Select value={f.recurrence === 'None' ? 'None' : `${f.recurrence}:${f.recurrenceInterval}`}
             onValueChange={(v) => {
               const [r, n] = v.split(':')

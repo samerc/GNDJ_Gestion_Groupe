@@ -11,6 +11,7 @@ namespace GNDJ.Application.Passages;
 // « Ce qui va se passer » before « Publier le passage »: how many lines are published (and how many still-pending
 // ones get accepted on the way), who changes unit (per destination), who leaves the group, the planned maîtrise
 // changes and the chefs d'unité who get their newcomers' Excel. Same gates as FinalizePassagesCommand. Read-only.
+// GET /passages/finalize/preview (passage.manage); the handler re-checks super-admin or passage.manage.
 public record GetFinalizePreviewQuery(string ScoutYear) : IRequest<Result<ActionPreviewDto>>;
 
 public class GetFinalizePreviewQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
@@ -39,6 +40,8 @@ public class GetFinalizePreviewQueryHandler(IApplicationDbContext context, ICurr
         if (await PassageScope.Lines(context).AnyAsync(p => p.ScoutYear == year && p.Status == PassageStatus.Rejected, ct))
             blockers.Add("Des lignes sont encore « rejetées » : choisissez leur destination.");
 
+        // The lines the publication would process: Approved ones plus Pending ones it accepts as proposed. The CG's
+        // decision (Final*) wins over the CU's proposal (Proposed*), same as at publication.
         var lines = await PassageScope.Lines(context)
             .Where(p => p.ScoutYear == year && (p.Status == PassageStatus.Approved || p.Status == PassageStatus.Pending))
             .Select(p => new
@@ -57,6 +60,7 @@ public class GetFinalizePreviewQueryHandler(IApplicationDbContext context, ICurr
 
         var destIds = moves.Select(m => m.Dest).Distinct().ToList();
         var units = await context.Units.Where(u => destIds.Contains(u.Id)).Select(u => new { u.Id, u.Code, u.Name }).ToListAsync(ct);
+        // Chefs d'unité of the receiving units = who gets the newcomers' Excel (reachable by email only).
         var heads = await UnitNewMembersMail.LoadUnitHeadsAsync(context, destIds, ct);
         var perDest = moves.GroupBy(m => m.Dest)
             .Select(g => (Code: units.FirstOrDefault(u => u.Id == g.Key)?.Code ?? "?", Count: g.Count()))
@@ -65,6 +69,7 @@ public class GetFinalizePreviewQueryHandler(IApplicationDbContext context, ICurr
         if (noCu.Count > 0)
             warnings.Add($"Pas de chef d'unité joignable par email (la liste des nouveaux membres ne sera pas envoyée) : {string.Join(", ", noCu)}.");
 
+        // Maîtrise plan lines not yet applied — FinalizePassages applies them in the same transaction.
         var plan = await context.MaitrisePlanLines.Where(l => l.ScoutYear == year && l.AppliedAt == null)
             .GroupBy(l => l.Kind).Select(g => new { g.Key, Count = g.Count() }).ToListAsync(ct);
         var planStarts = plan.FirstOrDefault(p => p.Key == MaitrisePlanKinds.Start)?.Count ?? 0;

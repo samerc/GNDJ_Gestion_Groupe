@@ -16,6 +16,7 @@ export function MemberPickerDialog({ open, onOpenChange, onPick, title = 'Choisi
 }) {
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search)
+  // Debounced server search, first 8 matches (the members endpoint only returns members the caller may see).
   const { data: results } = useMembers({ search: debounced || undefined, pageSize: 8 })
 
   return (
@@ -26,6 +27,7 @@ export function MemberPickerDialog({ open, onOpenChange, onPick, title = 'Choisi
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un membre…" />
+        {/* Results show once something is typed; closing the dialog clears the search. */}
         {debounced && results && (
           <div className="max-h-56 overflow-y-auto rounded-md border text-sm">
             {results.items.length === 0

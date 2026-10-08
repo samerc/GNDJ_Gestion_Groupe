@@ -13,12 +13,16 @@ namespace GNDJ.Application.Events;
 // Public calendar events (CMS). Mirrors the News feature (slug + rich body + cover + branch/unit tag) but
 // with scheduling (StartDate + optional EndDate/TimeLabel/Location) and an "upcoming-only" public query.
 
+// Admin commands/queries are called from EventsController (content.manage); the two public queries from the anonymous
+// PublicController. A calendar event published on the site creates its Event through CalendarPublish instead.
+
 // ===== DTOs =====
 public record EventAdminDto(Guid Id, string Title, string Slug, DateOnly StartDate, DateOnly? EndDate, bool IsPublished, string TagLabel);
 public record EventEditDto(Guid Id, string Title, string BodyHtml, DateOnly StartDate, DateOnly? EndDate, string? TimeLabel, string? Location, bool IsPublished, string TagType, Guid? TagUnitTypeId, Guid? TagUnitId, string? CoverImagePath);
 public record PublicEventListItemDto(string Slug, string Title, string? Excerpt, DateOnly StartDate, DateOnly? EndDate, string? TimeLabel, string? Location, string TagLabel, string? CoverImagePath);
 public record PublicEventDetailDto(string Slug, string Title, string BodyHtml, DateOnly StartDate, DateOnly? EndDate, string? TimeLabel, string? Location, string TagLabel, string? CoverImagePath);
 
+// Shared tag rules: the tag must be a known type, and a branch / unit tag needs its target id.
 internal static class EventTagValidation
 {
     public static void Rules<T>(AbstractValidator<T> v,
@@ -35,6 +39,7 @@ internal static class EventTagLabel
     public const string Group = "Tout le groupe";
 }
 
+// Shared scheduling rules for create + update: start required, end (when set) not before start.
 internal static class EventSchedule
 {
     public static void Rules<T>(AbstractValidator<T> v, System.Func<T, DateOnly> start, System.Func<T, DateOnly?> end,
@@ -57,6 +62,7 @@ public class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
     public CreateEventCommandValidator()
     {
         RuleFor(x => x.Title).NotEmpty().WithMessage("Le titre est requis.").MaximumLength(200).NoHtml();
+        // BodyHtml is author HTML from the TipTap editor (no NoHtml): it is sanitized with DOMPurify when rendered.
         RuleFor(x => x.BodyHtml).NotEmpty().WithMessage("Le contenu est requis.").MaximumLength(100000);
         RuleFor(x => x.CoverImagePath).MaximumLength(500);
         EventSchedule.Rules(this, x => x.StartDate, x => x.EndDate, x => x.TimeLabel, x => x.Location);
@@ -64,6 +70,7 @@ public class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
     }
 }
 
+// Creates the event with a unique slug from the title (-2, -3… on collision). Audited "Create".
 public class CreateEventCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<CreateEventCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(CreateEventCommand request, CancellationToken ct)
@@ -85,6 +92,7 @@ public class CreateEventCommandHandler(IApplicationDbContext context, IAuditServ
             IsPublished = request.IsPublished,
             PublishedAt = request.IsPublished ? DateTime.UtcNow : null,
             TagType = request.TagType,
+            // Only the id matching the chosen tag type is kept, so a stale id from a previous tag choice is dropped.
             TagUnitTypeId = request.TagType == EventTagTypes.UnitType ? request.TagUnitTypeId : null,
             TagUnitId = request.TagType == EventTagTypes.Unit ? request.TagUnitId : null,
             CoverImagePath = string.IsNullOrWhiteSpace(request.CoverImagePath) ? null : request.CoverImagePath.Trim(),
@@ -113,6 +121,7 @@ public class UpdateEventCommandValidator : AbstractValidator<UpdateEventCommand>
     }
 }
 
+// Updates every editable field (slug unchanged). Audited "Update".
 public class UpdateEventCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<UpdateEventCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(UpdateEventCommand request, CancellationToken ct)
@@ -120,6 +129,7 @@ public class UpdateEventCommandHandler(IApplicationDbContext context, IAuditServ
         var entity = await context.Events.FindAsync([request.Id], ct);
         if (entity is null) return Result<bool>.Failure("Événement introuvable.");
 
+        // PublishedAt records the FIRST publication only; unpublishing and republishing keeps the original date.
         if (request.IsPublished && entity.PublishedAt is null) entity.PublishedAt = DateTime.UtcNow;
 
         entity.Title = request.Title.Trim();
@@ -145,6 +155,7 @@ public class UpdateEventCommandHandler(IApplicationDbContext context, IAuditServ
 // ===== Delete =====
 public record DeleteEventCommand(Guid Id) : IRequest<Result<bool>>;
 
+// Soft delete (interceptor). Audited "Delete".
 public class DeleteEventCommandHandler(IApplicationDbContext context, IAuditService audit) : IRequestHandler<DeleteEventCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(DeleteEventCommand request, CancellationToken ct)
@@ -159,6 +170,7 @@ public class DeleteEventCommandHandler(IApplicationDbContext context, IAuditServ
 }
 
 // ===== Admin queries =====
+// Admin list, newest start date first; tag label resolved to the unit / branch name via correlated subqueries.
 public record GetEventsAdminQuery() : IRequest<IReadOnlyList<EventAdminDto>>;
 
 public class GetEventsAdminQueryHandler(IApplicationDbContext context) : IRequestHandler<GetEventsAdminQuery, IReadOnlyList<EventAdminDto>>
@@ -175,6 +187,7 @@ public class GetEventsAdminQueryHandler(IApplicationDbContext context) : IReques
             .ToListAsync(ct);
 }
 
+// Full event for the admin edit form; null when not found.
 public record GetEventByIdQuery(Guid Id) : IRequest<EventEditDto?>;
 
 public class GetEventByIdQueryHandler(IApplicationDbContext context) : IRequestHandler<GetEventByIdQuery, EventEditDto?>
@@ -196,6 +209,7 @@ public class GetPublicEventsQueryHandler(IApplicationDbContext context) : IReque
     public async ValueTask<PaginatedList<PublicEventListItemDto>> Handle(GetPublicEventsQuery request, CancellationToken ct)
     {
         var today = LebanonClock.Today;
+        // Today in Lebanon time, so an event stays "upcoming" until its last local day ends.
         var filtered = context.Events.Where(e => e.IsPublished && (e.EndDate ?? e.StartDate) >= today);
         if (request.GroupOnly)
             filtered = filtered.Where(e => e.TagType == EventTagTypes.Group);
@@ -213,10 +227,12 @@ public class GetPublicEventsQueryHandler(IApplicationDbContext context) : IReque
                     ? (context.UnitTypes.Where(t => t.Id == e.TagUnitTypeId).Select(t => t.Name).FirstOrDefault() ?? "Branche")
                     : EventTagLabel.Group,
                 e.CoverImagePath));
+        // Page size clamped: this endpoint is anonymous.
         return await PaginatedList<PublicEventListItemDto>.CreateAsync(query, request.Page, Math.Clamp(request.PageSize, 1, 50), ct);
     }
 }
 
+// Public event page by slug (published only); null → 404.
 public record GetPublicEventBySlugQuery(string Slug) : IRequest<PublicEventDetailDto?>;
 
 public class GetPublicEventBySlugQueryHandler(IApplicationDbContext context) : IRequestHandler<GetPublicEventBySlugQuery, PublicEventDetailDto?>

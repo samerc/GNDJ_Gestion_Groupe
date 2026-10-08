@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.UpdateAddress;
 
 // Edits a member address. Access (IDOR guard, on the owning member): own profile / super-admin / active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record UpdateAddressCommand(Guid Id, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<bool>>;
 
 public class UpdateAddressCommandValidator : AbstractValidator<UpdateAddressCommand>
@@ -33,6 +35,7 @@ public class UpdateAddressCommandHandler(IApplicationDbContext context, ICurrent
         if (!await MemberAccess.CanAccessMemberAsync(context, currentUser, entity.MemberId, ct))
             return Result<bool>.Failure("Accès non autorisé.");
 
+        // Captured before the edit so the audit row shows a before → after diff.
         var oldAddress = GNDJ.Application.Members.Commands.AddAddress.AddAddressCommandHandler.Format(entity.City, entity.Details, entity.Country);
         var oldType = entity.Type;
 

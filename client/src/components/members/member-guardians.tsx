@@ -7,7 +7,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { useMemberGuardians, useSearchGuardians, useCreateGuardian, useUpdateGuardian, useUpdateGuardianLink, useLinkGuardian, useUnlinkGuardian, useAddGuardianPhone, useAddGuardianEmail, useUpdateGuardianPhone, useUpdateGuardianEmail, useDeleteGuardianPhone, useDeleteGuardianEmail, useCreateMyGuardian, useUpdateMyGuardian, useUpdateMyGuardianLink, useUnlinkMyGuardian, useAddMyGuardianPhone, useAddMyGuardianEmail, useUpdateMyGuardianPhone, useUpdateMyGuardianEmail, useDeleteMyGuardianPhone, useDeleteMyGuardianEmail, type GuardianLinkDto, type GuardianSearchDto } from '@/services/guardian-service'
 import { useSettingValue, useSettingArray } from '@/services/settings-service'
 import { SearchableSelect } from '@/components/shared/searchable-select'
-import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, optionsWithCurrent } from '@/lib/options'
+import { PHONE_TYPE_OPTIONS, PHONE_COUNTRY_CODES, EMAIL_TYPE_OPTIONS, optionsWithCurrent, RELATIONSHIP_OPTIONS, relationshipLabel, canonicalRelationship } from '@/lib/options'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
@@ -26,26 +26,6 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { SearchInput } from '@/components/shared/search-input'
 import { SegmentedToggle } from '@/components/shared/segmented-toggle'
 import { Plus, Pencil, Trash2, Phone, Mail, Search, UserPlus, Link, Users } from 'lucide-react'
-
-const RELATIONSHIP_OPTIONS = [
-  { value: 'Père', label: 'Père' },
-  { value: 'Mère', label: 'Mère' },
-  { value: 'Tuteur', label: 'Tuteur' },
-  { value: 'TuteurLégal', label: 'Tuteur légal' },
-  { value: 'Autre', label: 'Autre' },
-]
-
-// Display label for a stored relationship type, matched accent/case-insensitively so imported values
-// without accents (e.g. "Pere"/"Mere") still render as "Père"/"Mère". Falls back to the raw value.
-const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-function relationshipLabel(value: string): string {
-  return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(value))?.label ?? value
-}
-// Maps a stored value onto the CANONICAL option value (accent-insensitive) so an imported "Mere"/"Pere"
-// pre-selects the "Mère"/"Père" option in the edit <Select> (Radix matches by exact value). Unknown → raw.
-function canonicalRel(value: string): string {
-  return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(value))?.value ?? value
-}
 
 // Initials for the guardian avatar (first letter of first + last name), uppercased.
 function guardianInitials(firstName: string, lastName: string): string {
@@ -124,7 +104,7 @@ export function MemberGuardians({ memberId, selfService, hideContacts, readOnly 
       id: gl.guardianId, firstName: gl.guardian.firstName, lastName: gl.guardian.lastName,
       profession: gl.guardian.profession ?? '', professionDomain: gl.guardian.professionDomain ?? '', isDeceased: gl.guardian.isDeceased, notes: gl.guardian.notes ?? '',
       // Canonicalize so an imported "Mere"/"Pere" pre-selects the accented option (Radix Select is exact-match).
-      linkId: gl.linkId, relationshipType: canonicalRel(gl.relationshipType), isPrimaryContact: gl.isPrimaryContact, isEmergencyContact: gl.isEmergencyContact,
+      linkId: gl.linkId, relationshipType: canonicalRelationship(gl.relationshipType), isPrimaryContact: gl.isPrimaryContact, isEmergencyContact: gl.isEmergencyContact,
     })
     setError('')
     setEditDialogOpen(true)

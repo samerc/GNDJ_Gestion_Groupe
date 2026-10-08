@@ -12,7 +12,7 @@ import {
 } from '@/services/camp-service'
 import { roundsPlan, previewScore, firstByLateness, hhmm, LATENESS_LABELS } from '@/lib/camp-scoring'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatDayLong } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -24,8 +24,10 @@ import { Badge } from '@/components/ui/badge'
 import { Tip } from '@/components/ui/tooltip'
 import { Printer, Trophy, Pencil, CheckCircle2, FileText, Wifi, ListChecks, RefreshCw } from 'lucide-react'
 
+// « F12 · Yoda » when the famille has a name, else « F12 ».
 const famLabel = (n: number, name: string | null) => (name ? `F${n} · ${name}` : `F${n}`)
 
+// defaultSource: 'online' when an étapiste scores on the spot, 'paper' from the commission view; a scored match keeps its own.
 export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
   campId: string; match: CampMatchDto; defaultSource: 'online' | 'paper'; onClose: () => void
 }) {
@@ -41,7 +43,9 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
   const [confirmClear, setConfirmClear] = useState(false)
 
   const A = `F${match.familleA}`, B = `F${match.familleB}`
+  // Which rounds are played (and for how many points) depends on both latenesses; a round not played is sent as null.
   const plan = roundsPlan(retardA, retardB)
+  // Live preview with the same rules as the server (which recomputes the points on save).
   const p = previewScore({ retardA, retardB, manche1: plan.manche1 == null ? null : manche1, manche2: plan.manche2 == null ? null : manche2, espritA, firstArrived })
   const lateOptions = (['none', 'A', 'B'] as CampLateness[]).map(v => ({ value: v, label: LATENESS_LABELS[v] }))
   const sideOptions = [{ value: 'A' as CampSide, label: `${A} gagne` }, { value: 'tie' as CampSide, label: 'Égalité' }, { value: 'B' as CampSide, label: `${B} gagne` }]
@@ -89,6 +93,7 @@ export function MatchScoreDialog({ campId, match, defaultSource, onClose }: {
               options={[5, 4, 3, 2, 1, 0].map(v => ({ value: String(v), label: `${v} – ${5 - v}` }))} />
             <p className="text-xs text-muted-foreground">{A} à gauche, {B} à droite.</p>
           </div>
+          {/* Tie on points: who arrived first gets the énigme (asked only when lateness doesn't already tell). */}
           {p.needsFirstArrived && p.pointsA === p.pointsB && (
             <div className="space-y-1">
               <p className="text-sm font-medium">Égalité : quelle famille est arrivée en premier au complet ? (pour l'énigme)</p>
@@ -129,13 +134,15 @@ export function MatchList({ campId, matches, showGame, defaultSource }: { campId
   return (
     <div className="divide-y rounded-lg border">
       {matches.map((m, i) => {
+        // In time order a date header is inserted when the day changes (day 1 / day 2 of the grand jeu).
         const dayHeader = !showGame && m.date !== matches[i - 1]?.date ? m.date : null
         const scored = !!m.scoredAt
+        // Winner = more game points + esprit; shown in green.
         const aWins = scored && (m.pointsA! + m.espritA!) > (m.pointsB! + m.espritB!)
         const bWins = scored && (m.pointsB! + m.espritB!) > (m.pointsA! + m.espritA!)
         return (
           <div key={m.id}>
-            {dayHeader && <div className="bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">{new Date(dayHeader + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>}
+            {dayHeader && <div className="bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">{formatDayLong(dayHeader)}</div>}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
               <span className="w-24 shrink-0 text-muted-foreground tabular-nums">
                 {showGame ? `Jeu ${m.gameNumber}` : `${m.slotNumber}. ${hhmm(m.startTime)}`}
@@ -153,6 +160,7 @@ export function MatchList({ campId, matches, showGame, defaultSource }: { campId
                     {m.source === 'paper' ? <FileText className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}{m.scoredByName}
                   </span>
                 : <span className="text-xs font-medium text-amber-700 dark:text-amber-400">À saisir</span>}
+              {/* canEdit comes from the server: commission with Jeux edit rights, or an étapiste of this game (never once archived). */}
               {m.canEdit && (
                 scored
                   ? <Tip content="Modifier le score"><Button size="sm" variant="ghost" className="h-8" aria-label="Modifier le score" onClick={() => setEditing(m)}><Pencil className="h-3.5 w-3.5" /></Button></Tip>
@@ -173,6 +181,7 @@ export function CampScoringTab({ campId }: { campId: string }) {
   const [mode, setMode] = useState<'game' | 'slot' | 'ranking'>('game')
   const [game, setGame] = useState(1)
   const [slot, setSlot] = useState(1)
+  // Matches load for the selected game or time slot; not in ranking mode, nor before the rotation exists.
   const { data: matches, isLoading: loadingMatches } = useCampMatches(campId, mode === 'game' ? { game } : { slot }, mode !== 'ranking' && !!rotation?.generated)
 
   if (isLoading) return <LoadingSpinner variant="table" />
@@ -223,8 +232,12 @@ export function CampScoringTab({ campId }: { campId: string }) {
   )
 }
 
+// Ranking of the familles (+ superfamille averages), computed server-side from the scored matches.
 function CampRanking({ campId }: { campId: string }) {
   const { data, isLoading } = useCampRanking(campId)
+  // Each famille plays one game per étape: as many as the rotation has games (25 for the historical grid, any size
+  // now). Same query as the parent tab, so it is read from the cache.
+  const { data: rotation } = useCampRotation(campId)
   if (isLoading || !data) return <LoadingSpinner variant="table" />
   return (
     <div className="space-y-4">
@@ -253,7 +266,7 @@ function CampRanking({ campId }: { campId: string }) {
                 <td className="px-3 py-1.5 text-right tabular-nums">{r.esprit}</td>
                 <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{r.total}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{r.enigmes}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{r.played}/25</td>
+                <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{r.played}{rotation?.gamesCount ? `/${rotation.gamesCount}` : ''}</td>
               </tr>
             ))}
           </tbody>

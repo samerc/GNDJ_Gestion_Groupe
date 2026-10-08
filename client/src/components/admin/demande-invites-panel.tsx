@@ -18,6 +18,7 @@ import { formatDateLong } from '@/lib/utils'
 // Builds the public invite link from a token (the family opens this to register/claim).
 const inviteLink = (token: string) => `${window.location.origin}/inscription/invitation/${token}`
 
+// Badge label + colour per invite status computed by the server (active / claimed / expired / revoked).
 const STATUS: Record<string, { label: string; variant: 'success' | 'info' | 'secondary' | 'danger' }> = {
   active: { label: 'Actif', variant: 'success' },
   claimed: { label: 'Utilisé', variant: 'info' },
@@ -97,6 +98,7 @@ export function DemandeInvitesPanel() {
                     <span className="text-xs text-muted-foreground">· expire le {formatDateLong(inv.expiresAt)}</span>
                     {inv.claimedEmail && <span className="text-xs text-info">· utilisé par {inv.claimedEmail}</span>}
                     <div className="ml-auto flex items-center gap-1">
+                      {/* Copy / revoke only while the link can still be used. */}
                       {inv.status === 'active' && (
                         <>
                           <Tip content="Copier le lien"><Button variant="outline" size="sm" onClick={() => copy(inv.token)}><Copy className="mr-1 h-3.5 w-3.5" />Copier le lien</Button></Tip>
@@ -141,6 +143,7 @@ export function DemandeInvitesPanel() {
         </DialogContent>
       </Dialog>
 
+      {/* Revoke confirmation: the server marks the invite revoked and the link stops working at once. */}
       <ConfirmDialog
         open={!!revokeTarget}
         onOpenChange={(o) => !o && setRevokeTarget(null)}

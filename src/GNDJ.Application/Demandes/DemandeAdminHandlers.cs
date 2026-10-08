@@ -1087,12 +1087,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var preApprovedIds = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null && d.Status == DemandeStatus.Approved)
             .Select(d => d.Id).ToListAsync(ct);
-        var creds = new System.Collections.Concurrent.ConcurrentDictionary<Guid, (string Pwd, string Hash)>();
+        var creds = new System.Collections.Concurrent.ConcurrentDictionary<Guid, string>(); // demande id → password hash
         await Parallel.ForEachAsync(preApprovedIds, ct, async (id, c) =>
         {
-            var pwd = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
-            var hash = await hasher.HashAsync(pwd); // HashAsync already offloads to a pool thread + gates concurrency
-            creds[id] = (pwd, hash);
+            // Never shown to anyone → fully random (SecureTokens.HiddenPassword), not a guessable « Scout2026!123 ».
+            creds[id] = await hasher.HashAsync(SecureTokens.HiddenPassword()); // HashAsync offloads + gates concurrency
         });
 
         // Serialize like passage finalize (double-click / concurrent CG safe).
@@ -1243,7 +1242,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var reuseParents = new Dictionary<(Guid, string), Guardian>();
         if (reuseIds.Count > 0)
             foreach (var l in await context.GuardianLinks.Include(l => l.Guardian).Where(l => reuseIds.Contains(l.MemberId)).ToListAsync(ct))
-                if (ParentRole(l.RelationshipType) is string r && !l.Guardian.IsDeleted)
+                if (ParentRoles.Of(l.RelationshipType) is string r && !l.Guardian.IsDeleted)
                     reuseParents.TryAdd((l.MemberId, r), l.Guardian);
 
         foreach (var d in approved)
@@ -1328,7 +1327,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     guardian = FindExistingGuardian(ag, guardianByEmail, guardianByPhone);
                     // An existing member (« Déjà membre ? » confirmed) already has a père / mère on file: same child ⇒
                     // same parent, so update that record instead of adding a second father / mother.
-                    if (guardian is null && reused && ParentRole(ag.Relationship) is string role)
+                    if (guardian is null && reused && ParentRoles.Of(ag.Relationship) is string role)
                         guardian = reuseParents.GetValueOrDefault((member.Id, role));
                     if (guardian is not null)
                     {
@@ -1393,7 +1392,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             // Activation token: reuses the reset-token fields (raw in DB, compared on redemption at
             // /reset-password?...&setup=1). MustChangePassword stays false — they set their OWN password
             // via the link, so there's nothing to "change" and no temp password to force-rotate.
-            var activationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+            var activationToken = GNDJ.Application.Common.SecureTokens.UrlToken();
             string username;
             if (reused && reuseUsers.TryGetValue(member.Id, out var existingUser))
             {
@@ -1409,8 +1408,8 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 username = UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, takenEmails);
                 usedEmails.Add(username);
                 string passwordHash = creds.TryGetValue(d.Id, out var c)
-                    ? c.Hash
-                    : await hasher.HashAsync($"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}");
+                    ? c
+                    : await hasher.HashAsync(SecureTokens.HiddenPassword());
                 context.Users.Add(new User
                 {
                     MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false,
@@ -1612,9 +1611,6 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         return null;
     }
 
-    // "pere" / "mere" for a father / mother relationship (any spelling), else null.
-    private static string? ParentRole(string? relationship) =>
-        TextNormalization.NormalizeKey(relationship ?? "") is var k && (k == "pere" || k == "mere") ? k : null;
 
     // Digits only, for format-insensitive phone matching ("+961 76 123 456" / "76123456" → "76123456").
     private static string PhoneDigits(string? s) => new(( s ?? "").Where(char.IsDigit).ToArray());
@@ -1628,7 +1624,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
     // ones (`taken`, pre-loaded) — no per-member DB round-trip.
     private static string UniqueEmail(string first, string last, string domain, HashSet<string> used, HashSet<string> taken)
     {
-        var baseName = $"{Normalize(first)}.{Normalize(last)}";
+        var baseName = $"{UsernameFactory.Normalize(first)}.{UsernameFactory.Normalize(last)}";
         var email = $"{baseName}@{domain}";
         var suffix = 2;
         while (used.Contains(email) || taken.Contains(email))
@@ -1638,11 +1634,6 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         }
         return email;
     }
-
-    private static string Normalize(string name) => name.Trim().ToLower()
-        .Replace(' ', '.').Replace('é', 'e').Replace('è', 'e').Replace('ê', 'e').Replace('ë', 'e')
-        .Replace('à', 'a').Replace('â', 'a').Replace('ä', 'a').Replace('ù', 'u').Replace('û', 'u').Replace('ü', 'u')
-        .Replace('ô', 'o').Replace('ö', 'o').Replace('î', 'i').Replace('ï', 'i').Replace('ç', 'c').Replace("'", "");
 }
 
 // ============================================================
@@ -1864,28 +1855,6 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
         await audit.LogAsync("CloseCampaign", "Demande", null,
             newValues: new { request.ScoutYear, Archived = demandes.Count, AccountsDeleted = accountsDeleted }, cancellationToken: ct);
         return Result<CloseDemandeCampaignResult>.Success(new CloseDemandeCampaignResult(demandes.Count, accountsDeleted));
-    }
-}
-
-// ── Inscription portal toggle (CG) ────────────────────────────────────────────────────────────────────
-// Opens/closes the public inscription portal (demande.enabled). Gated on demande.manage so a Chef de Groupe
-// can open the inscriptions themselves (the Settings page needs associations.manage = super-admin only).
-public record SetDemandeEnabledCommand(bool Enabled) : IRequest<Result<bool>>;
-
-public class SetDemandeEnabledCommandHandler(IApplicationDbContext context, IAuditService audit)
-    : IRequestHandler<SetDemandeEnabledCommand, Result<bool>>
-{
-    public async ValueTask<Result<bool>> Handle(SetDemandeEnabledCommand request, CancellationToken ct)
-    {
-        var value = request.Enabled ? "true" : "false";
-        var setting = await context.Settings.FirstOrDefaultAsync(s => s.Key == "demande.enabled", ct);
-        if (setting is null)
-            context.Settings.Add(new Setting { Key = "demande.enabled", Value = value, Category = "demande", Label = "Inscriptions ouvertes", ValueType = "boolean" });
-        else
-            setting.Value = value;
-        await context.SaveChangesAsync(ct);
-        await audit.LogAsync(request.Enabled ? "OpenInscriptions" : "CloseInscriptions", "Demande", null, cancellationToken: ct);
-        return Result<bool>.Success(true);
     }
 }
 

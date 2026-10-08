@@ -36,11 +36,3 @@ export function whatsappHrefFromText(text: string | null | undefined): string | 
   } // else: already carries some country code, use as-is
   return d.length >= 8 ? `https://wa.me/${d}` : null
 }
-
-// tel: link (spaces stripped) or null.
-export function telHref(countryCode: string | null | undefined, number: string | null | undefined): string | null {
-  const cc = (countryCode ?? '').replace(/[^\d+]/g, '')
-  const n = (number ?? '').replace(/\s+/g, '')
-  const combined = `${cc}${n}`.trim()
-  return combined ? `tel:${combined}` : null
-}

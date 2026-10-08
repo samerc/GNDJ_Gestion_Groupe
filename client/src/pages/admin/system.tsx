@@ -23,14 +23,17 @@ import { Button } from '@/components/ui/button'
 import { parseApiError } from '@/lib/error-utils'
 import { cn, formatDateTime } from '@/lib/utils'
 
+// Date-time or a dash when the event never happened.
 const dt = (iso: string | null) => (iso ? formatDateTime(iso) : '—')
 
+// A job's expected interval in plain French ("toutes les 5 min", "une fois par jour").
 function interval(min: number) {
   if (min < 60) return `toutes les ${min} min`
   const h = Math.round(min / 60)
   return h === 24 ? 'une fois par jour' : `toutes les ${h} h`
 }
 
+// One background job. Stale (no run for too long) is worse than failing (it ran but errored), hence checked first.
 function JobRow({ j }: { j: JobStatus }) {
   const state: { label: string; variant: 'danger' | 'warning' | 'secondary' | 'success' } = j.stale ? { label: 'Arrêtée', variant: 'danger' }
     : j.failing ? { label: 'En erreur', variant: 'warning' }
@@ -56,6 +59,7 @@ function JobRow({ j }: { j: JobStatus }) {
   )
 }
 
+// Delivery stats for the email or push outbox; the "Ouvrir la file" link only shows when something is stuck / failed.
 function OutboxCard({ title, icon: Icon, s, link }: { title: string; icon: typeof Mail; s: OutboxStats; link?: string }) {
   const bad = s.stuck > 0 || s.failedLast24h > 0
   return (
@@ -87,6 +91,7 @@ function OutboxCard({ title, icon: Icon, s, link }: { title: string; icon: typeo
   )
 }
 
+// Small number tile; `tone` colours a bad (red) or worrying (amber) value.
 function Stat({ label, value, tone }: { label: string; value: number | string; tone?: 'bad' | 'warn' }) {
   return (
     <div className="rounded-md border p-2">
@@ -97,6 +102,7 @@ function Stat({ label, value, tone }: { label: string; value: number | string; t
   )
 }
 
+// Stray upload files: the scan only runs on demand (`scan` enables the query) since it walks the upload folders.
 function OrphanFilesCard() {
   const [scan, setScan] = useState(false)
   const [confirm, setConfirm] = useState(false)
@@ -179,6 +185,7 @@ function OrphanFilesCard() {
   )
 }
 
+// Route /admin/system (AdminRoute, super-admin). One GET /system/status snapshot, re-polled by the hook.
 export default function SystemPage() {
   const { data, isLoading, isError } = useSystemStatus()
 
@@ -245,6 +252,7 @@ export default function SystemPage() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div className={cn('h-full', data.disk.low ? 'bg-red-500' : 'bg-primary')}
+                        // Bar = used share of the drive.
                         style={{ width: `${Math.min(100, 100 - data.disk.freePercent)}%` }} />
                     </div>
                   </>

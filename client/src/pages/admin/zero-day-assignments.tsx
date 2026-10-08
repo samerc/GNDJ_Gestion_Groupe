@@ -22,6 +22,8 @@ import { formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import { CalendarClock, Trash2, Pencil, CheckCircle2 } from 'lucide-react'
 
+// Route /admin/zero-day-assignments (maitrise.manage). Dating / deleting reuses the normal assignment endpoints;
+// a dated row (end > start) no longer qualifies, so it drops off the list on refetch.
 export default function ZeroDayAssignmentsPage() {
   const { data, isLoading } = useZeroDayAssignments()
   const update = useUpdateAssignment()
@@ -40,11 +42,13 @@ export default function ZeroDayAssignmentsPage() {
   const allSelected = rows.length > 0 && rows.every(r => selected.has(r.id))
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map(r => r.id)))
 
+  // Start pre-filled with the marker date; the end must be typed (the real end is what's unknown).
   const openEdit = (a: ZeroDayAssignment) => { setEditing(a); setEditStart(a.date); setEditEnd(null) }
 
   const saveEdit = async () => {
     if (!editing || !editStart || !editEnd) return
     try {
+      // The update command needs the whole assignment, so unit/team/role are sent back unchanged.
       await update.mutateAsync({
         id: editing.id, memberId: editing.memberId, unitId: editing.unitId,
         teamId: editing.teamId, functionalRoleId: editing.roleId,
@@ -70,6 +74,7 @@ export default function ZeroDayAssignmentsPage() {
     if (bulkBusy) return
     setBulkBusy(true)
     const ids = [...selected]
+    // Bulk delete = one request per row in parallel; a failure doesn't stop the others (summary toast).
     const results = await Promise.allSettled(ids.map(id => del.mutateAsync(id)))
     const ok = results.filter(r => r.status === 'fulfilled').length
     const fail = results.length - ok

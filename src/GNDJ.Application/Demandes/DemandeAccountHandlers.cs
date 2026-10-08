@@ -94,7 +94,7 @@ public class ResetApplicantPasswordCommandHandler(
             return Result<ResetApplicantPasswordResult>.Failure("Compte introuvable.");
 
         // Same temp-password shape as member creation/reset.
-        var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
+        var tempPassword = GNDJ.Application.Common.SecureTokens.TempPassword();
         account.PasswordHash = await passwordHasher.HashAsync(tempPassword);
         throttle.Reset("applicant", account.Email);
         // Sign every device out + drop any pending reset link so the old credentials can't be replayed.

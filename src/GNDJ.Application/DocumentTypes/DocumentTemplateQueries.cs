@@ -124,9 +124,8 @@ public class GenerateMemberDocumentTemplateQueryHandler(
             })
             .ToListAsync(ct);
 
-        static string NormRel(string? s) => TextNormalization.RemoveDiacritics(s ?? "").Trim().ToLowerInvariant();
-        var father = links.FirstOrDefault(p => NormRel(p.RelationshipType) == "pere");
-        var mother = links.FirstOrDefault(p => NormRel(p.RelationshipType) == "mere");
+        var father = links.FirstOrDefault(p => ParentRoles.IsFather(p.RelationshipType));
+        var mother = links.FirstOrDefault(p => ParentRoles.IsMother(p.RelationshipType));
 
         // Scout year = the CURRENT configured scout year (passage.scout_year, e.g. "2026-2027") — an authorization
         // form is for the current/upcoming year, not the year the member first joined. Fall back to the year that

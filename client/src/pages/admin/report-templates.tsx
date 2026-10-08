@@ -1,4 +1,4 @@
-// Admin screen (CG/super-admin): a VISUAL report builder. A template = report type (roster PDF or Excel/CSV
+// Admin screen (members.edit = CU / CG / super-admin): a VISUAL report builder. A template = report type (roster PDF or Excel/CSV
 // export) + format + an ORDERED set of columns (drag/reorder) + a TARGET scope (one unit / several units /
 // a branch / the whole group) + a member filter (all / youth / maîtrise) + an optional custom title. Templates
 // are then generated straight from this page ("Générer") or by a CU from their unit dashboard (unit scope).
@@ -34,6 +34,7 @@ import { Plus, Pencil, Trash2, FileText, FileSpreadsheet, ArrowUp, ArrowDown, X,
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
+// Two report families: the roster PDF and the spreadsheet export.
 const REPORT_TYPE_OPTIONS = [
   { value: 'roster', label: 'Liste (PDF)' },
   { value: 'export', label: 'Export (Excel / CSV)' },
@@ -49,6 +50,7 @@ const FORMAT_OPTIONS: Record<string, { value: string; label: string }[]> = {
   ],
 }
 
+// Target scope cards (shown to group managers only; a CU's templates are always unit-scoped).
 const SCOPE_OPTIONS = [
   { value: 'unit', label: 'Une unité', icon: Users, hint: "Le chef choisit l'unité à la génération." },
   { value: 'units', label: 'Plusieurs unités', icon: Building2, hint: 'Un ensemble d’unités choisi ci-dessous.' },
@@ -56,6 +58,7 @@ const SCOPE_OPTIONS = [
   { value: 'group', label: 'Tout le groupe', icon: Globe, hint: 'Toutes les unités actives du groupe.' },
 ]
 
+// Which members of the scope are included (youth = non-maîtrise roles).
 const MEMBER_FILTER_OPTIONS = [
   { value: 'all', label: 'Tous les membres' },
   { value: 'youth', label: 'Jeunes (hors maîtrise)' },
@@ -104,6 +107,7 @@ const COLUMN_GROUPS = [
   ]},
 ]
 
+// New template defaults: unit-scoped roster PDF with four starter columns, appended after the existing templates.
 const emptyForm = (order: number): ReportTemplateFormData => ({
   name: '', description: '', reportType: 'roster', format: 'pdf',
   columnsJson: JSON.stringify(['name', 'cardNumber', 'age', 'role']),
@@ -111,6 +115,8 @@ const emptyForm = (order: number): ReportTemplateFormData => ({
   scopeType: 'unit', scopeUnitTypeId: null, scopeUnitIdsJson: '[]', titleOverride: null, memberFilter: 'all',
 })
 
+// Route /admin/report-templates (members.edit). Unit/branch/custom-field lookups are only fetched for managers
+// (a CU would get 403 on unit types / custom fields and doesn't need the scope pickers).
 export default function ReportTemplatesPage() {
   const { data: templates, isLoading } = useReportTemplates()
   const createMutation = useCreateReportTemplate()
@@ -179,6 +185,7 @@ export default function ReportTemplatesPage() {
 
   const addColumn = (key: string) => setColumns(prev => prev.includes(key) ? prev : [...prev, key])
   const removeColumn = (key: string) => setColumns(prev => prev.filter(k => k !== key))
+  // Swap a column with its neighbour (up / down arrows); out-of-range moves are ignored.
   const moveColumn = (i: number, dir: -1 | 1) => setColumns(prev => {
     const next = [...prev]
     const j = i + dir
@@ -187,6 +194,7 @@ export default function ReportTemplatesPage() {
     return next
   })
 
+  // Only the scope fields matching the chosen scope are sent; the others are cleared (ids of a stale scope never leak).
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -218,6 +226,7 @@ export default function ReportTemplatesPage() {
     setGeneratingId(t.id)
     try {
       const res = await generateReportFromTemplate(t.id, { scoutYear, unitId })
+      // Prefer the server's Content-Disposition file name; fall back to the template name + extension.
       const fallback = `${t.name.replace(/\s+/g, '_')}.${t.reportType === 'roster' ? 'pdf' : t.format === 'csv' ? 'csv' : 'xlsx'}`
       const name = filenameFromDisposition(res.headers['content-disposition'] as string | undefined) ?? fallback
       saveBlob(res.data, name, (res.headers['content-type'] as string) || 'application/octet-stream')
@@ -234,6 +243,7 @@ export default function ReportTemplatesPage() {
     if (t.scopeType === 'unit') {
       // Ask for the unit. Managers pick from all units; a CU from the units they lead.
       const opts = isManager ? allUnits.map(u => ({ id: u.id, name: u.name })) : leaderUnits.map(u => ({ id: u.unitId, name: u.unitName }))
+      // A single possible unit → generate straight away, no picker.
       if (opts.length === 1) { runGenerate(t, opts[0].id); return }
       setPickedUnit(opts[0]?.id ?? '')
       setUnitPickFor(t)
@@ -242,6 +252,7 @@ export default function ReportTemplatesPage() {
     }
   }
 
+  // Short label of a template's target for its card.
   const scopeBadge = (t: ReportTemplateDto) => {
     if (t.scopeType === 'group') return 'Tout le groupe'
     if (t.scopeType === 'branch') return unitTypes.find(u => u.id === t.scopeUnitTypeId)?.name ?? 'Branche'

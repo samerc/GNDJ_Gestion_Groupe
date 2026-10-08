@@ -47,6 +47,7 @@ interface CreateForm {
 
 const defaultForm: CreateForm = { name: '', scopes: [], memberId: '', expiresAt: '' }
 
+// Also rendered as the "Clés API" tab of Paramètres: `embedded` hides the back link + header (route /admin/api-keys = AdminRoute).
 export default function ApiKeysPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<ApiKeyDto | null>(null)
@@ -122,6 +123,7 @@ export default function ApiKeysPage({ embedded = false }: { embedded?: boolean }
     }
   }
 
+  // Copies the one-time plaintext key (still held in state until the reveal dialog is closed).
   const handleCopyKey = async () => {
     if (createdKey) {
       await navigator.clipboard.writeText(createdKey)
@@ -176,6 +178,7 @@ export default function ApiKeysPage({ embedded = false }: { embedded?: boolean }
                 <TableRow key={item.id} className="even:bg-muted/30">
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.keyPrefix}…</TableCell>
+                  {/* Scopes are stored as one comma-joined string; re-joined with spaces for readability. */}
                   <TableCell>{item.scopes.split(',').map((s) => s.trim()).join(', ')}</TableCell>
                   <TableCell className="text-muted-foreground">{item.memberName ?? '\u2014'}</TableCell>
                   <TableCell>

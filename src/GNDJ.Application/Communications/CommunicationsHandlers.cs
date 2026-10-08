@@ -216,7 +216,7 @@ public class SendLeaderMessageCommandHandler(
                     noAccountNames.Add(name); continue; // can't hand out a set-password link without an account
                 }
                 // Reuse the reset-token fields (raw in DB, compared on redemption at /reset-password?setup=1).
-                var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+                var token = GNDJ.Application.Common.SecureTokens.UrlToken();
                 user.PasswordResetToken = token;
                 user.PasswordResetTokenExpiry = expiry;
                 vars["username"] = user.Email;

@@ -26,6 +26,7 @@ interface ColumnGroup {
   columns: { key: string; label: string }[]
 }
 
+// Keys must match the backend export column ids (ExportService).
 const COLUMN_GROUPS: ColumnGroup[] = [
   {
     label: 'Identité',
@@ -71,6 +72,7 @@ const COLUMN_GROUPS: ColumnGroup[] = [
 // Columns ticked when the dialog first opens (a sensible subset, not every column).
 const DEFAULT_SELECTED = new Set(['name', 'cardNumber', 'age', 'phone', 'email', 'role', 'team'])
 
+// Exports the current scout year; an error (e.g. no member) is read out of the blob response.
 export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: Props) {
   const scoutYear = useCurrentScoutYear()
   const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set(DEFAULT_SELECTED))
@@ -89,6 +91,7 @@ export function ExportDialog({ unitId, unitName, teamId, open, onOpenChange }: P
   }
 
   const selectAll = () => setSelectedCols(new Set(COLUMN_GROUPS.flatMap(g => g.columns.map(c => c.key))))
+  // « Aucun » still keeps the name column.
   const deselectAll = () => setSelectedCols(new Set(['name']))
 
   const handleExport = async () => {

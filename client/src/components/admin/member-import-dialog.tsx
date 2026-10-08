@@ -29,11 +29,13 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
       .catch(async e => toast.error(await parseBlobError(e)))
   }
 
+  // Picking a file runs the dry-run preview at once; nothing is written until « Importer ».
   const onPick = (f: File | null) => {
     setFile(f); setPreview(null); setResult(null)
     if (f) previewMut.mutate(f, { onSuccess: setPreview, onError: e => toast.error(parseApiError(e)) })
   }
 
+  // Commit re-uploads the same file: the server re-parses and re-validates it (never trusts the preview) and creates only valid rows.
   const doImport = () => {
     if (!file) return
     commitMut.mutate(file, {
@@ -46,6 +48,7 @@ export function MemberImportDialog({ open, onOpenChange }: { open: boolean; onOp
     })
   }
 
+  // Closing (Annuler / Fermer / outside click) clears file, preview and result so the next opening starts fresh.
   const close = () => { reset(); onOpenChange(false) }
 
   return (

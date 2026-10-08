@@ -135,7 +135,7 @@ public class ReceiptService : IReceiptService
                     col.Item().PaddingTop(8).Row(row =>
                     {
                         row.RelativeItem().Text("Signature : ____________________").FontSize(9);
-                        row.RelativeItem().AlignRight().Text($"Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(8).Italic();
+                        row.RelativeItem().AlignRight().Text($"Généré le {GNDJ.Application.Common.LebanonClock.Now:dd/MM/yyyy}").FontSize(8).Italic();
                     });
                 });
             });

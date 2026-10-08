@@ -13,7 +13,7 @@ import {
   type CampRotationSlotDto,
 } from '@/services/camp-service'
 import { parseApiError, parseBlobError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatDayLong } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -23,7 +23,7 @@ import { Callout } from '@/components/shared/callout'
 import { DateInput } from '@/components/shared/date-input'
 import { Printer, CloudRain, RefreshCw, Save, AlertTriangle, MapPin } from 'lucide-react'
 
-const dayLabel = (date: string) => new Date(date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+const dayLabel = (date: string) => formatDayLong(date)
 
 export function CampRotationTab({ campId, readOnly }: { campId: string; readOnly: boolean }) {
   const { data, isLoading } = useCampRotation(campId)

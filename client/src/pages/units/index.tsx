@@ -23,6 +23,8 @@ import { Plus, Trash2, Building2, Eye } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 
+// Route /units has no client guard (any signed-in user); the menu link needs units.view, and the API enforces
+// units.view for the list and units.delete for deletion.
 export default function UnitsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -32,6 +34,7 @@ export default function UnitsPage() {
   const [utFilter, setUtFilter] = useState('')
   const [deleting, setDeleting] = useState<UnitDto | null>(null)
 
+  // Search + association + unit-type filters are server-side; any change resets to page 1.
   const { data, isLoading } = useUnits({ search: debouncedSearch || undefined, associationId: assocFilter || undefined, unitTypeId: utFilter || undefined, page, pageSize: 50 })
   const { data: associations } = useAssociations({ pageSize: 100 })
   const { data: unitTypes } = useUnitTypes({ pageSize: 100 })
@@ -181,6 +184,7 @@ export default function UnitsPage() {
         open={!!deleting}
         onOpenChange={() => setDeleting(null)}
         title="Supprimer l'unité ?"
+        // A unit with active members can't be deleted (confirm hidden); one with past members is refused by the server.
         description={deleting?.memberCount
           ? `Impossible de supprimer « ${deleting.name} » : ${deleting.memberCount} membre${deleting.memberCount > 1 ? 's y sont actifs' : ' y est actif'}. Pour ne plus l'utiliser, désactivez-la (statut inactive).`
           : `Supprimer « ${deleting?.name} » ? Impossible si l'unité a eu des membres par le passé (historique) : dans ce cas, désactivez-la plutôt. Cette action est irréversible.`}

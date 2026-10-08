@@ -5,12 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/shared/copy-button'
 
+// A member whose account was created without an email: shown with a temporary password to hand over.
 export interface LoginCred {
   memberName: string
   username: string
   temporaryPassword: string
 }
 
+// emailSent / creds / alreadyHad are the counts and credentials returned by the create-logins call.
 export function LoginCredsDialog({
   open, onOpenChange, emailSent, creds, alreadyHad = 0,
 }: {

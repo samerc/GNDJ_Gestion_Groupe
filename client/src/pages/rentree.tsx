@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { Link } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -338,7 +339,8 @@ export default function RentreePage() {
 
   const [genOpen, setGenOpen] = useState(false)
   const [confirmRegen, setConfirmRegen] = useState(false)
-  const [genYear, setGenYear] = useState('2026-2027')
+  const currentYear = useCurrentScoutYear()
+  const [genYear, setGenYear] = useState(currentYear) // re-set to the configured year each time « Générer » opens
   const [editing, setEditing] = useState<RentreeTask | null>(null)
   const [editForm, setEditForm] = useState({ title: '', description: '', deadlineLabel: '', dueDate: '', deadlineAnchor: '', progressKey: '' })
   const [deleting, setDeleting] = useState<RentreeTask | null>(null)
@@ -510,7 +512,7 @@ export default function RentreePage() {
                 {!noYears && <Tip content="Ré-attribue les tâches de rôle aux responsables actuels (ex. un chef d'unité confirmé après la génération)."><Button variant="outline" size="sm" onClick={doRefreshAssignees} disabled={refreshAssignees.isPending}><RefreshCw className={cn('mr-1.5 h-4 w-4', refreshAssignees.isPending && 'animate-spin')} />Responsables</Button></Tip>}
                 {!noYears && <Button variant="outline" size="sm" onClick={openAdd}><Plus className="mr-1.5 h-4 w-4" />Ajouter une tâche</Button>}
                 <Tip content="Modifier les tâches type recopiées chaque année"><Button variant="outline" size="sm" asChild><Link to="/admin/rentree-template"><Settings2 className="mr-1.5 h-4 w-4" />Modèle de rentrée</Link></Button></Tip>
-                <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button>
+                <Button size="sm" onClick={() => { setGenYear(currentYear); setGenOpen(true) }}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button>
               </>
             )}
           </>
@@ -522,7 +524,7 @@ export default function RentreePage() {
           icon={ListChecks}
           title="Aucune liste de rentrée générée"
           description={canManage ? 'Générez la liste à partir du modèle de rentrée.' : "Revenez quand le Chef de Groupe l'aura préparée."}
-          action={canManage ? <Button size="sm" onClick={() => setGenOpen(true)}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button> : undefined}
+          action={canManage ? <Button size="sm" onClick={() => { setGenYear(currentYear); setGenOpen(true) }}><Sparkles className="mr-1.5 h-4 w-4" />Générer</Button> : undefined}
         />
       ) : (
         <>

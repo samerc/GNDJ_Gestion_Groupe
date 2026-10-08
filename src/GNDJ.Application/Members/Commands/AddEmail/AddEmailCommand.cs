@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.AddEmail;
 
 // Adds an email to a member. Access (IDOR guard): own profile / super-admin / active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record AddEmailCommand(Guid MemberId, string Address, string Type, bool IsPrimary, bool IsEmergency) : IRequest<Result<Guid>>;
 
 public class AddEmailCommandValidator : AbstractValidator<AddEmailCommand>
@@ -47,6 +49,7 @@ public class AddEmailCommandHandler : IRequestHandler<AddEmailCommand, Result<Gu
             IsPrimary = request.IsPrimary,
             IsEmergency = request.IsEmergency
         };
+        // IsPrimary is stored as given; other emails keep their flag (the « courriel principal » is PrimaryContactEmail).
         _context.MemberEmails.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
         await _audit.LogAsync("Update", "Member", request.MemberId, newValues: new

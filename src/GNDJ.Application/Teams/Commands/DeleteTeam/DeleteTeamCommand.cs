@@ -9,6 +9,7 @@ namespace GNDJ.Application.Teams.Commands.DeleteTeam;
 // Delete a team — unit-scoped; blocked while it has any active (open-ended) member assignment.
 public record DeleteTeamCommand(Guid Id) : IRequest<Result<bool>>;
 
+// DELETE /teams/{id} (teams.delete). Soft delete; audited "Delete" with the unit name.
 public class DeleteTeamCommandHandler : IRequestHandler<DeleteTeamCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;
@@ -25,6 +26,7 @@ public class DeleteTeamCommandHandler : IRequestHandler<DeleteTeamCommand, Resul
     public async ValueTask<Result<bool>> Handle(DeleteTeamCommand request, CancellationToken cancellationToken)
     {
         var entity = await _context.Teams
+            // Filtered include: only open assignments are loaded, which is all the "has active members" check needs.
             .Include(t => t.Assignments.Where(a => a.EndDate == null))
             .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
 

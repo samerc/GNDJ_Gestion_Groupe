@@ -12,6 +12,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { useCalendarFeedLink, useResetCalendarFeedLink } from '@/services/calendar-service'
 
 export function PhoneLinkDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  // The personal link is only fetched while the dialog is open.
   const { data: url, error } = useCalendarFeedLink(open)
   const reset = useResetCalendarFeedLink()
 
@@ -23,6 +24,7 @@ export function PhoneLinkDialog({ open, onOpenChange }: { open: boolean; onOpenC
     if (!ok) return
     try { await reset.mutateAsync(); toast.success('Nouveau lien créé.') } catch (e) { toast.error(parseApiError(e)) }
   }
+  // webcal: makes iOS / macOS offer « S'abonner » directly instead of downloading the .ics file.
   const webcal = url?.replace(/^https?:/, 'webcal:')
 
   return (

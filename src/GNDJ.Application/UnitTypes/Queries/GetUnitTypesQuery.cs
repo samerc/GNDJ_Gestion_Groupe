@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GNDJ.Application.UnitTypes.Queries;
 
+// Both queries: GET /unit-types (unit_types.view). Unit types are group-wide config, so no unit scoping.
 // Paginated, searchable (name/code) list of unit types for the admin org-structure page.
 public record GetUnitTypesQuery(string? Search, int Page = 1, int PageSize = 20) : IRequest<PaginatedList<UnitTypeDto>>;
 

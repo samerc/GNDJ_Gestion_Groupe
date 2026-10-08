@@ -34,7 +34,7 @@ import { SearchInput } from '@/components/shared/search-input'
 import { DateInput } from '@/components/shared/date-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
-import { formatDate, formatMoney } from '@/lib/utils'
+import { formatDate, formatMoney, todayIso, normalizeSearch } from '@/lib/utils'
 import { Download, CheckCircle, XCircle, Clock, AlertTriangle, Minus, FileArchive, DollarSign, Receipt, Plus, Trash2, Ban, ChevronLeft, ChevronRight, Upload, ExternalLink, ChevronDown, FolderCheck, Users, ClipboardCheck, Search, SkipForward } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -78,7 +78,7 @@ const isCotisationDue = (m: MemberDocRowDto) => {
   const exempt = c.status === 'Exempt' || (c.maitriseExempt && c.payments.length === 0)
   return c.status !== 'Paid' && !exempt
 }
-const normalizeName = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const normalizeName = normalizeSearch
 
 type MemberFilter = 'all' | 'pending' | 'todo' | 'cotisation'
 
@@ -390,7 +390,7 @@ export default function UnitDocumentsPage() {
 
     // Several files → one document with multiple pages (e.g. an ID recto + verso). The server appends to an
     // existing pending doc of the same type, so this never creates a duplicate.
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayIso()
     const formData = new FormData()
     formData.append('memberId', member.memberId)
     formData.append('documentTypeId', docType.id)
@@ -489,7 +489,7 @@ export default function UnitDocumentsPage() {
       setCotNotes('')
     } else {
       setCotPayments([{ ...defaultPaymentLine(fullAmountsRaw, defaultCurrency, defaultAmount), paymentMethod: 'Cash' }])
-      setCotPaymentDate(new Date().toISOString().split('T')[0])
+      setCotPaymentDate(todayIso())
       setCotNotes('')
     }
   }

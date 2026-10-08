@@ -46,6 +46,7 @@ export default function PublicResourcesPage() {
   const debouncedSearch = useDebounce(search)
   const { data, isLoading, isError } = usePublicResources(page, 24, { category, search: debouncedSearch || undefined })
 
+  // Category chip: null = all categories; any change returns to page 1.
   const pick = (c: string | null) => { setCategory(c); setPage(1) }
   const chip = (label: string, c: string | null) => (
     <button key={label} onClick={() => pick(c)}

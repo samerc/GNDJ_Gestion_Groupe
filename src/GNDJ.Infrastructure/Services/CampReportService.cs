@@ -9,8 +9,11 @@ namespace GNDJ.Infrastructure.Services;
 // a single famille sheet, all familles (one per page via PageBreak), and a unit list (one unit per
 // page in two columns, members grouped by team, showing each member's assigned famille number). Leaders (Père/Mère,
 // Role != null) are tinted blue and kept out of the zebra-striping alternation.
+// Data (and the Familles-view access check) come from GenerateCampReportQuery / the medical-cards query; these
+// methods only lay the pages out.
 public class CampReportService : ICampReportService
 {
+    // One famille sheet; an unknown number yields a page with just the footer rather than an error.
     public byte[] Famille(CampReportData data, int familleNumber)
     {
         var fam = data.Familles.FirstOrDefault(f => f.Number == familleNumber);
@@ -74,6 +77,8 @@ public class CampReportService : ICampReportService
                 lines.Add((team.Key, null));
                 foreach (var m in team.OrderBy(x => x.Name)) lines.Add((team.Key, m));
             }
+            // A team header row is taller than a member row, so it weighs more when balancing the two columns. The cut is
+            // placed where a line's MIDDLE would pass half of the total weight.
             const double headerWeight = 1.4;
             double Weight((string, CampReportMember?) l) => l.Item2 == null ? headerWeight : 1;
             var half = lines.Sum(Weight) / 2;
@@ -106,6 +111,7 @@ public class CampReportService : ICampReportService
             {
                 if (m == null)
                 {
+                    // Count of the whole team, even when the column only holds part of it; a "(suite)" header shows no count.
                     var count = u.Members.Count(x => (x.TeamName ?? "Sans équipe") == team);
                     col.Item().PaddingTop(first ? 0 : 5).Background(Colors.Grey.Lighten3).PaddingVertical(2).PaddingHorizontal(4)
                         .Row(r =>
@@ -147,7 +153,7 @@ public class CampReportService : ICampReportService
                     page.Content().ScaleToFit().Element(e => MedicalBlock(e, campName, scoutYear, f));
                     page.Footer().Row(row =>
                     {
-                        row.RelativeItem().Text($"Confidentiel — à remettre au responsable santé · Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(7).Italic();
+                        row.RelativeItem().Text($"Confidentiel — à remettre au responsable santé · Généré le {GNDJ.Application.Common.LebanonClock.Now:dd/MM/yyyy}").FontSize(7).Italic();
                         row.RelativeItem().AlignRight().DefaultTextStyle(x => x.FontSize(7))
                             .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span("/"); t.TotalPages(); });
                     });
@@ -224,7 +230,7 @@ public class CampReportService : ICampReportService
     private static void Foot(PageDescriptor page) =>
         page.Footer().Row(row =>
         {
-            row.RelativeItem().Text($"Généré le {DateTime.Now:dd/MM/yyyy}").FontSize(7).Italic();
+            row.RelativeItem().Text($"Généré le {GNDJ.Application.Common.LebanonClock.Now:dd/MM/yyyy}").FontSize(7).Italic();
             row.RelativeItem().AlignRight().DefaultTextStyle(x => x.FontSize(7))
                 .Text(t => { t.Span("Page "); t.CurrentPageNumber(); t.Span("/"); t.TotalPages(); });
         });

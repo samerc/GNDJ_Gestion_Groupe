@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace GNDJ.Application.Members.Commands.AddAddress;
 
 // Adds an address to a member. Access (IDOR guard): own profile / super-admin / active unit leader.
+// Leader endpoint (MembersController, members.edit): CanAccessMemberAsync also needs members.edit, and a group manager
+// reaches members with no active post. A member edits their OWN contacts through the /my-profile/* commands instead.
 public record AddAddressCommand(Guid MemberId, string Type, string Country, string City, string? Details, bool IsPrimary) : IRequest<Result<Guid>>;
 
 public class AddAddressCommandValidator : AbstractValidator<AddAddressCommand>
@@ -57,6 +59,7 @@ public class AddAddressCommandHandler : IRequestHandler<AddAddressCommand, Resul
             Details = request.Details,
             IsPrimary = request.IsPrimary
         };
+        // Saved BEFORE the household sync, which reads the member's persisted address set and does its own save.
         _context.MemberAddresses.Add(entity);
         await _context.SaveChangesAsync(cancellationToken);
         // Household: a confirmed fratrie shares one address — mirror this member's address set onto the siblings.

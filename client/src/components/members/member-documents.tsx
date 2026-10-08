@@ -22,7 +22,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { Callout } from '@/components/shared/callout'
 import { EmptyState } from '@/components/shared/empty-state'
 import { confirmAsync } from '@/lib/confirm'
-import { formatDate } from '@/lib/utils'
+import { formatDate, todayIso } from '@/lib/utils'
 import { Upload, Download, CheckCircle, XCircle, Trash2, FileText, Clock, AlertTriangle, Minus, Files, Plus, Camera, Smartphone, PenLine } from 'lucide-react'
 import { DateInput } from '@/components/shared/date-input'
 
@@ -133,7 +133,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   const handleUploadForType = async (docType: DocumentTypeListDto, files: File[]): Promise<boolean> => {
     const err = validateFiles(files)
     if (err) { toast.error(err); return false }
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayIso()
     const formData = new FormData()
     formData.append('memberId', memberId)
     formData.append('documentTypeId', docType.id)

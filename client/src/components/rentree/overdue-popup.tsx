@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDate } from '@/lib/utils'
 import { useNavigate } from 'react-router'
 import { useMyOverdueRentree } from '@/services/rentree-service'
 import { useAuthStore } from '@/stores/auth-store'
@@ -45,7 +46,7 @@ export function RentreeOverduePopup() {
           {data.map((t) => (
             <li key={t.id} className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
               <p className="font-medium">{t.title}</p>
-              <p className="text-xs text-muted-foreground">{t.scoutYear}{t.dueDate ? ` · échéance ${new Date(t.dueDate).toLocaleDateString('fr-FR')}` : ''}</p>
+              <p className="text-xs text-muted-foreground">{t.scoutYear}{t.dueDate ? ` · échéance ${formatDate(t.dueDate)}` : ''}</p>
             </li>
           ))}
         </ul>

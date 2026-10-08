@@ -3,6 +3,10 @@ using GNDJ.Application.Common.Validation;
 
 namespace GNDJ.Application.Guardians;
 
+// FluentValidation rules for the leader-side guardian (parent / tuteur) commands in GuardianHandlers.cs. They run
+// automatically through the validation pipeline before each handler: length caps + NoHtml on free text, RealEmail
+// (dotted domain) on emails. Notes is free text shown only to leaders (length-capped, no NoHtml).
+
 public class CreateGuardianCommandValidator : AbstractValidator<CreateGuardianCommand>
 {
     public CreateGuardianCommandValidator()
@@ -30,6 +34,7 @@ public class UpdateGuardianCommandValidator : AbstractValidator<UpdateGuardianCo
     }
 }
 
+// The per-child link (relationship type); the guardian record itself is shared across the family's children.
 public class UpdateGuardianLinkCommandValidator : AbstractValidator<UpdateGuardianLinkCommand>
 {
     public UpdateGuardianLinkCommandValidator()

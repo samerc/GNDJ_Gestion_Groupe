@@ -35,16 +35,6 @@ export interface MemberDocumentDto {
   pages: DocumentPageDto[]   // all files of the document (page 1 + extra pages)
 }
 
-export interface ExpiringDocumentDto {
-  documentId: string
-  memberId: string
-  memberName: string
-  documentTypeName: string
-  title: string
-  expiryDate: string
-  isExpired: boolean
-}
-
 // GET /documents/member/{id} — all docs for one member. Keyed ['documents', memberId].
 export function useMemberDocuments(memberId: string) {
   return useQuery({

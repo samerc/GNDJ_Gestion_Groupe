@@ -36,7 +36,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Tip } from '@/components/ui/tooltip'
 import { parseApiError } from '@/lib/error-utils'
-import { computeAge, formatDate, formatDateLong } from '@/lib/utils'
+import { computeAge, formatDate, formatDateLong, normalizeSearch } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
 import { toast } from 'sonner'
 
@@ -77,7 +77,7 @@ export default function SiblingsPage() {
 
 // Accent- + case-insensitive key for the client-side search boxes (Suggestions / Doublons are loaded in full,
 // so filtering happens on the client — "rhea" matches "Rhéa", "hadad" matches "Haddad").
-const searchKey = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const searchKey = normalizeSearch
 
 // Categorize an evidence string into an icon so "what they have in common" reads at a glance.
 function evidenceIcon(e: string) {

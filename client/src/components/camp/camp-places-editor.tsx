@@ -8,6 +8,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { SearchInput } from '@/components/shared/search-input'
 import { parsePlaces, type CampPlace } from '@/lib/camp-places'
 
+// `value` is the setting's raw JSON; every edit re-serializes the whole list through onChange.
 export function CampPlacesEditor({ value, onChange }: { value: string; onChange: (json: string) => void }) {
   const places = useMemo(() => parsePlaces(value), [value])
   const [filter, setFilter] = useState('')
@@ -15,11 +16,13 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
   const set = (next: CampPlace[]) => onChange(JSON.stringify(next))
   const patch = (i: number, p: Partial<CampPlace>) => set(places.map((x, j) => (j === i ? { ...x, ...p } : x)))
   const exists = (n: string) => places.some(p => p.name.trim().toLowerCase() === n.trim().toLowerCase())
+  // New places start as lieu A only, 1 game at a time; duplicates (case-insensitive) and < > are refused.
   const add = () => {
     const n = newName.trim()
     if (!n || exists(n) || /[<>]/.test(n)) return
     set([...places, { name: n, a: true, b: false, capacity: 1 }]); setNewName('')
   }
+  // Keep each row's real index so filtering never edits or deletes the wrong place.
   const shown = places.map((p, i) => ({ p, i })).filter(({ p }) => p.name.toLowerCase().includes(filter.toLowerCase()))
   const countA = places.filter(p => p.a).length, countB = places.filter(p => p.b).length
 
@@ -47,6 +50,7 @@ export function CampPlacesEditor({ value, onChange }: { value: string; onChange:
                 <td className="px-2 py-1 text-center"><input type="checkbox" className="h-4 w-4" checked={p.a} onChange={e => patch(i, { a: e.target.checked })} aria-label={`${p.name} : lieu A`} /></td>
                 <td className="px-2 py-1 text-center"><input type="checkbox" className="h-4 w-4" checked={p.b} onChange={e => patch(i, { b: e.target.checked })} aria-label={`${p.name} : lieu B`} /></td>
                 <td className="px-2 py-1 text-center">
+                  {/* Number of games hosted at the same time, clamped to 1–25. */}
                   <Input type="number" min={1} max={25} value={p.capacity} className="mx-auto h-8 w-16"
                     onChange={e => patch(i, { capacity: Math.min(25, Math.max(1, Number(e.target.value) || 1)) })} />
                 </td>

@@ -2,6 +2,7 @@
 // invalid emails, emails the providers couldn't deliver (bounces), members with no email at all, missing date of
 // birth / gender, likely duplicates. Each line opens the member file; a fixed bounce is "Réactivé" here.
 import { useState } from 'react'
+import { todayIso } from '@/lib/utils'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { ShieldCheck, ChevronDown, ChevronRight, CheckCircle2, RotateCcw, ExternalLink, Check, X, Crown, Undo2 } from 'lucide-react'
@@ -21,12 +22,15 @@ import { Button } from '@/components/ui/button'
 import { parseApiError } from '@/lib/error-utils'
 import { Tip } from '@/components/ui/tooltip'
 
+// One collapsible check (title + count badge). Most sections list member rows; "multi-post" gets its own list and
+// "duplicates" only links to Fratries → Doublons (the merge happens there).
 function Section({ s }: { s: DataQualitySection }) {
   const [open, setOpen] = useState(false)
   const clear = useClearBounce()
   const ok = s.total === 0
   const isDuplicates = s.key === 'duplicates'
 
+  // "Réactiver" deletes the bounce record so the email outbox sends to that address again.
   const reactivate = async (id: string) => {
     try {
       await clear.mutateAsync(id)
@@ -114,8 +118,8 @@ function Section({ s }: { s: DataQualitySection }) {
 
 // Several active posts: each post can be closed here (today), or the whole case confirmed "C'est voulu" (e.g. a chef
 // de groupe who is also chef d'unité elsewhere) — it then moves to "Confirmés" until those posts change.
-const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
+// List for the "Plusieurs postes actifs" check, plus the collapsible "Confirmés comme voulus" sub-list.
 function MultiPostList({ s }: { s: DataQualitySection }) {
   const ack = useAcknowledgeDataQuality()
   const unack = useRemoveDataQualityAck()
@@ -190,6 +194,7 @@ function MultiPostList({ s }: { s: DataQualitySection }) {
   )
 }
 
+// Route /admin/data-quality (maitrise.manage). One GET /data-quality report; issues = sum of every section's total.
 export default function DataQualityPage() {
   const { data, isLoading, isError } = useDataQuality()
   const issues = data?.sections.reduce((n, s) => n + s.total, 0) ?? 0

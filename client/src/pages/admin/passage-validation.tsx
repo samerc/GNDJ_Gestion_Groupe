@@ -7,7 +7,7 @@
 // line and every unit to be finished, and accepts the lines still waiting. After posting, the CG downloads one
 // Word list of newcomers per association.
 import { useState } from 'react'
-import { useSettingValue } from '@/services/settings-service'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import {
   useAllPassages,
   usePassageSummary,
@@ -82,8 +82,10 @@ interface PassageDestination {
 export default function PassageValidationPage() {
   const emailToast = useEmailQueuedToast()
   const { data: maitrisePlan } = useMaitrisePlan(useAuthStore(st => st.hasPermission(PERMISSIONS.MAITRISE_MANAGE)))
-  const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
-  const [scoutYear, setScoutYear] = useState('2026-2027')
+  const passageScoutYear = useCurrentScoutYear()
+  // Starts on the configured passage year (was a fixed '2026-2027' that never synced when the setting was already
+  // cached at mount); the CG can still pick another year.
+  const [scoutYear, setScoutYear] = useState(passageScoutYear)
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
 
   // Sync the selected year to the configured passage year once the setting loads (render-phase reset).

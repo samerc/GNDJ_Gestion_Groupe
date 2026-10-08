@@ -17,6 +17,7 @@ public record GetUnitsQuery(
     int PageSize = 20
 ) : IRequest<PaginatedList<UnitDto>>;
 
+// GET /units (units.view). A group-level user (CG) is granted every unit at sign-in, so the scope filter shows all.
 public class GetUnitsQueryHandler : IRequestHandler<GetUnitsQuery, PaginatedList<UnitDto>>
 {
     private readonly IApplicationDbContext _context;
@@ -62,6 +63,7 @@ public class GetUnitsQueryHandler : IRequestHandler<GetUnitsQuery, PaginatedList
             u.AssociationId, u.Association != null ? u.Association.Name : null,
             u.UnitTypeId, u.UnitType.Name, u.UnitType.Code,
             u.Teams.Count(t => !t.IsDeleted),
+            // Open assignment rows (a member holding two posts in the unit counts twice).
             u.Assignments.Count(a => !a.IsDeleted && a.EndDate == null),
             u.Slug, u.IsPublished, u.FoundedDate
         ));
@@ -86,6 +88,7 @@ public class GetUnitByIdQueryHandler : IRequestHandler<GetUnitByIdQuery, UnitDet
 
     public async ValueTask<UnitDetailDto?> Handle(GetUnitByIdQuery request, CancellationToken cancellationToken)
     {
+        // Unauthorized and not-found look the same (null → 404), so unit existence is not leaked.
         if (!_currentUser.IsSuperAdmin && !_currentUser.AuthorizedUnitIds.Contains(request.Id))
             return null;
 

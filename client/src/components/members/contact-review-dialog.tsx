@@ -7,6 +7,7 @@
 // only (sessionStorage) and it re-appears next login. Unified for EVERYONE (replaces the leader-only prompt); a
 // converted demande member sees it on first login to confirm the info they submitted. Suppressed while impersonating.
 import { useState } from 'react'
+import { normalizeSearch } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { useMember } from '@/services/member-service'
 import { useMemberGuardians } from '@/services/guardian-service'
@@ -20,29 +21,11 @@ import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { PhoneInput, formatPhoneDisplay } from '@/components/ui/phone-input'
 import { SearchableSelect } from '@/components/shared/searchable-select'
 import { parseApiError } from '@/lib/error-utils'
-import { PHONE_COUNTRY_CODES, PARENTS_SITUATION_OPTIONS } from '@/lib/options'
+import { PHONE_COUNTRY_CODES, PARENTS_SITUATION_OPTIONS, RELATIONSHIP_OPTIONS, relationshipLabel, canonicalRelationship } from '@/lib/options'
 import { Mail, Phone, Plus, Trash2, Pencil, Star, HeartPulse, AtSign } from 'lucide-react'
 import { toast } from 'sonner'
 import { confirmAsync } from '@/lib/confirm'
 
-const RELATIONSHIP_OPTIONS = [
-  { value: 'Père', label: 'Père' },
-  { value: 'Mère', label: 'Mère' },
-  { value: 'Tuteur', label: 'Tuteur' },
-  { value: 'TuteurLégal', label: 'Tuteur légal' },
-  { value: 'Autre', label: 'Autre' },
-]
-
-// Relationship label (accent/case-insensitive; imported values may be unaccented "Pere"/"Mere").
-const normRel = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-function relLabel(v: string): string {
-  const m: Record<string, string> = { pere: 'Père', mere: 'Mère', tuteur: 'Tuteur', tuteurlegal: 'Tuteur légal', autre: 'Autre' }
-  return m[normRel(v)] ?? v
-}
-// Map a stored relationship onto the canonical option value so an imported "Mere"/"Pere" pre-selects the Select.
-function canonicalRel(v: string): string {
-  return RELATIONSHIP_OPTIONS.find(r => normRel(r.value) === normRel(v))?.value ?? v
-}
 
 interface OwnerOption { key: string; label: string } // 'self' or a guardianId
 
@@ -83,8 +66,8 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
 
   // Add-contact dialogs (owner selector = Vous or a parent). The contact's "type" is DERIVED from the owner
   // (« Vous » → Personnel, a parent → their relationship, e.g. Père) — no separate Type field to fill.
-  const owners: OwnerOption[] = [{ key: 'self', label: 'Vous' }, ...(guardians ?? []).map(g => ({ key: g.guardianId, label: `${relLabel(g.relationshipType)} · ${g.guardian.firstName}` }))]
-  const typeForOwner = (key: string) => key === 'self' ? 'Personnel' : (relLabel(guardians?.find(g => g.guardianId === key)?.relationshipType ?? '') || 'Parent')
+  const owners: OwnerOption[] = [{ key: 'self', label: 'Vous' }, ...(guardians ?? []).map(g => ({ key: g.guardianId, label: `${relationshipLabel(g.relationshipType)} · ${g.guardian.firstName}` }))]
+  const typeForOwner = (key: string) => key === 'self' ? 'Personnel' : (relationshipLabel(guardians?.find(g => g.guardianId === key)?.relationshipType ?? '') || 'Parent')
   const [emailForm, setEmailForm] = useState<{ owner: string; address: string } | null>(null)
   const [phoneForm, setPhoneForm] = useState<{ owner: string; countryCode: string; number: string } | null>(null)
   // In-place edit — fix a wrong value AND correct the parent's relationship (Père/Mère…). owner is fixed here
@@ -138,7 +121,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
   const applyRelationship = async (owner: string, linkId: string | null, relationship: string) => {
     if (owner === 'self' || !linkId) return
     const g = guardians?.find(x => x.guardianId === owner)
-    if (!g || normRel(g.relationshipType) === normRel(relationship)) return // unchanged
+    if (!g || normalizeSearch(g.relationshipType) === normalizeSearch(relationship)) return // unchanged
     await updGLink.mutateAsync({ linkId, relationshipType: relationship, isPrimaryContact: g.isPrimaryContact, isEmergencyContact: g.isEmergencyContact })
   }
 
@@ -147,7 +130,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
     if (!editEmail) return
     try {
       if (editEmail.owner === 'self') await updEmail.mutateAsync({ id: editEmail.id, address: editEmail.address, type: 'Personnel', isPrimary: editEmail.isPrimary, isEmergency: editEmail.isEmergency })
-      else await updGEmail.mutateAsync({ id: editEmail.id, address: editEmail.address, type: relLabel(editEmail.relationship), isPrimary: editEmail.isPrimary })
+      else await updGEmail.mutateAsync({ id: editEmail.id, address: editEmail.address, type: relationshipLabel(editEmail.relationship), isPrimary: editEmail.isPrimary })
       await applyRelationship(editEmail.owner, editEmail.linkId, editEmail.relationship)
       // Keep the "principal" selection pointing at the (possibly changed) address.
       if (primaryEmail && primaryEmail.toLowerCase() === editEmail.origAddress.toLowerCase()) setPrimaryEmail(editEmail.address.trim())
@@ -160,7 +143,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
     if (!editPhone) return
     try {
       if (editPhone.owner === 'self') await updPhone.mutateAsync({ id: editPhone.id, countryCode: editPhone.countryCode, number: editPhone.number, type: 'Personnel', isPrimary: editPhone.isPrimary, isEmergency: editPhone.isEmergency })
-      else await updGPhone.mutateAsync({ id: editPhone.id, countryCode: editPhone.countryCode, number: editPhone.number, type: relLabel(editPhone.relationship), isPrimary: editPhone.isPrimary })
+      else await updGPhone.mutateAsync({ id: editPhone.id, countryCode: editPhone.countryCode, number: editPhone.number, type: relationshipLabel(editPhone.relationship), isPrimary: editPhone.isPrimary })
       await applyRelationship(editPhone.owner, editPhone.linkId, editPhone.relationship)
       setEditPhone(null)
       toast.success('Téléphone modifié')
@@ -185,11 +168,11 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
   // fields the edit dialog needs (isPrimary/isEmergency to preserve; linkId/relationship for a parent).
   const emailRows = [
     ...(member?.emails ?? []).map(e => ({ owner: 'self' as string, id: e.id, address: e.address, ownerLabel: 'Vous', isPrimary: e.isPrimary, isEmergency: e.isEmergency, linkId: null as string | null, relationship: '' })),
-    ...(guardians ?? []).flatMap(gl => gl.guardian.emails.map(em => ({ owner: gl.guardianId, id: em.id, address: em.address, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, isPrimary: em.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
+    ...(guardians ?? []).flatMap(gl => gl.guardian.emails.map(em => ({ owner: gl.guardianId, id: em.id, address: em.address, ownerLabel: `${relationshipLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, isPrimary: em.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
   ]
   const phoneRows = [
     ...(member?.phones ?? []).map(p => ({ owner: 'self' as string, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: 'Vous', isPrimary: p.isPrimary, isEmergency: p.isEmergency, linkId: null as string | null, relationship: '' })),
-    ...(guardians ?? []).flatMap(gl => gl.guardian.phones.map(p => ({ owner: gl.guardianId, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: `${relLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, isPrimary: p.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
+    ...(guardians ?? []).flatMap(gl => gl.guardian.phones.map(p => ({ owner: gl.guardianId, id: p.id, cc: p.countryCode, number: p.number, ownerLabel: `${relationshipLabel(gl.relationshipType)} · ${gl.guardian.firstName}`, isPrimary: p.isPrimary, isEmergency: false, linkId: gl.linkId as string | null, relationship: gl.relationshipType }))),
   ]
 
   return (
@@ -226,7 +209,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
                           <div className="text-xs text-muted-foreground">{r.ownerLabel}</div>
                         </div>
                         {selected && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />}
-                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditEmail({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditEmail({ id: r.id, owner: r.owner, origAddress: r.address, address: r.address, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRelationship(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removeEmail(r.owner, r.id, r.address) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                       </label>
                     )
@@ -258,7 +241,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
                           <div className="text-xs text-muted-foreground">{r.ownerLabel}</div>
                         </div>
                         {selected && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" />}
-                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditPhone({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRel(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Modifier" onClick={(e) => { e.preventDefault(); setEditPhone({ id: r.id, owner: r.owner, countryCode: r.cc, number: r.number, isPrimary: r.isPrimary, isEmergency: r.isEmergency, linkId: r.linkId, relationship: canonicalRelationship(r.relationship) }) }}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0 sm:h-7 sm:w-7" aria-label="Supprimer" onClick={(e) => { e.preventDefault(); removePhone(r.owner, r.id) }}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                       </label>
                     )
@@ -278,7 +261,7 @@ export default function ContactReviewDialog({ memberId, onSkip }: { memberId: st
                     return (
                       <div key={gl.linkId} className="rounded-md border p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="font-medium">{gl.guardian.firstName} {gl.guardian.lastName} <span className="text-xs font-normal text-muted-foreground">· {relLabel(gl.relationshipType)}</span></div>
+                          <div className="font-medium">{gl.guardian.firstName} {gl.guardian.lastName} <span className="text-xs font-normal text-muted-foreground">· {relationshipLabel(gl.relationshipType)}</span></div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                             <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={fl.isEmergencyContact} onChange={(e) => set({ isEmergencyContact: e.target.checked })} /><HeartPulse className="h-3.5 w-3.5 text-destructive" />Contact d'urgence</label>
                             <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><input type="checkbox" checked={fl.isDeceased} onChange={(e) => set({ isDeceased: e.target.checked })} />Décédé(e)</label>

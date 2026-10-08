@@ -5,6 +5,8 @@ namespace GNDJ.Infrastructure.Services;
 
 // Camp BP « Liste de présence »: one printable sheet per unit — framed title (unit name in capitals), then
 // Prénom / Nom / Présence / Cotisation with borders on every cell. Only « Absent(e) » is pre-filled.
+// Built by GenerateCampPresenceListQuery (GET /camps/{id}/presence/xlsx); the units arrive already scoped to the caller
+// and in parcours order — this class only lays them out.
 public sealed class CampPresenceSheet : ICampPresenceSheet
 {
     public byte[] Build(IReadOnlyList<CampPresenceUnit> units)
@@ -45,6 +47,7 @@ public sealed class CampPresenceSheet : ICampPresenceSheet
                 r++;
             }
 
+            // Max(2, …): an empty unit still gets a bordered header row.
             var grid = ws.Range(2, 1, Math.Max(2, r - 1), 4);
             grid.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
             grid.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
@@ -73,6 +76,7 @@ public sealed class CampPresenceSheet : ICampPresenceSheet
     {
         var baseName = new string(code.Where(c => !@":\/?*[]".Contains(c)).ToArray()).Trim();
         if (baseName.Length == 0) baseName = "Unité";
+        // 28 leaves room for a " 2"…" 99" suffix when two units share a code after cleaning.
         if (baseName.Length > 28) baseName = baseName[..28];
         var name = baseName;
         for (var i = 2; !used.Add(name); i++) name = $"{baseName} {i}";

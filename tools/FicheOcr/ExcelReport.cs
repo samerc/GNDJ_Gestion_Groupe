@@ -13,6 +13,7 @@ public static class ExcelReport
     public static string Write(IEnumerable<FicheResult> results, string outDir, string appUrl, string siteRoot, int totalDocs)
     {
         using var wb = new XLWorkbook();
+        // Re-apply the current checks at every write, so a rule change also reaches rows read in an earlier run.
         results = results.Select(r => r.Rechecked()).ToList();
         var ok = results.Where(r => r.Ok).OrderBy(r => r.UnitCode ?? "~").ThenBy(r => r.LastName).ThenBy(r => r.FirstName).ToList();
         var errors = results.Where(r => !r.Ok).OrderBy(r => r.UnitCode ?? "~").ThenBy(r => r.LastName).ToList();
@@ -22,6 +23,7 @@ public static class ExcelReport
         WriteErrors(wb.AddWorksheet("Erreurs"), errors, appUrl, siteRoot);
         wb.Worksheet("Fiches").SetTabActive();
 
+        // Excel locks an open workbook; rather than fail a long run, save next to it under a timestamped name.
         var path = Path.Combine(outDir, "fiches-medicales.xlsx");
         try { wb.SaveAs(path); }
         catch (IOException)
@@ -32,6 +34,8 @@ public static class ExcelReport
         return path;
     }
 
+    // "Fiches" sheet: identity columns, one column per FicheFields entry (labels = the online form labels), then the
+    // check columns, links and the hidden ids used by the future import. Column order is part of that import contract.
     static void WriteFiches(IXLWorksheet ws, List<FicheResult> rows, string appUrl, string siteRoot)
     {
         var fixedCols = new[] { "Unité", "Nom", "Prénom", "Matricule", "Statut du document", "Envoyé le", "Pages" };
@@ -91,6 +95,7 @@ public static class ExcelReport
         ws.Row(1).Style.Alignment.WrapText = true;
     }
 
+    // "Erreurs" sheet: documents that could not be read at all (missing file, broken PDF, model failure…).
     static void WriteErrors(IXLWorksheet ws, List<FicheResult> rows, string appUrl, string siteRoot)
     {
         string[] cols = ["Unité", "Nom", "Prénom", "Matricule", "Problème", "Fichier", "Fiche dans l'app"];
@@ -140,11 +145,13 @@ public static class ExcelReport
         for (var i = 0; i < lines.Length; i++) ws.Cell(i + 1, 1).Value = lines[i];
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
+        // Rows 6 and 14 are the two section titles in `lines` above — keep these indexes in sync when editing the text.
         ws.Cell(6, 1).Style.Font.Bold = true;
         ws.Cell(14, 1).Style.Font.Bold = true;
         ws.Column(1).Width = 140;
     }
 
+    // file:// link to the scan on disk (works when the Excel is opened on the server that holds the uploads).
     static void LinkFile(IXLCell cell, string siteRoot, string storedPath)
     {
         var full = Sources.ResolvePath(siteRoot, storedPath);

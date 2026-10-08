@@ -46,7 +46,7 @@ public class ResetMemberPasswordCommandHandler(
             return Result<ResetMemberPasswordResult>.Failure("Ce membre n'a pas de compte utilisateur.");
 
         // Same temporary-password shape as member creation. The member must change it after logging in.
-        var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
+        var tempPassword = GNDJ.Application.Common.SecureTokens.TempPassword();
         user.PasswordHash = await passwordHasher.HashAsync(tempPassword);
         // Invalidate any active session and pending reset link.
         await UserSessions.EndAllAsync(context, user.Id, ct);

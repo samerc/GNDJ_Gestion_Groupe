@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import { useCampLookup, useFamilleSchedule, type CampScheduleStepDto, type CampFamilleScheduleDto } from '@/services/camp-service'
 import { useDebounce } from '@/hooks/use-debounce'
-import { cn } from '@/lib/utils'
+import { cn, formatDayLong } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { SearchInput } from '@/components/shared/search-input'
 import { Callout } from '@/components/shared/callout'
@@ -17,7 +17,7 @@ import { hhmm } from '@/lib/camp-scoring'
 
 // Local wall-clock Date from 'yyyy-MM-dd' + 'HH:mm:ss' (camp time).
 const at = (date: string, time: string) => new Date(`${date}T${time}`)
-const dayLabel = (date: string) => new Date(date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+const dayLabel = (date: string) => formatDayLong(date)
 
 interface Position { prev: CampScheduleStepDto | null; current: CampScheduleStepDto | null; next: CampScheduleStepDto | null; status: string }
 

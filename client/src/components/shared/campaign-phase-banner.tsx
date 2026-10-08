@@ -1,13 +1,13 @@
 import { useDocumentCampaign } from '@/services/documents-campaign-service'
+import { formatDateLong } from '@/lib/utils'
 import { CalendarClock } from 'lucide-react'
 
 // Compact banner shown to leaders (CU) on the documents matrix: the current document-verification phase +
 // what it means + the relevant date, so a CU always knows whether uploads are open and what to do next.
 // Renders nothing when no campaign is configured/active.
 
-function fr(d: string | null): string {
-  return d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : ''
-}
+// The campaign dates in long French form (« 4 octobre 2026 »).
+const fr = (d: string | null) => formatDateLong(d)
 
 export function CampaignPhaseBanner() {
   const { data: c } = useDocumentCampaign(true)

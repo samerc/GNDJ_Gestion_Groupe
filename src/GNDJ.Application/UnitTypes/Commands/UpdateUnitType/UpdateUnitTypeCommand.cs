@@ -25,11 +25,13 @@ public class UpdateUnitTypeCommandValidator : AbstractValidator<UpdateUnitTypeCo
         RuleFor(x => x.AgeMax).InclusiveBetween(3, 99).When(x => x.AgeMax.HasValue);
         RuleFor(x => x).Must(x => x.AgeMin <= x.AgeMax).When(x => x.AgeMin.HasValue && x.AgeMax.HasValue)
             .WithMessage("L'âge minimum doit être inférieur ou égal à l'âge maximum.");
+        // Same allowed set as CreateUnitTypeCommandValidator.AllowedGenders.
         RuleFor(x => x.Gender).Must(g => string.IsNullOrEmpty(g) || g == "Masculin" || g == "Féminin" || g == "Mixte")
             .WithMessage("Genre invalide.");
     }
 }
 
+// PUT /unit-types/{id} (unit_types.manage = super-admin). Audited "Update" (name/code/description/years/gender).
 public class UpdateUnitTypeCommandHandler : IRequestHandler<UpdateUnitTypeCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;

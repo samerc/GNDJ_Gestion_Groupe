@@ -172,11 +172,6 @@ export function useMoveParticipant(campId: string) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: ({ participantId, familleId }: { participantId: string; familleId: string }) => apiClient.post(`/camps/participants/${participantId}/move`, { familleId }), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-familles', campId] }) })
 }
-// POST /camps/swap → swap two participants between familles; invalidates familles.
-export function useSwapParticipants(campId: string) {
-  const qc = useQueryClient()
-  return useMutation({ mutationFn: ({ participantAId, participantBId }: { participantAId: string; participantBId: string }) => apiClient.post('/camps/swap', { participantAId, participantBId }), onSuccess: () => qc.invalidateQueries({ queryKey: ['camp-familles', campId] }) })
-}
 // POST /camps/familles/{id}/leaders → set Père (male) / Mère (female) for a famille; invalidates familles.
 export function useSetLeaders(campId: string) {
   const qc = useQueryClient()
@@ -255,7 +250,6 @@ export async function downloadPresenceList(campId: string) {
   const r = await apiClient.get(`/camps/${campId}/presence/xlsx`, { responseType: 'blob' })
   saveBlob(r.data, 'Liste de présence.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 }
-
 
 // ── Grand jeu: rotation (fixed grid), lookup, scoring ──
 // Dates are 'yyyy-MM-dd', times 'HH:mm:ss' (camp time, Lebanon). `now` is the server's camp-local time.

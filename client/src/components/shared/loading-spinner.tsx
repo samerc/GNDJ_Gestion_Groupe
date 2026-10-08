@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
+// Shape of the placeholder; className only applies to the default spinner.
 type SkeletonVariant = 'spinner' | 'page' | 'table' | 'cards' | 'detail' | 'form' | 'profile'
 
 interface LoadingSpinnerProps {
@@ -33,6 +34,7 @@ export function LoadingSpinner({ className, variant = 'spinner' }: LoadingSpinne
   }
 }
 
+// Dashboard-like page: header, 4 stat tiles, a list block.
 function PageSkeleton() {
   return (
     <div className="space-y-6">
@@ -57,6 +59,7 @@ function PageSkeleton() {
   )
 }
 
+// List page: header with search + button, then a table of 8 rows.
 function TableSkeleton() {
   return (
     <div className="space-y-4">
@@ -85,6 +88,7 @@ function TableSkeleton() {
   )
 }
 
+// Grid of 6 cards under a header.
 function CardsSkeleton() {
   return (
     <div className="space-y-6">
@@ -108,6 +112,7 @@ function CardsSkeleton() {
   )
 }
 
+// Detail page: title, 3 summary tiles, a list of items.
 function DetailSkeleton() {
   return (
     <div className="space-y-6">
@@ -142,6 +147,7 @@ function DetailSkeleton() {
   )
 }
 
+// Form: title + a two-column grid of labelled fields.
 function FormSkeleton() {
   return (
     <div className="space-y-6">
@@ -160,6 +166,7 @@ function FormSkeleton() {
   )
 }
 
+// Member profile: avatar header, a row of tabs, then a field grid.
 function ProfileSkeleton() {
   return (
     <div className="space-y-6">

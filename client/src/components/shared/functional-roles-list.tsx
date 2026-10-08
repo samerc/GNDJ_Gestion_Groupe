@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { SearchInput } from '@/components/shared/search-input'
 import { Tip } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, normalizeSearch } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Shield, ArchiveRestore, Star, GripVertical, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, X } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -41,7 +41,7 @@ interface FunctionalRolesListProps {
 type RoleSortKey = 'name' | 'code' | 'unitType' | 'profile' | 'members'
 
 // Accent/case-insensitive normaliser for the search box.
-const normText = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const normText = normalizeSearch
 
 // Clickable table header that toggles sort on its column (module scope → stable component).
 function SortTh({ label, k, sortKey, sortDir, onSort, className }: {

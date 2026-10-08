@@ -13,18 +13,21 @@ import { Archive, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Tip } from '@/components/ui/tooltip'
 import { formatDate } from '@/lib/utils'
 
+// Rows per page requested from GET /demandes/archives (server-side paging).
 const PAGE_SIZE = 50
 
 // CG page — browse the permanent demande archive (past campaigns). Purpose: history + verify a family's claim
 // that they applied before. Read-only; search by child name, filter by scout year, paginated.
 export default function DemandeArchivesPage() {
   const [search, setSearch] = useState('')
+  // Route /admin/demande-archives (demande.view). Search / year changes reset to page 1.
   const [year, setYear] = useState('') // '' = all years
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useDemandeArchives(search, year, page, PAGE_SIZE)
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
 
+  // Archived outcome: Approved / Declined; any other stored status is shown raw.
   const statusBadge = (a: { status: string }) => {
     if (a.status === 'Approved') return <Badge variant="success">Acceptée</Badge>
     if (a.status === 'Declined') return <Badge variant="danger">Refusée</Badge>
@@ -50,6 +53,7 @@ export default function DemandeArchivesPage() {
           <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Toutes les années" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">Toutes les années</SelectItem>
+            {/* The year list comes from the archive itself (only years that have archived demandes). */}
             {data?.scoutYears.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
           </SelectContent>
         </Select>

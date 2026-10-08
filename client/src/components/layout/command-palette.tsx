@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { normalizeSearch } from '@/lib/utils'
 import { useNavigate } from 'react-router'
 import { Search, Home, Users, Star, Clock, Contact } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
@@ -11,7 +12,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { adminGroups, adminNavItems, leaderNavItems, type NavLink } from './nav-items'
 
 // Accent- + case-insensitive normalize (so "coti" matches "Cotisations", "rentree" matches "Rentrée").
-const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const norm = normalizeSearch
 
 // Jump-to destinations = the same pages, labels, icons and permission gates as the menu (nav-items.ts), so the
 // palette never offers a page the menu hides (or names it differently). "Accueil" (the role-aware home) first.

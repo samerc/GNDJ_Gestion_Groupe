@@ -20,7 +20,7 @@ import { Callout } from '@/components/shared/callout'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DateInput } from '@/components/shared/date-input'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDate } from '@/lib/utils'
+import { formatDate, todayIso } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Star, Award, MapPin, Calendar, X } from 'lucide-react'
 
 // Sentinel for the "Général (hors unité)" option in the unit picker — a global-stage progression (no unit).
@@ -109,7 +109,7 @@ export function MemberProgression({ memberId, unitId: propUnitId, unitTypeId: pr
     setEditing(null)
     // Default to the member's current unit (else the first/most-recent unit in their history).
     const defaultUnitId = propUnitId ?? activeAssignment?.unitId ?? unitPickerOptions[0]?.unitId ?? ''
-    setForm({ unitId: defaultUnitId, scoutStageId: '', badgeId: '', date: new Date().toISOString().split('T')[0], location: '', notes: '' })
+    setForm({ unitId: defaultUnitId, scoutStageId: '', badgeId: '', date: todayIso(), location: '', notes: '' })
     setError('')
     setFormOpen(true)
   }

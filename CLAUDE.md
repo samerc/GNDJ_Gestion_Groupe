@@ -6616,3 +6616,24 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
 - Not changed (measured fine / low value): MemberTodo batching for « Ma famille », document-campaign triple compute,
   audit-log filter options, narrower demande-mutation invalidation.
 
+### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
+- **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),
+  `HiddenPassword()` (never-shown logins: demande conversion), `UrlToken()` (activation / reset links; was copied 6×).
+- **Bugs:** UpdateTeam checks the TARGET unit too; photo upload/delete/get use `MemberAccess.CanAccessMemberAsync` /
+  `CanViewMemberAsync` (CG reaches members with no active post); passage-validation + rentrée « Générer » use the
+  configured year (`useCurrentScoutYear`, whose fallback is now `calendarScoutYear()`, no hard-coded year left);
+  `todayIso()` (lib/utils, device-local) replaces `toISOString()` dates; PDFs « Généré le » use `LebanonClock.Now`;
+  `Common/ParentRoles` = exact père/mère match (not grand-père / beau-père); camp ranking shows played/real game count.
+- **Dead code removed:** `SetDemandeEnabledCommand`, client hooks useSwapParticipants / useActiveCustomFields /
+  useMemberCustomFieldValues / useMaitrises / useLinkSiblings, exports MEETING_STATUS_LABELS / MeetingType /
+  ExpiringDocumentDto / PROFESSION_OPTIONS / telHref. Endpoints only those hooks called were KEPT (API keys may use them):
+  POST /camps/swap, GET /custom-fields/active + /member/{id}, GET /maitrises, POST /siblings/link, GET /documents/expiring.
+- **Shared helpers:** `normalizeSearch` (lib/utils, client accent-free search), `RELATIONSHIP_OPTIONS` +
+  `relationshipLabel` + `canonicalRelationship` (lib/options), `formatDayLong` (lib/utils); hand-made date formats →
+  formatDate / formatDateLong / formatDateTime; backend: TextNormalization.NormalizeKey, UsernameFactory.Normalize,
+  MemberAccess.IsGroupManager reused instead of copies.
+- **Comments pass:** ~400 comment lines on the 80 least-commented files (components, pages, backend handlers/services);
+  `tools/comments-only-check.py [git diff args]` verifies a diff only touches comment lines.
+- Left for later (reported): one `OkOrBadRequest` helper for the 348 repeated controller result lines; shared phone-digit
+  matcher (3 copies); relative-time formatter (2 copies, different rounding); MemberTodo batching for « Ma famille ».
+

@@ -5,6 +5,7 @@
 //  • Other members: read-only.
 // Changes apply at each member's next sign-in / session refresh (≤ 15 min).
 import { useMemo, useState } from 'react'
+import { normalizeSearch } from '@/lib/utils'
 import { toast } from 'sonner'
 import { UserPlus, X, Users, ShieldCheck, Pencil } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
@@ -23,17 +24,20 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { SearchInput } from '@/components/shared/search-input'
 import { confirmAsync } from '@/lib/confirm'
 
+// Right a commission member can have per area (chefs de commission always have full access).
 const LEVELS: { value: CampAccessLevel; label: string }[] = [
   { value: 'none', label: 'Aucun' },
   { value: 'view', label: 'Voir' },
   { value: 'edit', label: 'Modifier' },
 ]
+// Keys match the CampCommissionMemberDto fields sent to PUT …/commission/{memberId}/access.
 const AREAS = [
   { key: 'famillesAccess', label: 'Familles' },
   { key: 'jeuxAccess', label: 'Jeux' },
   { key: 'parametresAccess', label: 'Paramètres' },
 ] as const
 
+// `access` = the viewer's own rights on this camp (computed by the server); it drives every button below.
 export function CampCommissionTab({ campId, access }: { campId: string; access: CampMyAccessDto }) {
   const { data: members, isLoading } = useCampCommission(campId)
   const save = useSetCampCommission(campId)
@@ -46,9 +50,11 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
 
   const list = members ?? []
   const ids = list.map((m) => m.memberId)
+  // The commission list is replaced as a whole (add = current ids + one, remove = current ids minus one).
   const update = async (memberIds: string[], ok: string) => {
     try { await save.mutateAsync(memberIds); toast.success(ok) } catch (err) { toast.error(parseApiError(err)) }
   }
+  // The endpoint takes all three areas, so the member's other two levels are sent unchanged.
   const changeLevel = async (m: CampCommissionMemberDto, key: typeof AREAS[number]['key'], level: CampAccessLevel) => {
     try {
       await setAccess.mutateAsync({
@@ -69,6 +75,7 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
           prochaine connexion (au plus tard ~15 min) ; l'accès s'arrête quand le camp est archivé.
         </p>
         <div className="flex flex-wrap gap-2">
+          {/* Only the CG (camp admin) chooses the chefs de commission. */}
           {access.isAdmin && (
             <Button size="sm" variant="outline" onClick={() => setEditingChefs(list.filter((m) => m.isChef).map((m) => m.memberId))}>
               <Pencil className="mr-1.5 h-4 w-4" />Chefs de commission
@@ -118,6 +125,7 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
                 ))}
                 {access.canManageCommission && (
                   <>
+                    {/* A chef de commission is removed through the « Chefs de commission » dialog, not here. */}
                     {!m.isChef && <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-destructive" disabled={save.isPending}
                       onClick={async () => {
                         if (!(await confirmAsync({
@@ -179,13 +187,15 @@ export function CampCommissionTab({ campId, access }: { campId: string; access: 
 function MaitrisePicker({ open, onOpenChange, exclude, onPick }: {
   open: boolean; onOpenChange: (o: boolean) => void; exclude: string[]; onPick: (id: string, name: string) => void
 }) {
+  // Candidates load only while the picker is open; the server limits them to the maîtrise.
   const { data: candidates, isLoading } = useCampCommissionCandidates(open)
   const [search, setSearch] = useState('')
+  // Accent- and case-insensitive search on name + functions; members already on the commission are hidden.
   const filtered = useMemo(() => {
-    const q = search.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+    const q = normalizeSearch(search).trim()
     return (candidates ?? [])
       .filter((c) => !exclude.includes(c.memberId))
-      .filter((c) => !q || `${c.firstName} ${c.lastName} ${c.roles ?? ''}`.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes(q))
+      .filter((c) => !q || normalizeSearch(`${c.firstName} ${c.lastName} ${c.roles ?? ''}`).includes(q))
   }, [candidates, exclude, search])
 
   return (

@@ -18,7 +18,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { Plus, Pencil, Trash2, StopCircle, Building2, X, ArrowRightLeft } from 'lucide-react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
-import { formatDate } from '@/lib/utils'
+import { formatDate, todayIso } from '@/lib/utils'
 import { Callout } from '@/components/shared/callout'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DateInput } from '@/components/shared/date-input'
@@ -85,7 +85,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
   const [ending, setEnding] = useState<AssignmentDto | null>(null)
   const confirmEnd = async () => {
     if (!ending) return
-    try { await endMutation.mutateAsync({ id: ending.id, endDate: new Date().toISOString().split('T')[0] }); toast.success('Poste terminé') }
+    try { await endMutation.mutateAsync({ id: ending.id, endDate: todayIso() }); toast.success('Poste terminé') }
     catch (err) { toast.error(parseApiError(err)) }
     setEnding(null)
   }
@@ -104,7 +104,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ memberId, unitId: '', teamId: '', functionalRoleId: '', startDate: new Date().toISOString().split('T')[0], notes: '' })
+    setForm({ memberId, unitId: '', teamId: '', functionalRoleId: '', startDate: todayIso(), notes: '' })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -391,7 +391,7 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                   variant="outline"
                   size="sm"
                   className="text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-950/50"
-                  onClick={() => setForm(f => ({ ...f, endDate: new Date().toISOString().split('T')[0] }))}
+                  onClick={() => setForm(f => ({ ...f, endDate: todayIso() }))}
                 >
                   <StopCircle className="mr-1 h-3.5 w-3.5" />
                   Terminer aujourd'hui

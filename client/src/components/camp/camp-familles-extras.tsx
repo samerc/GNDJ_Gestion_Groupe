@@ -18,8 +18,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Trash2, Shuffle, ArrowUp, ArrowDown, Layers } from 'lucide-react'
 
+// A Select item can't have an empty value, so « Aucune » superfamille uses a sentinel.
 const NONE = '__none__'
 
+// Edit one famille's name / description / superfamille.
 export function FamilleInfoDialog({ campId, famille, onClose }: { campId: string; famille: CampFamilleDto; onClose: () => void }) {
   const update = useUpdateFamilleInfo(campId)
   const { data: supers } = useCampSuperFamilles(campId)
@@ -41,6 +43,7 @@ export function FamilleInfoDialog({ campId, famille, onClose }: { campId: string
             <Input value={name} maxLength={100} onChange={e => setName(e.target.value)} placeholder="ex. Yoda" /></label>
           <label className="block space-y-1 text-sm"><span className="font-medium">Description (imprimée sur le passeport)</span>
             <Textarea value={description} maxLength={1000} rows={4} onChange={e => setDescription(e.target.value)} /></label>
+          {/* The superfamille picker only shows once superfamilles exist. */}
           {(supers ?? []).length > 0 && (
             <div className="space-y-1 text-sm">
               <p className="font-medium">Superfamille</p>
@@ -63,16 +66,20 @@ export function FamilleInfoDialog({ campId, famille, onClose }: { campId: string
   )
 }
 
+// Editable row of the superfamilles dialog; `familles` (numbers) is display-only, set by the server.
 interface Row { id: string | null; name: string; description: string; familles: number[] }
 
+// readOnly hides every edit control (viewer without edit rights on Familles).
 export function SuperFamillesDialog({ campId, readOnly, onClose }: { campId: string; readOnly: boolean; onClose: () => void }) {
   const { data } = useCampSuperFamilles(campId)
   const save = useSaveSuperFamilles(campId)
   const auto = useAutoSuperFamilles(campId)
   const [rows, setRows] = useState<Row[] | null>(null)
+  // Re-seed the editable rows whenever the server list changes (render-phase reset, no effect).
   const [prev, setPrev] = useState(data)
   if (data !== prev) { setPrev(data); setRows((data ?? []).map(s => ({ id: s.id, name: s.name, description: s.description ?? '', familles: s.familleNumbers }))) }
   const list = rows ?? []
+  // Unsaved name / description / order changes (which famille is in which superfamille is server-managed).
   const dirty = JSON.stringify(list.map(r => [r.id, r.name, r.description])) !== JSON.stringify((data ?? []).map(s => [s.id, s.name, s.description ?? '']))
   const set = (i: number, patch: Partial<Row>) => setRows(list.map((r, j) => (j === i ? { ...r, ...patch } : r)))
   const move = (i: number, d: number) => { const n = [...list]; [n[i], n[i + d]] = [n[i + d], n[i]]; setRows(n) }
@@ -111,6 +118,7 @@ export function SuperFamillesDialog({ campId, readOnly, onClose }: { campId: str
         {!readOnly && (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setRows([...list, { id: null, name: '', description: '', familles: [] }])}><Plus className="mr-1 h-4 w-4" />Ajouter</Button>
+            {/* « Répartir » saves pending edits first so the server splits the familles over the current list. */}
             <Button variant="outline" size="sm" disabled={list.length === 0 || auto.isPending}
               onClick={async () => {
                 if (dirty && !(await persist())) return

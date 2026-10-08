@@ -230,7 +230,7 @@ static class LoginProvisioning
             .Select(l => new { l.MemberId, l.RelationshipType, l.Guardian.FirstName })
             .ToListAsync(ct);
         return links
-            .Where(l => TextNormalization.NormalizeKey(l.RelationshipType ?? "").Contains("pere"))
+            .Where(l => ParentRoles.IsFather(l.RelationshipType)) // exact: not « grand-père » / « beau-père »
             .GroupBy(l => l.MemberId)
             .ToDictionary(g => g.Key, g => g.First().FirstName);
     }
@@ -245,7 +245,7 @@ static class LoginProvisioning
         var username = await UsernameFactory.GenerateUniqueAsync(context, member.FirstName, member.LastName, fatherName, s.Domain, ct, taken);
         taken.Add(username);
 
-        var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
+        var tempPassword = GNDJ.Application.Common.SecureTokens.TempPassword();
         var user = new User
         {
             MemberId = member.Id,
@@ -260,7 +260,7 @@ static class LoginProvisioning
         if (!string.IsNullOrWhiteSpace(contactEmail))
         {
             // Reuse the reset-token fields as a set-password activation token (redeemed at /reset-password?...&setup=1).
-            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+            var token = GNDJ.Application.Common.SecureTokens.UrlToken();
             user.PasswordResetToken = token;
             user.PasswordResetTokenExpiry = DateTime.UtcNow.AddDays(s.ActivationExpiryDays);
             user.MustChangePassword = false;   // the activation link sets their password

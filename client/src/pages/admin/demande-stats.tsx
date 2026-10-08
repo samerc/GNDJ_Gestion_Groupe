@@ -5,6 +5,7 @@
 // counts. The byGender/byClasse/bySchool buckets are grouped accent- & case-insensitively server-side so
 // legacy spellings ("Féminin"/"Feminin") collapse into one row; school labels are shortened via useSchoolCode.
 import { useState } from 'react'
+import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useNavigate } from 'react-router'
 import { useDemandeStatistics, useUnitOccupancy, type CountItem, type UnitOccupancy } from '@/services/demande-admin-service'
 import { useSettingValue, useSchoolCode } from '@/services/settings-service'
@@ -99,7 +100,7 @@ function OccRow({ u }: { u: UnitOccupancy }) {
 
 export default function DemandeStatsPage() {
   const navigate = useNavigate()
-  const scoutYear = useSettingValue('demande.scout_year') ?? '2026-2027'
+  const scoutYear = useSettingValue('demande.scout_year') ?? calendarScoutYear()
   const schoolCode = useSchoolCode()
   const { data: stats, isLoading } = useDemandeStatistics(scoutYear)
   const { data: occupancy } = useUnitOccupancy(scoutYear)

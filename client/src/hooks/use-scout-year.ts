@@ -4,7 +4,8 @@ import { useSettingValue } from '@/services/settings-service'
 // It FOLLOWS the passage year — i.e. the scout year the CG opens for the passage — so there is a single
 // source of truth instead of a separate, hand-maintained cotisation year that could drift out of sync.
 export function useCurrentScoutYear(): string {
-  return useSettingValue('passage.scout_year') ?? '2026-2027'
+  // While settings load (or if unset), the year that contains today — never a hard-coded year.
+  return useSettingValue('passage.scout_year') ?? calendarScoutYear()
 }
 
 // The scout year that CONTAINS TODAY (Oct-1 boundary) — the year currently "running" on the calendar. Differs

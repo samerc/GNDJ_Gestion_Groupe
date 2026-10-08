@@ -35,6 +35,7 @@ public class CreateUnitTypeCommandValidator : AbstractValidator<CreateUnitTypeCo
     }
 }
 
+// POST /unit-types (unit_types.manage = super-admin). Audited "Create".
 public class CreateUnitTypeCommandHandler : IRequestHandler<CreateUnitTypeCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
@@ -54,6 +55,7 @@ public class CreateUnitTypeCommandHandler : IRequestHandler<CreateUnitTypeComman
 
         if (!string.IsNullOrWhiteSpace(request.Color))
         {
+            // Colour is optional, but two branches may never share one (they would look the same in diagrams).
             var colorExists = await _context.UnitTypes.AnyAsync(ut => ut.Color == request.Color, cancellationToken);
             if (colorExists)
                 return Result<Guid>.Failure("Cette couleur est déjà utilisée par un autre type d'unité.");

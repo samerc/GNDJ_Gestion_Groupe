@@ -22,11 +22,13 @@ import { LEGEND, WEEKDAYS, covers, dayTitle, iso, itemColor, monthGrid, monthTit
 type View = 'month' | 'list'
 const MY_UNITS = '__mine__'
 
+// Route /calendrier — any signed-in member. What each person sees is decided server-side (GET /calendar).
 export default function CalendarPage() {
   const now = new Date()
   const today = iso(now)
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
+  // Phones start in the list view (a 7-column grid is unreadable that narrow).
   const [view, setView] = useState<View>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'list' : 'month'))
   const [selectedDay, setSelectedDay] = useState<string | null>(today)
   const [meetingUnit, setMeetingUnit] = useState(MY_UNITS)
@@ -37,10 +39,12 @@ export default function CalendarPage() {
   const user = useAuthStore((s) => s.user)
 
   const weeks = useMemo(() => monthGrid(year, month), [year, month])
+  // Month view fetches the whole 6-week grid (incl. the spill-over days); list view only the month itself.
   const from = view === 'month' ? iso(weeks[0][0]) : iso(new Date(year, month, 1))
   const to = view === 'month' ? iso(weeks[5][6]) : iso(new Date(year, month + 1, 0))
   const { data: items, isLoading } = useCalendar(from, to, meetingUnit === MY_UNITS ? null : meetingUnit)
   const { data: options } = useCalendarOptions()
+  // Creating is allowed when the server offers at least one audience (CG team: any; chef d'unité: their unit).
   const canCreate = (options?.audiences.length ?? 0) > 0
   const canOpenMeetings = !!user?.isSuperAdmin || hasPermission(PERMISSIONS.ATTENDANCE_MANAGE)
 
@@ -57,6 +61,7 @@ export default function CalendarPage() {
     for (const i of items ?? []) {
       const start = i.date < from ? from : i.date
       const end = (i.endDate ?? i.date) > to ? to : (i.endDate ?? i.date)
+      // A multi-day item is listed under every day it covers (clipped to the fetched range).
       for (let d = new Date(start + 'T00:00'); iso(d) <= end; d.setDate(d.getDate() + 1)) {
         const k = iso(d); days.set(k, [...(days.get(k) ?? []), i])
       }
@@ -84,6 +89,7 @@ export default function CalendarPage() {
         <Button variant="outline" size="icon" aria-label="Mois suivant" onClick={() => go(1)}><ChevronRight className="h-4 w-4" /></Button>
         <Button variant="outline" size="sm" onClick={goToday}>Aujourd'hui</Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* Réunions of any unit — only offered to callers allowed to see every unit. */}
           {options?.canSeeAllUnits && (
             <Select value={meetingUnit} onValueChange={setMeetingUnit}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
@@ -123,6 +129,7 @@ export default function CalendarPage() {
                       k === today && 'bg-primary text-primary-foreground')}>{d.getDate()}</span>
                     <div className="mt-0.5 space-y-0.5">
                       {its.slice(0, 3).map((i) => (
+                        // Clicking an item opens it; stopPropagation so the day cell's own click (select day) doesn't fire too.
                         <span key={i.id} onClick={(e) => { e.stopPropagation(); setDetail(i) }}
                           className={cn('block truncate rounded border px-1 text-[11px] leading-5', itemColor(i))}>
                           {i.startTime ? `${i.startTime.slice(0, 5).replace(':', 'h')} ` : ''}{i.title}
@@ -164,6 +171,7 @@ export default function CalendarPage() {
   )
 }
 
+// Items of one day as clickable rows (time or "Journée", title, audience · place).
 function DayList({ items, onOpen }: { items: CalendarItem[]; onOpen: (i: CalendarItem) => void }) {
   if (items.length === 0) return <p className="text-sm text-muted-foreground">Rien de prévu ce jour-là.</p>
   return (

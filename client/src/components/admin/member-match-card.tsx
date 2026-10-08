@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/utils'
 import type { DemandeReview, MemberMatch } from '@/services/demande-admin-service'
 import { useClearMemberMatch, useConfirmMemberMatch, useRejectMemberMatch } from '@/services/demande-member-match-service'
 
+// The matched member: name (opens the fiche in a new tab), matricule, birth date, unit and current identifiant.
 function MatchDetails({ m }: { m: MemberMatch }) {
   return (
     <div className="mt-1 space-y-0.5">
@@ -34,8 +35,10 @@ export function MemberMatchCard({ d }: { d: DemandeReview }) {
   const m = d.memberMatch
   if (!m) return null
   const busy = confirm.isPending || reject.isPending || clear.isPending
+  // Once the demande was sent a new member file already exists, so « same person » means merging the two files now.
   const sent = !!d.createdMemberId
 
+  // Already merged (answered after the send): nothing left to decide.
   if (m.merged) {
     return (
       <Callout tone="success" icon={CheckCircle2} title="Fiche existante utilisée">
@@ -44,6 +47,7 @@ export function MemberMatchCard({ d }: { d: DemandeReview }) {
     )
   }
 
+  // Confirmed before the send: the send will reuse this file; « Annuler » clears the answer.
   if (m.status === 'Confirmed') {
     return (
       <Callout tone="success" icon={UserCheck} title="Même personne — fiche existante">

@@ -27,12 +27,14 @@ import {
   Mail, RotateCw, Trash2, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle2,
 } from 'lucide-react'
 
+// Outbox row status → badge (Sent / Failed / anything else = still Pending in the queue).
 function statusBadge(status: string) {
   if (status === 'Sent') return <Badge variant="success">Envoyé</Badge>
   if (status === 'Failed') return <Badge variant="danger">Échec</Badge>
   return <Badge variant="warning">En attente</Badge>
 }
 
+// Desktop table row; the last error (if any) expands into a full-width <pre> row below.
 function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
   entry: OutboxEmail; idx: number; onRetry: (id: string) => void; onDelete: (id: string) => void; busy: boolean
 }) {
@@ -57,6 +59,7 @@ function OutboxRow({ entry, idx, onRetry, onDelete, busy }: {
         </td>
         <td className="px-3 py-2">
           <div className="flex items-center justify-end gap-1">
+            {/* A sent email can't be requeued (only Pending / Failed rows get the retry button). */}
             {entry.status !== 'Sent' && (
               <Tip content="Remettre en file d'attente (renvoyer maintenant)">
                 <Button variant="ghost" size="sm" disabled={busy} aria-label="Réessayer" onClick={() => onRetry(entry.id)}>
@@ -119,6 +122,7 @@ function OutboxCard({ entry, onRetry, onDelete, busy }: {
   )
 }
 
+// Summary tile (count + label); the icon is hidden on phones to keep three tiles on one line.
 function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Mail; label: string; value: number; tone: string }) {
   return (
     <Card>
@@ -133,6 +137,8 @@ function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Mail; label
   )
 }
 
+// Route /admin/email-outbox sits under AdminRoute (super-admin); the API endpoints themselves require associations.manage.
+// Counts come from `summary` (whole table), independent of the status/search filters.
 export default function EmailOutboxPage() {
   const [status, setStatus] = useState('all')
   const [search, setSearch] = useState('')
@@ -148,6 +154,7 @@ export default function EmailOutboxPage() {
   const retryFailed = useRetryFailedOutboxEmails()
   const del = useDeleteOutboxEmail()
   const purge = usePurgeSentOutboxEmails()
+  // Row being retried/deleted — disables only that row's buttons.
   const [busyId, setBusyId] = useState<string | null>(null)
   const [confirmRetryAll, setConfirmRetryAll] = useState(false)
   const [confirmPurge, setConfirmPurge] = useState(false)

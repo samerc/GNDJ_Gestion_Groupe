@@ -7,6 +7,7 @@
 // Decisions are staged (Approved/Declined) and only become final/emailed on "Envoyer les réponses",
 // which is gated until every demande in scope is decided (no undecided 'Submitted' left).
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { calendarScoutYear } from '@/hooks/use-scout-year'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useSearchParams } from 'react-router'
 import { useSetting, useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
@@ -49,7 +50,7 @@ import {
 } from 'lucide-react'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatDate, normalizeSearch } from '@/lib/utils'
 import { useEmailQueuedToast } from '@/hooks/use-email-queued-toast'
 import { DemandeResponsesSchedule } from '@/components/admin/demande-responses-schedule'
 import { useAuthStore } from '@/stores/auth-store'
@@ -174,14 +175,14 @@ function relationsSummary(d: DemandeReview): string {
 type SortKey = 'lastName' | 'firstName' | 'age' | 'classe' | 'status'
 
 // Lowercase without accents, for the review search.
-const normSearch = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const normSearch = normalizeSearch
 
 export default function DemandeValidationPage() {
   const emailToast = useEmailQueuedToast()
   // Wait for the setting before loading anything: a hard-coded fallback year made the page fetch the whole list
   // twice whenever the real year differed. The fallback only applies once the setting is known to be empty.
   const { data: yearSetting, isLoading: yearLoading } = useSetting('demande.scout_year')
-  const scoutYear = yearLoading ? '' : (yearSetting?.value || '2026-2027')
+  const scoutYear = yearLoading ? '' : (yearSetting?.value || calendarScoutYear())
   // Only the visible layout is mounted (table on a computer, cards on a phone) — not both with one hidden.
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const siblingsTogether = useSettingValue('demande.decide_siblings_together') === 'true'
@@ -1317,7 +1318,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
         {d.serialNumber && <p className="font-mono text-xs text-muted-foreground">Demande N° {d.serialNumber}</p>}
         <p className="text-sm text-muted-foreground">
           {d.age != null ? `${d.age} ans` : 'âge inconnu'}
-          {d.dateOfBirth ? ` (${new Date(d.dateOfBirth).toLocaleDateString('fr-FR')})` : ''} · {d.gender}
+          {d.dateOfBirth ? ` (${formatDate(d.dateOfBirth)})` : ''} · {d.gender}
           {d.submittedAt ? ` · déposée le ${formatDate(d.submittedAt)}` : ''}
           {d.lastEditedAt ? ` · modifiée le ${formatDate(d.lastEditedAt)}` : ''}
         </p>
@@ -1344,7 +1345,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
         <MemberMatchCard d={d} />
         <Section icon={User} title="Enfant">
           <Grid>
-            <FieldRow label="Date de naissance" value={d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : null} />
+            <FieldRow label="Date de naissance" value={d.dateOfBirth ? formatDate(d.dateOfBirth) : null} />
             <FieldRow label="Genre" value={d.gender} />
             <FieldRow label="Nationalité" value={d.nationality} />
             <FieldRow label="Groupe sanguin" value={d.bloodType} />
@@ -1506,7 +1507,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
       <div className="border-t bg-background p-5">
         {locked ? (
           <div className="text-sm text-muted-foreground">
-            Réponse déjà envoyée le {new Date(d.responseSentAt!).toLocaleDateString('fr-FR')}.
+            Réponse déjà envoyée le {formatDate(d.responseSentAt)}.
             {d.status === 'Approved' && d.decidedUnitName ? ` Accepté → ${d.decidedUnitName}.` : ''}
           </div>
         ) : (

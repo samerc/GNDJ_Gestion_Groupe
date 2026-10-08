@@ -54,9 +54,9 @@ internal static class MemberImportMapping
         var map = new Dictionary<string, int>();
         for (var i = 0; i < headers.Count; i++)
         {
-            var norm = TextNormalization.RemoveDiacritics(headers[i]).Trim().ToLowerInvariant();
+            var norm = TextNormalization.NormalizeKey(headers[i]);
             foreach (var (key, labels) in Columns)
-                if (!map.ContainsKey(key) && labels.Any(l => TextNormalization.RemoveDiacritics(l).ToLowerInvariant() == norm))
+                if (!map.ContainsKey(key) && labels.Any(l => TextNormalization.NormalizeKey(l) == norm))
                     map[key] = i;
         }
         return map;
@@ -73,7 +73,7 @@ internal static class MemberImportMapping
     public static string? Gender(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;
-        var g = TextNormalization.RemoveDiacritics(raw).Trim().ToLowerInvariant();
+        var g = TextNormalization.NormalizeKey(raw);
         if (g is "m" or "masculin" or "garcon" or "homme" or "male") return "Masculin";
         if (g is "f" or "feminin" or "fille" or "femme" or "female") return "Féminin";
         return null;
@@ -157,9 +157,9 @@ public class PreviewMemberImportCommandHandler(IApplicationDbContext context, IC
             string? unitName = null;
             if (unitRaw is not null)
             {
-                var normU = TextNormalization.RemoveDiacritics(unitRaw).Trim().ToLowerInvariant();
+                var normU = TextNormalization.NormalizeKey(unitRaw);
                 var unit = units.FirstOrDefault(u => (u.Code ?? "").ToLowerInvariant() == normU)
-                        ?? units.FirstOrDefault(u => TextNormalization.RemoveDiacritics(u.Name).ToLowerInvariant() == normU);
+                        ?? units.FirstOrDefault(u => TextNormalization.NormalizeKey(u.Name) == normU);
                 if (unit is null) errors.Add($"Unité introuvable (« {unitRaw} »)");
                 else if (!allowedUnit(unit.Id)) errors.Add($"Unité non autorisée (« {unitRaw} »)");
                 else unitName = unit.Name;
@@ -219,9 +219,9 @@ public class CommitMemberImportCommandHandler(
             var unitRaw = MemberImportMapping.Cell(raw, map, "unit");
             if (unitRaw is not null)
             {
-                var normU = TextNormalization.RemoveDiacritics(unitRaw).Trim().ToLowerInvariant();
+                var normU = TextNormalization.NormalizeKey(unitRaw);
                 var unit = units.FirstOrDefault(u => (u.Code ?? "").ToLowerInvariant() == normU)
-                        ?? units.FirstOrDefault(u => TextNormalization.RemoveDiacritics(u.Name).ToLowerInvariant() == normU);
+                        ?? units.FirstOrDefault(u => TextNormalization.NormalizeKey(u.Name) == normU);
                 if (unit is null) { failed++; errors.Add($"Ligne {lineNo} : unité introuvable (« {unitRaw} »)."); continue; }
                 if (!currentUser.IsSuperAdmin && !currentUser.AuthorizedUnitIds.Contains(unit.Id))
                 { failed++; errors.Add($"Ligne {lineNo} : unité non autorisée (« {unitRaw} »)."); continue; }

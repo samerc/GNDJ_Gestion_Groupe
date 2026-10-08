@@ -21,6 +21,7 @@ public class CreateAssociationCommandValidator : AbstractValidator<CreateAssocia
     }
 }
 
+// Called from POST /associations (associations.manage = super-admin). Audited "Create".
 public class CreateAssociationCommandHandler : IRequestHandler<CreateAssociationCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;

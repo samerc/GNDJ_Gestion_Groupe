@@ -20,6 +20,7 @@ public class UpdateAssociationCommandValidator : AbstractValidator<UpdateAssocia
     }
 }
 
+// Called from PUT /associations/{id} (associations.manage = super-admin). Audited "Update" with before/after values.
 public class UpdateAssociationCommandHandler : IRequestHandler<UpdateAssociationCommand, Result<bool>>
 {
     private readonly IApplicationDbContext _context;

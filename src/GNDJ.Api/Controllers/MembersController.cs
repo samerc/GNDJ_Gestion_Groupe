@@ -550,15 +550,10 @@ public class MembersController : BaseApiController
         if (file is null || file.Length == 0)
             return BadRequest(new { error = "Aucun fichier n'a été fourni." });
 
-        // Authorization: super admin, the member themselves, or a leader of the member's unit.
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
-        {
-            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-            var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));
-            if (!hasAccess)
-                return BadRequest(new { error = "Accès non autorisé à ce membre." });
-        }
+        // Authorization: the shared member-file rule (super admin, the member themselves, a leader of the member's
+        // unit, or a group manager — who also reaches members with no active post).
+        if (!await GNDJ.Application.Common.MemberAccess.CanAccessMemberAsync(_context, currentUser, memberId, HttpContext.RequestAborted))
+            return BadRequest(new { error = "Accès non autorisé à ce membre." });
 
         var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
         if (ext is not "jpg" and not "jpeg" and not "png")
@@ -632,15 +627,9 @@ public class MembersController : BaseApiController
     [ProducesResponseType(404)]
     public async Task<IActionResult> DeletePhoto(Guid memberId, [FromServices] ICurrentUserService currentUser)
     {
-        // Same authorization as UploadPhoto: super admin, the member themselves, or a leader of the member's unit.
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
-        {
-            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-            var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));
-            if (!hasAccess)
-                return BadRequest(new { error = "Accès non autorisé à ce membre." });
-        }
+        // Same authorization as UploadPhoto (the shared member-file rule).
+        if (!await GNDJ.Application.Common.MemberAccess.CanAccessMemberAsync(_context, currentUser, memberId, HttpContext.RequestAborted))
+            return BadRequest(new { error = "Accès non autorisé à ce membre." });
 
         var member = await _context.Members.FindAsync(memberId);
         if (member is null)
@@ -679,14 +668,9 @@ public class MembersController : BaseApiController
         // IDOR guard: own photo always; another member's photo is leader-only (members.edit) + unit-scoped.
         // A read-only youth carries their own unit in AuthorizedUnitIds, so a unit-only check would let them
         // fetch co-members' photos — require the leader signal for non-own access. 404 (not 403) hides existence.
-        if (!currentUser.IsSuperAdmin && currentUser.MemberId != memberId)
-        {
-            if (!GNDJ.Application.Common.MemberAccess.HasMemberRead(currentUser)) return NotFound();
-            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-            var hasAccess = await _context.MemberAssignments.AnyAsync(a =>
-                a.MemberId == memberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId));
-            if (!hasAccess) return NotFound();
-        }
+        // Shared READ rule (members.view or members.edit + unit scope, group managers reach everyone).
+        if (!await GNDJ.Application.Common.MemberAccess.CanViewMemberAsync(_context, currentUser, memberId, HttpContext.RequestAborted))
+            return NotFound();
 
         var member = await _context.Members.FindAsync(memberId);
         if (member is null || string.IsNullOrEmpty(member.PhotoPath))

@@ -14,12 +14,14 @@ import { Tip } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Trash2 } from 'lucide-react'
 
+// editable: every sub-commission as a toggle chip; otherwise only the member's own, as badges.
 export function SubCommissionChips({ campId, member, names, editable }: {
   campId: string; member: CampCommissionMemberDto; names: string[]; editable: boolean
 }) {
   const set = useSetMemberSubCommissions(campId)
   const mine = member.subCommissions ?? []
   const toggle = async (n: string) => {
+    // The member's full list is sent each time (with the clicked one added or removed).
     const next = mine.includes(n) ? mine.filter(x => x !== n) : [...mine, n]
     try { await set.mutateAsync({ memberId: member.memberId, names: next }) } catch (e) { toast.error(parseApiError(e)) }
   }
@@ -40,6 +42,7 @@ export function SubCommissionChips({ campId, member, names, editable }: {
   )
 }
 
+// One card per sub-commission + a dashed card for members not placed in any yet.
 export function SubCommissionsOverview({ members, names }: { members: CampCommissionMemberDto[]; names: string[] }) {
   if (members.length === 0) return null
   const none = members.filter(m => (m.subCommissions ?? []).length === 0)
@@ -64,6 +67,7 @@ export function SubCommissionsOverview({ members, names }: { members: CampCommis
   )
 }
 
+// Edits the camp's list of names; blank rows are dropped on save.
 export function SubCommissionsDialog({ campId, names, onClose }: { campId: string; names: string[]; onClose: () => void }) {
   const save = useSetCampSubCommissions(campId)
   const [list, setList] = useState(names)

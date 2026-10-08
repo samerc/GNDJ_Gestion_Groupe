@@ -14,6 +14,8 @@ public class CampRotationReportService : ICampRotationReportService
     private static string Day(DateOnly d) => $"{Days[(int)d.DayOfWeek]} {d.Day} {Months[d.Month - 1]}";
     private static string Hours(TimeOnly s, TimeOnly e) => $"{s:HH\\hmm}–{e:HH\\hmm}";
 
+    // GET /camps/{id}/passports/pdf: one passport per famille listing its étapes (time, game, place, opponent) with
+    // blank boxes for the étapiste. useBackup = the camp's Plan B is on → backup places are shown.
     public byte[] Passports(string campName, bool useBackup, IReadOnlyList<CampPassportFamille> familles) =>
         Document.Create(c => c.Page(page =>
         {
@@ -26,6 +28,7 @@ public class CampRotationReportService : ICampRotationReportService
                 {
                     var f = familles[i];
                     col.Item().Element(e => Passport(e, campName, useBackup, f));
+                    // Page break BETWEEN familles only (no blank trailing page).
                     if (i < familles.Count - 1) col.Item().PageBreak();
                 }
             });
@@ -89,6 +92,8 @@ public class CampRotationReportService : ICampRotationReportService
             }
         });
 
+    // GET /camps/{id}/score-sheets/pdf: one landscape sheet per game, one line per match of the rotation, filled on paper
+    // and typed in afterwards (Pointage tab). The rules box mirrors CampScoring.
     public byte[] ScoreSheets(string campName, IReadOnlyList<CampScoreSheetGame> games) =>
         Document.Create(c => c.Page(page =>
         {
@@ -155,6 +160,7 @@ public class CampRotationReportService : ICampRotationReportService
                 {
                     if (lastDay != row.Date)
                     {
+                        // Day separator spans all 15 columns (2 fixed + 6 per famille × 2 + signatures).
                         t.Cell().ColumnSpan(15).Background(Colors.Grey.Lighten4).Padding(2).Text(Day(row.Date)).SemiBold();
                         lastDay = row.Date;
                     }

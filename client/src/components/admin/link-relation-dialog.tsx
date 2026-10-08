@@ -16,13 +16,16 @@ import {
   useDismissRelationSuggestion, useLinkPreview, useLinkRelationMember, type LinkPreviewParent,
 } from '@/services/demande-admin-service'
 
+// What to compare: the declared proche (relationId), the candidate member, and whether the app suggested the match.
 export interface LinkTarget { relationId: string; memberId: string; fromSuggestion: boolean }
 
+// target = null keeps the dialog closed; the comparison is fetched once a target is set.
 export function LinkRelationDialog({ target, onClose }: { target: LinkTarget | null; onClose: () => void }) {
   const { data: p, isLoading, error } = useLinkPreview(target?.relationId ?? null, target?.memberId ?? null)
   const link = useLinkRelationMember()
   const dismiss = useDismissRelationSuggestion()
   const busy = link.isPending || dismiss.isPending
+  // Parents found on both sides drive the green « très probablement » vs amber « vérifiez bien » notice.
   const common = (p?.familyParents ?? []).filter((x) => x.inCommon).length
 
   const confirm = async () => {
@@ -70,6 +73,7 @@ export function LinkRelationDialog({ target, onClose }: { target: LinkTarget | n
                 ? `${common} parent(s) en commun — c'est très probablement le bon enfant.`
                 : 'Aucun parent en commun sur la fiche du membre — vérifiez bien avant de lier.'}
             </Callout>
+            {/* Server rule: only a brother / sister can be linked (at conversion the member shares the family's parents). */}
             {!p.isSibling && <p className="text-sm text-destructive">Seuls les frères et sœurs peuvent être liés.</p>}
           </div>
         )}
@@ -90,6 +94,7 @@ export function LinkRelationDialog({ target, onClose }: { target: LinkTarget | n
   )
 }
 
+// Layout helpers for the two comparison columns.
 function Side({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5 rounded-lg border p-3">
@@ -103,6 +108,7 @@ function Line({ label, children }: { label: string; children: ReactNode }) {
   return <div className="text-sm"><span className="text-muted-foreground">{label} : </span><span className="font-medium">{children}</span></div>
 }
 
+// A parent list; a parent present on both sides is ticked and shown in green.
 function Parents({ title, list }: { title: string; list: LinkPreviewParent[] }) {
   return (
     <div className="pt-1">

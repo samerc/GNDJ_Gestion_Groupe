@@ -88,7 +88,7 @@ public class SendAccessEmailsCommandHandler(
             }
 
             // Reuse the reset-token fields (raw in DB, compared on redemption at /reset-password).
-            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
+            var token = GNDJ.Application.Common.SecureTokens.UrlToken();
             user.PasswordResetToken = token;
             user.PasswordResetTokenExpiry = expiry;
             jobs.Add(new EmailJob(TemplateCode, email!, new Dictionary<string, string>

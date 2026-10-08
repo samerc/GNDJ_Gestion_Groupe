@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
+import { useCurrentScoutYear } from '@/hooks/use-scout-year'
 import { useAuthStore } from '@/stores/auth-store'
-import { useSettingValue } from '@/services/settings-service'
 import {
   usePassagesByUnit,
   usePassageStatus,
@@ -99,7 +99,7 @@ export default function PassagePage() {
 export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { unitId?: string; embedded?: boolean } = {}) {
   const { user } = useAuthStore()
   const navigate = useNavigate()
-  const passageScoutYear = useSettingValue('passage.scout_year') ?? '2026-2027'
+  const passageScoutYear = useCurrentScoutYear()
   // Units this leader runs (CU/ACU). A CU leading >1 unit gets a picker below; before, the page was hardcoded
   // to unitAccess[0] so a multi-unit CU could only ever act on their first unit.
   const leaderUnits = useLeaderUnits()

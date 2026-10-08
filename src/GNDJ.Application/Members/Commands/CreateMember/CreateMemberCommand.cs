@@ -145,7 +145,7 @@ public class CreateMemberCommandHandler : IRequestHandler<CreateMemberCommand, R
         var email = await Common.UsernameFactory.GenerateUniqueAsync(_context, request.FirstName, request.LastName, request.FatherName, domain, cancellationToken);
 
         // Generate temporary password
-        var tempPassword = $"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}";
+        var tempPassword = GNDJ.Application.Common.SecureTokens.TempPassword();
         var passwordHash = await _passwordHasher.HashAsync(tempPassword);
 
         var user = new User
