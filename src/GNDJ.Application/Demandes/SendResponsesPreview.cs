@@ -32,7 +32,7 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
         var pending = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null
                 && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined))
-            .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email, d.HasPreviousDemande, d.PreviousDemandeYear })
+            .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.DateOfBirth, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email, d.HasPreviousDemande, d.PreviousDemandeYear })
             .ToListAsync(ct);
         var approved = pending.Where(d => d.Status == DemandeStatus.Approved).ToList();
         var declined = pending.Count - approved.Count;
@@ -93,6 +93,22 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
             .Select(d => $"{d.FirstName} {d.LastName}{(string.IsNullOrWhiteSpace(d.PreviousDemandeYear) ? "" : $" ({d.PreviousDemandeYear})")}").ToList();
         if (refusedAgain.Count > 0)
             warnings.Add($"Refus alors qu'une demande a déjà été faite une année précédente : {string.Join(", ", refusedAgain)}.");
+
+        // (4) an accepted child who looks like an EXISTING member (same name + birth date): sending would create a
+        // second member file. Merge or refuse first (Fratries → Doublons can merge afterwards).
+        var dobs = approved.Where(d => d.DateOfBirth != null).Select(d => d.DateOfBirth!.Value).Distinct().ToList();
+        if (dobs.Count > 0)
+        {
+            var sameDob = await context.Members.Where(m => m.DateOfBirth != null && dobs.Contains(m.DateOfBirth!.Value))
+                .Select(m => new { m.FirstName, m.LastName, m.DateOfBirth, m.CardNumber }).ToListAsync(ct);
+            string K(string? f, string? l) => TextNormalization.NormalizeKey($"{f} {l}");
+            var already = approved
+                .Select(d => (d, m: sameDob.FirstOrDefault(m => m.DateOfBirth == d.DateOfBirth && K(m.FirstName, m.LastName) == K(d.FirstName, d.LastName))))
+                .Where(x => x.m is not null)
+                .Select(x => $"{x.d.FirstName} {x.d.LastName} ({x.m!.CardNumber})").ToList();
+            if (already.Count > 0)
+                warnings.Add($"Déjà membre(s) du groupe (même nom et date de naissance) — l'envoi créera une deuxième fiche : {string.Join(", ", already)}.");
+        }
 
         // Accepted members per unit + the chefs d'unité who will get the Excel.
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();

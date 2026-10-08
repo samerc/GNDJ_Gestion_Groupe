@@ -1248,7 +1248,28 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 if (!guardianCache.TryGetValue(ag.Id, out var guardian))
                 {
                     guardian = FindExistingGuardian(ag, guardianByEmail, guardianByPhone);
-                    if (guardian is null)
+                    if (guardian is not null)
+                    {
+                        // A parent already in the group: add the phone / email given in this demande if that parent
+                        // doesn't have it yet (else the new number never reaches the member file).
+                        var gid = guardian.Id;
+                        var phoneDigits = PhoneDigits(ag.PhoneNumber);
+                        if (phoneDigits.Length >= 6)
+                        {
+                            var has = (await context.GuardianPhones.Where(p => p.GuardianId == gid).Select(p => p.Number).ToListAsync(ct))
+                                .Any(n => SamePhone(PhoneDigits(n), phoneDigits));
+                            if (!has)
+                                context.GuardianPhones.Add(new GuardianPhone { GuardianId = gid, CountryCode = ag.PhoneCountryCode ?? "", Number = ag.PhoneNumber!, Type = "Mobile" });
+                        }
+                        if (!string.IsNullOrWhiteSpace(ag.Email))
+                        {
+                            var email = ag.Email.Trim();
+                            var lower = email.ToLower();
+                            if (!await context.GuardianEmails.AnyAsync(e => e.GuardianId == gid && e.Address.ToLower() == lower, ct))
+                                context.GuardianEmails.Add(new GuardianEmail { GuardianId = gid, Address = email, Type = "Personnel" });
+                        }
+                    }
+                    else
                     {
                         guardian = new Guardian { FirstName = ag.FirstName, LastName = ag.LastName, Profession = ag.Profession, ProfessionDomain = ag.ProfessionDomain, IsDeceased = ag.IsDeceased };
                         context.Guardians.Add(guardian);
@@ -1347,22 +1368,35 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     }
                 }
 
-            // Declare the fratrie explicitly: the child(ren) converted for this account + the matched existing
-            // member(s) become a confirmed SiblingGroup (so they show under "Frères et sœurs" and get household
-            // sync — sharing guardians alone no longer drives the sibling UI, which keys on SiblingGroupId).
-            var existingSiblingMembers = (await context.Members
-                .Where(m => siblingMemberIds.Contains(m.Id) && !m.IsDeleted).ToListAsync(ct))
-                .ToDictionary(m => m.Id);
-            foreach (var (accId, rels) in acctSiblingRelations)
-            {
-                var created = createdByAccount.GetValueOrDefault(accId) ?? [];
-                if (created.Count == 0) continue; // no child converted for this account → nothing new to declare
-                var family = new List<Member>(created);
-                foreach (var r in rels)
-                    if (existingSiblingMembers.TryGetValue(r.RelatedMemberId!.Value, out var em)) family.Add(em);
-                if (family.Count >= 2)
-                    await SiblingDeclare.EnsureGroupAsync(context, family, "Fratrie détectée à l'inscription (proche déclaré)", ct);
-            }
+        }
+
+        // Declare the fratrie explicitly: the children converted for one family account (accepted together) + any
+        // CG-confirmed brother/sister already in the group become ONE confirmed SiblingGroup — the sibling UI
+        // (« Frères et sœurs », « Ma famille », account switch, household sync) keys on SiblingGroupId, not on
+        // shared parents. Two children of the same account are always siblings, even with no existing member.
+        var relatedIds = acctSiblingRelations.Values.SelectMany(rs => rs).Select(r => r.RelatedMemberId!.Value).Distinct().ToList();
+        var existingSiblingMembers = relatedIds.Count == 0 ? new Dictionary<Guid, Member>()
+            : (await context.Members.Where(m => relatedIds.Contains(m.Id) && !m.IsDeleted).ToListAsync(ct)).ToDictionary(m => m.Id);
+        // Children of the same accounts converted in an EARLIER send (e.g. a late acceptance) join the same fratrie.
+        var batchAccounts = createdByAccount.Keys.ToList();
+        var batchMemberIds = createdByAccount.Values.SelectMany(m => m).Select(m => m.Id).ToList();
+        var earlierIds = await context.Demandes
+            .Where(x => batchAccounts.Contains(x.ApplicantAccountId) && x.CreatedMemberId != null && !batchMemberIds.Contains(x.CreatedMemberId!.Value))
+            .Select(x => new { x.ApplicantAccountId, MemberId = x.CreatedMemberId!.Value }).ToListAsync(ct);
+        var earlierMemberIds = earlierIds.Select(e => e.MemberId).Distinct().ToList();
+        var earlierMembers = earlierMemberIds.Count == 0 ? new Dictionary<Guid, Member>()
+            : (await context.Members.Where(m => earlierMemberIds.Contains(m.Id) && !m.IsDeleted).ToListAsync(ct)).ToDictionary(m => m.Id);
+        foreach (var (accId, created) in createdByAccount)
+        {
+            var family = new List<Member>(created);
+            foreach (var e in earlierIds.Where(e => e.ApplicantAccountId == accId))
+                if (earlierMembers.TryGetValue(e.MemberId, out var earlier)) family.Add(earlier);
+            var fromAccount = family.Count; // children enrolled through this family account
+            foreach (var r in acctSiblingRelations.GetValueOrDefault(accId) ?? [])
+                if (existingSiblingMembers.TryGetValue(r.RelatedMemberId!.Value, out var em)) family.Add(em);
+            if (family.Count >= 2)
+                await SiblingDeclare.EnsureGroupAsync(context, family, fromAccount >= 2
+                    ? "Fratrie inscrite ensemble (même compte d'inscription)" : "Fratrie détectée à l'inscription (proche déclaré)", ct);
         }
 
         await context.SaveChangesAsync(ct);
@@ -1470,6 +1504,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
     // Digits only, for format-insensitive phone matching ("+961 76 123 456" / "76123456" → "76123456").
     private static string PhoneDigits(string? s) => new(( s ?? "").Where(char.IsDigit).ToArray());
+
+    // Same number written differently: "03 188 090", "3188090", "+961 3 188 090", "009613188090" → compare the
+    // last 7 digits (Lebanese numbers are 7–8 digits after the country code / trunk 0).
+    private static bool SamePhone(string a, string b) =>
+        a.Length >= 6 && b.Length >= 6 && (a.Length >= 7 && b.Length >= 7 ? a[^7..] == b[^7..] : a == b);
 
     // Unique login local-part, checked against usernames taken in this batch (`used`) and already-existing
     // ones (`taken`, pre-loaded) — no per-member DB round-trip.

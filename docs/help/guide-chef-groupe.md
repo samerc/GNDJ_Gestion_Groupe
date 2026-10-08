@@ -143,8 +143,10 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 **Envoyer les réponses** n'est possible que lorsque **toutes** les demandes soumises ont une décision. Chaque
 famille reçoit un email par enfant, **à l'adresse qui a ouvert le compte d'inscription** ; pour une demande
 acceptée, **le membre est créé** (fiche, affectation dans l'unité, parents, compte de connexion) et l'email contient
-l'identifiant et un lien pour définir le mot de passe. Chaque chef d'unité reçoit un email avec la liste Excel de
-ses nouveaux membres. Vous pouvez envoyer en plusieurs fois : seules les nouvelles décisions partent.
+l'identifiant et un lien pour définir le mot de passe. Si le parent est déjà connu du groupe, la fiche existante du
+parent est reprise et le nouveau téléphone ou email y est ajouté. Les enfants acceptés d'une même famille sont reliés
+comme frères et sœurs. Chaque chef d'unité reçoit un email avec la liste Excel de ses nouveaux membres. Vous pouvez
+envoyer en plusieurs fois : seules les nouvelles décisions partent.
 
 > 💡 Avant de confirmer, la fenêtre affiche **Ce qui va se passer** : le nombre de membres créés (par unité), de refus,
 > d'emails aux familles et de chefs d'unité prévenus, et ce qui manque encore (demandes sans décision, famille sans
