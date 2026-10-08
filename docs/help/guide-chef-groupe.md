@@ -150,7 +150,9 @@ envoyer en plusieurs fois : seules les nouvelles décisions partent.
 
 > 💡 Avant de confirmer, la fenêtre affiche **Ce qui va se passer** : le nombre de membres créés (par unité), de refus,
 > d'emails aux familles et de chefs d'unité prévenus, et ce qui manque encore (demandes sans décision, famille sans
-> email, unité sans chef d'unité). Le bouton **Envoyer** reste grisé tant que quelque chose bloque.
+> email, unité sans chef d'unité). Le bouton **Envoyer** reste grisé tant que quelque chose bloque. Un avertissement
+> signale aussi un enfant accepté qui est **déjà membre** (même nom et date de naissance) : l'envoi lui créerait une
+> deuxième fiche. Refusez la demande ou, après l'envoi, fusionnez les deux fiches (**Fratries → Doublons**).
 
 > 💡 **Programmer l'envoi** : choisissez une date et une heure (heure du Liban) ; les réponses partent toutes seules
 > à ce moment-là, et vous êtes prévenu(e) du résultat dans les notifications. S'il reste des demandes non décidées,

@@ -6543,3 +6543,18 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
 - Online-form date blanks: text field JJ/MM/AAAA (`lib/form-dates.ts`), also MM/AAAA or AAAA; sent as yyyy-MM-dd /
   MM/yyyy / yyyy; server `TemplateFormAnswers.IsFormDate`.
 
+### Demande → member conversion check + fixes (2026-10-08, DEV until deploy)
+- **`deploy/diagnostics/demande-conversion-check.sql`** (read-only, `psql -v year="'2026-2027'" -f …`): for every
+  accepted + answered demande, compares the created member with the demande (14 sections, only problems listed):
+  missing member, field differences, medical, login, unit post, Entrée progression, parents linked (first name),
+  existing parent with a different family (letters-only/containment), parent phone/email missing (last 7 digits),
+  household (address / main email / parents situation), possible duplicate (name + DOB), same-account siblings not
+  linked, declared sibling not linked, matricule. Tested on a dev copy: fixed code → only the review items remain.
+- **Conversion fixes (`SendDemandeResponses`)**: (1) all children converted for one account (this send + earlier
+  sends) + CG-confirmed existing siblings → ONE SiblingGroup (was only when an existing sibling was named);
+  (2) a REUSED existing guardian gets the demande's phone (`SamePhone` = last 7 digits) / email if missing (was:
+  contacts only added to NEW guardians). Patches **039** (link same-account siblings) + **040** (copy missing parent
+  contacts) fix data already converted on prod (both idempotent; dev: 10 families linked, 33 phones + 4 emails).
+- **Preview warning**: an accepted child matching an existing member (normalized name + DOB) → « Déjà membre(s) du
+  groupe … deuxième fiche ». Dev copy had 6 such duplicates (re-enrolled existing members) → merge in Fratries → Doublons.
+
