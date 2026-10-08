@@ -1,5 +1,6 @@
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Application.Common.Models;
+using GNDJ.Application.Common.Validation;
 using FluentValidation;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,7 @@ public class UpdateAssignmentCommandValidator : AbstractValidator<UpdateAssignme
         RuleFor(x => x.EndDate).GreaterThan(x => x.StartDate)
             .When(x => x.EndDate.HasValue)
             .WithMessage("La date de fin doit être postérieure à la date de début.");
-        RuleFor(x => x.Notes).MaximumLength(2000);
+        RuleFor(x => x.Notes).MaximumLength(2000).NoHtml();
     }
 }
 

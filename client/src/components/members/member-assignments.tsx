@@ -22,6 +22,7 @@ import { formatDate, todayIso } from '@/lib/utils'
 import { Callout } from '@/components/shared/callout'
 import { EmptyState } from '@/components/shared/empty-state'
 import { DateInput } from '@/components/shared/date-input'
+import { Textarea } from '@/components/ui/textarea'
 
 // "Affectations" tab of the member detail page (also reused read-only on Ma fiche for youth).
 // Shows the member's current posts (unit / team / functional role) + a year-grouped history
@@ -406,7 +407,15 @@ export function MemberAssignments({ memberId, memberName, readOnly, selfPropose 
                 </Button>
               </div>
             )}
-            {/* Notes field removed for now — functions don't carry notes (user request 2026-06-26). */}
+            {/* New posts don't take notes (user request 2026-06-26), but a post that already has one (old import / older
+                version) shows it here so it can be corrected or cleared — otherwise it stayed on the card for good. */}
+            {editing?.notes && (
+              <div className="space-y-1.5">
+                <RequiredLabel>Note</RequiredLabel>
+                <Textarea value={form.notes ?? ''} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+                  placeholder="Videz le champ pour supprimer la note" maxLength={1000} />
+              </div>
+            )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending || proposeMutation.isPending}>

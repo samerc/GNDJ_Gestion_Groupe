@@ -620,7 +620,10 @@ for (int r = 2; r <= wsAssign.LastRowUsed()!.RowNumber(); r++)
         oldMemberId,
         Cell(wsAssign, r, 5), Cell(wsAssign, r, 6), Cell(wsAssign, r, 7),
         ParseDate(Cell(wsAssign, r, 9)), ParseDate(Cell(wsAssign, r, 10)),
-        NullIfEmpty(Cell(wsAssign, r, 11)), Cell(wsAssign, r, 13) == "1"));
+        // "Passage20" / "Passage21" = WEBDEV passage markers, not notes (they'd be copied onto every yearly split).
+        System.Text.RegularExpressions.Regex.IsMatch(Cell(wsAssign, r, 11) ?? "", @"^\s*passage\s*[0-9]{2,4}\s*$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase) ? null : NullIfEmpty(Cell(wsAssign, r, 11)),
+        Cell(wsAssign, r, 13) == "1"));
 }
 
 foreach (var grp in assignRows.GroupBy(x => x.OldMember))

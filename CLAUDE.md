@@ -6298,6 +6298,14 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   Before, a chef leaving with the maîtrise plan had their old youth line come back as « à finaliser » (dashboard +
   rentrée counts wrong) and a second « Publier » would apply it. Audit field LeftOutLines.
 
+### Post notes: import markers cleared + editable again (2026-10-08, DEV until deploy)
+- WEBDEV « Passage20 » / « Passage21 » markers were copied by the import onto every yearly split of a function
+  (dev: 702 posts / ~300 members, e.g. Sami AOUN). Patch **042** clears exact matches (`^passage\s*NN$`, any case);
+  the migration tool drops them on import. The 28 real notes are untouched.
+- They couldn't be edited because the note field was removed from « Modifier le poste » (2026-06-26: posts don't
+  take notes). The field is back ONLY when the post already has a note (correct / clear it; empty = removed); new
+  posts still have none. UpdateAssignment Notes now NoHtml too.
+
 ### Maîtrise plan for next year — applied with the passage (2026-09-29, DEV until deploy)
 - **`MaitrisePlanLine`** (table `maitrise_plan_lines`, migration `AddMaitrisePlan`, plain table, cancel = delete): per
   scout year (= `passage.scout_year`) planned leadership changes — `End` (AssignmentId to close) or `Start` (member +
