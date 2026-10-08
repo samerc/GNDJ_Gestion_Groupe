@@ -23,12 +23,9 @@
     <!-- Pin Relational to match EF Core 10.0.12 (the Npgsql provider pulls a newer Relational transitively;
          this unifies the graph and avoids the MSB3277 version-conflict warning). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
-    <PackageReference Include="QuestPDF" Version="2026.8.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
-    <PackageReference Include="WebPush" Version="1.0.12" />
-    <!-- WebPush 1.0.12 pulls in Newtonsoft.Json 10.0.3 (GHSA-5crp-9r3c-p9vr, high-severity DoS). Pin the
-         patched 13.0.4 directly (also satisfies EF Tools' >=13.0.4) so the vulnerable transitive is overridden. -->
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="QuestPDF" Version="2026.9.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
+    <PackageReference Include="WebPush" Version="1.0.13" />
   </ItemGroup>
 
   <PropertyGroup>
