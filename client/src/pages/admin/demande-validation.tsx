@@ -135,6 +135,16 @@ function hasSiblingToLink(d: DemandeReview) {
   return d.scoutRelations.some((r) => isSiblingRelation(r.relationship) && !r.relatedMemberId && !!r.suggestedMemberId)
 }
 
+// One line of the « À vérifier » box: the text, then an « Afficher » button that filters the list to those demandes.
+function FlagLine({ children, onShow }: { children: React.ReactNode; onShow: () => void }) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2">
+      <span>{children}</span>
+      <Button variant="outline" size="sm" className="h-7" onClick={onShow}>Afficher</Button>
+    </li>
+  )
+}
+
 // Family consistency flag 1: the same account has both an accepted and a refused child this year. `d.siblings`
 // comes from the server (every non-draft demande of the account), so this works whatever the list filters are.
 function hasMixedFamilyDecision(d: DemandeReview): boolean {
@@ -211,6 +221,7 @@ export default function DemandeValidationPage() {
   const [fSibling, setFSibling] = useState(false)    // brother/sister among proches OR ≥2 demandes on the account
   const [fPrevious, setFPrevious] = useState(false)  // a previous demande was declared
   const [fConflict, setFConflict] = useState(false)  // family decisions to check (mixed answers / refusal with a sibling in the group)
+  const [fToLink, setFToLink] = useState(false)        // a brother/sister proche matched to a member, not confirmed yet (« Lier »)
   const [showOccupancy, setShowOccupancy] = useState(false)
   const [showFilters, setShowFilters] = useState(false) // filters folded away by default (only the search shows)
   const [gridMode, setGridMode] = useState(false)       // spreadsheet mode of the table (edit cells in place)
@@ -322,18 +333,19 @@ export default function DemandeValidationPage() {
     (!fHasRelations || d.scoutRelations.length > 0) &&
     (!fSibling || !!siblingProche(d) || (accountCounts[d.accountId] ?? 0) > 1) &&
     (!fPrevious || !!d.hasPreviousDemande) &&
-    (!fConflict || hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d) || isDeclinedWithPreviousDemande(d)),
-  [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict, accountCounts])
+    (!fConflict || hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d) || isDeclinedWithPreviousDemande(d)) &&
+    (!fToLink || hasSiblingToLink(d)),
+  [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict, fToLink, accountCounts])
 
   // How many extra filters are active (for the "Réinitialiser" button + a count badge).
   const activeExtraFilters =
     [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation].filter((v) => v !== 'all').length +
-    [fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict].filter(Boolean).length
+    [fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict, fToLink].filter(Boolean).length
   // Every active filter (main + extra) — shown on the folded « Filtres » button.
   const filterCount = activeExtraFilters + [status !== 'all', gender !== 'all', !!classe, !!ageMin, !!ageMax].filter(Boolean).length
   const resetExtraFilters = () => {
     setFSchool('all'); setFUnit('all'); setFNationality('all'); setFCity('all'); setFSituation('all')
-    setFSent('all'); setFRelation('all'); setFIncomplete(false); setFMemberMatch(false); setFHasRelations(false); setFSibling(false); setFPrevious(false); setFConflict(false)
+    setFSent('all'); setFRelation('all'); setFIncomplete(false); setFMemberMatch(false); setFHasRelations(false); setFSibling(false); setFPrevious(false); setFConflict(false); setFToLink(false)
   }
 
   // Multi-field + multi-term search: each space-separated word must match SOMEWHERE in the row's haystack
@@ -389,6 +401,15 @@ export default function DemandeValidationPage() {
   const familyMixedCount = useMemo(() => new Set(all.filter(hasMixedFamilyDecision).map((d) => d.accountId)).size, [all])
   const refusedWithSiblingCount = useMemo(() => all.filter(isDeclinedWithSiblingInGroup).length, [all])
   const refusedWithPreviousCount = useMemo(() => all.filter(isDeclinedWithPreviousDemande).length, [all])
+  // « À vérifier » box at the top: the flags the CG should look at before sending the responses.
+  const memberMatchCount = useMemo(() => all.filter((d) => !!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged).length, [all])
+  const toLinkCount = useMemo(() => all.filter(hasSiblingToLink).length, [all])
+  // « Afficher » on one flag: only that flag filter on (the others off), filters panel opened so it can be cleared.
+  const showOnlyFlag = (flag: 'memberMatch' | 'toLink' | 'conflict') => {
+    setFMemberMatch(flag === 'memberMatch'); setFToLink(flag === 'toLink'); setFConflict(flag === 'conflict')
+    setFIncomplete(false); setFHasRelations(false); setFSibling(false); setFPrevious(false)
+    setShowFilters(true)
+  }
   const canManageDemandes = useAuthStore((st) => st.hasPermission(PERMISSIONS.DEMANDE_MANAGE))
 
   const detailIndex = rows.findIndex((d) => d.id === detailId)
@@ -605,16 +626,31 @@ export default function DemandeValidationPage() {
           Toutes les demandes doivent être acceptées ou refusées avant de pouvoir envoyer les réponses.
         </Callout>
       )}
-      {(familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
-        <Callout tone="warning" icon={AlertTriangle} title="Décisions à vérifier">
-          <div className="flex flex-wrap items-center gap-3">
-            <ul className="list-disc space-y-0.5 pl-5">
-              {familyMixedCount > 0 && <li>{familyMixedCount} famille(s) avec des réponses différentes : un enfant accepté, un autre refusé.</li>}
-              {refusedWithSiblingCount > 0 && <li>{refusedWithSiblingCount} demande(s) refusée(s) alors qu'un frère ou une sœur est déjà membre du groupe.</li>}
-              {refusedWithPreviousCount > 0 && <li>{refusedWithPreviousCount} demande(s) refusée(s) alors qu'une demande a déjà été faite une année précédente.</li>}
-            </ul>
-            <Button variant="outline" size="sm" className="ml-auto" onClick={() => { setFConflict(true); setShowFilters(true) }}>Afficher</Button>
-          </div>
+      {/* Flags to look at before sending the responses — each line filters the list to exactly those demandes. */}
+      {(memberMatchCount > 0 || toLinkCount > 0 || familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
+        <Callout tone="warning" icon={AlertTriangle} title="À vérifier">
+          <ul className="space-y-1.5">
+            {memberMatchCount > 0 && (
+              <FlagLine onShow={() => showOnlyFlag('memberMatch')}>
+                <strong>{memberMatchCount}</strong> enfant(s) qui semble(nt) déjà membre(s) du groupe (« Déjà membre ? ») : confirmez ou non dans la fiche.
+              </FlagLine>
+            )}
+            {toLinkCount > 0 && (
+              <FlagLine onShow={() => showOnlyFlag('toLink')}>
+                <strong>{toLinkCount}</strong> demande(s) avec un frère ou une sœur reconnu(e) dans le groupe, à confirmer avec « Lier ».
+              </FlagLine>
+            )}
+            {(familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
+              <FlagLine onShow={() => showOnlyFlag('conflict')}>
+                Décisions à vérifier :{' '}
+                {[
+                  familyMixedCount > 0 && `${familyMixedCount} famille(s) avec un enfant accepté et un autre refusé`,
+                  refusedWithSiblingCount > 0 && `${refusedWithSiblingCount} refus alors qu'un frère ou une sœur est déjà membre`,
+                  refusedWithPreviousCount > 0 && `${refusedWithPreviousCount} refus alors qu'une demande a déjà été faite une année précédente`,
+                ].filter(Boolean).join(' · ')}.
+              </FlagLine>
+            )}
+          </ul>
         </Callout>
       )}
       {status !== 'all' && pendingSend > 0 && undecided === 0 && (
@@ -745,6 +781,7 @@ export default function DemandeValidationPage() {
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fSibling} onChange={(e) => setFSibling(e.target.checked)} />Fratrie / frère-sœur</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fPrevious} onChange={(e) => setFPrevious(e.target.checked)} />Demande précédente</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fConflict} onChange={(e) => setFConflict(e.target.checked)} />Décisions à vérifier</label>
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fToLink} onChange={(e) => setFToLink(e.target.checked)} />Frère / sœur à lier</label>
           <span className="ml-auto text-xs text-muted-foreground">{rows.length} résultat(s)</span>
           {activeExtraFilters > 0 && (
             <Button variant="ghost" size="sm" onClick={resetExtraFilters}><X className="mr-1 h-3.5 w-3.5" />Réinitialiser ({activeExtraFilters})</Button>

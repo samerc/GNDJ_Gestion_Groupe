@@ -126,12 +126,17 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 - Les **proches scouts** peuvent être **liés** à un membre existant (bouton **Lier**) : les frères et sœurs
   partageront alors les mêmes parents à l'inscription.
 
-> ⚠️ **Décisions à vérifier** : la page signale (bandeau orange, badges rouges sur les lignes, encadré
+> 💡 **Encadré « À vérifier »** en haut de la page : il compte ce qu'il reste à regarder avant l'envoi — les
+> **Déjà membre ?** sans réponse, les frères et sœurs **à lier**, et les **décisions à vérifier** (ci-dessous). Le
+> bouton **Afficher** de chaque ligne ne montre que ces demandes (filtres **Déjà membre ? (à vérifier)**,
+> **Frère / sœur à lier**, **Décisions à vérifier**).
+
+> ⚠️ **Décisions à vérifier** : la page signale (encadré « À vérifier », badges rouges sur les lignes, encadré
 > dans le dossier) trois cas à revoir. **Réponses différentes** : une même famille a un enfant accepté et un autre
 > refusé (les enfants d'une famille devraient tous être acceptés ou tous refusés). **Refus · fratrie membre** : une
 > demande refusée alors qu'un frère ou une sœur est déjà membre du groupe. **Refus · déjà demandé** : une demande
 > refusée alors que la famille indique une demande une année précédente (vérifiez dans les **Archives des
-> demandes**). Le bouton **Afficher** du bandeau (ou le filtre **Décisions à vérifier**) ne montre que ces demandes. Ce sont des avertissements : l'envoi reste
+> demandes**). Le bouton **Afficher** de l'encadré (ou le filtre **Décisions à vérifier**) ne montre que ces demandes. Ce sont des avertissements : l'envoi reste
 > possible, et ils sont rappelés dans **Ce qui va se passer**.
 
 > 💡 **Travailler dans Excel** : **Exporter (Excel)** donne un fichier avec une colonne **Décision** à remplir
