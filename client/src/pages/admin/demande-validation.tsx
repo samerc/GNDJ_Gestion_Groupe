@@ -33,6 +33,7 @@ import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { DemandeGrid } from '@/components/admin/demande-grid'
 import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
 import { MemberMatchCard } from '@/components/admin/member-match-card'
+import { DemandeFlagReview, type FlagKind } from '@/components/admin/demande-flag-review'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -136,11 +137,11 @@ function hasSiblingToLink(d: DemandeReview) {
 }
 
 // One line of the « À vérifier » box: the text, then an « Afficher » button that filters the list to those demandes.
-function FlagLine({ children, onShow }: { children: React.ReactNode; onShow: () => void }) {
+function FlagLine({ children, onShow, label = 'Afficher' }: { children: React.ReactNode; onShow: () => void; label?: string }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-2">
       <span>{children}</span>
-      <Button variant="outline" size="sm" className="h-7" onClick={onShow}>Afficher</Button>
+      <Button variant="outline" size="sm" className="h-7" onClick={onShow}>{label}</Button>
     </li>
   )
 }
@@ -403,7 +404,13 @@ export default function DemandeValidationPage() {
   const refusedWithPreviousCount = useMemo(() => all.filter(isDeclinedWithPreviousDemande).length, [all])
   // « À vérifier » box at the top: the flags the CG should look at before sending the responses.
   const memberMatchCount = useMemo(() => all.filter((d) => !!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged).length, [all])
-  const toLinkCount = useMemo(() => all.filter(hasSiblingToLink).length, [all])
+  // « Vérifier » window (Déjà membre ? / frères et sœurs à lier): the items, and the comparison opened from it.
+  const [flagReview, setFlagReview] = useState<FlagKind | null>(null)
+  const [flagLinkTarget, setFlagLinkTarget] = useState<LinkTarget | null>(null)
+  const matchItems = useMemo(() => all.filter((d) => !!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged), [all])
+  const linkItems = useMemo(() => all.flatMap((d) => d.scoutRelations
+    .filter((r) => isSiblingRelation(r.relationship) && !r.relatedMemberId && !!r.suggestedMemberId && !!r.id)
+    .map((r) => ({ d, r }))), [all])
   // « Afficher » on one flag: only that flag filter on (the others off), filters panel opened so it can be cleared.
   const showOnlyFlag = (flag: 'memberMatch' | 'toLink' | 'conflict') => {
     setFMemberMatch(flag === 'memberMatch'); setFToLink(flag === 'toLink'); setFConflict(flag === 'conflict')
@@ -627,17 +634,17 @@ export default function DemandeValidationPage() {
         </Callout>
       )}
       {/* Flags to look at before sending the responses — each line filters the list to exactly those demandes. */}
-      {(memberMatchCount > 0 || toLinkCount > 0 || familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
+      {(memberMatchCount > 0 || linkItems.length > 0 || familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
         <Callout tone="warning" icon={AlertTriangle} title="À vérifier">
           <ul className="space-y-1.5">
             {memberMatchCount > 0 && (
-              <FlagLine onShow={() => showOnlyFlag('memberMatch')}>
-                <strong>{memberMatchCount}</strong> enfant(s) qui semble(nt) déjà membre(s) du groupe (« Déjà membre ? ») : confirmez ou non dans la fiche.
+              <FlagLine label="Vérifier" onShow={() => setFlagReview('memberMatch')}>
+                <strong>{memberMatchCount}</strong> enfant(s) qui semble(nt) déjà membre(s) du groupe (« Déjà membre ? ») : à confirmer ou non.
               </FlagLine>
             )}
-            {toLinkCount > 0 && (
-              <FlagLine onShow={() => showOnlyFlag('toLink')}>
-                <strong>{toLinkCount}</strong> demande(s) avec un frère ou une sœur reconnu(e) dans le groupe, à confirmer avec « Lier ».
+            {linkItems.length > 0 && (
+              <FlagLine label="Vérifier" onShow={() => setFlagReview('toLink')}>
+                <strong>{linkItems.length}</strong> frère(s) ou sœur(s) déclaré(s) par les familles et reconnu(s) dans le groupe, à lier ou non.
               </FlagLine>
             )}
             {(familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
@@ -997,6 +1004,12 @@ export default function DemandeValidationPage() {
       )}
 
       {/* Detail drawer */}
+      {/* « Vérifier » window for « Déjà membre ? » and brothers/sisters to link; « Voir la demande » clears the list
+          filters so the demande is in the list, then opens its drawer. */}
+      <DemandeFlagReview kind={flagReview} matches={matchItems} links={linkItems} onClose={() => setFlagReview(null)}
+        onLink={setFlagLinkTarget}
+        onOpenDemande={(id) => { setFlagReview(null); resetExtraFilters(); setStatus('all'); setSearch(''); setDetailId(id) }} />
+      <LinkRelationDialog target={flagLinkTarget} onClose={() => setFlagLinkTarget(null)} />
       <Sheet open={!!detail} onOpenChange={(o) => { if (!o) setDetailId(null) }}>
         {/* Don't auto-focus the first control (the « Précédent » nav button) on open — it would pop that
             button's tooltip every time the drawer opens. Keyboard triage (A/R/←/→) is a window listener, so

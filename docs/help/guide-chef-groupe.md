@@ -128,8 +128,10 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 
 > 💡 **Encadré « À vérifier »** en haut de la page : il compte ce qu'il reste à regarder avant l'envoi — les
 > **Déjà membre ?** sans réponse, les frères et sœurs **à lier**, et les **décisions à vérifier** (ci-dessous). Le
-> bouton **Afficher** de chaque ligne ne montre que ces demandes (filtres **Déjà membre ? (à vérifier)**,
-> **Frère / sœur à lier**, **Décisions à vérifier**).
+> bouton **Vérifier** des deux premières lignes ouvre une liste : à gauche l'enfant de la demande, à droite le
+> membre du groupe, avec les réponses sur la ligne (**Même personne** / **Personne différente** ; **Comparer et lier** /
+> **Pas lui**). Une ligne répondue disparaît ; **Voir la demande** ouvre la fiche. Le bouton **Afficher** des
+> décisions à vérifier ne montre que ces demandes (filtre **Décisions à vérifier**).
 
 > ⚠️ **Décisions à vérifier** : la page signale (encadré « À vérifier », badges rouges sur les lignes, encadré
 > dans le dossier) trois cas à revoir. **Réponses différentes** : une même famille a un enfant accepté et un autre
