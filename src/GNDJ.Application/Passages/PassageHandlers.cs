@@ -345,13 +345,14 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
 
         var missingLines = members.Count(m => m.LineStatus == "None");
 
-        // Accepted demandes of the current enrolment campaign that aren't members yet (once converted, the child is
-        // an active member and already counted above). Counted even before "Envoyer les réponses".
+        // Accepted demandes of the current enrolment campaign: before "Envoyer les réponses" (no member yet) and after
+        // it too — a converted child is outside the passage (PassageScope.NewcomerIds), so not in `members` above.
+        // A converted child still in the passage (demande year ≠ passage year) is already counted there: skipped.
         var demandeYear = await context.Settings.Where(x => x.Key == "demande.scout_year").Select(x => x.Value).FirstOrDefaultAsync(ct);
         if (string.IsNullOrWhiteSpace(demandeYear)) demandeYear = request.ScoutYear;
         var newcomers = await context.Demandes
-            .Where(d => d.ScoutYear == demandeYear && d.Status == DemandeStatus.Approved
-                && d.CreatedMemberId == null && d.DecidedUnitId != null)
+            .Where(d => d.ScoutYear == demandeYear && d.Status == DemandeStatus.Approved && d.DecidedUnitId != null
+                && (d.CreatedMemberId == null || PassageScope.NewcomerIds(context).Contains(d.CreatedMemberId.Value)))
             .Select(d => new PassageProjectionNewcomerDto(d.Id, d.FirstName + " " + d.LastName, d.DecidedUnitId!.Value))
             .ToListAsync(ct);
 
@@ -1180,6 +1181,16 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             count++;
         }
 
+        // Lines left out of this publication — members who are chefs right now, or this year's demande newcomers
+        // (PassageScope) — are archived (soft-deleted): a chef who leaves the maîtrise with the plan below would
+        // otherwise see their old youth line come back as « à finaliser » (wrong counts on the dashboard / rentrée),
+        // and a second « Publier » would apply it (e.g. recreate a youth post for someone who just stopped).
+        var publishedIds = passages.Select(p => p.Id).ToList();
+        var leftOut = await context.Passages
+            .Where(p => p.ScoutYear == request.ScoutYear && p.Status != PassageStatus.Finalized && !publishedIds.Contains(p.Id))
+            .ToListAsync(ct);
+        context.Passages.RemoveRange(leftOut);
+
         // The maîtrise plan (Maîtrises page) is applied with the passage: same transaction, same date.
         var maitriseChanges = await GNDJ.Application.Maitrises.MaitrisePlan.ApplyAsync(context, request.ScoutYear, passageDate, ct);
 
@@ -1204,6 +1215,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                 AutoAccepted = autoAccepted,
                 Newcomers = moves.Count,
                 MaitriseChanges = maitriseChanges,
+                LeftOutLines = leftOut.Count,
                 request.ScoutYear,
                 UnitsWithoutCu = unitsWithoutCu,
             },

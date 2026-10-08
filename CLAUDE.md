@@ -6285,6 +6285,19 @@ From the commission's 2026 archive (Archive BP). Migration `AddCampRotationScori
   ONE landscape page (the `@page { size: landscape }` rule is injected only for that print, then removed on afterprint, so
   other prints keep portrait), Télécharger = the SVG.
 
+### Scheduled sends verified + passage ordering fix (2026-10-08, DEV until deploy)
+- Tested both scheduled actions end to end on a copy of the dev DB (second API on :5001): demandes « Envoyer les
+  réponses » (refused + notified while demandes are undecided; then 161 members / 83 refusals / 244 family + 11 CU
+  emails; a second run sends nothing) and « Publier le passage » (refused + notified while lines/units are missing;
+  then published, maîtrise plan applied, 8 CU emails; scheduling again refused).
+- **Fixed:** `PassageScope.NewcomerIds` = members created/re-placed by demandes of the passage's scout year. They are
+  outside the passage (ActiveYouth + Lines): sending the demande responses BEFORE publishing used to add every
+  newcomer to « sans ligne de passage » and block publishing (161 extra on dev). The projection now counts converted
+  demandes as arrivals too (only when the child is outside the passage, so never twice).
+- **Fixed:** FinalizePassages archives (soft-deletes) the year's lines it left out (chefs / newcomers at that moment).
+  Before, a chef leaving with the maîtrise plan had their old youth line come back as « à finaliser » (dashboard +
+  rentrée counts wrong) and a second « Publier » would apply it. Audit field LeftOutLines.
+
 ### Maîtrise plan for next year — applied with the passage (2026-09-29, DEV until deploy)
 - **`MaitrisePlanLine`** (table `maitrise_plan_lines`, migration `AddMaitrisePlan`, plain table, cancel = delete): per
   scout year (= `passage.scout_year`) planned leadership changes — `End` (AssignmentId to close) or `Start` (member +

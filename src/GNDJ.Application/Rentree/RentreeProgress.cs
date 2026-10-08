@@ -114,9 +114,10 @@ public static class RentreeProgress
                     .Where(a => a.EndDate == null && !a.IsDeleted && unitIds.Contains(a.UnitId))
                     .Select(a => new { a.UnitId, a.MemberId }).ToListAsync(ct))
                 .GroupBy(a => a.UnitId).ToDictionary(g => g.Key, g => g.Select(x => x.MemberId).Distinct().ToList());
-            // Chefs aren't part of the passage: the passage signals count the youth only.
+            // Chefs and this year's demande newcomers aren't part of the passage: the passage signals count the rest.
             var passageLeaders = present.Contains("passage-proposed") || present.Contains("passage-finished")
-                ? (await Passages.PassageScope.LeaderIds(context).Distinct().ToListAsync(ct)).ToHashSet()
+                ? (await Passages.PassageScope.LeaderIds(context).Distinct().ToListAsync(ct))
+                    .Concat(await Passages.PassageScope.NewcomerIds(context).ToListAsync(ct)).ToHashSet()
                 : new HashSet<Guid>();
             List<Guid> UnitYouth(Guid u) => UnitMembers(u).Where(m => !passageLeaders.Contains(m)).ToList();
             var allMemberIds = activeByUnit.Values.SelectMany(x => x).Distinct().ToList();

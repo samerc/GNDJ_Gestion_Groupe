@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-08", "text": "Passage : les enfants acceptés par les demandes ne bloquent plus la publication du passage quand les réponses sont envoyées avant (ils sont déjà dans leur unité de l'année prochaine) et restent comptés comme arrivées dans la projection ; à la publication, les anciennes lignes des chefs sont archivées, pour qu'elles ne réapparaissent plus « à finaliser » quand un chef quitte la maîtrise."},
       {"date": "2026-10-08", "text": "Maintenance : mise à jour des bibliothèques de l'application (affichage, éditeur de texte, génération des PDF, notifications push, documentation de l'API) vers leurs dernières versions."},
       {"date": "2026-10-08", "text": "Sécurité : mise à jour de deux bibliothèques utilisées pour l'affichage (nettoyage du texte riche et formules des schémas de l'aide), signalées par un avis de sécurité."},
       {"date": "2026-10-08", "text": "Maintenance : « Ma famille » s'ouvre plus vite pour les familles de plusieurs enfants ; six points d'accès du serveur que l'application n'utilisait plus ont été retirés ; le temps relatif (« il y a 3 min ») est calculé de la même façon dans les notifications et dans Sessions actives."},
