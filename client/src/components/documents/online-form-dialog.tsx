@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { Callout } from '@/components/shared/callout'
 import { SignaturePad } from './signature-pad'
+import { normalizeFormDate, displayFormDate } from '@/lib/form-dates'
 
 interface OnlineForm {
   documentTypeId: string
@@ -56,14 +57,16 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
   const [hydratedFor, setHydratedFor] = useState<string | null>(null)
   if (form && hydratedFor !== form.templateHash) {
     setHydratedFor(form.templateHash)
-    setAnswers(form.prefill ?? {})
+    // Date blanks are edited as typed text (JJ/MM/AAAA, MM/AAAA or AAAA) — show prefilled dates that way.
+    const dateKeys = new Set(form.fields.filter((f) => f.kind === 'date').map((f) => f.key))
+    setAnswers(Object.fromEntries(Object.entries(form.prefill ?? {}).map(([k, v]) => [k, dateKeys.has(k) ? displayFormDate(v) : v])))
     if (form.signerName) setSignerName(form.signerName)
     if (form.signerRelation && RELATIONS.includes(form.signerRelation)) setRelation(form.signerRelation)
   }
 
   const submit = useMutation({
-    mutationFn: () => apiClient.post('/documents/online-form', {
-      memberId, documentTypeId, templateHash: form!.templateHash, answers,
+    mutationFn: (sent: Record<string, string>) => apiClient.post('/documents/online-form', {
+      memberId, documentTypeId, templateHash: form!.templateHash, answers: sent,
       signerName: signerName.trim(), signerRelation: relation, signaturePng: signature, certified,
     }),
     onSuccess: () => {
@@ -87,7 +90,14 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
     if (!relation) { toast.error('Indiquez qui signe.'); return }
     if (!certified) { toast.error("Cochez « Je certifie l'exactitude des informations »."); return }
     if (!signature) { toast.error('Signez dans le cadre.'); return }
-    submit.mutate()
+    // Date blanks: typed text → yyyy-MM-dd / MM/yyyy / yyyy; refuse what can't be read, naming the field.
+    const sent = { ...answers }
+    for (const f of form!.fields.filter((x) => x.kind === 'date')) {
+      const v = normalizeFormDate(answers[f.key] ?? '')
+      if (v === null) { toast.error(`Date non reconnue${f.label ? ` (${f.label})` : ''} : écrivez JJ/MM/AAAA, MM/AAAA ou l'année seule.`); return }
+      sent[f.key] = v
+    }
+    submit.mutate(sent)
   }
 
   return (
@@ -168,11 +178,14 @@ function toReact(node: Node, key: string, answers: Record<string, string>, set: 
       {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
     </select>
   }
-  // A date blank: the phone's own date picker (value yyyy-MM-dd; the PDF prints it JJ/MM/AAAA).
+  // A date blank: typed in the French order — a full date, a month/year or the year alone (vaccine boosters are
+  // often known only by year). Red underline while it can't be read; converted when sending (lib/form-dates).
   if (fieldKey && el.hasAttribute('data-fill') && el.hasAttribute('data-date')) {
-    return <input key={key} type="date" aria-label="Date" value={answers[fieldKey] ?? ''} max="2100-12-31"
-      onChange={(e) => set(fieldKey, e.target.value)}
-      className="mx-1 inline-block rounded border-b-2 border-dashed border-primary/50 bg-primary/5 px-1 py-0.5 align-baseline text-gray-900 outline-none focus:border-primary" />
+    const v = answers[fieldKey] ?? ''
+    const bad = normalizeFormDate(v) === null
+    return <input key={key} type="text" inputMode="numeric" aria-label="Date (JJ/MM/AAAA, MM/AAAA ou année)" placeholder="JJ/MM/AAAA"
+      value={v} maxLength={10} onChange={(e) => set(fieldKey, e.target.value)}
+      className={`mx-1 inline-block w-32 rounded border-b-2 border-dashed px-1 py-0.5 align-baseline text-gray-900 outline-none placeholder:text-gray-400 ${bad ? 'border-red-500 bg-red-50' : 'border-primary/50 bg-primary/5 focus:border-primary'}`} />
   }
   // The blanks to fill.
   if (fieldKey && el.hasAttribute('data-fill')) {

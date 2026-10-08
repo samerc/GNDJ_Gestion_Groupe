@@ -106,8 +106,9 @@ export interface MemberFormData {
 
 // Paginated member list. alumni=true switches to former-members (identity only); default is active.
 // maitrise=true restricts to leadership (maîtrise) role holders across the caller's units.
-export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; all?: boolean; maitrise?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number; letter?: string; appInstalled?: boolean }) {
+export function useMembers(params: { search?: string; unitId?: string; teamId?: string; noUnit?: boolean; alumni?: boolean; all?: boolean; maitrise?: boolean; sortBy?: string; sortDir?: string; page?: number; pageSize?: number; letter?: string; appInstalled?: boolean }, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['members', params],
     queryFn: () => apiClient.get<PaginatedResult<MemberListDto>>('/members', { params }).then(r => r.data),
     // Busiest list in the app: keep the previous page visible while the next page/letter/filter loads (no

@@ -10,7 +10,7 @@ function fr(d: string | null): string {
 }
 
 export function CampaignPhaseBanner() {
-  const { data: c } = useDocumentCampaign()
+  const { data: c } = useDocumentCampaign(true)
   if (!c || !c.enabled || c.phase === 'Inactive') return null
 
   // Phase → (label, message, tone). Keeps a single source and avoids reassignment lint.

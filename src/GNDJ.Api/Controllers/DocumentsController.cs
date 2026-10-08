@@ -367,10 +367,12 @@ public class DocumentsController : BaseApiController
     // verification steps (error emails, then on-hold for still-incomplete dossiers) — auto when verification is
     // done, else the CG is alerted and presses the buttons. See DocumentCampaign / DocumentCampaignActions.
 
-    /// <summary>Current campaign status (phase + upload open/closed + dates). Auth-only — drives member/CU banners.</summary>
+    /// <summary>Current campaign status (phase + upload open/closed + dates). Auth-only — drives member/CU banners.
+    /// Without <c>group</c>, it is the status of the caller's own dossier (a member who joined after the deposit
+    /// deadline can always upload); <c>group=true</c> = the group-wide phase (chef pages).</summary>
     [HttpGet("campaign")]
-    public async Task<IActionResult> GetCampaign()
-        => Ok((await Mediator.Send(new GetDocumentCampaignStatusQuery())).Value);
+    public async Task<IActionResult> GetCampaign([FromQuery] bool group = false)
+        => Ok((await Mediator.Send(new GetDocumentCampaignStatusQuery(group))).Value);
 
     /// <summary>CG dashboard: status + per-unit pending/incomplete + completion + step markers. Requires maitrise.manage.</summary>
     [HttpGet("campaign/admin")]

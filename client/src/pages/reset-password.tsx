@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useResetPassword } from '@/services/email-service'
+import { useAuthStore } from '@/stores/auth-store'
+import { Input } from '@/components/ui/input'
 import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { PasswordInput } from '@/components/ui/password-input'
@@ -12,7 +14,10 @@ import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
 
 // "Nouveau mot de passe" — anonymous step 2 of password reset: the user lands here from
-// the emailed link, which carries token+email as query params. Submits the new password.
+// the emailed link, which carries token+email as query params. Submits the new password, then SIGNS IN directly
+// with it (a new family never has to type an identifiant they have only seen in the email). The identifiant is
+// shown on the form — in a username field, so the browser saves the identifiant + password pair. If the automatic
+// sign-in fails (maintenance…), the success card shows the identifiant and a login link pre-filled with it.
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
   // token+email come from the emailed reset link; both required (else the invalid-link card renders).
@@ -28,6 +33,8 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const mutation = useResetPassword()
   const { data: policy } = usePasswordPolicy()
+  const login = useAuthStore((s) => s.login)
+  const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,9 +52,16 @@ export default function ResetPasswordPage() {
 
     try {
       await mutation.mutateAsync({ email, token, newPassword, website })
-      setSuccess(true)
     } catch (err) {
       setError(parseApiError(err))
+      return
+    }
+    // Password set → sign in straight away (remembered on this device, like the login's default).
+    try {
+      await login({ email, password: newPassword }, true)
+      navigate('/dashboard', { replace: true })
+    } catch {
+      setSuccess(true)
     }
   }
 
@@ -81,14 +95,23 @@ export default function ResetPasswordPage() {
               ? 'Votre compte est activé. Vous pouvez maintenant vous connecter.'
               : 'Votre mot de passe a été réinitialisé avec succès.'}
           </Callout>
-          <Link to="/login" className="block text-center text-sm text-primary hover:underline">
-            Se connecter
-          </Link>
+          <p className="text-center text-sm text-muted-foreground">
+            Votre identifiant : <span className="font-medium text-foreground">{email}</span>
+          </p>
+          <Button asChild className="w-full">
+            <Link to={`/login?username=${encodeURIComponent(email)}`}>Se connecter</Link>
+          </Button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <HoneypotField value={website} onChange={setWebsite} />
           {error && <Callout tone="danger">{error}</Callout>}
+          <div className="space-y-2">
+            <Label htmlFor="username">Votre identifiant</Label>
+            {/* Read-only, but a real username field: the browser saves it together with the new password. */}
+            <Input id="username" name="username" value={email} readOnly autoComplete="username" className="bg-muted" />
+            <p className="text-xs text-muted-foreground">Gardez-le : c'est avec lui que vous vous connecterez.</p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="newPassword">Nouveau mot de passe</Label>
             <PasswordInput

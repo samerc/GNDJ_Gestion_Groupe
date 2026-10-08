@@ -30,6 +30,9 @@ public class StartSiblingDemandeCommandHandler(IApplicationDbContext context, IC
 
         var config = await ApplicantHelpers.BuildConfig(context, ct);
         if (!config.IsOpen) return Result<ApplicantAuthDto>.Failure("Les inscriptions ne sont pas ouvertes pour le moment.");
+        // After the submission deadline (or once the CG closed submissions) a new demande can't be sent: refuse
+        // here rather than opening a demande the parent can't submit.
+        if (!config.SubmissionsOpen) return Result<ApplicantAuthDto>.Failure("La période des demandes d'inscription est terminée pour cette année.");
 
         // Who may use it: setting demande.sibling_enroll_audience = off | youth (default: no chefs) | all.
         var audience = (await context.Settings.Where(s => s.Key == "demande.sibling_enroll_audience")

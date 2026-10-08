@@ -6528,3 +6528,18 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   shows the name only. Link in the account menu (when siblings exist) + `FamilyCta` on Ma fiche. `lib/my-todo.ts`
   `todoLeft()`. On hold: family notifications (bell for any child).
 
+### Newcomer weekend check (2026-10-08, DEV until deploy)
+Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused in 9 s, 255 emails) + phone walkthroughs
+(`tests/e2e/newcomer_walk.mjs <activationUrl> <outDir>`, screenshots per step). Fixes:
+- **Activation signs in directly** (`pages/reset-password.tsx`): after setting the password the page calls the normal
+  login and goes to /dashboard; the form shows the identifiant in a read-only `autocomplete=username` field (the
+  browser saves identifiant + password). Fallback card shows the identifiant + `/login?username=` (login page prefill).
+- **Late joiners can always upload** (`DocumentCampaign.ForMemberAsync`): a member created after
+  `documents.deposit_deadline` is outside this year's campaign (upload open, banner none). Used by the upload gate,
+  « Ma rentrée » and `GET /documents/campaign` (`?group=true` = group-wide phase, used by the CU matrix banner).
+- « Inscrire un frère ou une sœur » hidden (and refused server-side) once `SubmissionsOpen` is false.
+- Shared `DialogContent` gets `[&>*]:min-w-0` (grid items could not shrink → contact-review popup overflowed on phones).
+- Command palette member query only runs when searching (`useMembers(params, enabled)`) — was a 403 on every page for youth.
+- Online-form date blanks: text field JJ/MM/AAAA (`lib/form-dates.ts`), also MM/AAAA or AAAA; sent as yyyy-MM-dd /
+  MM/yyyy / yyyy; server `TemplateFormAnswers.IsFormDate`.
+

@@ -32,6 +32,17 @@ public static class TemplateFormAnswers
     public static string Key(string fieldKey) => "#" + fieldKey;
 
     // A date answer (yyyy-MM-dd from the date picker) shown as JJ/MM/AAAA; anything else unchanged.
+    // An accepted date-blank answer: yyyy-MM-dd, MM/yyyy (month 01-12) or yyyy (years 1900-2100).
+    public static bool IsFormDate(string v)
+    {
+        if (DateOnly.TryParseExact(v, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _)) return true;
+        var m = System.Text.RegularExpressions.Regex.Match(v, @"^(?:(\d{2})/)?(\d{4})$");
+        if (!m.Success) return false;
+        var year = int.Parse(m.Groups[2].Value);
+        if (year < 1900 || year > 2100) return false;
+        return !m.Groups[1].Success || int.Parse(m.Groups[1].Value) is >= 1 and <= 12;
+    }
+
     public static string DisplayDate(string v)
         => DateOnly.TryParseExact(v, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
             ? d.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) : v;

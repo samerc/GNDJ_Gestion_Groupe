@@ -2,6 +2,7 @@
 // enrollment-portal account (created/prefilled by the server from this member's file: parents, address, siblings)
 // and lands the parent straight in a new demande — no separate portal registration or email code.
 // Who sees it: setting demande.sibling_enroll_audience — off | youth (default: not chefs / super-admins) | all.
+// Hidden once submissions are closed (deadline passed or closed by the CG): a demande could not be sent anyway.
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -14,9 +15,11 @@ import { Button } from '@/components/ui/button'
 import { useIsRegularMember } from '@/lib/use-is-manager'
 import { useAuthStore } from '@/stores/auth-store'
 import { useSettingValue } from '@/services/settings-service'
+import { useApplicantConfig } from '@/services/applicant-service'
 
 export function SiblingEnrollCta() {
   const { data: config } = usePublicSiteConfig()
+  const { data: applicantConfig } = useApplicantConfig()
   const adoptSession = useApplicantStore((s) => s.adoptSession)
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
@@ -25,7 +28,7 @@ export function SiblingEnrollCta() {
   const audience = useSettingValue('demande.sibling_enroll_audience') ?? 'youth'
 
   const allowed = audience === 'all' || (audience !== 'off' && isRegular && !isMaitrise)
-  if (!config?.inscriptionsOpen || !allowed) return null
+  if (!config?.inscriptionsOpen || !applicantConfig?.submissionsOpen || !allowed) return null
 
   const start = async () => {
     setBusy(true)

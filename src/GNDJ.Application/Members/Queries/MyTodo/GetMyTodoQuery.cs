@@ -60,7 +60,7 @@ public static class MemberTodo
             else if (d.Status == DocumentStatus.Rejected) rejected++;
             else pending++;
         }
-        var campaign = await DocumentCampaign.LoadAsync(context, ct);
+        var campaign = await DocumentCampaign.ForMemberAsync(context, memberId, ct);
 
         // Cotisation for the configured scout year.
         var year = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct);

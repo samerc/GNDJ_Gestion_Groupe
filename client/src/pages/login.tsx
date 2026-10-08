@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, Link } from 'react-router'
+import { Navigate, Link, useSearchParams } from 'react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { usePublicSiteConfig } from '@/services/public-service'
 import { LoginForm } from '@/components/auth/login-form'
@@ -19,10 +19,13 @@ export default function LoginPage() {
   const { data: config } = usePublicSiteConfig()
   const inscriptionsOpen = config?.inscriptionsOpen ?? false
 
+  // ?username= (e.g. from the account-activation page) pre-fills the identifiant and opens the form directly.
+  const [searchParams] = useSearchParams()
+  const linkUsername = searchParams.get('username') ?? ''
   // Saved accounts on this device (survives logout). If any, open on the chooser; else straight to the form.
   const [hasAccounts] = useState(() => getDeviceAccounts().length > 0)
-  const [view, setView] = useState<'chooser' | 'form'>(hasAccounts ? 'chooser' : 'form')
-  const [prefill, setPrefill] = useState('') // username carried from a chosen account with no live session
+  const [view, setView] = useState<'chooser' | 'form'>(hasAccounts && !linkUsername ? 'chooser' : 'form')
+  const [prefill, setPrefill] = useState(linkUsername) // username carried from a chosen account / the link
 
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
 

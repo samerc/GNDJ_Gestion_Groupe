@@ -106,4 +106,17 @@ public static class DocumentCampaign
 
         return new DocumentCampaignStatus(true, phase, open, d1, d2, d3, d4, d5, reopensOn, closesOn, scoutYear);
     }
+
+    // The campaign as it applies to ONE member. A member created after the deposit deadline (typically a family
+    // accepted from the demandes, or added by hand later in the year) was not part of this year's campaign: the
+    // dates don't apply to them and their upload stays open, otherwise a newcomer would find « dépôt fermé » on
+    // day one. Everyone else gets the group-wide status.
+    public static async Task<DocumentCampaignStatus> ForMemberAsync(IApplicationDbContext context, Guid? memberId, CancellationToken ct)
+    {
+        var status = await LoadAsync(context, ct);
+        if (!status.Enabled || status.UploadOpen || memberId is null || status.DepositDeadline is not { } deadline) return status;
+        var created = await context.Members.Where(m => m.Id == memberId).Select(m => (DateTime?)m.CreatedAt).FirstOrDefaultAsync(ct);
+        if (created is null || DateOnly.FromDateTime(created.Value) <= deadline) return status;
+        return status with { Phase = DocumentCampaignPhases.Inactive, UploadOpen = true, UploadReopensOn = null, UploadClosesOn = null };
+    }
 }

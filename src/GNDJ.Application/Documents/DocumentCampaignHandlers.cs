@@ -12,13 +12,18 @@ namespace GNDJ.Application.Documents;
 // the same DocumentCampaignActions.
 
 // ── Status (auth-only) — drives the member/CU banners (phase + upload open/closed + dates) ──
-public record GetDocumentCampaignStatusQuery() : IRequest<Result<DocumentCampaignStatus>>;
+// Group = the group-wide phase (chef pages); otherwise as it applies to the caller's own dossier.
+public record GetDocumentCampaignStatusQuery(bool Group = false) : IRequest<Result<DocumentCampaignStatus>>;
 
-public class GetDocumentCampaignStatusQueryHandler(IApplicationDbContext context)
+// Status as it applies to the CALLER (the member pages use it to open/close their own upload): a member who
+// joined after the deposit deadline sees the upload open (DocumentCampaign.ForMemberAsync).
+public class GetDocumentCampaignStatusQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
     : IRequestHandler<GetDocumentCampaignStatusQuery, Result<DocumentCampaignStatus>>
 {
     public async ValueTask<Result<DocumentCampaignStatus>> Handle(GetDocumentCampaignStatusQuery request, CancellationToken ct)
-        => Result<DocumentCampaignStatus>.Success(await DocumentCampaign.LoadAsync(context, ct));
+        => Result<DocumentCampaignStatus>.Success(request.Group
+            ? await DocumentCampaign.LoadAsync(context, ct)
+            : await DocumentCampaign.ForMemberAsync(context, currentUser.MemberId, ct));
 }
 
 // ── Admin dashboard (group manager) — status + per-unit pending/incomplete + completion + step markers ──

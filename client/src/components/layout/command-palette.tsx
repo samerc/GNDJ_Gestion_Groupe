@@ -60,7 +60,7 @@ export function CommandPalette() {
 
   // Member search — only when a leader typed ≥2 chars and the palette is open. Server-side, accent-insensitive.
   const searchable = canSearchMembers && open && debounced.length >= 2
-  const { data: memberData, isFetching } = useMembers({ search: searchable ? debounced : '', pageSize: 8 })
+  const { data: memberData, isFetching } = useMembers({ search: searchable ? debounced : '', pageSize: 8 }, searchable)
   const members = searchable ? (memberData?.items ?? []) : []
 
   // Parent search — same trigger. Finds a parent by name/email/phone and returns their CHILDREN, so a leader

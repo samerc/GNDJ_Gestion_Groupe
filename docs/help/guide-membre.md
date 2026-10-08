@@ -31,7 +31,7 @@ l'avez reçu par email, avec un lien **Activer mon compte** pour choisir votre m
 
 | Situation | Que faire |
 |---|---|
-| Première fois | Cliquez sur **Activer mon compte** dans l'email, choisissez votre mot de passe |
+| Première fois | Cliquez sur **Activer mon compte** (ou **Définir mon mot de passe**) dans l'email, choisissez votre mot de passe : vous êtes connecté tout de suite. Votre navigateur peut alors enregistrer l'identifiant et le mot de passe pour la prochaine fois |
 | Mot de passe oublié | **Mot de passe oublié ?** (un lien vous est envoyé), ou **Se connecter avec un code** (un code à 6 chiffres arrive par email) |
 | Identifiant oublié | **Identifiant oublié ?** : saisissez votre email personnel ou celui d'un parent, l'identifiant vous est renvoyé |
 | Plusieurs enfants dans le groupe | Chaque enfant a son propre identifiant. Une fois connecté, passez de l'un à l'autre par le menu de votre nom → **Changer de compte**. Si les enfants ont le même email principal, aucun mot de passe n'est demandé ; sinon, le mot de passe de l'autre compte est demandé la première fois. Le compte d'un chef demande son mot de passe à chaque fois |
@@ -126,7 +126,7 @@ Chaque année, le groupe demande quelques documents (autorisation des parents, f
    Quand le bouton **Remplir et signer en ligne** apparaît, vous pouvez tout faire sur votre téléphone : complétez
    les champs, indiquez votre nom et qui vous êtes (père, mère…), cochez « Je certifie », **signez avec le doigt**
    dans le cadre, puis **Signer et envoyer**. Le document signé arrive directement dans le dossier : pas besoin
-   d'imprimer ni de scanner. Les dates se choisissent dans un calendrier. Pour la fiche médicale, le groupe
+   d'imprimer ni de scanner. Les dates s'écrivent jour/mois/année (JJ/MM/AAAA) ; si vous ne connaissez que le mois et l'année (06/2019) ou seulement l'année (2019), c'est accepté. Pour la fiche médicale, le groupe
    sanguin, les allergies et les remarques indiquées sont aussi enregistrés dans votre fiche (onglet Médical).
    L'année suivante, le formulaire s'ouvre déjà rempli avec vos réponses : vérifiez, corrigez si besoin et signez.
    Vous préférez le papier ? Le lien « ou télécharger pour remplir sur papier » donne le modèle à imprimer.

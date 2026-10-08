@@ -130,6 +130,9 @@ Quand la demande est acceptée, vous recevez un email avec :
 - son **identifiant** pour l'espace membres (de la forme `prenom.nom@scouts.gndj`) ;
 - un lien **Définir mon mot de passe** (valable quelques semaines).
 
+Cliquez sur le lien, choisissez un mot de passe : vous êtes connecté directement à l'espace membres. Gardez
+l'identifiant affiché sur cette page, c'est avec lui que vous vous connecterez ensuite.
+
 Ensuite, tout se passe dans l'**espace membres** (**https://gndj.org/login**) : la fiche de votre enfant, les
 documents à envoyer, la cotisation. Le guide du membre vous y attend dans le menu **Aide**.
 

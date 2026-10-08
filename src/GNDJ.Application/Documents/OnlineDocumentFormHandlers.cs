@@ -158,9 +158,10 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         if (values is null) return Result<Guid>.Failure("Membre introuvable.");
         // The form's blanks (kind, label, member-file target) — keys f0, f1… match the answers.
         var fields = renderer.PrepareForm(dt.TemplateHtml!, values).Fields;
+        // A date blank holds a full date (yyyy-MM-dd), a month/year (MM/yyyy) or a year (yyyy): parents often only
+        // know the year of a vaccine booster. The client converts the typed JJ/MM/AAAA into these forms.
         foreach (var f in fields.Where(f => f.Kind == "date"))
-            if (request.Answers.TryGetValue(f.Key, out var dv) && !string.IsNullOrWhiteSpace(dv)
-                && !DateOnly.TryParseExact(dv.Trim(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+            if (request.Answers.TryGetValue(f.Key, out var dv) && !string.IsNullOrWhiteSpace(dv) && !TemplateFormAnswers.IsFormDate(dv.Trim()))
                 return Result<Guid>.Failure($"Date invalide{(string.IsNullOrWhiteSpace(f.Label) ? "" : $" : {f.Label}")}.");
         foreach (var f in fields.Where(f => f.Save == TemplateFormAnswers.SaveBloodType))
             if (request.Answers.TryGetValue(f.Key, out var bv) && !string.IsNullOrWhiteSpace(bv) && !TemplateFormAnswers.BloodTypes.Contains(bv.Trim()))

@@ -162,7 +162,7 @@ static class DocumentAccessHelper
         if (currentUser.IsSuperAdmin || currentUser.Permissions.Contains(Permissions.MembersEdit)) return null;
         var onHold = await context.Members.Where(m => m.Id == memberId).Select(m => m.IsOnHold).FirstOrDefaultAsync(ct);
         if (onHold) return "Votre compte est suspendu. Contactez la maîtrise de groupe pour réactiver le dépôt de vos documents.";
-        var campaign = await DocumentCampaign.LoadAsync(context, ct);
+        var campaign = await DocumentCampaign.ForMemberAsync(context, memberId, ct);
         if (campaign.Enabled && !campaign.UploadOpen)
             return "Le dépôt des documents est actuellement fermé. Vous pourrez téléverser vos documents pendant la prochaine période.";
         return null;

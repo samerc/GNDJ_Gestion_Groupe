@@ -56,10 +56,12 @@ export const CAMPAIGN_PHASE_LABELS: Record<string, string> = {
 }
 
 // GET /documents/campaign → status (auth-only) — drives the member/CU upload banners.
-export function useDocumentCampaign() {
+// group=false → the status of the caller's own dossier (a member who joined after the deposit deadline can always
+// upload); group=true → the group-wide phase (chef pages, e.g. the unit matrix banner).
+export function useDocumentCampaign(group = false) {
   return useQuery({
-    queryKey: ['doc-campaign', 'status'],
-    queryFn: () => apiClient.get<DocumentCampaignStatus>('/documents/campaign').then(r => r.data),
+    queryKey: ['doc-campaign', 'status', group],
+    queryFn: () => apiClient.get<DocumentCampaignStatus>('/documents/campaign', { params: group ? { group: true } : undefined }).then(r => r.data),
   })
 }
 
