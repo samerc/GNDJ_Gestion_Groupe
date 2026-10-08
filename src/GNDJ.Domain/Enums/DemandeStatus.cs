@@ -17,3 +17,10 @@ public static class ScoutRelationStatus
     public const string AncienInGroup = "AncienInGroup";   // a former member of our group (alumni)
     public const string OtherGroup = "OtherGroup";         // a scout in another group
 }
+
+// The CG's answer to a « Déjà membre ? » flag on a demande (Demande.MemberMatchStatus).
+public static class DemandeMemberMatchStatus
+{
+    public const string Confirmed = "Confirmed"; // same person: the send reuses / merges into that member
+    public const string Rejected = "Rejected";   // not the same person: a new member file is created
+}

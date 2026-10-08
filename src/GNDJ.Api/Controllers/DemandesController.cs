@@ -146,6 +146,38 @@ public class DemandesController : BaseApiController
         return NoContent();
     }
 
+    /// <summary>« Déjà membre ? » — the child IS this existing member. Not sent yet: the send will update that member
+    /// instead of creating a new file. Already sent: the new file is merged into it now and the access email (existing
+    /// identifiant) is sent. Requires demande.manage.</summary>
+    [HttpPost("{id:guid}/member-match/confirm")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> ConfirmMemberMatch(Guid id, [FromBody] LinkRelationMemberBody body)
+    {
+        var result = await Mediator.Send(new ConfirmDemandeMemberMatchCommand(id, body.MemberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    /// <summary>« Déjà membre ? » — not the same person: a new member file is created. Requires demande.manage.</summary>
+    [HttpPost("{id:guid}/member-match/reject")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> RejectMemberMatch(Guid id, [FromBody] LinkRelationMemberBody body)
+    {
+        var result = await Mediator.Send(new RejectDemandeMemberMatchCommand(id, body.MemberId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
+    /// <summary>Undoes a « Déjà membre ? » answer (only while nothing was merged). Requires demande.manage.</summary>
+    [HttpDelete("{id:guid}/member-match")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> ClearMemberMatch(Guid id)
+    {
+        var result = await Mediator.Send(new ClearDemandeMemberMatchCommand(id));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return NoContent();
+    }
+
     /// <summary>Confirms a brother/sister proche as an existing member (the suggested match or one picked by the CG),
     /// so the conversion shares the parents and declares the fratrie. Requires demande.manage.</summary>
     [HttpPost("relations/{relationId:guid}/link-member")]

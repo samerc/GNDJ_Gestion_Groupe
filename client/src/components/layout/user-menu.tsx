@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsManager, useIsRegularMember } from '@/lib/use-is-manager'
 import { useOnboardingTour } from '@/stores/onboarding-store'
 import { useNavigate } from 'react-router'
 import { useChangePassword } from '@/services/email-service'
-import { MyDevicesDialog } from '@/components/layout/my-devices-dialog'
+// Loaded on first open only: it pulls the device / user-agent formatting (lib/audit-format), not needed at start-up.
+const MyDevicesDialog = lazy(() => import('@/components/layout/my-devices-dialog').then((m) => ({ default: m.MyDevicesDialog })))
 import { parseApiError } from '@/lib/error-utils'
 import { PasswordRules } from '@/components/auth/password-rules'
 import { usePasswordPolicy, passwordMeetsPolicy } from '@/lib/password-policy'
@@ -257,7 +258,7 @@ export function UserMenu() {
 
       {switchDialog}
 
-      <MyDevicesDialog open={devicesOpen} onOpenChange={setDevicesOpen} />
+      {devicesOpen && <Suspense fallback={null}><MyDevicesDialog open={devicesOpen} onOpenChange={setDevicesOpen} /></Suspense>}
     </>
   )
 }

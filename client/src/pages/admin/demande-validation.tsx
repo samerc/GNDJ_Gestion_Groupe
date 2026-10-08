@@ -30,6 +30,7 @@ import { ActionPreviewPanel } from '@/components/shared/action-preview'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { DemandeGrid } from '@/components/admin/demande-grid'
 import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
+import { MemberMatchCard } from '@/components/admin/member-match-card'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -195,6 +196,7 @@ export default function DemandeValidationPage() {
   const [fSent, setFSent] = useState('all')          // response sent? all / sent / notsent
   const [fRelation, setFRelation] = useState('all')  // proche-scout relation type
   const [fIncomplete, setFIncomplete] = useState(false)
+  const [fMemberMatch, setFMemberMatch] = useState(false) // « Déjà membre ? » not answered yet
   const [fHasRelations, setFHasRelations] = useState(false)
   const [fSibling, setFSibling] = useState(false)    // brother/sister among proches OR ≥2 demandes on the account
   const [fPrevious, setFPrevious] = useState(false)  // a previous demande was declared
@@ -306,21 +308,22 @@ export default function DemandeValidationPage() {
     (fSent === 'all' || (fSent === 'sent' ? !!d.responseSentAt : !d.responseSentAt)) &&
     (fRelation === 'all' || d.scoutRelations.some((r) => r.status === fRelation)) &&
     (!fIncomplete || missingInfo(d).length > 0) &&
+    (!fMemberMatch || (!!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged)) &&
     (!fHasRelations || d.scoutRelations.length > 0) &&
     (!fSibling || !!siblingProche(d) || (accountCounts[d.accountId] ?? 0) > 1) &&
     (!fPrevious || !!d.hasPreviousDemande) &&
     (!fConflict || hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d) || isDeclinedWithPreviousDemande(d)),
-  [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fHasRelations, fSibling, fPrevious, fConflict, accountCounts])
+  [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict, accountCounts])
 
   // How many extra filters are active (for the "Réinitialiser" button + a count badge).
   const activeExtraFilters =
     [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation].filter((v) => v !== 'all').length +
-    [fIncomplete, fHasRelations, fSibling, fPrevious, fConflict].filter(Boolean).length
+    [fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict].filter(Boolean).length
   // Every active filter (main + extra) — shown on the folded « Filtres » button.
   const filterCount = activeExtraFilters + [status !== 'all', gender !== 'all', !!classe, !!ageMin, !!ageMax].filter(Boolean).length
   const resetExtraFilters = () => {
     setFSchool('all'); setFUnit('all'); setFNationality('all'); setFCity('all'); setFSituation('all')
-    setFSent('all'); setFRelation('all'); setFIncomplete(false); setFHasRelations(false); setFSibling(false); setFPrevious(false); setFConflict(false)
+    setFSent('all'); setFRelation('all'); setFIncomplete(false); setFMemberMatch(false); setFHasRelations(false); setFSibling(false); setFPrevious(false); setFConflict(false)
   }
 
   // filter (search) → sort → group siblings adjacent
@@ -725,6 +728,7 @@ export default function DemandeValidationPage() {
         {/* Boolean quality flags + reset. */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3 text-sm">
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fIncomplete} onChange={(e) => setFIncomplete(e.target.checked)} />Dossier incomplet</label>
+          <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fMemberMatch} onChange={(e) => setFMemberMatch(e.target.checked)} />Déjà membre ? (à vérifier)</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fHasRelations} onChange={(e) => setFHasRelations(e.target.checked)} />Avec proches scouts</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fSibling} onChange={(e) => setFSibling(e.target.checked)} />Fratrie / frère-sœur</label>
           <label className="flex cursor-pointer select-none items-center gap-1.5"><input type="checkbox" checked={fPrevious} onChange={(e) => setFPrevious(e.target.checked)} />Demande précédente</label>
@@ -845,6 +849,7 @@ export default function DemandeValidationPage() {
                           </span>
                         )}
                         {hasSiblingToLink(d) && <Tip content="Correspondance à confirmer (Lier) dans la fiche"><Badge variant="info" className="px-1.5 text-[10px]">À lier</Badge></Tip>}
+                        <MemberMatchBadge d={d} />
                         <FamilyFlags d={d} />
                       </div>
                     </TableCell>
@@ -915,6 +920,7 @@ export default function DemandeValidationPage() {
                         {d.status === 'Declined' && d.decisionNotes && <span className="max-w-[12rem] truncate text-xs text-red-700 dark:text-red-300">{d.decisionNotes}</span>}
                         {sib && <Badge variant="warning" className="px-1.5 text-[10px]">Frère/sœur</Badge>}
                         {hasSiblingToLink(d) && <Tip content="Correspondance à confirmer (Lier) dans la fiche"><Badge variant="info" className="px-1.5 text-[10px]">À lier</Badge></Tip>}
+                        <MemberMatchBadge d={d} />
                         <FamilyFlags d={d} />
                         {d.scoutRelations.length > 0 && <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground"><Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}</span>}
                       </div>
@@ -1189,6 +1195,15 @@ function FamilyFlags({ d }: { d: DemandeReview }) {
   )
 }
 
+// List badge for the « Déjà membre ? » flag: amber while the CG hasn't answered, green once it's the same person.
+function MemberMatchBadge({ d }: { d: DemandeReview }) {
+  const m = d.memberMatch
+  if (!m) return null
+  if (m.status === 'Confirmed' || m.merged)
+    return <Tip content={`Fiche existante : ${m.name}${m.cardNumber ? ` (${m.cardNumber})` : ''}`}><Badge variant="success" className="px-1.5 text-[10px]">Fiche existante</Badge></Tip>
+  return <Tip content={`${m.reason} : ${m.name}${m.cardNumber ? ` (${m.cardNumber})` : ''} — à vérifier dans la fiche`}><Badge variant="warning" className="px-1.5 text-[10px]">Déjà membre ?</Badge></Tip>
+}
+
 function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onReset, onDelete }: {
   d: DemandeReview
   occupancy: UnitOccupancy[]
@@ -1315,6 +1330,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
             La famille indique une demande précédente{d.previousDemandeYear ? ` (${d.previousDemandeYear})` : ''}. Vérifiez dans les Archives des demandes.
           </Callout>
         )}
+        <MemberMatchCard d={d} />
         <Section icon={User} title="Enfant">
           <Grid>
             <FieldRow label="Date de naissance" value={d.dateOfBirth ? new Date(d.dateOfBirth).toLocaleDateString('fr-FR') : null} />

@@ -152,8 +152,28 @@ envoyer en plusieurs fois : seules les nouvelles décisions partent.
 > 💡 Avant de confirmer, la fenêtre affiche **Ce qui va se passer** : le nombre de membres créés (par unité), de refus,
 > d'emails aux familles et de chefs d'unité prévenus, et ce qui manque encore (demandes sans décision, famille sans
 > email, unité sans chef d'unité). Le bouton **Envoyer** reste grisé tant que quelque chose bloque. Un avertissement
-> signale aussi un enfant accepté qui est **déjà membre** (même nom et date de naissance) : l'envoi lui créerait une
-> deuxième fiche. Refusez la demande ou, après l'envoi, fusionnez les deux fiches (**Fratries → Doublons**).
+> liste aussi les « Déjà membre ? » auxquels vous n'avez pas encore répondu (voir ci-dessous).
+
+### « Déjà membre ? »
+
+Quand l'enfant d'une demande ressemble à un membre déjà dans le groupe (un ancien qui revient, un enfant réinscrit
+par erreur…), la demande porte le badge orange **Déjà membre ?** dans la liste, et la notification de la nouvelle
+demande le signale. L'application compare la date de naissance, le nom et le prénom (accents, tirets et ordre
+nom/prénom ignorés) et les téléphones / emails des parents.
+
+Ouvrez la demande : l'encadré montre la fiche existante (matricule, dernière unité, identifiant). Répondez une fois :
+
+- **Oui, même personne** : à l'envoi des réponses, **la fiche existante est reprise** au lieu d'en créer une
+  nouvelle. Les informations de la demande l'emportent, l'enfant garde son matricule, son historique et son
+  identifiant, et l'email d'acceptation donne cet identifiant. Le badge devient vert **Fiche existante**.
+- **Non, personne différente** : une nouvelle fiche est créée comme d'habitude, et ce membre n'est plus proposé.
+
+Si les réponses sont **déjà parties** (une deuxième fiche existe), **Même personne — fusionner** fusionne tout de
+suite la nouvelle fiche dans l'ancienne (même règle : la demande l'emporte, l'identifiant de l'ancienne fiche est
+gardé) puis envoie à la famille l'email d'accès avec cet identifiant. Plus besoin de passer par Fratries → Doublons.
+
+> 💡 Filtres → **Déjà membre ? (à vérifier)** n'affiche que les demandes en attente de votre réponse. Une réponse
+> donnée par erreur s'annule (**Annuler**) tant que rien n'a été fusionné.
 
 > 💡 **Programmer l'envoi** : choisissez une date et une heure (heure du Liban) ; les réponses partent toutes seules
 > à ce moment-là, et vous êtes prévenu(e) du résultat dans les notifications. S'il reste des demandes non décidées,

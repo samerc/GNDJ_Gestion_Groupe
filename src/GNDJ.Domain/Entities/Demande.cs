@@ -53,6 +53,13 @@ public class Demande : BaseEntity
     public DateTime? ResponseSentAt { get; set; }
     public Guid? CreatedMemberId { get; set; }
 
+    // « Déjà membre ? » — the app flags a demande whose child looks like a member already in the group (see
+    // DemandeMemberMatch). The CG answers: Confirmed = same person → the send updates that member instead of creating a
+    // new file (or, if the demande was already sent, the new file is merged into it); Rejected = not the same person →
+    // the flag for THAT member is never shown again. Null status = not answered (the flag is computed live).
+    public Guid? MemberMatchId { get; set; }
+    public string? MemberMatchStatus { get; set; } // DemandeMemberMatchStatus.Confirmed | Rejected
+
     public ApplicantAccount ApplicantAccount { get; set; } = null!;
     public Unit? DecidedUnit { get; set; }
     public Member? CreatedMember { get; set; }

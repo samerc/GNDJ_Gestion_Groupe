@@ -32,7 +32,7 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
         var pending = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null
                 && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined))
-            .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.DateOfBirth, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email, d.HasPreviousDemande, d.PreviousDemandeYear })
+            .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.DateOfBirth, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email, d.HasPreviousDemande, d.PreviousDemandeYear, d.MemberMatchId, d.MemberMatchStatus, d.Gender })
             .ToListAsync(ct);
         var approved = pending.Where(d => d.Status == DemandeStatus.Approved).ToList();
         var declined = pending.Count - approved.Count;
@@ -96,19 +96,15 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
 
         // (4) an accepted child who looks like an EXISTING member (same name + birth date): sending would create a
         // second member file. Merge or refuse first (Fratries → Doublons can merge afterwards).
-        var dobs = approved.Where(d => d.DateOfBirth != null).Select(d => d.DateOfBirth!.Value).Distinct().ToList();
-        if (dobs.Count > 0)
-        {
-            var sameDob = await context.Members.Where(m => m.DateOfBirth != null && dobs.Contains(m.DateOfBirth!.Value))
-                .Select(m => new { m.FirstName, m.LastName, m.DateOfBirth, m.CardNumber }).ToListAsync(ct);
-            string K(string? f, string? l) => TextNormalization.NormalizeKey($"{f} {l}");
-            var already = approved
-                .Select(d => (d, m: sameDob.FirstOrDefault(m => m.DateOfBirth == d.DateOfBirth && K(m.FirstName, m.LastName) == K(d.FirstName, d.LastName))))
-                .Where(x => x.m is not null)
-                .Select(x => $"{x.d.FirstName} {x.d.LastName} ({x.m!.CardNumber})").ToList();
-            if (already.Count > 0)
-                warnings.Add($"Déjà membre(s) du groupe (même nom et date de naissance) — l'envoi créera une deuxième fiche : {string.Join(", ", already)}.");
-        }
+        // « Déjà membre ? » answered "same person" → that file is updated instead (see DemandeMemberMatch); a flag not
+        // answered yet still means a second file, so the CG is told which demandes to check.
+        var matches = await DemandeMemberMatch.FindAsync(context,
+            approved.Select(d => new DemandeMatchInput(d.Id, d.FirstName, d.LastName, d.DateOfBirth, d.ApplicantAccountId, null, d.MemberMatchId, d.MemberMatchStatus, d.Gender)).ToList(), ct);
+        var notChecked = approved.Where(d => matches.TryGetValue(d.Id, out var m) && m.Status is null)
+            .Select(d => $"{d.FirstName} {d.LastName} ({matches[d.Id].CardNumber})").ToList();
+        if (notChecked.Count > 0)
+            warnings.Add($"« Déjà membre ? » non vérifié — l'envoi créera une deuxième fiche : {string.Join(", ", notChecked)}. Répondez sur ces demandes (même personne / personne différente).");
+        var reusedCount = approved.Count(d => matches.TryGetValue(d.Id, out var m) && m.Status == DemandeMemberMatchStatus.Confirmed);
 
         // Accepted members per unit + the chefs d'unité who will get the Excel.
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
@@ -132,8 +128,9 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
 
         var lines = new List<ActionPreviewLine>
         {
-            new("Nouveaux membres créés (avec identifiant)", approved.Count,
+            new("Nouveaux membres créés (avec identifiant)", approved.Count - reusedCount,
                 perUnit.Count == 0 ? null : string.Join(" · ", perUnit.Select(x => $"{x.Unit?.Code ?? "?"} : {x.Count}"))),
+            new("Rattachés à leur fiche existante (identifiant conservé)", reusedCount),
             new("Refus envoyés", declined),
             new("Emails aux familles", pending.Count - noEmail.Count),
             new("Chefs d'unité prévenus (liste Excel)", heads.Values.Sum(r => r.Count)),

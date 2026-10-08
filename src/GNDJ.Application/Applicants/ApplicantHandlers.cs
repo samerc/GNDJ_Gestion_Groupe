@@ -1262,8 +1262,15 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
             // Alert the CG in-app that a new demande needs review (only on first submission, not re-submits).
             var childName = $"{demande.FirstName} {demande.LastName}".Trim();
-            await notifications.NotifyGroupManagersAsync(NotificationTypes.Demande, "Nouvelle demande d'inscription",
-                $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber}).", "/admin/demandes", ct: ct);
+            // « Déjà membre ? » — say it right away when the child looks like a member already in the group, so the CG
+            // can confirm (the existing file is reused) or reject (a new file) while reviewing.
+            var match = (await Demandes.DemandeMemberMatch.FindAsync(context, [Demandes.DemandeMemberMatch.Input(demande)], ct))
+                .GetValueOrDefault(demande.Id);
+            await notifications.NotifyGroupManagersAsync(NotificationTypes.Demande,
+                match is null ? "Nouvelle demande d'inscription" : "Nouvelle demande — déjà membre ?",
+                $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber})."
+                    + (match is null ? "" : $" Ressemble à {match.Name} ({match.CardNumber}) : à vérifier sur la demande."),
+                "/admin/demandes", ct: ct);
         }
 
         // Returns the demande number for the « Demande reçue » popup.

@@ -6568,3 +6568,26 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
   deadline AND a current post started by then; else upload open (covers a returning member merged into an old file).
   Verified: merged returning member + new member open, existing member closed.
 
+### « Déjà membre ? » on demandes (2026-10-08, DEV until deploy)
+- `Application/Demandes/DemandeMemberMatch.FindAsync` (computed live, batched): a demande matches an existing member on
+  the SAME birth date + full name (accent/case/space/hyphen-insensitive, or first/last swapped) OR same last name +
+  close first name (contains / ≤2 letters) OR same last name / first name + a parent phone (last 7 digits) / email in
+  common; apart from an identical full name both genders must agree (twins). Its own converted file is excluded.
+  Used by the review projection (`DemandeReviewDto.MemberMatch`), the send preview and the submit notification
+  (title « Nouvelle demande — déjà membre ? »).
+- Only the CG's answer is stored: `Demande.MemberMatchId` + `MemberMatchStatus` (Confirmed / Rejected), migration
+  `AddDemandeMemberMatch`. `POST /demandes/{id}/member-match/confirm|reject {memberId}`, `DELETE …/member-match`
+  (demande.manage + group manager). Confirm refused if another demande of the year already holds that member.
+- **Send with a confirmed match** (`SendDemandeResponses`): no new file — the existing member is updated (demande wins
+  on every field it gives), missing contacts added, the demande address becomes primary, the demande's père/mère
+  update the member's existing père/mère when not matched by contact, youth posts in other units end on the start
+  date (maîtrise posts kept), no duplicate post / Entrée, the existing login is reactivated with a new activation
+  token and the acceptance email gives the OLD identifiant.
+- **Confirm after the send** (a second file exists): `IMemberMergeService` merges the new file into the existing one
+  (demande values win; existing identifiant, SDL card, photo kept), then `SendAccessEmailsCommand` emails the access.
+  Reject after the send also tombstones the pair in Doublons. MemberMergeService now keeps the fratrie (keeper joins
+  the loser's sibling group).
+- UI: `components/admin/member-match-card.tsx` in the demande drawer, `MemberMatchBadge` in the list, filter
+  « Déjà membre ? (à vérifier) »; hooks in `services/demande-member-match-service.ts` (kept out of the entry chunk).
+  Account-menu « Mes appareils » dialog is lazy-loaded (entry 451 → 438 KB).
+

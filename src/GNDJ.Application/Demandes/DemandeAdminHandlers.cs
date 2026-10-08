@@ -39,7 +39,8 @@ public record DemandeReviewDto(
     bool HasPreviousDemande = false, string? PreviousDemandeYear = null,
     string? ParentsSituation = null, string? SerialNumber = null,
     string? PhoneCountryCode = null, // carried so the merge tool can keep the phone's country code intact
-    DateTime? LastEditedAt = null); // last change by the family after submission (« modifiée le … »)
+    DateTime? LastEditedAt = null, // last change by the family after submission (« modifiée le … »)
+    MemberMatchDto? MemberMatch = null); // « Déjà membre ? » — the existing member this child looks like (DemandeMemberMatch)
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -246,6 +247,9 @@ static class DemandeReviewProjection
                 })
                 .ToDictionaryAsync(x => x.Id, x => (x.Name, x.Unit), ct);
 
+        // « Déjà membre ? » flags, computed live for the whole list in one batch.
+        var memberMatches = await DemandeMemberMatch.FindAsync(context, demandes.Select(DemandeMemberMatch.Input).ToList(), ct);
+
         return demandes.Select(d =>
         {
             var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
@@ -269,7 +273,8 @@ static class DemandeReviewProjection
                     return new ApplicantScoutRelationDto(r.Id, r.Status, r.Relationship, r.RelatedMemberId, r.FirstName, r.LastName, r.LastUnit, r.LastFunction, r.OtherGroupName,
                         r.OtherGroupIsFormer, match.Name, match.Unit, r.SuggestedMemberId, sugg.Name, sugg.Unit);
                 }).ToList(),
-                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode, d.LastEditedAt);
+                sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode, d.LastEditedAt,
+                memberMatches.GetValueOrDefault(d.Id));
         }).ToList();
     }
 }
@@ -1202,6 +1207,40 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var createdByAccount = new Dictionary<Guid, List<Member>>();
         var memberByDemande = new Dictionary<Guid, Member>(); // for the per-unit Excel sent to the CU(s)
 
+        // « Déjà membre ? » confirmed by the CG: the child is an EXISTING member → that file is updated (the demande's
+        // data wins) and gets the new post, instead of a second file being created. Everything it needs is loaded once.
+        var reuseIds = approved
+            .Where(d => d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && d.MemberMatchId != null)
+            .Select(d => d.MemberMatchId!.Value).Distinct().ToList();
+        var reuseMembers = reuseIds.Count == 0 ? new Dictionary<Guid, Member>()
+            : await context.Members.Where(m => reuseIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id, ct);
+        var reuseUsers = reuseIds.Count == 0 ? new Dictionary<Guid, User>()
+            : (await context.Users.Where(u => reuseIds.Contains(u.MemberId)).ToListAsync(ct))
+                .GroupBy(u => u.MemberId).ToDictionary(g => g.Key, g => g.OrderByDescending(u => u.IsActive).ThenByDescending(u => u.LastLoginAt).First());
+        var reuseAssignments = reuseIds.Count == 0 ? new List<MemberAssignment>()
+            : await context.MemberAssignments.Include(a => a.FunctionalRole)
+                .Where(a => reuseIds.Contains(a.MemberId) && a.EndDate == null).ToListAsync(ct);
+        var reuseLinks = reuseIds.Count == 0 ? new HashSet<(Guid, Guid)>()
+            : (await context.GuardianLinks.Where(l => reuseIds.Contains(l.MemberId)).Select(l => new { l.MemberId, l.GuardianId }).ToListAsync(ct))
+                .Select(x => (x.MemberId, x.GuardianId)).ToHashSet();
+        var reuseEntrees = reuseIds.Count == 0 ? new HashSet<(Guid, Guid)>()
+            : (await context.MemberProgressions.Where(p => reuseIds.Contains(p.MemberId)).Select(p => new { p.MemberId, p.ScoutStageId }).ToListAsync(ct))
+                .Select(x => (x.MemberId, x.ScoutStageId)).ToHashSet();
+        var reusePhones = reuseIds.Count == 0 ? new List<(Guid MemberId, string Digits)>()
+            : (await context.MemberPhones.Where(p => reuseIds.Contains(p.MemberId)).Select(p => new { p.MemberId, p.Number }).ToListAsync(ct))
+                .Select(x => (x.MemberId, Digits: PhoneDigits(x.Number))).ToList();
+        var reuseEmails = reuseIds.Count == 0 ? new HashSet<(Guid, string)>()
+            : (await context.MemberEmails.Where(e => reuseIds.Contains(e.MemberId)).Select(e => new { e.MemberId, e.Address }).ToListAsync(ct))
+                .Select(x => (x.MemberId, x.Address.Trim().ToLowerInvariant())).ToHashSet();
+        var reuseAddresses = reuseIds.Count == 0 ? new List<MemberAddress>()
+            : await context.MemberAddresses.Where(a => reuseIds.Contains(a.MemberId)).ToListAsync(ct);
+        // Their current père / mère, so the demande's parents update those records rather than adding duplicates.
+        var reuseParents = new Dictionary<(Guid, string), Guardian>();
+        if (reuseIds.Count > 0)
+            foreach (var l in await context.GuardianLinks.Include(l => l.Guardian).Where(l => reuseIds.Contains(l.MemberId)).ToListAsync(ct))
+                if (ParentRole(l.RelationshipType) is string r && !l.Guardian.IsDeleted)
+                    reuseParents.TryAdd((l.MemberId, r), l.Guardian);
+
         foreach (var d in approved)
         {
             var unitId = d.DecidedUnitId!.Value;
@@ -1212,27 +1251,61 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             if (roleId is null)
                 return Result<SendDemandeResponsesResult>.Failure($"Aucune fonction de base définie pour l'unité de {d.FirstName} {d.LastName}. Définissez un rang dans les Fonctions.");
 
-            // member + card number
-            var prefix = d.Gender == "Féminin" ? "F" : "M";
-            var seq = prefix == "F" ? ++fSeq : ++mSeq;
-            var member = new Member
+            // member: the CG-confirmed existing file (« Déjà membre ? »), else a new one with the next card number
+            Member member;
+            var reused = false;
+            if (d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && d.MemberMatchId is Guid matchId)
             {
-                FirstName = d.FirstName, LastName = d.LastName, DateOfBirth = d.DateOfBirth, Gender = d.Gender,
-                CardNumber = $"{prefix}-{seq:D4}", BloodType = d.BloodType, Nationality = d.Nationality,
-                School = d.School, Classe = d.Classe, Section = d.Section, MedicalNotes = d.MedicalNotes, Allergies = d.Allergies,
-            };
-            context.Members.Add(member);
+                if (!reuseMembers.TryGetValue(matchId, out var existing))
+                    return Result<SendDemandeResponsesResult>.Failure($"La fiche existante de {d.FirstName} {d.LastName} est introuvable (supprimée ?). Annulez « Déjà membre » sur cette demande ou restaurez la fiche.");
+                member = existing;
+                reused = true;
+                // The demande is the family's latest word: it wins over the existing file for every value it gives.
+                static string? Win(string? fromDemande, string? current) => string.IsNullOrWhiteSpace(fromDemande) ? current : fromDemande.Trim();
+                member.FirstName = Win(d.FirstName, member.FirstName)!;
+                member.LastName = Win(d.LastName, member.LastName)!;
+                member.DateOfBirth = d.DateOfBirth ?? member.DateOfBirth;
+                member.Gender = Win(d.Gender, member.Gender);
+                member.BloodType = Win(d.BloodType, member.BloodType);
+                member.Nationality = Win(d.Nationality, member.Nationality);
+                member.School = Win(d.School, member.School);
+                member.Classe = Win(d.Classe, member.Classe);
+                member.Section = Win(d.Section, member.Section);
+                member.MedicalNotes = Win(d.MedicalNotes, member.MedicalNotes);
+                member.Allergies = Win(d.Allergies, member.Allergies);
+            }
+            else
+            {
+                var prefix = d.Gender == "Féminin" ? "F" : "M";
+                var seq = prefix == "F" ? ++fSeq : ++mSeq;
+                member = new Member
+                {
+                    FirstName = d.FirstName, LastName = d.LastName, DateOfBirth = d.DateOfBirth, Gender = d.Gender,
+                    CardNumber = $"{prefix}-{seq:D4}", BloodType = d.BloodType, Nationality = d.Nationality,
+                    School = d.School, Classe = d.Classe, Section = d.Section, MedicalNotes = d.MedicalNotes, Allergies = d.Allergies,
+                };
+                context.Members.Add(member);
+            }
 
-            // child contacts
-            if (!string.IsNullOrWhiteSpace(d.PhoneNumber))
-                context.MemberPhones.Add(new MemberPhone { MemberId = member.Id, CountryCode = d.PhoneCountryCode ?? "", Number = d.PhoneNumber!, Type = "Mobile", IsPrimary = true });
-            if (!string.IsNullOrWhiteSpace(d.Email))
-                context.MemberEmails.Add(new MemberEmail { MemberId = member.Id, Address = d.Email!, Type = "Personnel", IsPrimary = true });
+            // child contacts (an existing file only gets the ones it doesn't have yet)
+            if (!string.IsNullOrWhiteSpace(d.PhoneNumber)
+                && !(reused && reusePhones.Any(p => p.MemberId == member.Id && SamePhone(p.Digits, PhoneDigits(d.PhoneNumber)))))
+                context.MemberPhones.Add(new MemberPhone { MemberId = member.Id, CountryCode = d.PhoneCountryCode ?? "", Number = d.PhoneNumber!, Type = "Mobile", IsPrimary = !reused });
+            if (!string.IsNullOrWhiteSpace(d.Email)
+                && !(reused && reuseEmails.Contains((member.Id, d.Email.Trim().ToLowerInvariant()))))
+                context.MemberEmails.Add(new MemberEmail { MemberId = member.Id, Address = d.Email!, Type = "Personnel", IsPrimary = !reused });
 
-            // household address
+            // household address (an existing file: the demande's address becomes the main one, unless it's already there)
             var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
             if (acc is not null && (!string.IsNullOrWhiteSpace(acc.AddressCity) || !string.IsNullOrWhiteSpace(acc.AddressDetails)))
-                context.MemberAddresses.Add(new MemberAddress { MemberId = member.Id, Type = "Domicile", Country = acc.AddressCountry ?? "Liban", City = acc.AddressCity ?? "", Details = acc.AddressDetails, IsPrimary = true });
+            {
+                var mine = reused ? reuseAddresses.Where(a => a.MemberId == member.Id).ToList() : [];
+                var same = mine.FirstOrDefault(a => string.Equals((a.City ?? "").Trim(), (acc.AddressCity ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals((a.Details ?? "").Trim(), (acc.AddressDetails ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+                foreach (var a in mine) a.IsPrimary = a == same;
+                if (same is null)
+                    context.MemberAddresses.Add(new MemberAddress { MemberId = member.Id, Type = "Domicile", Country = acc.AddressCountry ?? "Liban", City = acc.AddressCity ?? "", Details = acc.AddressDetails, IsPrimary = true });
+            }
 
             // household primary contact email (chosen in the wizard) → drives member-facing mail delivery
             if (!string.IsNullOrWhiteSpace(acc?.PrimaryContactEmail))
@@ -1248,12 +1321,17 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 if (!guardianCache.TryGetValue(ag.Id, out var guardian))
                 {
                     guardian = FindExistingGuardian(ag, guardianByEmail, guardianByPhone);
+                    // An existing member (« Déjà membre ? » confirmed) already has a père / mère on file: same child ⇒
+                    // same parent, so update that record instead of adding a second father / mother.
+                    if (guardian is null && reused && ParentRole(ag.Relationship) is string role)
+                        guardian = reuseParents.GetValueOrDefault((member.Id, role));
                     if (guardian is not null)
                     {
                         // A parent already in the group: the demande is the family's latest word, so it wins over the
                         // existing record (family name, profession, field of work, deceased) when it gives a value; and
                         // the phone / email given in this demande are added if that parent doesn't have them yet
                         // (else the new number never reaches the member file).
+                        if (!string.IsNullOrWhiteSpace(ag.FirstName)) guardian.FirstName = ag.FirstName.Trim();
                         if (!string.IsNullOrWhiteSpace(ag.LastName)) guardian.LastName = ag.LastName.Trim();
                         if (!string.IsNullOrWhiteSpace(ag.Profession)) guardian.Profession = ag.Profession.Trim();
                         if (!string.IsNullOrWhiteSpace(ag.ProfessionDomain)) guardian.ProfessionDomain = ag.ProfessionDomain.Trim();
@@ -1286,33 +1364,54 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     }
                     guardianCache[ag.Id] = guardian;
                 }
+                if (reused && !reuseLinks.Add((member.Id, guardian.Id))) continue; // already this member's parent
                 context.GuardianLinks.Add(new GuardianLink { GuardianId = guardian.Id, MemberId = member.Id, RelationshipType = ag.Relationship, IsPrimaryContact = ag.IsPrimaryContact, IsEmergencyContact = ag.IsEmergencyContact });
             }
 
-            // assignment (chosen unit, base role, no team)
-            context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = memberStartDate, Notes = "Inscription" });
+            // assignment (chosen unit, base role, no team). An existing member already active in that unit keeps their
+            // post; youth posts in OTHER units end the day the new one starts (maîtrise posts are left alone).
+            var activeHere = reused && reuseAssignments.Any(a => a.MemberId == member.Id && a.UnitId == unitId);
+            if (reused)
+                foreach (var a in reuseAssignments.Where(a => a.MemberId == member.Id && a.UnitId != unitId && !(a.FunctionalRole?.IsMaitrise ?? false)))
+                    a.EndDate = memberStartDate;
+            if (!activeHere)
+                context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = memberStartDate, Notes = "Inscription" });
 
-            // "Entrée à …" progression for the joined unit (auto-created, like a passage into a new unit).
-            if (entreeStageByUnit.GetValueOrDefault(unitId) is Guid entreeStageId)
+            // "Entrée à …" progression for the joined unit (auto-created, like a passage into a new unit) — never twice.
+            if (entreeStageByUnit.GetValueOrDefault(unitId) is Guid entreeStageId
+                && !(reused && reuseEntrees.Contains((member.Id, entreeStageId))))
                 context.MemberProgressions.Add(new MemberProgression { MemberId = member.Id, UnitId = unitId, ScoutStageId = entreeStageId, Date = memberStartDate, Notes = EntreeStageResolver.AutoNote });
 
             // login — reuse the pre-computed RANDOM password hash (fallback: hash inline if a demande was
             // approved between the pre-hash read and acquiring the lock). The random password is never shared;
             // the family sets their own via the activation link below.
-            var username = UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, takenEmails);
-            usedEmails.Add(username);
-            string passwordHash = creds.TryGetValue(d.Id, out var c)
-                ? c.Hash
-                : await hasher.HashAsync($"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}");
             // Activation token: reuses the reset-token fields (raw in DB, compared on redemption at
             // /reset-password?...&setup=1). MustChangePassword stays false — they set their OWN password
             // via the link, so there's nothing to "change" and no temp password to force-rotate.
             var activationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace("+", "").Replace("/", "").Replace("=", "");
-            context.Users.Add(new User
+            string username;
+            if (reused && reuseUsers.TryGetValue(member.Id, out var existingUser))
             {
-                MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false,
-                MustChangePassword = false, PasswordResetToken = activationToken, PasswordResetTokenExpiry = activationExpiry,
-            });
+                // An existing member keeps their identifiant: the email gives it, with a link to (re)set the password.
+                username = existingUser.Email;
+                existingUser.IsActive = true;
+                existingUser.MustChangePassword = false;
+                existingUser.PasswordResetToken = activationToken;
+                existingUser.PasswordResetTokenExpiry = activationExpiry;
+            }
+            else
+            {
+                username = UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, takenEmails);
+                usedEmails.Add(username);
+                string passwordHash = creds.TryGetValue(d.Id, out var c)
+                    ? c.Hash
+                    : await hasher.HashAsync($"Scout{DateTime.UtcNow.Year}!{Random.Shared.Next(100, 999)}");
+                context.Users.Add(new User
+                {
+                    MemberId = member.Id, Email = username, PasswordHash = passwordHash, IsActive = true, IsSuperAdmin = false,
+                    MustChangePassword = false, PasswordResetToken = activationToken, PasswordResetTokenExpiry = activationExpiry,
+                });
+            }
             // setup=1 switches the reset page copy to "activation" wording (first-time password set).
             var activationLink = $"{baseUrl}/reset-password?token={activationToken}&email={Uri.EscapeDataString(username)}&setup=1";
 
@@ -1507,6 +1606,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         if (digits.Length >= 6 && SameName(byPhone.GetValueOrDefault(digits)) is { } g2) return g2;
         return null;
     }
+
+    // "pere" / "mere" for a father / mother relationship (any spelling), else null.
+    private static string? ParentRole(string? relationship) =>
+        TextNormalization.NormalizeKey(relationship ?? "") is var k && (k == "pere" || k == "mere") ? k : null;
 
     // Digits only, for format-insensitive phone matching ("+961 76 123 456" / "76123456" → "76123456").
     private static string PhoneDigits(string? s) => new(( s ?? "").Where(char.IsDigit).ToArray());

@@ -31,6 +31,9 @@ public class DemandeConfiguration : IEntityTypeConfiguration<Demande>
         builder.Property(e => e.ParentNotes).HasColumnType("text");
         builder.Property(e => e.Status).HasMaxLength(20);
         builder.Property(e => e.DecisionNotes).HasColumnType("text");
+        builder.Property(e => e.MemberMatchStatus).HasMaxLength(20);
+        // Plain id (no FK): the matched member may later be merged/purged; the flag is then simply ignored.
+        builder.HasIndex(e => e.MemberMatchId);
 
         builder.HasIndex(e => e.ApplicantAccountId);
         builder.HasIndex(e => e.ScoutYear);

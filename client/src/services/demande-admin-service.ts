@@ -49,6 +49,22 @@ export interface DemandeReview {
   guardians: ApplicantGuardian[]
   scoutRelations: ApplicantScoutRelation[]
   siblings: Sibling[]
+  memberMatch?: MemberMatch | null // « Déjà membre ? » — an existing member this child looks like
+}
+
+// « Déjà membre ? » flag on a demande: the existing member the child looks like (computed by the server).
+// status null = to check, 'Confirmed' = same person (that file is reused / merged); merged = done.
+export interface MemberMatch {
+  memberId: string
+  name: string
+  cardNumber: string | null
+  dateOfBirth: string | null
+  unitLabel: string | null
+  isActive: boolean
+  username: string | null
+  reason: string
+  status: 'Confirmed' | null
+  merged: boolean
 }
 
 export interface UnitOccupancy {

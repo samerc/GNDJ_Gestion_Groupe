@@ -106,6 +106,15 @@ public class MemberMergeService : IMemberMergeService
                                "email = left(member_id::text, 8) || '.merged.' || email WHERE member_id = {0}", [loser], ct);
                 }
 
+                // ── Fratrie: the keeper joins the loser's confirmed sibling group (e.g. a child converted from a
+                //    demande together with a brother). If both are in different groups, the loser's group joins the
+                //    keeper's. Otherwise the link would be lost when the loser is soft-deleted below. ──
+                await Exec("UPDATE members SET sibling_group_id = (SELECT l.sibling_group_id FROM members l WHERE l.id = {1}) " +
+                           "WHERE id = {0} AND sibling_group_id IS NULL", p, ct);
+                await Exec("UPDATE members SET sibling_group_id = (SELECT k.sibling_group_id FROM members k WHERE k.id = {0}) " +
+                           "WHERE id <> {1} AND sibling_group_id = (SELECT l.sibling_group_id FROM members l WHERE l.id = {1}) " +
+                           "AND (SELECT k.sibling_group_id FROM members k WHERE k.id = {0}) IS NOT NULL", p, ct);
+
                 // ── Soft-delete the loser (also frees its card numbers from the is_deleted-filtered unique indexes) ──
                 await Exec("UPDATE members SET is_deleted = true, deleted_at = {1}, external_card_number = NULL, sibling_group_id = NULL WHERE id = {0}", [loser, DateTime.UtcNow], ct);
             }
