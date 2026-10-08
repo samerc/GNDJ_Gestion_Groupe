@@ -37,6 +37,8 @@ export default function DemandeResultPage() {
   if (!demande.responseSentAt) return null // redirecting
 
   const accepted = demande.status === 'Approved'
+  // The child was already an active member: nothing to accept or refuse, the existing fiche was updated.
+  const alreadyMember = demande.status === 'AlreadyMember'
   const childName = `${demande.firstName} ${demande.lastName}`.trim()
 
   const handleResend = async () => {
@@ -50,8 +52,8 @@ export default function DemandeResultPage() {
 
       {/* One header for the three outcomes (declined / member already active / accepted). */}
       <PageHeader
-        icon={!accepted ? XCircle : demande.memberHasLoggedIn ? UserCheck : CheckCircle2}
-        title={!accepted ? 'Demande non retenue' : demande.memberHasLoggedIn ? 'Compte membre actif' : 'Demande acceptée'}
+        icon={alreadyMember ? UserCheck : !accepted ? XCircle : demande.memberHasLoggedIn ? UserCheck : CheckCircle2}
+        title={alreadyMember ? 'Déjà membre du groupe' : !accepted ? 'Demande non retenue' : demande.memberHasLoggedIn ? 'Compte membre actif' : 'Demande acceptée'}
         description={
           <>
             {childName}
@@ -62,7 +64,20 @@ export default function DemandeResultPage() {
       />
 
       {/* ── DECLINED ────────────────────────────────────────────────────────────── */}
-      {!accepted && (
+      {/* ── ALREADY AN ACTIVE MEMBER ─────────────────────────────────────────────── */}
+      {alreadyMember && (
+        <Card className="border-l-4 border-l-sky-500">
+          <CardContent className="space-y-4 p-6">
+            <p className="text-sm">
+              {childName} est déjà membre du groupe : aucune nouvelle inscription n'est nécessaire. Les informations de
+              cette demande ont été ajoutées à sa fiche. Il ou elle continue avec son identifiant habituel.
+            </p>
+            <Button onClick={() => navigate('/login')}><LogIn className="mr-2 h-4 w-4" />Aller à l'espace membres</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!accepted && !alreadyMember && (
         <Card className="border-l-4 border-l-red-500">
           <CardContent className="space-y-4 p-6">
             <p className="whitespace-pre-line text-sm">

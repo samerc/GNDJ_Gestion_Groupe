@@ -20,6 +20,8 @@ import { UserPlus, Pencil, Eye, Trash2, Users, MailWarning, CheckCircle2, XCircl
 function statusMeta(d: Demande, reviewPhase: boolean): { border: string; badge: React.ReactNode } {
   if (d.responseSentAt && d.status === 'Approved')
     return { border: 'border-l-green-500', badge: <Badge variant="success"><CheckCircle2 className="mr-1 h-3 w-3" />Acceptée</Badge> }
+  if (d.responseSentAt && d.status === 'AlreadyMember')
+    return { border: 'border-l-sky-500', badge: <Badge variant="info"><CheckCircle2 className="mr-1 h-3 w-3" />Déjà membre</Badge> }
   if (d.responseSentAt && d.status === 'Declined')
     return { border: 'border-l-red-500', badge: <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Refusée</Badge> }
   if (d.status === 'Expired')

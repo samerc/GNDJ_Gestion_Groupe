@@ -177,6 +177,10 @@ Ouvrez la demande : l'encadré montre la fiche existante (matricule, dernière u
   nouvelle. Les informations de la demande l'emportent, l'enfant garde son matricule, son historique et son
   identifiant, et l'email d'acceptation donne cet identifiant. Le badge devient vert **Fiche existante**.
 - **Non, personne différente** : une nouvelle fiche est créée comme d'habitude, et ce membre n'est plus proposé.
+- **Membre encore actif** (le bouton devient **Même personne — mettre de côté**) : la demande passe en **Déjà membre**
+  (bleu) et n'a plus besoin d'être acceptée ou refusée. À l'envoi des réponses, la fiche du membre est seulement mise
+  à jour avec les informations de la demande : **pas de changement de poste, aucun email** à la famille (pas
+  d'acceptation, pas de refus). Un changement d'unité se fait par le passage. **Annuler** remet la demande à étudier.
 
 Si les réponses sont **déjà parties** (une deuxième fiche existe), **Même personne — fusionner** fusionne tout de
 suite la nouvelle fiche dans l'ancienne (même règle : la demande l'emporte, l'identifiant de l'ancienne fiche est

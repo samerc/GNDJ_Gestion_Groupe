@@ -74,8 +74,8 @@ public static class RentreeProgress
             demandesReviewed = new State(totalSubmitted - undecided, totalSubmitted, totalSubmitted > 0 && undecided == 0,
                 undecided > 0 ? $"{undecided} à réviser" : totalSubmitted > 0 ? "Toutes révisées" : "Aucune demande");
 
-            var decided = dem.Count(d => d.Status is DemandeStatus.Approved or DemandeStatus.Declined);
-            var unsent = dem.Count(d => d.Status is DemandeStatus.Approved or DemandeStatus.Declined && !d.Sent);
+            var decided = dem.Count(d => d.Status is DemandeStatus.Approved or DemandeStatus.Declined or DemandeStatus.AlreadyMember);
+            var unsent = dem.Count(d => d.Status is DemandeStatus.Approved or DemandeStatus.Declined or DemandeStatus.AlreadyMember && !d.Sent);
             demandesSent = new State(decided - unsent, decided, decided > 0 && unsent == 0,
                 unsent > 0 ? $"{unsent} à envoyer" : decided > 0 ? "Envoyées" : "Rien à envoyer");
 

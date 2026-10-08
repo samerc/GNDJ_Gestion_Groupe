@@ -6614,6 +6614,18 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
   « Déjà membre ? (à vérifier) »; hooks in `services/demande-member-match-service.ts` (kept out of the entry chunk).
   Account-menu « Mes appareils » dialog is lazy-loaded (entry 451 → 438 KB).
 
+### Active members who send a demande — « Déjà membre » (2026-10-08, DEV until deploy)
+- New persisted `DemandeStatus.AlreadyMember`. « Déjà membre ? » → « Même personne » on a member with an ACTIVE post, demande
+  not sent yet → status AlreadyMember (unit / notes / « refus voulu » cleared). `ConfirmMemberMatchResult.AlreadyMember`.
+  « Annuler » (clear the match) puts it back to Submitted. Former members keep the old behaviour (file reused, email).
+- `SendDemandeResponses`: AlreadyMember demandes go through the same fiche update as a reused member (demande wins on
+  fields, contacts, address, parents) then STOP — no post change, no Entrée, no login change, no email; demande marked
+  sent + CreatedMemberId = the member; counted in the fratrie declaration. Result/audit carry AlreadyMembers.
+- Counted as decided (send gate, rentrée progress, reminders, applicant view after the send = « Déjà membre du groupe »
+  result page). Preview: own line + a warning when a REFUSAL would go to the family of an unanswered active match.
+- Tested on a DB copy: 3 active matches set aside, posts unchanged (T3/T10/R2), 0 email to those families, classe
+  updated; 160 accepted / 81 refused / 252 emails (241 families + 11 chefs). Excel export shows « Déjà membre ».
+
 ### Performance audit (2026-10-08, DEV until deploy)
 Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compressed payloads fine), then fixed:
 - **Entry chunk 438 → 214 KB**: `lib/app-version.ts` no longer imports `data/changelog.json` (~200 KB, grew every

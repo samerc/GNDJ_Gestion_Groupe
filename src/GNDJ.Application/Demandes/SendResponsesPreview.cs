@@ -31,11 +31,12 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
 
         var pending = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null
-                && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined))
+                && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined || d.Status == DemandeStatus.AlreadyMember))
             .Select(d => new { d.Id, d.Status, d.DecidedUnitId, d.FirstName, d.LastName, d.DateOfBirth, d.Email, d.ApplicantAccountId, AccountEmail = d.ApplicantAccount.Email, d.HasPreviousDemande, d.PreviousDemandeYear, d.MemberMatchId, d.MemberMatchStatus, d.Gender })
             .ToListAsync(ct);
         var approved = pending.Where(d => d.Status == DemandeStatus.Approved).ToList();
-        var declined = pending.Count - approved.Count;
+        var alreadyMembers = pending.Where(d => d.Status == DemandeStatus.AlreadyMember).ToList();
+        var declined = pending.Count(d => d.Status == DemandeStatus.Declined);
 
         if (pending.Count == 0 && undecided == 0)
             blockers.Add("Aucune réponse à envoyer : toutes les décisions ont déjà été envoyées.");
@@ -47,6 +48,7 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
                 .Select(g => new { g.ApplicantAccountId, g.Email }).ToListAsync(ct))
             .GroupBy(g => g.ApplicantAccountId).ToDictionary(g => g.Key, g => g.First().Email);
         var noEmail = pending
+            .Where(d => d.Status != DemandeStatus.AlreadyMember) // no email for them anyway
             .Where(d => string.IsNullOrWhiteSpace(d.AccountEmail) && !guardianEmails.ContainsKey(d.ApplicantAccountId) && string.IsNullOrWhiteSpace(d.Email))
             .Select(d => $"{d.FirstName} {d.LastName}").ToList();
         if (noEmail.Count > 0)
@@ -98,12 +100,18 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
         // second member file. Merge or refuse first (Fratries → Doublons can merge afterwards).
         // « Déjà membre ? » answered "same person" → that file is updated instead (see DemandeMemberMatch); a flag not
         // answered yet still means a second file, so the CG is told which demandes to check.
+        var answerable = pending.Where(d => d.Status != DemandeStatus.AlreadyMember).ToList();
         var matches = await DemandeMemberMatch.FindAsync(context,
-            approved.Select(d => new DemandeMatchInput(d.Id, d.FirstName, d.LastName, d.DateOfBirth, d.ApplicantAccountId, null, d.MemberMatchId, d.MemberMatchStatus, d.Gender)).ToList(), ct);
+            answerable.Select(d => new DemandeMatchInput(d.Id, d.FirstName, d.LastName, d.DateOfBirth, d.ApplicantAccountId, null, d.MemberMatchId, d.MemberMatchStatus, d.Gender)).ToList(), ct);
         var notChecked = approved.Where(d => matches.TryGetValue(d.Id, out var m) && m.Status is null)
             .Select(d => $"{d.FirstName} {d.LastName} ({matches[d.Id].CardNumber})").ToList();
         if (notChecked.Count > 0)
             warnings.Add($"« Déjà membre ? » non vérifié — l'envoi créera une deuxième fiche : {string.Join(", ", notChecked)}. Répondez sur ces demandes (même personne / personne différente).");
+        // A refusal for a child who is still an ACTIVE member would send a refusal email to a current member's family.
+        var refusedActive = answerable.Where(d => d.Status == DemandeStatus.Declined && matches.TryGetValue(d.Id, out var m) && m.Status is null && m.IsActive)
+            .Select(d => $"{d.FirstName} {d.LastName} ({matches[d.Id].CardNumber})").ToList();
+        if (refusedActive.Count > 0)
+            warnings.Add($"« Déjà membre ? » non vérifié sur un refus — la famille d'un membre actif recevra un email de refus : {string.Join(", ", refusedActive)}. Répondez « Même personne » pour mettre la demande de côté.");
         var reusedCount = approved.Count(d => matches.TryGetValue(d.Id, out var m) && m.Status == DemandeMemberMatchStatus.Confirmed);
 
         // Accepted members per unit + the chefs d'unité who will get the Excel.
@@ -132,7 +140,8 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
                 perUnit.Count == 0 ? null : string.Join(" · ", perUnit.Select(x => $"{x.Unit?.Code ?? "?"} : {x.Count}"))),
             new("Rattachés à leur fiche existante (identifiant conservé)", reusedCount),
             new("Refus envoyés", declined),
-            new("Emails aux familles", pending.Count - noEmail.Count),
+            new("Déjà membres : fiche mise à jour, aucun email", alreadyMembers.Count),
+            new("Emails aux familles", pending.Count - alreadyMembers.Count - noEmail.Count),
             new("Chefs d'unité prévenus (liste Excel)", heads.Values.Sum(r => r.Count)),
         };
         return Result<ActionPreviewDto>.Success(new ActionPreviewDto(lines, warnings, blockers));

@@ -16,7 +16,7 @@ namespace GNDJ.Application.Demandes;
 // "submitted or beyond" = past the Draft stage (Submitted / Approved / Declined). A Draft = never submitted.
 file static class ReminderStatus
 {
-    public static readonly string[] Submitted = { DemandeStatus.Submitted, DemandeStatus.Approved, DemandeStatus.Declined };
+    public static readonly string[] Submitted = { DemandeStatus.Submitted, DemandeStatus.Approved, DemandeStatus.Declined, DemandeStatus.AlreadyMember };
 }
 
 // Count of accounts to remind (for the button label) — accounts with no submitted demande this year.

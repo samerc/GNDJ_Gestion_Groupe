@@ -24,6 +24,7 @@ const CHILD_FIELDS: Field[] = ['lastName', 'firstName', 'dateOfBirth', 'gender',
 // motif ('refus:?' = declined with a text that matches no managed motif — kept as-is unless changed).
 function responseOf(d: DemandeReview, reasons: RejectionReason[]): string {
   if (d.status === 'Approved' && d.decidedUnitId) return `unit:${d.decidedUnitId}`
+  if (d.status === 'AlreadyMember') return 'member' // set by « Déjà membre ? » — not editable here (« Annuler » in the fiche)
   if (d.status === 'Declined') {
     const r = reasons.find((x) => (x.text || x.label).trim() === (d.decisionNotes ?? '').trim())
     return `refus:${r?.code ?? '?'}`
@@ -204,6 +205,7 @@ export function DemandeGrid({ rows, units, reasons, classes, schools, onClose }:
                   </td>
                   <td className={td('response')}>
                     <select {...common('response')} value={value(d, 'response')} onChange={(e) => set(d, 'response', e.target.value)}>
+                      {value(d, 'response') === 'member' && <option value="member">Déjà membre (fiche mise à jour)</option>}
                       <option value="">À étudier</option>
                       <optgroup label="Accepter dans">
                         {units.map((u) => (

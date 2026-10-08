@@ -72,6 +72,7 @@ public class ExportDemandeDecisionsQueryHandler(IApplicationDbContext context, I
         {
             DemandeStatus.Approved => "Accepté (à envoyer)",
             DemandeStatus.Declined => "Refusé (à envoyer)",
+            DemandeStatus.AlreadyMember => "Déjà membre (fiche mise à jour, aucun email)",
             _ => "Soumise",
         };
 

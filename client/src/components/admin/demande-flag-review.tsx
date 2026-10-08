@@ -183,7 +183,7 @@ export function DemandeFlagReview({ kind, matches, links, onClose, onOpenDemande
                         <UserX className="mr-1 h-4 w-4" />Personne différente
                       </Button>
                       <Button size="sm" variant="success" disabled={actions.busy} onClick={() => actions.onSame(d)}>
-                        <UserCheck className="mr-1 h-4 w-4" />{d.createdMemberId ? 'Même personne — fusionner' : 'Même personne'}
+                        <UserCheck className="mr-1 h-4 w-4" />{d.createdMemberId ? 'Même personne — fusionner' : m.isActive ? 'Même personne — mettre de côté' : 'Même personne'}
                       </Button>
                     </>}
                   />

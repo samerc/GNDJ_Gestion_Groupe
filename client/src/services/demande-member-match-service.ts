@@ -5,7 +5,7 @@ import apiClient from '@/lib/api-client'
 
 // POST /demandes/{id}/member-match/confirm → « Oui, c'est la même personne ». Not sent yet: the send updates that
 // member. Already sent: the new file is merged into it now and the access email is sent. Invalidates ['demandes'].
-export interface ConfirmMemberMatchResult { merged: boolean; accessSent: boolean; note: string | null }
+export interface ConfirmMemberMatchResult { merged: boolean; accessSent: boolean; note: string | null; alreadyMember?: boolean }
 export function useConfirmMemberMatch() {
   const qc = useQueryClient()
   return useMutation({

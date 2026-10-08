@@ -1067,7 +1067,7 @@ public class SetUnitIntakeQuotaCommandHandler(IApplicationDbContext context) : I
 // ============================================================
 // Send responses — convert approved demandes into members, mark all decided as sent
 // ============================================================
-public record SendDemandeResponsesResult(int Approved, int Declined);
+public record SendDemandeResponsesResult(int Approved, int Declined, int AlreadyMembers = 0);
 public record SendDemandeResponsesCommand(string ScoutYear) : IRequest<Result<SendDemandeResponsesResult>>;
 
 public class SendDemandeResponsesCommandValidator : AbstractValidator<SendDemandeResponsesCommand>
@@ -1115,11 +1115,13 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
         var pending = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null
-                && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined))
+                && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined || d.Status == DemandeStatus.AlreadyMember))
             .ToListAsync(ct);
 
         var approved = pending.Where(d => d.Status == DemandeStatus.Approved).ToList();
         var declined = pending.Where(d => d.Status == DemandeStatus.Declined).ToList();
+        // Active members who sent a demande (« Déjà membre ? » confirmed): their fiche is updated, nothing else.
+        var alreadyMembers = pending.Where(d => d.Status == DemandeStatus.AlreadyMember).ToList();
 
         var domain = await context.Settings.Where(s => s.Key == "user_domain").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "scouts.gndj";
 
@@ -1221,7 +1223,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
         // « Déjà membre ? » confirmed by the CG: the child is an EXISTING member → that file is updated (the demande's
         // data wins) and gets the new post, instead of a second file being created. Everything it needs is loaded once.
-        var reuseIds = approved
+        var reuseIds = approved.Concat(alreadyMembers)
             .Where(d => d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && d.MemberMatchId != null)
             .Select(d => d.MemberMatchId!.Value).Distinct().ToList();
         var reuseMembers = reuseIds.Count == 0 ? new Dictionary<Guid, Member>()
@@ -1253,15 +1255,22 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 if (ParentRoles.Of(l.RelationshipType) is string r && !l.Guardian.IsDeleted)
                     reuseParents.TryAdd((l.MemberId, r), l.Guardian);
 
-        foreach (var d in approved)
+        foreach (var d in approved.Concat(alreadyMembers))
         {
-            var unitId = d.DecidedUnitId!.Value;
-
-            // base role for the unit (pre-resolved into baseRoleCache above)
-            if (!baseRoleCache.TryGetValue(unitId, out var roleId))
-                return Result<SendDemandeResponsesResult>.Failure($"Unité introuvable pour {d.FirstName} {d.LastName}.");
-            if (roleId is null)
-                return Result<SendDemandeResponsesResult>.Failure($"Aucune fonction de base définie pour l'unité de {d.FirstName} {d.LastName}. Définissez un rang dans les Fonctions.");
+            // « Déjà membre » (an active member): only the fiche update below runs — no post, no login, no email.
+            var aside = d.Status == DemandeStatus.AlreadyMember;
+            if (aside && d.MemberMatchStatus != DemandeMemberMatchStatus.Confirmed)
+                return Result<SendDemandeResponsesResult>.Failure($"{d.FirstName} {d.LastName} : « Déjà membre » sans membre confirmé. Remettez la demande à étudier.");
+            var unitId = d.DecidedUnitId ?? Guid.Empty;
+            Guid? roleId = null;
+            if (!aside)
+            {
+                // base role for the unit (pre-resolved into baseRoleCache above)
+                if (!baseRoleCache.TryGetValue(unitId, out roleId))
+                    return Result<SendDemandeResponsesResult>.Failure($"Unité introuvable pour {d.FirstName} {d.LastName}.");
+                if (roleId is null)
+                    return Result<SendDemandeResponsesResult>.Failure($"Aucune fonction de base définie pour l'unité de {d.FirstName} {d.LastName}. Définissez un rang dans les Fonctions.");
+            }
 
             // member: the CG-confirmed existing file (« Déjà membre ? »), else a new one with the next card number
             Member member;
@@ -1380,6 +1389,15 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 context.GuardianLinks.Add(new GuardianLink { GuardianId = guardian.Id, MemberId = member.Id, RelationshipType = ag.Relationship, IsPrimaryContact = ag.IsPrimaryContact, IsEmergencyContact = ag.IsEmergencyContact });
             }
 
+            if (aside)
+            {
+                // Fiche updated above; the member keeps their posts and identifiant, and the family gets no email.
+                d.CreatedMemberId = member.Id;
+                d.ResponseSentAt = DateTime.UtcNow;
+                (createdByAccount.TryGetValue(d.ApplicantAccountId, out var am) ? am : createdByAccount[d.ApplicantAccountId] = []).Add(member);
+                continue;
+            }
+
             // assignment (chosen unit, base role, no team). An existing member already active in that unit keeps their
             // post; youth posts in OTHER units end the day the new one starts (maîtrise posts are left alone).
             var activeHere = reused && reuseAssignments.Any(a => a.MemberId == member.Id && a.UnitId == unitId);
@@ -1387,7 +1405,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 foreach (var a in reuseAssignments.Where(a => a.MemberId == member.Id && a.UnitId != unitId && !(a.FunctionalRole?.IsMaitrise ?? false)))
                     a.EndDate = memberStartDate;
             if (!activeHere)
-                context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId.Value, StartDate = memberStartDate, Notes = "Inscription" });
+                context.MemberAssignments.Add(new MemberAssignment { MemberId = member.Id, UnitId = unitId, TeamId = null, FunctionalRoleId = roleId!.Value, StartDate = memberStartDate, Notes = "Inscription" });
 
             // "Entrée à …" progression for the joined unit (auto-created, like a passage into a new unit) — never twice.
             if (entreeStageByUnit.GetValueOrDefault(unitId) is Guid entreeStageId
@@ -1531,9 +1549,9 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             unitsWithoutCu = await NotifyUnitLeadersAsync(approved, memberByDemande, acctGuardians, acctSiblingRelations, unitNames, request.ScoutYear, ct);
         }
         catch (Exception ex) { Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(logger, ex, "Envoi aux chefs d'unité des nouveaux membres échoué ({ScoutYear})", request.ScoutYear); }
-        await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, request.ScoutYear, UnitsWithoutCu = unitsWithoutCu }, cancellationToken: ct);
+        await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, AlreadyMembers = alreadyMembers.Count, request.ScoutYear, UnitsWithoutCu = unitsWithoutCu }, cancellationToken: ct);
 
-        return Result<SendDemandeResponsesResult>.Success(new SendDemandeResponsesResult(approved.Count, declined.Count));
+        return Result<SendDemandeResponsesResult>.Success(new SendDemandeResponsesResult(approved.Count, declined.Count, alreadyMembers.Count));
     }
 
     // Per unit: build the Excel of its newly accepted members and email it to each chef d'unité (unit HEAD =

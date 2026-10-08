@@ -7,6 +7,9 @@ public static class DemandeStatus
     public const string Submitted = "Submitted"; // submitted, awaiting CG decision (editable until window closes)
     public const string Approved = "Approved";   // CG approved (staged) — member created when the batch is sent
     public const string Declined = "Declined";   // CG declined (staged) — notified when the batch is sent
+    // The child is ALREADY an active member (« Déjà membre ? » confirmed by the CG): the send only updates the existing
+    // fiche with the demande's data — no new file, no post change, no email.
+    public const string AlreadyMember = "AlreadyMember";
     public const string Expired = "Expired";     // DISPLAY-ONLY (never persisted): a draft left unsubmitted past the deadline
 }
 

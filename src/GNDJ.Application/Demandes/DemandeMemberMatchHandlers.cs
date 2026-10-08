@@ -15,10 +15,13 @@ namespace GNDJ.Application.Demandes;
 //   Confirm, demande ALREADY sent (a second file exists) → that new file is merged into the existing member right away
 //            (demande data wins, existing identifiant / SDL card / photo kept), then the access email (identifiant +
 //            set-password link) goes to the family — no trip to Fratries → Doublons.
+//   Confirm on an ACTIVE member, not sent yet → the demande becomes « Déjà membre » (AlreadyMember): the send only
+//            updates that fiche with the demande's data — no post change, no email (a current member's family must not
+//            get an acceptance or a refusal).
 //   Reject  → this member is never suggested again for this demande; if the demande was sent, the two files are also
 //            marked « pas des doublons » so the Doublons tab doesn't flag them.
 public record ConfirmDemandeMemberMatchCommand(Guid DemandeId, Guid MemberId) : IRequest<Result<ConfirmMemberMatchResult>>;
-public record ConfirmMemberMatchResult(bool Merged, bool AccessSent, string? Note);
+public record ConfirmMemberMatchResult(bool Merged, bool AccessSent, string? Note, bool AlreadyMember = false);
 
 public class ConfirmDemandeMemberMatchCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser,
     IMemberMergeService mergeService, IMediator mediator, IAuditService audit)
@@ -45,9 +48,19 @@ public class ConfirmDemandeMemberMatchCommandHandler(IApplicationDbContext conte
         // Not converted yet (or refused / not sent): the send will use the existing member.
         if (d.CreatedMemberId is null || d.CreatedMemberId == keeper.Id)
         {
+            // Still active in the group and nothing sent yet → set aside: no decision to send, the fiche is updated.
+            var active = d.ResponseSentAt == null && d.CreatedMemberId == null
+                && await context.MemberAssignments.AnyAsync(a => a.MemberId == keeper.Id && a.EndDate == null, ct);
+            if (active)
+            {
+                d.Status = DemandeStatus.AlreadyMember;
+                d.DecidedUnitId = null;
+                d.DecisionNotes = null;
+                d.DecisionCheckedAs = null;
+            }
             await context.SaveChangesAsync(ct);
             await LogAsync(d.Id, keeper.Id, merged: false, ct);
-            return Result<ConfirmMemberMatchResult>.Success(new ConfirmMemberMatchResult(false, false, null));
+            return Result<ConfirmMemberMatchResult>.Success(new ConfirmMemberMatchResult(false, false, null, active));
         }
 
         // Already sent: merge the new file (loser) into the existing member (keeper). The demande wins for the data it
@@ -140,6 +153,8 @@ public class ClearDemandeMemberMatchCommandHandler(IApplicationDbContext context
             return Result<bool>.Failure("La demande a déjà été rattachée à ce membre : il n'est plus possible d'annuler.");
         d.MemberMatchId = null;
         d.MemberMatchStatus = null;
+        // « Déjà membre » came from that answer: back to « À étudier » so the CG decides again.
+        if (d.Status == DemandeStatus.AlreadyMember && d.ResponseSentAt == null) d.Status = DemandeStatus.Submitted;
         await context.SaveChangesAsync(ct);
         return Result<bool>.Success(true);
     }

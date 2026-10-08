@@ -39,6 +39,7 @@ function DecisionBadge({ x }: { x: DemandeReview | Sibling }) {
   if (x.status === 'Approved')
     return <Badge variant="success">Acceptée{isFull(x) && x.decidedUnitName ? ` — ${x.decidedUnitName}` : ''}</Badge>
   if (x.status === 'Declined') return <Badge variant="danger">Refusée</Badge>
+  if (x.status === 'AlreadyMember') return <Badge variant="info">Déjà membre</Badge>
   return <Badge variant="info">À étudier</Badge>
 }
 

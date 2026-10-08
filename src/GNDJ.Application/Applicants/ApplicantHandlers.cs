@@ -218,7 +218,7 @@ static class ApplicantHelpers
         // reads as "Submitted" (under review) and the notes are withheld — otherwise a parent could see the outcome
         // (and the decline reason) before the CG posts it, while it can still change.
         var sent = d.ResponseSentAt != null;
-        var decided = d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined;
+        var decided = d.Status is DemandeStatus.Approved or DemandeStatus.Declined or DemandeStatus.AlreadyMember;
         var status = (!sent && decided) ? DemandeStatus.Submitted : d.Status;
         // A draft never submitted before the deadline is shown as "Expirée" (discarded — it can't be submitted
         // anymore and is purged at campaign archive). Display-only; the DB row stays Draft.

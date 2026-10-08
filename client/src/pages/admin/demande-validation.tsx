@@ -52,8 +52,7 @@ import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
   Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
-  SlidersHorizontal,
-} from 'lucide-react'
+  SlidersHorizontal, UserCheck } from 'lucide-react'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
 import { cn, formatDate, normalizeSearch } from '@/lib/utils'
@@ -111,6 +110,7 @@ function genderShort(g: string | null): string {
 function statusInfo(d: DemandeReview): { border: string; label: string } {
   if (d.status === 'Approved') return { border: 'border-l-green-500', label: d.responseSentAt ? 'Acceptée (envoyée)' : 'Acceptée' }
   if (d.status === 'Declined') return { border: 'border-l-red-500', label: d.responseSentAt ? 'Refusée (envoyée)' : 'Refusée' }
+  if (d.status === 'AlreadyMember') return { border: 'border-l-sky-500', label: d.responseSentAt ? 'Déjà membre (fiche mise à jour)' : 'Déjà membre' }
   return { border: 'border-l-amber-500', label: 'À étudier' }
 }
 
@@ -118,11 +118,12 @@ function statusInfo(d: DemandeReview): { border: string; label: string } {
 function statusBadgeClass(d: DemandeReview): string {
   if (d.status === 'Approved') return 'bg-success-subtle text-success'
   if (d.status === 'Declined') return 'bg-destructive-subtle text-destructive'
+  if (d.status === 'AlreadyMember') return 'bg-info-subtle text-info'
   return 'bg-warning-subtle text-warning'
 }
 // Sort order for the "Statut" column: to-study first, then accepted, then declined.
 function statusRank(d: DemandeReview): number {
-  return d.status === 'Approved' ? 1 : d.status === 'Declined' ? 2 : 0
+  return d.status === 'Approved' ? 1 : d.status === 'Declined' ? 2 : d.status === 'AlreadyMember' ? 3 : 0
 }
 
 // One line of the « À vérifier » box: the text, then a « Vérifier » button that opens the review window for it.
@@ -361,7 +362,7 @@ export default function DemandeValidationPage() {
 
   // Send gate: there must be staged decisions to send AND no demande still undecided.
   // status==='all' forces the user to view the full set so a filtered-out 'Submitted' can't be missed.
-  const pendingSend = all.filter((d) => (d.status === 'Approved' || d.status === 'Declined') && !d.responseSentAt).length
+  const pendingSend = all.filter((d) => (d.status === 'Approved' || d.status === 'Declined' || d.status === 'AlreadyMember') && !d.responseSentAt).length
   const undecided = all.filter((d) => d.status === 'Submitted' && !d.responseSentAt).length
   const canSend = pendingSend > 0 && undecided === 0 && status === 'all'
   // Family consistency counts (banner): accounts with mixed answers, and refusals with a sibling already a member.
@@ -696,6 +697,7 @@ export default function DemandeValidationPage() {
               <SelectItem value="Submitted">À étudier</SelectItem>
               <SelectItem value="Approved">Acceptées</SelectItem>
               <SelectItem value="Declined">Refusées</SelectItem>
+              <SelectItem value="AlreadyMember">Déjà membres</SelectItem>
             </SelectContent></Select></div>
         <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Genre</label>
           <Select value={gender} onValueChange={setGender}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -809,6 +811,7 @@ export default function DemandeValidationPage() {
             <LegendItem color="bg-blue-500" label="À étudier" />
             <LegendItem color="bg-green-500" label="Acceptée" />
             <LegendItem color="bg-red-500" label="Refusée" />
+            <LegendItem color="bg-sky-500" label="Déjà membre" />
             <span className="ml-auto">Appuyez sur une ligne pour le dossier complet</span>
             {!gridMode && (
               <Tip content="Modifier les demandes directement dans le tableau, comme dans Excel (nom, prénom, naissance, genre, classe, école, réponse)">
@@ -897,6 +900,8 @@ export default function DemandeValidationPage() {
                         </span>
                       ) : d.status === 'Declined' ? (
                         <span className="block max-w-[14rem] truncate text-red-700 dark:text-red-300" title={d.decisionNotes ?? 'Refusée'}>Refusée{d.decisionNotes ? ` · ${d.decisionNotes}` : ''}</span>
+                      ) : d.status === 'AlreadyMember' ? (
+                        <span className="text-info" title="Membre actif : sa fiche sera mise à jour, aucun email">Fiche existante</span>
                       ) : <span>—</span>}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -1152,6 +1157,7 @@ function StatusBadge({ d }: { d: DemandeReview }) {
   }
   if (d.status === 'Approved') return <Badge variant="success"><Check className="mr-1 h-3 w-3" />Acceptée</Badge>
   if (d.status === 'Declined') return <Badge variant="danger"><X className="mr-1 h-3 w-3" />Refusée</Badge>
+  if (d.status === 'AlreadyMember') return <Badge variant="info"><UserCheck className="mr-1 h-3 w-3" />Déjà membre</Badge>
   return <Badge variant="info"><Clock className="mr-1 h-3 w-3" />À étudier</Badge>
 }
 

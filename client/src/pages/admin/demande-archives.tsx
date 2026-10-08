@@ -34,6 +34,7 @@ export default function DemandeArchivesPage() {
   const statusBadge = (a: { status: string }) => {
     if (a.status === 'Approved') return <Badge variant="success">Acceptée</Badge>
     if (a.status === 'Declined') return <Badge variant="danger">Refusée</Badge>
+    if (a.status === 'AlreadyMember') return <Badge variant="info">Déjà membre</Badge>
     return <Badge variant="secondary">{a.status}</Badge>
   }
 
