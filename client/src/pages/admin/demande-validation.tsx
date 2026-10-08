@@ -34,6 +34,11 @@ import { DemandeGrid } from '@/components/admin/demande-grid'
 import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
 import { MemberMatchCard } from '@/components/admin/member-match-card'
 import { DemandeFlagReview, type FlagKind } from '@/components/admin/demande-flag-review'
+import { DemandeDecisionReview, type DecisionFamily } from '@/components/admin/demande-decision-review'
+import {
+  hasMixedFamilyDecision, hasSiblingToLink, isDeclinedWithPreviousDemande, isDeclinedWithSiblingInGroup, isSiblingRelation,
+  relationName, siblingProche, siblingsInGroup,
+} from '@/lib/demande-flags'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -120,53 +125,14 @@ function statusRank(d: DemandeReview): number {
   return d.status === 'Approved' ? 1 : d.status === 'Declined' ? 2 : 0
 }
 
-// A "proche scout" who is a brother/sister (mirrors the backend IsSiblingRelation) — used to flag the demande
-// so the CG immediately sees a sibling already/also in the group.
-function isSiblingRelation(rel?: string | null): boolean {
-  if (!rel) return false
-  const r = rel.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-  return r.includes('frere') || r.includes('soeur') || r.includes('broth') || r.includes('sist') || r.includes('jumeau') || r.includes('jumelle')
-}
-function siblingProche(d: DemandeReview) {
-  return d.scoutRelations.find((r) => isSiblingRelation(r.relationship))
-}
-// A brother/sister proche that the app matched to a member but the CG hasn't confirmed yet ("Lier") — flagged in
-// the table so a link is never applied silently on a name match.
-function hasSiblingToLink(d: DemandeReview) {
-  return d.scoutRelations.some((r) => isSiblingRelation(r.relationship) && !r.relatedMemberId && !!r.suggestedMemberId)
-}
-
-// One line of the « À vérifier » box: the text, then an « Afficher » button that filters the list to those demandes.
-function FlagLine({ children, onShow, label = 'Afficher' }: { children: React.ReactNode; onShow: () => void; label?: string }) {
+// One line of the « À vérifier » box: the text, then a « Vérifier » button that opens the review window for it.
+function FlagLine({ children, onShow }: { children: React.ReactNode; onShow: () => void }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-2">
       <span>{children}</span>
-      <Button variant="outline" size="sm" className="h-7" onClick={onShow}>{label}</Button>
+      <Button variant="outline" size="sm" className="h-7" onClick={onShow}>Vérifier</Button>
     </li>
   )
-}
-
-// Family consistency flag 1: the same account has both an accepted and a refused child this year. `d.siblings`
-// comes from the server (every non-draft demande of the account), so this works whatever the list filters are.
-function hasMixedFamilyDecision(d: DemandeReview): boolean {
-  const statuses = [d.status, ...d.siblings.map((s) => s.status)]
-  return statuses.includes('Approved') && statuses.includes('Declined')
-}
-// A brother/sister proche who is ALREADY in the group: declared as a current member, or linked to a member with
-// an active post (relatedMemberUnit is only filled for an active post).
-function siblingsInGroup(d: DemandeReview) {
-  return d.scoutRelations.filter((r) => isSiblingRelation(r.relationship) && (r.status === 'CurrentInGroup' || (!!r.relatedMemberId && !!r.relatedMemberUnit)))
-}
-// Family consistency flag 2: a refusal while a brother/sister is already in the group.
-function isDeclinedWithSiblingInGroup(d: DemandeReview): boolean {
-  return d.status === 'Declined' && siblingsInGroup(d).length > 0
-}
-// Flag 3: a refusal for a child whose family says a demande was already made in a previous year.
-function isDeclinedWithPreviousDemande(d: DemandeReview): boolean {
-  return d.status === 'Declined' && !!d.hasPreviousDemande
-}
-function relationName(r: { firstName?: string | null; lastName?: string | null; relatedMemberName?: string | null }): string {
-  return r.relatedMemberName || [r.firstName, r.lastName].filter(Boolean).join(' ') || '—'
 }
 
 // Distinct, non-empty, French-sorted values for a filter dropdown (module scope → stable, no hook dep).
@@ -406,17 +372,28 @@ export default function DemandeValidationPage() {
   const memberMatchCount = useMemo(() => all.filter((d) => !!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged).length, [all])
   // « Vérifier » window (Déjà membre ? / frères et sœurs à lier): the items, and the comparison opened from it.
   const [flagReview, setFlagReview] = useState<FlagKind | null>(null)
+  const [decisionReview, setDecisionReview] = useState(false)
+  // « Décisions à vérifier » window: one entry per family with a flagged refusal; each child shown with its full
+  // file when it is in the loaded list (else the short sibling info).
+  const decisionFamilies = useMemo<DecisionFamily[]>(() => {
+    const byId = new Map(all.map((d) => [d.id, d]))
+    const families = new Map<string, DemandeReview>()
+    for (const d of all)
+      if (!families.has(d.accountId) && (hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d) || isDeclinedWithPreviousDemande(d)))
+        families.set(d.accountId, d)
+    return [...families.values()]
+      .map((d) => ({
+        accountId: d.accountId,
+        label: `Famille ${d.lastName} — ${d.contactName || d.accountEmail}`,
+        children: [d, ...d.siblings].map((s) => byId.get(s.id) ?? s).sort((a, b) => a.firstName.localeCompare(b.firstName, 'fr')),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+  }, [all])
   const [flagLinkTarget, setFlagLinkTarget] = useState<LinkTarget | null>(null)
   const matchItems = useMemo(() => all.filter((d) => !!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged), [all])
   const linkItems = useMemo(() => all.flatMap((d) => d.scoutRelations
     .filter((r) => isSiblingRelation(r.relationship) && !r.relatedMemberId && !!r.suggestedMemberId && !!r.id)
     .map((r) => ({ d, r }))), [all])
-  // « Afficher » on one flag: only that flag filter on (the others off), filters panel opened so it can be cleared.
-  const showOnlyFlag = (flag: 'memberMatch' | 'toLink' | 'conflict') => {
-    setFMemberMatch(flag === 'memberMatch'); setFToLink(flag === 'toLink'); setFConflict(flag === 'conflict')
-    setFIncomplete(false); setFHasRelations(false); setFSibling(false); setFPrevious(false)
-    setShowFilters(true)
-  }
   const canManageDemandes = useAuthStore((st) => st.hasPermission(PERMISSIONS.DEMANDE_MANAGE))
 
   const detailIndex = rows.findIndex((d) => d.id === detailId)
@@ -638,17 +615,17 @@ export default function DemandeValidationPage() {
         <Callout tone="warning" icon={AlertTriangle} title="À vérifier">
           <ul className="space-y-1.5">
             {memberMatchCount > 0 && (
-              <FlagLine label="Vérifier" onShow={() => setFlagReview('memberMatch')}>
+              <FlagLine onShow={() => setFlagReview('memberMatch')}>
                 <strong>{memberMatchCount}</strong> enfant(s) qui semble(nt) déjà membre(s) du groupe (« Déjà membre ? ») : à confirmer ou non.
               </FlagLine>
             )}
             {linkItems.length > 0 && (
-              <FlagLine label="Vérifier" onShow={() => setFlagReview('toLink')}>
+              <FlagLine onShow={() => setFlagReview('toLink')}>
                 <strong>{linkItems.length}</strong> frère(s) ou sœur(s) déclaré(s) par les familles et reconnu(s) dans le groupe, à lier ou non.
               </FlagLine>
             )}
             {(familyMixedCount > 0 || refusedWithSiblingCount > 0 || refusedWithPreviousCount > 0) && (
-              <FlagLine onShow={() => showOnlyFlag('conflict')}>
+              <FlagLine onShow={() => setDecisionReview(true)}>
                 Décisions à vérifier :{' '}
                 {[
                   familyMixedCount > 0 && `${familyMixedCount} famille(s) avec un enfant accepté et un autre refusé`,
@@ -1010,6 +987,9 @@ export default function DemandeValidationPage() {
         onLink={setFlagLinkTarget}
         onOpenDemande={(id) => { setFlagReview(null); resetExtraFilters(); setStatus('all'); setSearch(''); setDetailId(id) }} />
       <LinkRelationDialog target={flagLinkTarget} onClose={() => setFlagLinkTarget(null)} />
+      <DemandeDecisionReview open={decisionReview} families={decisionFamilies} onClose={() => setDecisionReview(false)}
+        onReset={resetTarget}
+        onOpenDemande={(id) => { setDecisionReview(false); resetExtraFilters(); setStatus('all'); setSearch(''); setDetailId(id) }} />
       <Sheet open={!!detail} onOpenChange={(o) => { if (!o) setDetailId(null) }}>
         {/* Don't auto-focus the first control (the « Précédent » nav button) on open — it would pop that
             button's tooltip every time the drawer opens. Keyboard triage (A/R/←/→) is a window listener, so

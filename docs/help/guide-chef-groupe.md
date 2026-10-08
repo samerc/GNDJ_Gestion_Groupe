@@ -131,8 +131,10 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 > bouton **Vérifier** des deux premières lignes ouvre une liste : pour chaque cas, les mêmes lignes des deux côtés
 > (nom, naissance, unité, parents) — la demande à gauche, le membre du groupe à droite, ce qui est identique en
 > vert — avec les réponses sur la ligne (**Même personne** / **Personne différente** ; **Lier** /
-> **Pas lui**). Une ligne répondue disparaît ; **Voir la demande** ouvre la fiche. Le bouton **Afficher** des
-> décisions à vérifier ne montre que ces demandes (filtre **Décisions à vérifier**).
+> **Pas lui**). Une ligne répondue disparaît ; **Voir la demande** ouvre la fiche. Le bouton **Vérifier** des
+> décisions à vérifier ouvre les refus à revoir, regroupés par famille, avec la raison en orange : pour chaque refus,
+> **Remettre à étudier** (c'était une erreur) ou **Le refus est voulu** (le signal disparaît ; il revient si la
+> décision change). **Archives** cherche la famille dans les demandes des années précédentes.
 
 > ⚠️ **Décisions à vérifier** : la page signale (encadré « À vérifier », badges rouges sur les lignes, encadré
 > dans le dossier) trois cas à revoir. **Réponses différentes** : une même famille a un enfant accepté et un autre

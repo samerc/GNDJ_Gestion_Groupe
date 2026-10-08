@@ -7,7 +7,7 @@ import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
 import type { ActionPreview } from '@/components/shared/action-preview'
 import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput, MemberParent } from '@/services/applicant-service'
 
-export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean }
+export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean; decisionCheckedAs?: string | null }
 
 export interface DemandeReview {
   id: string
@@ -50,6 +50,7 @@ export interface DemandeReview {
   scoutRelations: ApplicantScoutRelation[]
   siblings: Sibling[]
   memberMatch?: MemberMatch | null // « Déjà membre ? » — an existing member this child looks like
+  decisionCheckedAs?: string | null // « Décisions à vérifier » — the refusal the CG confirmed as intended
 }
 
 // « Déjà membre ? » flag on a demande: the existing member the child looks like (computed by the server).
@@ -262,6 +263,15 @@ export function useLinkPreview(relationId: string | null, memberId: string | nul
 
 // POST /demandes/relations/{id}/dismiss-suggestion → « Ce n'est pas lui »: drop the app's suggested match (the
 // « À lier » flag goes away). Invalidates ['demandes'].
+// POST /demandes/{id}/decision-check → the CG confirms a refusal is intended (checked) or removes that answer.
+export function useSetDecisionChecked() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, checked }: { id: string; checked: boolean }) => apiClient.post(`/demandes/${id}/decision-check`, { checked }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['demandes'] }) },
+  })
+}
+
 export function useDismissRelationSuggestion() {
   const qc = useQueryClient()
   return useMutation({

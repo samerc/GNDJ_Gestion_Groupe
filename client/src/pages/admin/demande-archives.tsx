@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { useDemandeArchives } from '@/services/demande-admin-service'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +20,9 @@ const PAGE_SIZE = 50
 // CG page — browse the permanent demande archive (past campaigns). Purpose: history + verify a family's claim
 // that they applied before. Read-only; search by child name, filter by scout year, paginated.
 export default function DemandeArchivesPage() {
-  const [search, setSearch] = useState('')
+  // ?q= pre-fills the search (link « Archives » from the « Décisions à vérifier » window).
+  const [params] = useSearchParams()
+  const [search, setSearch] = useState(() => params.get('q') ?? '')
   // Route /admin/demande-archives (demande.view). Search / year changes reset to page 1.
   const [year, setYear] = useState('') // '' = all years
   const [page, setPage] = useState(1)

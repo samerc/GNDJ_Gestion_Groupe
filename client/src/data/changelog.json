@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      {"date": "2026-10-08", "text": "Demandes : « Vérifier » sur les décisions à vérifier ouvre les refus à revoir, regroupés par famille avec la raison (frère ou sœur déjà membre, demande précédente, autre enfant accepté) ; pour chaque refus, « Remettre à étudier » ou « Le refus est voulu » (le signal disparaît, et revient si la décision change)."},
       {"date": "2026-10-08", "text": "Demandes : dans l'encadré « À vérifier », le bouton « Vérifier » des « Déjà membre ? » et des frères et sœurs à lier ouvre une liste claire : les mêmes informations des deux côtés (nom, date de naissance, unité, parents) — la demande à gauche, le membre du groupe à droite, ce qui est identique en vert — avec les réponses directement sur chaque ligne."},
       {"date": "2026-10-08", "text": "Demandes : un encadré « À vérifier » en haut de la page compte les « Déjà membre ? » sans réponse, les frères et sœurs à lier et les décisions à vérifier, avec un bouton « Afficher » pour chacun ; nouveau filtre « Frère / sœur à lier »."},
       {"date": "2026-10-08", "text": "Postes : les marques « Passage20 » / « Passage21 » recopiées sur de nombreux postes par l'import de l'ancien logiciel sont supprimées ; une note déjà présente sur un poste peut maintenant être corrigée ou effacée dans « Modifier le poste »."},

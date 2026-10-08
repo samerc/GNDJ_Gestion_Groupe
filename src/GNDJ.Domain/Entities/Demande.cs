@@ -60,6 +60,11 @@ public class Demande : BaseEntity
     public Guid? MemberMatchId { get; set; }
     public string? MemberMatchStatus { get; set; } // DemandeMemberMatchStatus.Confirmed | Rejected
 
+    // « Décisions à vérifier » — the CG confirmed this refusal is intended (a brother/sister in the group, a previous
+    // demande, or a family with another child accepted). Holds the status confirmed ("Declined"); any later change of
+    // decision no longer matches, so the warning comes back.
+    public string? DecisionCheckedAs { get; set; }
+
     public ApplicantAccount ApplicantAccount { get; set; } = null!;
     public Unit? DecidedUnit { get; set; }
     public Member? CreatedMember { get; set; }

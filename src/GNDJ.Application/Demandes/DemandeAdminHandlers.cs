@@ -21,7 +21,7 @@ namespace GNDJ.Application.Demandes;
 // ============================================================
 // DTOs
 // ============================================================
-public record SiblingDto(Guid Id, string FirstName, string LastName, string Status, bool ResponseSent);
+public record SiblingDto(Guid Id, string FirstName, string LastName, string Status, bool ResponseSent, string? DecisionCheckedAs = null);
 
 // Full reviewable file for one demande: child fields + the account's shared household (address,
 // guardians, scout relations) + sibling demandes on the same account.
@@ -40,7 +40,8 @@ public record DemandeReviewDto(
     string? ParentsSituation = null, string? SerialNumber = null,
     string? PhoneCountryCode = null, // carried so the merge tool can keep the phone's country code intact
     DateTime? LastEditedAt = null, // last change by the family after submission (« modifiée le … »)
-    MemberMatchDto? MemberMatch = null); // « Déjà membre ? » — the existing member this child looks like (DemandeMemberMatch)
+    MemberMatchDto? MemberMatch = null, // « Déjà membre ? » — the existing member this child looks like (DemandeMemberMatch)
+    string? DecisionCheckedAs = null); // « Décisions à vérifier » — the refusal the CG confirmed as intended
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -227,7 +228,7 @@ static class DemandeReviewProjection
         // All demandes per account (this year) for sibling context — only the 5 fields the sibling chips show.
         var allByAccount = (await context.Demandes
                 .Where(d => accountIds.Contains(d.ApplicantAccountId) && d.ScoutYear == scoutYear && d.Status != DemandeStatus.Draft)
-                .Select(d => new { d.Id, d.ApplicantAccountId, d.FirstName, d.LastName, d.Status, Sent = d.ResponseSentAt != null })
+                .Select(d => new { d.Id, d.ApplicantAccountId, d.FirstName, d.LastName, d.Status, Sent = d.ResponseSentAt != null, d.DecisionCheckedAs })
                 .ToListAsync(ct))
             .GroupBy(d => d.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
 
@@ -266,7 +267,7 @@ static class DemandeReviewProjection
             var gs = guardians.GetValueOrDefault(d.ApplicantAccountId) ?? [];
             var rs = relations.GetValueOrDefault(d.ApplicantAccountId) ?? [];
             var sibs = (allByAccount.GetValueOrDefault(d.ApplicantAccountId) ?? []).Where(x => x.Id != d.Id)
-                .Select(x => new SiblingDto(x.Id, x.FirstName, x.LastName, x.Status, x.Sent)).ToList();
+                .Select(x => new SiblingDto(x.Id, x.FirstName, x.LastName, x.Status, x.Sent, x.DecisionCheckedAs)).ToList();
             return new DemandeReviewDto(
                 d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, DemandeAdminHelpers.AgeAt(d.DateOfBirth, today),
                 d.Gender, d.Nationality, d.School, d.Classe, d.Section, d.BloodType, d.MedicalNotes, d.Allergies,
@@ -286,7 +287,7 @@ static class DemandeReviewProjection
                         r.SuggestedMemberId.HasValue ? suggestedParents.GetValueOrDefault(r.SuggestedMemberId.Value) : null);
                 }).ToList(),
                 sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode, d.LastEditedAt,
-                memberMatches.GetValueOrDefault(d.Id));
+                memberMatches.GetValueOrDefault(d.Id), d.DecisionCheckedAs);
         }).ToList();
     }
 }

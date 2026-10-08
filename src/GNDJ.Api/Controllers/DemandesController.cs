@@ -134,6 +134,12 @@ public class DemandesController : BaseApiController
     public async Task<IActionResult> RejectMemberMatch(Guid id, [FromBody] LinkRelationMemberBody body)
         => NoContentOrBadRequest(await Mediator.Send(new RejectDemandeMemberMatchCommand(id, body.MemberId)));
 
+    /// <summary>« Décisions à vérifier » — the CG confirms a refusal is intended (or removes that answer). Requires demande.manage.</summary>
+    [HttpPost("{id:guid}/decision-check")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> SetDecisionChecked(Guid id, [FromBody] DecisionCheckBody body)
+        => NoContentOrBadRequest(await Mediator.Send(new SetDemandeDecisionCheckedCommand(id, body.Checked)));
+
     /// <summary>Undoes a « Déjà membre ? » answer (only while nothing was merged). Requires demande.manage.</summary>
     [HttpDelete("{id:guid}/member-match")]
     [HasPermission(Permissions.DemandeManage)]
@@ -397,3 +403,4 @@ public class DemandesController : BaseApiController
 }
 
 public record LinkRelationMemberBody(Guid MemberId);
+public record DecisionCheckBody(bool Checked);
