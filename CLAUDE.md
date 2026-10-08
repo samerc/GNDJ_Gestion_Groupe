@@ -6621,6 +6621,10 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
 - `SendDemandeResponses`: AlreadyMember demandes go through the same fiche update as a reused member (demande wins on
   fields, contacts, address, parents) then STOP — no post change, no Entrée, no login change, no email; demande marked
   sent + CreatedMemberId = the member; counted in the fratrie declaration. Result/audit carry AlreadyMembers.
+- Active member ACCEPTED into a unit he isn't in (confirm keeps Approved; or set aside then « Accepter ») → the send
+  moves him like a reused member (other youth posts end on the start date, new post + Entrée if missing, listed in that
+  unit's CU Excel) but skips the login/token and the email. A refusal for a confirmed active member sends no email.
+  Tested on a DB copy (Nicolas T3 → T10: T3 ended 2026-10-08, T10 started, token untouched, 0 family email).
 - Counted as decided (send gate, rentrée progress, reminders, applicant view after the send = « Déjà membre du groupe »
   result page). Preview: own line + a warning when a REFUSAL would go to the family of an unanswered active match.
 - Tested on a DB copy: 3 active matches set aside, posts unchanged (T3/T10/R2), 0 email to those families, classe

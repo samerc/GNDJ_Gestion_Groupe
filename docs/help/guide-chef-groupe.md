@@ -180,7 +180,11 @@ Ouvrez la demande : l'encadré montre la fiche existante (matricule, dernière u
 - **Membre encore actif** (le bouton devient **Même personne — mettre de côté**) : la demande passe en **Déjà membre**
   (bleu) et n'a plus besoin d'être acceptée ou refusée. À l'envoi des réponses, la fiche du membre est seulement mise
   à jour avec les informations de la demande : **pas de changement de poste, aucun email** à la famille (pas
-  d'acceptation, pas de refus). Un changement d'unité se fait par le passage. **Annuler** remet la demande à étudier.
+  d'acceptation, pas de refus). **Annuler** remet la demande à étudier.
+- **Membre actif accepté dans une autre unité** (le bouton devient **Même personne — changer d'unité**) : la demande
+  reste acceptée. À l'envoi, son poste actuel se termine et un nouveau commence dans l'unité choisie (le chef de cette
+  unité le reçoit dans sa liste), sa fiche est mise à jour, il garde son identifiant — et **aucun email** ne part à la
+  famille. Vous pouvez aussi mettre la demande de côté puis cliquer **Accepter** dans une unité : même résultat.
 
 Si les réponses sont **déjà parties** (une deuxième fiche existe), **Même personne — fusionner** fusionne tout de
 suite la nouvelle fiche dans l'ancienne (même règle : la demande l'emporte, l'identifiant de l'ancienne fiche est

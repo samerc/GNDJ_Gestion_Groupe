@@ -16,7 +16,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { cn, formatDate, normalizeSearch } from '@/lib/utils'
 import type { ApplicantScoutRelation, MemberParent } from '@/services/applicant-service'
 import { useDismissRelationSuggestion, type DemandeReview } from '@/services/demande-admin-service'
-import { useMemberMatchActions } from './member-match-actions'
+import { activeMove, useMemberMatchActions } from './member-match-actions'
 import type { LinkTarget } from './link-relation-dialog'
 
 export type FlagKind = 'memberMatch' | 'toLink'
@@ -183,7 +183,7 @@ export function DemandeFlagReview({ kind, matches, links, onClose, onOpenDemande
                         <UserX className="mr-1 h-4 w-4" />Personne différente
                       </Button>
                       <Button size="sm" variant="success" disabled={actions.busy} onClick={() => actions.onSame(d)}>
-                        <UserCheck className="mr-1 h-4 w-4" />{d.createdMemberId ? 'Même personne — fusionner' : m.isActive ? 'Même personne — mettre de côté' : 'Même personne'}
+                        <UserCheck className="mr-1 h-4 w-4" />{d.createdMemberId ? 'Même personne — fusionner' : activeMove(d) ? "Même personne — changer d'unité" : m.isActive ? 'Même personne — mettre de côté' : 'Même personne'}
                       </Button>
                     </>}
                   />

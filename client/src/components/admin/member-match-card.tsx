@@ -52,7 +52,9 @@ export function MemberMatchCard({ d }: { d: DemandeReview }) {
       <Callout tone="success" icon={UserCheck} title="Même personne — fiche existante">
         <MatchDetails m={m} />
         <p className="mt-2">
-          {d.status === 'AlreadyMember'
+          {d.status === 'Approved' && m.isActive
+            ? `Membre actif accepté en ${d.decidedUnitName ?? 'une autre unité'} : à l'envoi des réponses, son poste actuel se termine et un nouveau commence dans cette unité ; aucun email à la famille.`
+            : d.status === 'AlreadyMember'
             ? "Membre actif : la demande est mise de côté. À l'envoi des réponses, sa fiche sera seulement mise à jour (pas de changement de poste, aucun email)."
             : "À l'envoi des réponses, cette fiche sera mise à jour avec la demande et gardera son identifiant (pas de nouvelle fiche)."}
         </p>

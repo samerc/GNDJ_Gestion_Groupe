@@ -1275,12 +1275,16 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             // member: the CG-confirmed existing file (« Déjà membre ? »), else a new one with the next card number
             Member member;
             var reused = false;
+            var activeMember = false;
             if (d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && d.MemberMatchId is Guid matchId)
             {
                 if (!reuseMembers.TryGetValue(matchId, out var existing))
                     return Result<SendDemandeResponsesResult>.Failure($"La fiche existante de {d.FirstName} {d.LastName} est introuvable (supprimée ?). Annulez « Déjà membre » sur cette demande ou restaurez la fiche.");
                 member = existing;
                 reused = true;
+                // Still active in the group (before this send ends any post): the family already has its access, so the
+                // acceptance only moves the member — no login change, no email.
+                activeMember = reuseAssignments.Any(a => a.MemberId == member.Id);
                 // The demande is the family's latest word: it wins over the existing file for every value it gives.
                 static string? Win(string? fromDemande, string? current) => string.IsNullOrWhiteSpace(fromDemande) ? current : fromDemande.Trim();
                 member.FirstName = Win(d.FirstName, member.FirstName)!;
@@ -1420,6 +1424,15 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             // via the link, so there's nothing to "change" and no temp password to force-rotate.
             var activationToken = GNDJ.Application.Common.SecureTokens.UrlToken();
             string username;
+            if (activeMember)
+            {
+                // Active member accepted into a unit (usually a change of unit): post moved above, account untouched.
+                d.CreatedMemberId = member.Id;
+                memberByDemande[d.Id] = member;
+                d.ResponseSentAt = DateTime.UtcNow;
+                (createdByAccount.TryGetValue(d.ApplicantAccountId, out var mm) ? mm : createdByAccount[d.ApplicantAccountId] = []).Add(member);
+                continue;
+            }
             if (reused && reuseUsers.TryGetValue(member.Id, out var existingUser))
             {
                 // An existing member keeps their identifiant: the email gives it, with a link to (re)set the password.
@@ -1465,9 +1478,17 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 emailJobs.Add(("demande_approved", to, approvedVars));
         }
 
+        // A refusal for a child the CG confirmed is an ACTIVE member: no refusal email to a current member's family.
+        var declinedMatchIds = declined.Where(d => d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && d.MemberMatchId != null)
+            .Select(d => d.MemberMatchId!.Value).ToList();
+        var declinedActive = declinedMatchIds.Count == 0 ? new HashSet<Guid>()
+            : (await context.MemberAssignments.Where(a => declinedMatchIds.Contains(a.MemberId) && a.EndDate == null)
+                .Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
         foreach (var d in declined)
         {
             d.ResponseSentAt = DateTime.UtcNow;
+            if (d.MemberMatchId is Guid dm && d.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && declinedActive.Contains(dm))
+                continue;
             var acc = accounts.GetValueOrDefault(d.ApplicantAccountId);
             var declinedVars = new Dictionary<string, string>
             {

@@ -15,9 +15,11 @@ namespace GNDJ.Application.Demandes;
 //   Confirm, demande ALREADY sent (a second file exists) → that new file is merged into the existing member right away
 //            (demande data wins, existing identifiant / SDL card / photo kept), then the access email (identifiant +
 //            set-password link) goes to the family — no trip to Fratries → Doublons.
-//   Confirm on an ACTIVE member, not sent yet → the demande becomes « Déjà membre » (AlreadyMember): the send only
-//            updates that fiche with the demande's data — no post change, no email (a current member's family must not
-//            get an acceptance or a refusal).
+//   Confirm on an ACTIVE member, not sent yet:
+//            • already ACCEPTED into a unit he is not in → stays accepted: the send moves him (his youth posts end, a new
+//              post starts in that unit), updates the fiche, keeps his account — and sends no email;
+//            • otherwise → « Déjà membre » (AlreadyMember): the send only updates the fiche — no post change, no email.
+//            A current member's family never gets an acceptance or a refusal email.
 //   Reject  → this member is never suggested again for this demande; if the demande was sent, the two files are also
 //            marked « pas des doublons » so the Doublons tab doesn't flag them.
 public record ConfirmDemandeMemberMatchCommand(Guid DemandeId, Guid MemberId) : IRequest<Result<ConfirmMemberMatchResult>>;
@@ -49,8 +51,11 @@ public class ConfirmDemandeMemberMatchCommandHandler(IApplicationDbContext conte
         if (d.CreatedMemberId is null || d.CreatedMemberId == keeper.Id)
         {
             // Still active in the group and nothing sent yet → set aside: no decision to send, the fiche is updated.
-            var active = d.ResponseSentAt == null && d.CreatedMemberId == null
-                && await context.MemberAssignments.AnyAsync(a => a.MemberId == keeper.Id && a.EndDate == null, ct);
+            var activeUnits = d.ResponseSentAt == null && d.CreatedMemberId == null
+                ? await context.MemberAssignments.Where(a => a.MemberId == keeper.Id && a.EndDate == null).Select(a => a.UnitId).ToListAsync(ct)
+                : [];
+            var movesUnit = d.Status == DemandeStatus.Approved && d.DecidedUnitId is Guid u && !activeUnits.Contains(u);
+            var active = activeUnits.Count > 0 && !movesUnit;
             if (active)
             {
                 d.Status = DemandeStatus.AlreadyMember;

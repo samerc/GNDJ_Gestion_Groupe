@@ -112,7 +112,11 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
             .Select(d => $"{d.FirstName} {d.LastName} ({matches[d.Id].CardNumber})").ToList();
         if (refusedActive.Count > 0)
             warnings.Add($"« Déjà membre ? » non vérifié sur un refus — la famille d'un membre actif recevra un email de refus : {string.Join(", ", refusedActive)}. Répondez « Même personne » pour mettre la demande de côté.");
-        var reusedCount = approved.Count(d => matches.TryGetValue(d.Id, out var m) && m.Status == DemandeMemberMatchStatus.Confirmed);
+        bool ConfirmedActive(Guid id) => matches.TryGetValue(id, out var m) && m.Status == DemandeMemberMatchStatus.Confirmed && m.IsActive;
+        // Active members accepted into another unit: moved at the send, no email. Refusals for active members: no email.
+        var movedActive = approved.Count(d => ConfirmedActive(d.Id));
+        var silentRefusals = answerable.Count(d => d.Status == DemandeStatus.Declined && ConfirmedActive(d.Id));
+        var reusedCount = approved.Count(d => matches.TryGetValue(d.Id, out var m) && m.Status == DemandeMemberMatchStatus.Confirmed) - movedActive;
 
         // Accepted members per unit + the chefs d'unité who will get the Excel.
         var unitIds = approved.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
@@ -136,12 +140,13 @@ public class GetSendResponsesPreviewQueryHandler(IApplicationDbContext context, 
 
         var lines = new List<ActionPreviewLine>
         {
-            new("Nouveaux membres créés (avec identifiant)", approved.Count - reusedCount,
+            new("Nouveaux membres créés (avec identifiant)", approved.Count - reusedCount - movedActive,
                 perUnit.Count == 0 ? null : string.Join(" · ", perUnit.Select(x => $"{x.Unit?.Code ?? "?"} : {x.Count}"))),
             new("Rattachés à leur fiche existante (identifiant conservé)", reusedCount),
-            new("Refus envoyés", declined),
-            new("Déjà membres : fiche mise à jour, aucun email", alreadyMembers.Count),
-            new("Emails aux familles", pending.Count - alreadyMembers.Count - noEmail.Count),
+            new("Membres actifs changés d'unité (aucun email)", movedActive),
+            new("Refus envoyés", declined - silentRefusals),
+            new("Déjà membres : fiche mise à jour, aucun email", alreadyMembers.Count + silentRefusals),
+            new("Emails aux familles", Math.Max(0, pending.Count - alreadyMembers.Count - movedActive - silentRefusals - noEmail.Count)),
             new("Chefs d'unité prévenus (liste Excel)", heads.Values.Sum(r => r.Count)),
         };
         return Result<ActionPreviewDto>.Success(new ActionPreviewDto(lines, warnings, blockers));
