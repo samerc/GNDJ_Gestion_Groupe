@@ -247,6 +247,7 @@ export interface DuplicateMember {
   isActiveMember: boolean
   assignmentCount: number
   createdAt: string
+  fromDemande: boolean // created from a demande: its data wins by default in the merge
 }
 
 export interface DuplicateGroup {

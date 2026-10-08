@@ -23,7 +23,9 @@ public record DuplicateMemberDto(
     string? CardNumber, string? ExternalCardNumber, string? BloodType, string? Nationality, string? School,
     string? Classe, string? Section, string? ProfessionDomain, string? Profession, string? MedicalNotes,
     string? Allergies, string? Notes, string? PrimaryContactEmail, string? PhotoPath, string? Username,
-    string? UnitName, string? UnitCode, bool HasAccount, bool IsActiveMember, int AssignmentCount, DateTime CreatedAt);
+    string? UnitName, string? UnitCode, bool HasAccount, bool IsActiveMember, int AssignmentCount, DateTime CreatedAt,
+    // Created by « Envoyer les réponses » from a demande: its data is the family's latest and wins in the merge dialog.
+    bool FromDemande = false);
 
 // A set of members that look like the same person.
 public record DuplicateGroupDto(IReadOnlyList<DuplicateMemberDto> Members, string Evidence);
@@ -45,7 +47,8 @@ public static class DuplicateMemberProjection
             context.Users.Any(u => u.MemberId == m.Id && !u.IsDeleted),
             m.Assignments.Any(a => a.EndDate == null),
             m.Assignments.Count(a => !a.IsDeleted),
-            m.CreatedAt));
+            m.CreatedAt,
+            context.Demandes.Any(d => d.CreatedMemberId == m.Id)));
 }
 
 // Fetch the merge DTO for specific members — powers the MANUAL "merge any two members" flow (the CG searches +

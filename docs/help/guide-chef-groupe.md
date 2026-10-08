@@ -144,7 +144,8 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 famille reçoit un email par enfant, **à l'adresse qui a ouvert le compte d'inscription** ; pour une demande
 acceptée, **le membre est créé** (fiche, affectation dans l'unité, parents, compte de connexion) et l'email contient
 l'identifiant et un lien pour définir le mot de passe. Si le parent est déjà connu du groupe, la fiche existante du
-parent est reprise et le nouveau téléphone ou email y est ajouté. Les enfants acceptés d'une même famille sont reliés
+parent est reprise : les informations de la demande l'emportent (nom, profession) et le nouveau téléphone ou email y
+est ajouté. Les enfants acceptés d'une même famille sont reliés
 comme frères et sœurs. Chaque chef d'unité reçoit un email avec la liste Excel de ses nouveaux membres. Vous pouvez
 envoyer en plusieurs fois : seules les nouvelles décisions partent.
 
@@ -352,7 +353,11 @@ dans chaque devise (payer ce montant dans une devise = cotisation complète), le
   famille : choisissez le bon père, la bonne mère et la bonne adresse, puis **Confirmer la fratrie** — les parents
   en double sont fusionnés.
 - **Signalements** : les erreurs signalées par les membres sur leurs frères et sœurs ; **Répondre** les prévient.
-- **Doublons** : le même membre saisi deux fois ; **Fusionner** en choisissant la bonne valeur de chaque champ.
+- **Doublons** : le même membre saisi deux fois ; **Fusionner** en choisissant la bonne valeur de chaque champ. Pour
+  un ancien membre revenu par une demande (fiche marquée « Inscription »), la fenêtre propose de garder l'**ancienne**
+  fiche (historique, matricule et identifiant déjà connus de la famille) avec les informations de la **demande**,
+  qui l'emportent. Après la fusion, envoyez l'identifiant à la famille : fiche du membre → **Actions → Envoyer
+  l'accès** (l'email reçu avec la réponse à la demande ne fonctionne plus).
 
 ### Qualité des données
 

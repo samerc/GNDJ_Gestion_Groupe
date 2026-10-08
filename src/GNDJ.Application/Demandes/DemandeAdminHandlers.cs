@@ -1250,8 +1250,14 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     guardian = FindExistingGuardian(ag, guardianByEmail, guardianByPhone);
                     if (guardian is not null)
                     {
-                        // A parent already in the group: add the phone / email given in this demande if that parent
-                        // doesn't have it yet (else the new number never reaches the member file).
+                        // A parent already in the group: the demande is the family's latest word, so it wins over the
+                        // existing record (family name, profession, field of work, deceased) when it gives a value; and
+                        // the phone / email given in this demande are added if that parent doesn't have them yet
+                        // (else the new number never reaches the member file).
+                        if (!string.IsNullOrWhiteSpace(ag.LastName)) guardian.LastName = ag.LastName.Trim();
+                        if (!string.IsNullOrWhiteSpace(ag.Profession)) guardian.Profession = ag.Profession.Trim();
+                        if (!string.IsNullOrWhiteSpace(ag.ProfessionDomain)) guardian.ProfessionDomain = ag.ProfessionDomain.Trim();
+                        if (ag.IsDeceased) guardian.IsDeceased = true;
                         var gid = guardian.Id;
                         var phoneDigits = PhoneDigits(ag.PhoneNumber);
                         if (phoneDigits.Length >= 6)

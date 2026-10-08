@@ -6557,4 +6557,14 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
   contacts) fix data already converted on prod (both idempotent; dev: 10 families linked, 33 phones + 4 emails).
 - **Preview warning**: an accepted child matching an existing member (normalized name + DOB) → « Déjà membre(s) du
   groupe … deuxième fiche ». Dev copy had 6 such duplicates (re-enrolled existing members) → merge in Fratries → Doublons.
+- **« The demande wins »** (user rule, 2026-10-08): a reused existing guardian takes the demande's last name /
+  profession / profession domain (and deceased) when given; patch **041** applies it to families already converted
+  (dev copy: 75 parents). Merge dialog (Fratries → Doublons): `DuplicateMemberDto.FromDemande`; with one demande
+  file in the group the default keeper is the OLDER file and every differing field defaults to the demande file's
+  value except login / SDL card / photo (`KEEPER_OWNED`). Then « Envoyer l'accès » sends the old identifiant.
+- **Merge login fix** (`MemberMergeService`): a kept login that was switched off (e.g. patch 022 orphan cleanup) is
+  switched back on when a merged-in login was active — else the person had no working login.
+- **Late-joiner rule refined** (`DocumentCampaign.ForMemberAsync`): in the campaign = file created by the deposit
+  deadline AND a current post started by then; else upload open (covers a returning member merged into an old file).
+  Verified: merged returning member + new member open, existing member closed.
 

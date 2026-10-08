@@ -8,7 +8,7 @@ namespace GNDJ.Infrastructure.Services;
 // Merges duplicate member records into a keeper (see IMemberMergeService). All in ONE transaction:
 //   1. move each loser's connected rows onto the keeper (dedup-on-move for the tables with a natural unique key
 //      so no duplicate contacts / links / values are created; plain re-point for the rest),
-//   2. move or disable each loser's login,
+//   2. move or disable each loser's login (the kept login is switched back on if it was off and a loser's was active),
 //   3. soft-delete each loser (which also frees its card numbers from the is_deleted-filtered unique indexes)
 //      and disable its login,
 //   4. apply the CG-chosen field values to the keeper (done LAST so a carried-over external card number can't
@@ -95,6 +95,10 @@ public class MemberMergeService : IMemberMergeService
                 }
                 else if (loserHasUser)
                 {
+                    // The kept login may have been switched off (e.g. an unused account of a former member) while the
+                    // merged-in one is in use: the person must not end up with no working login → switch it back on.
+                    await Exec("UPDATE users SET is_active = true WHERE member_id = {0} AND NOT is_deleted AND NOT is_active " +
+                               "AND EXISTS (SELECT 1 FROM users l WHERE l.member_id = {1} AND l.is_active AND NOT l.is_deleted)", p, ct);
                     // Disable the loser's login AND free its username (prefix it) so the surviving member can reuse
                     // that username if the CG chose it. The loser is soft-deleted, so its email no longer matters.
                     await Exec("DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE member_id = {0})", [loser], ct);

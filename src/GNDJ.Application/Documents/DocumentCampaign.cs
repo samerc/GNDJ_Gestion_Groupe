@@ -107,16 +107,21 @@ public static class DocumentCampaign
         return new DocumentCampaignStatus(true, phase, open, d1, d2, d3, d4, d5, reopensOn, closesOn, scoutYear);
     }
 
-    // The campaign as it applies to ONE member. A member created after the deposit deadline (typically a family
-    // accepted from the demandes, or added by hand later in the year) was not part of this year's campaign: the
-    // dates don't apply to them and their upload stays open, otherwise a newcomer would find « dépôt fermé » on
-    // day one. Everyone else gets the group-wide status.
+    // The campaign as it applies to ONE member. It concerns the members who were ACTIVE at the deposit deadline. A
+    // member created after it, or whose current post(s) all started after it (a family accepted from the demandes, a former member coming
+    // back — even when merged into their old file —, someone added by hand later in the year) was not part of this
+    // year's campaign: the dates don't apply and their upload stays open, otherwise a newcomer would find
+    // « dépôt fermé » on day one. Everyone else gets the group-wide status.
     public static async Task<DocumentCampaignStatus> ForMemberAsync(IApplicationDbContext context, Guid? memberId, CancellationToken ct)
     {
         var status = await LoadAsync(context, ct);
         if (!status.Enabled || status.UploadOpen || memberId is null || status.DepositDeadline is not { } deadline) return status;
-        var created = await context.Members.Where(m => m.Id == memberId).Select(m => (DateTime?)m.CreatedAt).FirstOrDefaultAsync(ct);
-        if (created is null || DateOnly.FromDateTime(created.Value) <= deadline) return status;
+        // In the campaign = the file existed by the deadline AND a current post had started by then. (Both: a demande
+        // member's post can be backdated by demande.member_start_date; a merged returning member keeps an old file.)
+        var lastDay = deadline.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+        var inCampaign = await context.Members.AnyAsync(m => m.Id == memberId && m.CreatedAt <= lastDay, ct)
+            && await context.MemberAssignments.AnyAsync(a => a.MemberId == memberId && a.EndDate == null && a.StartDate <= deadline, ct);
+        if (inCampaign) return status;
         return status with { Phase = DocumentCampaignPhases.Inactive, UploadOpen = true, UploadReopensOn = null, UploadClosesOn = null };
     }
 }

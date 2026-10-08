@@ -608,18 +608,26 @@ const MERGE_FIELDS: { key: keyof MemberMergeFields; label: string; get: (m: Dupl
 ]
 
 const norm = (v: string | null) => (v ?? '').trim()
+// Fields that stay with the kept file even when a demande file wins the data: the login, the official card number, the photo.
+const KEEPER_OWNED = new Set<keyof MemberMergeFields>(['username', 'externalCardNumber', 'photoPath'])
 
 // Merge dialog: pick the member to KEEP + for each field that differs, which value wins. Everything from the
 // other members is transferred onto the keeper; they're then soft-deleted (Corbeille).
 function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () => void }) {
   const merge = useMergeMembers()
   const members = group.members
-  const [keeperId, setKeeperId] = useState(members[0].memberId)
+  // A child re-enrolled through a demande (file created by « Envoyer les réponses ») next to their older file: keep the
+  // OLDER file by default (history, matricule, the identifiant the family already had) but take the demande's data —
+  // the family's latest — for every field that differs, except the login, the SDL/GDL card number and the photo.
+  const demandeMember = members.filter((m) => m.fromDemande).length === 1 ? members.find((m) => m.fromDemande) : undefined
+  const [keeperId, setKeeperId] = useState(
+    demandeMember ? (members.find((m) => !m.fromDemande) ?? members[0]).memberId : members[0].memberId)
   // Per field, which member's value to use (memberId). Defaults computed from the keeper below.
   const [choices, setChoices] = useState<Record<string, string>>({})
 
-  // Default each field's source: the keeper if it has a value, else the first member that does. Recomputed
-  // (render-phase reset) whenever the keeper changes — React's derive-from-props pattern keyed on keeperId.
+  // Default each field's source: the demande file when there is one (except the keeper-owned fields), else the
+  // keeper if it has a value, else the first member that does. Recomputed (render-phase reset) whenever the keeper
+  // changes — React's derive-from-props pattern keyed on keeperId.
   const [seededKeeper, setSeededKeeper] = useState<string | null>(null)
   if (seededKeeper !== keeperId) {
     setSeededKeeper(keeperId)
@@ -627,7 +635,9 @@ function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () =>
     const next: Record<string, string> = {}
     for (const f of MERGE_FIELDS) {
       const withValue = members.find((m) => norm(f.get(m)))
-      next[f.key] = norm(f.get(keeper)) ? keeperId : (withValue?.memberId ?? keeperId)
+      const demandeWins = demandeMember && !KEEPER_OWNED.has(f.key) && norm(f.get(demandeMember))
+      next[f.key] = demandeWins ? demandeMember.memberId
+        : norm(f.get(keeper)) ? keeperId : (withValue?.memberId ?? keeperId)
     }
     setChoices(next)
   }
@@ -675,7 +685,7 @@ function MergeDialog({ group, onClose }: { group: DuplicateGroup; onClose: () =>
                       <span className="block truncate font-medium">{m.firstName} {m.lastName}</span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {m.unitCode ?? 'Sans unité'}{age != null ? ` · ${age} ans` : ''}{m.isActiveMember ? ' · actif' : ' · ancien'}
-                        {m.hasAccount ? ' · compte' : ''}{m.cardNumber ? ` · ${m.cardNumber}` : ''}
+                        {m.hasAccount ? ' · compte' : ''}{m.cardNumber ? ` · ${m.cardNumber}` : ''}{m.fromDemande ? ' · Inscription' : ''}
                       </span>
                     </span>
                   </label>
