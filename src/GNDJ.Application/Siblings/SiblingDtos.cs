@@ -58,9 +58,6 @@ internal static class SiblingUtil
         return "autre";
     }
 
-    // Digits-only form of a phone number (drops spaces/dashes/+/country-code punctuation) for matching + dedup.
-    public static string Digits(string? s) => new(( s ?? "").Where(char.IsDigit).ToArray());
-
     public static string NormEmail(string? e) => (e ?? "").Trim().ToLowerInvariant();
 
     // Order a member pair canonically (A <= B) so a rejection tombstone / edge is direction-independent.

@@ -59,9 +59,9 @@ public class SaveLeaverContactCommandHandler(IApplicationDbContext context, ICur
         // marks it primary when the member has no primary phone yet.
         if (!string.IsNullOrEmpty(phone))
         {
-            var newDigits = Digits(phone);
+            var newDigits = PhoneNumbers.Digits(phone);
             var phones = await context.MemberPhones.Where(p => p.MemberId == member.Id && !p.IsDeleted).ToListAsync(ct);
-            var dup = phones.Any(p => Digits(p.Number) == newDigits);
+            var dup = phones.Any(p => PhoneNumbers.Digits(p.Number) == newDigits);
             if (!dup)
                 context.MemberPhones.Add(new MemberPhone
                 {
@@ -80,7 +80,4 @@ public class SaveLeaverContactCommandHandler(IApplicationDbContext context, ICur
         }, cancellationToken: ct);
         return Result<bool>.Success(true);
     }
-
-    // Digits only, so a formatted "76 123 456" matches a migrated "76123456".
-    static string Digits(string s) => new(s.Where(char.IsDigit).ToArray());
 }

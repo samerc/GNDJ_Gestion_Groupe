@@ -63,11 +63,7 @@ public class AuthController : BaseApiController
     [AllowAnonymous]
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> RequestLoginCode([FromBody] RequestLoginCodeCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>« Changer de compte » without a password: opens a session on a confirmed sibling's account when both
     /// accounts share the same main email and neither is a maîtrise / protected account. Otherwise 400 (the client
@@ -76,11 +72,7 @@ public class AuthController : BaseApiController
     [Authorize]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> SwitchSibling([FromBody] SwitchToSiblingCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Passwordless login (step 2): verify the 6-digit code and receive a JWT access token + refresh token (same session as a password login).</summary>
     /// <response code="200">Authenticated; returns the token pair, expiry and permissions.</response>
@@ -89,11 +81,7 @@ public class AuthController : BaseApiController
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> VerifyLoginCode([FromBody] VerifyLoginCodeCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Exchange a valid refresh token for a fresh access/refresh token pair (rotation).</summary>
     /// <response code="200">New token pair issued.</response>
@@ -114,31 +102,19 @@ public class AuthController : BaseApiController
     [Authorize]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
-    {
-        var result = await Mediator.Send(new LogoutCommand());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new LogoutCommand()));
 
     /// <summary>The caller's signed-in devices (one per browser/app where they are logged in), current first.</summary>
     [Authorize]
     [HttpGet("devices")]
     public async Task<IActionResult> MyDevices()
-    {
-        var result = await Mediator.Send(new GetMyDevicesQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetMyDevicesQuery()));
 
     /// <summary>Signs one of the caller's own devices out (its next refresh fails; access dies within 15 min).</summary>
     [Authorize]
     [HttpDelete("devices/{id:guid}")]
     public async Task<IActionResult> EndMyDevice(Guid id)
-    {
-        var result = await Mediator.Send(new EndMyDeviceCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new EndMyDeviceCommand(id)));
 
     /// <summary>Sign out all OTHER devices: delete their device sessions so they can no longer refresh (they drop within ~15 min). This device stays signed in with a fresh token pair.</summary>
     /// <response code="200">Other devices signed out; returns a new token pair for the current device.</response>
@@ -160,11 +136,7 @@ public class AuthController : BaseApiController
     [HasPermission(Permissions.MaitriseManage)]
     [HttpPost("impersonate/{memberId:guid}")]
     public async Task<IActionResult> Impersonate(Guid memberId)
-    {
-        var result = await Mediator.Send(new ImpersonateCommand(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new ImpersonateCommand(memberId)));
 
     /// <summary>Get the authenticated user's profile, permissions and unit access (drives the UI).</summary>
     /// <response code="200">Current user info.</response>
@@ -234,11 +206,7 @@ public class AuthController : BaseApiController
     [HttpPost("change-password")]
     [EnableRateLimiting("auth")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Returns the current password-complexity policy (min length + required character classes) so the
     /// set/change-password screens can show and enforce the same rules the server does. Anonymous (the

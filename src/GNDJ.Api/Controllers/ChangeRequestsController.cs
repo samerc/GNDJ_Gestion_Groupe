@@ -62,8 +62,6 @@ public class ChangeRequestsController : BaseApiController
     public async Task<IActionResult> Review(Guid id, [FromBody] ReviewChangeRequestCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 }

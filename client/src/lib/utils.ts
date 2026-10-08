@@ -42,6 +42,20 @@ export function formatDateTime(d: string | Date | null | undefined): string {
   const x = parseDay(d)
   return `${formatDate(x)} ${x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
 }
+// Compact French relative time: "à l'instant", "il y a 3 min", "il y a 2 h", "hier", "il y a 5 j", then the short date
+// after 30 days; '—' when empty. Rounded down (3 min 50 s → "il y a 3 min"). Bell + Sessions actives.
+export function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const min = Math.floor(Math.max(0, Date.now() - new Date(iso).getTime()) / 60_000)
+  if (min < 1) return "à l'instant"
+  if (min < 60) return `il y a ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `il y a ${h} h`
+  const d = Math.floor(h / 24)
+  if (d === 1) return 'hier'
+  if (d < 30) return `il y a ${d} j`
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
 // « samedi 4 octobre » — a day heading without the year (camp rotation, lookup, scoring).
 export function formatDayLong(d: string | Date): string {
   return parseDay(d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })

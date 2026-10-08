@@ -24,9 +24,7 @@ public class PassagesController : BaseApiController
     {
         if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetPassagesByUnitQuery(unitId, scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetPassagesByUnitQuery(unitId, scoutYear)));
     }
 
     /// <summary>CG review list across all units, with optional status/unit filters. Requires passage.manage.</summary>
@@ -39,9 +37,7 @@ public class PassagesController : BaseApiController
     {
         if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetAllPassagesQuery(scoutYear, status, unitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetAllPassagesQuery(scoutYear, status, unitId)));
     }
 
     /// <summary>CG completeness view: expected vs. missing passage lines per unit (finalize gate). Requires passage.manage.</summary>
@@ -52,9 +48,7 @@ public class PassagesController : BaseApiController
     {
         if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetPassageSummaryQuery(scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetPassageSummaryQuery(scoutYear)));
     }
 
     /// <summary>
@@ -69,20 +63,14 @@ public class PassagesController : BaseApiController
     {
         if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetPassageProjectionQuery(scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetPassageProjectionQuery(scoutYear)));
     }
 
     /// <summary>Reports whether the CG has opened the passage round for the year. Auth-only (no permission required).</summary>
     /// <param name="scoutYear">Scout year to check.</param>
     [HttpGet("status")]
     public async Task<IActionResult> IsPassageOpen([FromQuery] string scoutYear)
-    {
-        var result = await Mediator.Send(new IsPassageOpenQuery(scoutYear ?? string.Empty));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new IsPassageOpenQuery(scoutYear ?? string.Empty)));
 
     /// <summary>CU proposes a passage change for one member. Requires passage.propose.</summary>
     /// <response code="201">Proposal created; body contains the new id.</response>
@@ -112,9 +100,7 @@ public class PassagesController : BaseApiController
     public async Task<IActionResult> Review(Guid id, [FromBody] ReviewPassageCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>CG bulk accept of lines as proposed; returns the processed count. Requires passage.manage.</summary>
@@ -131,11 +117,7 @@ public class PassagesController : BaseApiController
     [HttpPost("remind-units")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> RemindUnits([FromBody] RemindPassageUnitsCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>CG gives several lines the same decision (unit / équipe / fonction, or leaving) with an optional reason; returns the count. Requires passage.manage.</summary>
     [HttpPost("bulk-change")]
@@ -168,33 +150,21 @@ public class PassagesController : BaseApiController
     [HttpGet("finalize/preview")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> FinalizePreview([FromQuery] string scoutYear)
-    {
-        var result = await Mediator.Send(new GetFinalizePreviewQuery(scoutYear ?? ""));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetFinalizePreviewQuery(scoutYear ?? "")));
 
     /// <summary>The scheduled automatic « Publier le passage » (Lebanon time) + the result of the last automatic run.
     /// Requires passage.manage.</summary>
     [HttpGet("finalize-schedule")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> GetFinalizeSchedule()
-    {
-        var result = await Mediator.Send(new GetPassageFinalizeScheduleQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetPassageFinalizeScheduleQuery()));
 
     /// <summary>Schedules « Publier le passage » for a date and time ("yyyy-MM-ddTHH:mm", Lebanon time; empty = cancel).
     /// A background job runs the same publication at that moment. Requires passage.manage.</summary>
     [HttpPut("finalize-schedule")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> ScheduleFinalize([FromBody] SchedulePassageFinalizeCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Finish status of one unit's passage (finished?, members without a line). Requires passage.view + unit access.</summary>
     [HttpGet("unit/{unitId:guid}/status")]
@@ -203,40 +173,26 @@ public class PassagesController : BaseApiController
     {
         if (string.IsNullOrWhiteSpace(scoutYear))
             return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetPassageUnitStatusQuery(unitId, scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetPassageUnitStatusQuery(unitId, scoutYear)));
     }
 
     /// <summary>CU (or CG) finishes a unit's passage: every member must have a line; the unit is then locked for the CU. Requires passage.propose.</summary>
     [HttpPost("unit/{unitId:guid}/submit")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> SubmitUnit(Guid unitId, [FromBody] PassageYearBody body)
-    {
-        var result = await Mediator.Send(new SubmitPassageUnitCommand(unitId, body.ScoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SubmitPassageUnitCommand(unitId, body.ScoutYear)));
 
     /// <summary>CG reopens a finished unit so its CU can change it again. Requires passage.manage.</summary>
     [HttpPost("unit/{unitId:guid}/reopen")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> ReopenUnit(Guid unitId, [FromBody] PassageYearBody body)
-    {
-        var result = await Mediator.Send(new ReopenPassageUnitCommand(unitId, body.ScoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new ReopenPassageUnitCommand(unitId, body.ScoutYear)));
 
     /// <summary>Associations that received newcomers in the posted passage (one Word document each). Requires passage.manage.</summary>
     [HttpGet("newcomers")]
     [HasPermission(Permissions.PassageManage)]
     public async Task<IActionResult> GetNewcomerGroups([FromQuery] string scoutYear)
-    {
-        var result = await Mediator.Send(new GetPassageNewcomerGroupsQuery(scoutYear ?? ""));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetPassageNewcomerGroupsQuery(scoutYear ?? "")));
 
     /// <summary>Word document of the newcomers for one association (omit associationId for units without one). Requires passage.manage.</summary>
     [HttpGet("newcomers/docx")]
@@ -262,11 +218,7 @@ public class PassagesController : BaseApiController
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeletePassageCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeletePassageCommand(id)));
 }
 
 /// <summary>Body carrying only the scout year.</summary>

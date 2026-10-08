@@ -64,18 +64,12 @@ public class UnitsController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a unit. Requires units.delete.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.UnitsDelete)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteUnitCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteUnitCommand(id)));
 }

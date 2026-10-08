@@ -31,11 +31,7 @@ public class UnitTypeProgressionsController : BaseApiController
     [HttpGet("suggest/{memberId:guid}")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> GetSuggestion(Guid memberId)
-    {
-        var result = await Mediator.Send(new GetPassageSuggestionQuery(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetPassageSuggestionQuery(memberId)));
 
     /// <summary>
     /// Returns all allowed passage destinations (current branch + parcours-scout targets) for the propose dialog.
@@ -44,11 +40,7 @@ public class UnitTypeProgressionsController : BaseApiController
     [HttpGet("destinations/{memberId:guid}")]
     [HasPermission(Permissions.PassagePropose)]
     public async Task<IActionResult> GetDestinations(Guid memberId)
-    {
-        var result = await Mediator.Send(new GetPassageDestinationsQuery(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetPassageDestinationsQuery(memberId)));
 
     /// <summary>Creates a progression path. Requires unit_types.manage.</summary>
     /// <response code="201">Path created; returns its id.</response>
@@ -68,18 +60,12 @@ public class UnitTypeProgressionsController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUnitTypeProgressionCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a progression path. Requires unit_types.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.UnitTypesManage)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteUnitTypeProgressionCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteUnitTypeProgressionCommand(id)));
 }

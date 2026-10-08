@@ -83,11 +83,7 @@ public class SettingsController : BaseApiController
     [HttpGet("list-usage/{key}")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetListUsage(string key)
-    {
-        var result = await Mediator.Send(new GetListValueUsageQuery(key));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetListValueUsageQuery(key)));
 
     /// <summary>
     /// Renames a value in a list setting, cascading the new spelling onto every member/parent record that holds it

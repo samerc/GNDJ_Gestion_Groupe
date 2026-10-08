@@ -72,7 +72,7 @@ public class GetSiblingSuggestionsQueryHandler(IApplicationDbContext context)
             EmitPairs(mem, GuardianBucketCap, $"Parent commun : {guardianName.GetValueOrDefault(gid, "?")}", true);
 
         // Signal 2 — guardians sharing a phone number (duplicate parent records across siblings).
-        foreach (var pg in gPhones.Where(p => SiblingUtil.Digits(p.Number).Length >= 6).GroupBy(p => SiblingUtil.Digits(p.Number)))
+        foreach (var pg in gPhones.Where(p => PhoneNumbers.Digits(p.Number).Length >= 6).GroupBy(p => PhoneNumbers.Digits(p.Number)))
         {
             var mem = pg.SelectMany(p => guardianMembers.GetValueOrDefault(p.GuardianId) ?? []).Distinct().ToList();
             EmitPairs(mem, ContactBucketCap, $"Même téléphone parent : {pg.First().Number}", true);
@@ -201,7 +201,7 @@ public class GetSiblingReconcileDataQueryHandler(IApplicationDbContext context)
             var ls = gLinks.Where(l => l.GuardianId == gid).ToList();
             // Dedupe a guardian's own contacts by value (digits / normalized email), keeping one row Id each.
             var phones = gPhones.Where(p => p.GuardianId == gid)
-                .GroupBy(p => SiblingUtil.Digits(p.Number))
+                .GroupBy(p => PhoneNumbers.Digits(p.Number))
                 .Select(g => { var f = g.First(); return new SiblingContactDto(f.Id, $"{f.CountryCode} {f.Number}".Trim()); })
                 .ToList();
             var emails = gEmails.Where(e => e.GuardianId == gid)

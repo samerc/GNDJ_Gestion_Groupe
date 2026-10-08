@@ -25,29 +25,17 @@ public class DataQualityController : BaseApiController
     [HttpPost("acks")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Acknowledge([FromBody] AcknowledgeDataQualityCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Undo a "C'est voulu" confirmation. Requires maitrise.manage.</summary>
     [HttpDelete("acks/{checkKey}/{memberId:guid}")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> RemoveAck(string checkKey, Guid memberId)
-    {
-        var result = await Mediator.Send(new RemoveDataQualityAckCommand(checkKey, memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new RemoveDataQualityAckCommand(checkKey, memberId)));
 
     /// <summary>Forget an email bounce (the address was fixed): mail is sent to it again.</summary>
     [HttpDelete("bounces/{id:guid}")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> ClearBounce(Guid id)
-    {
-        var result = await Mediator.Send(new ClearEmailBounceCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new ClearEmailBounceCommand(id)));
 }

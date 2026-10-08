@@ -18,7 +18,6 @@ namespace GNDJ.Api.Controllers;
 public class SiblingsController : BaseApiController
 {
     public record MemberIdsRequest(IReadOnlyList<Guid> MemberIds);
-    public record LinkRequest(Guid MemberId, Guid TargetMemberId);
 
     /// <summary>Suggested sibling families (matching engine) awaiting review. Requires maitrise.manage.</summary>
     [HttpGet("suggestions")]
@@ -52,21 +51,7 @@ public class SiblingsController : BaseApiController
     [HttpPost("reject")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Reject([FromBody] MemberIdsRequest req)
-    {
-        var result = await Mediator.Send(new RejectSiblingSuggestionCommand(req.MemberIds));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
-
-    /// <summary>Manually link two members as siblings (merging groups if needed). Requires maitrise.manage.</summary>
-    [HttpPost("link")]
-    [HasPermission(Permissions.MaitriseManage)]
-    public async Task<IActionResult> Link([FromBody] LinkRequest req)
-    {
-        var result = await Mediator.Send(new LinkSiblingsCommand(req.MemberId, req.TargetMemberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { groupId = result.Value });
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new RejectSiblingSuggestionCommand(req.MemberIds)));
 
     /// <summary>Remove a member from its fratrie (dissolving the group if fewer than 2 remain). Requires maitrise.manage.</summary>
     [HttpPost("unlink")]
@@ -75,9 +60,7 @@ public class SiblingsController : BaseApiController
     {
         // Single member id expected in the list (reuse the shared request shape).
         var memberId = req.MemberIds.FirstOrDefault();
-        var result = await Mediator.Send(new UnlinkSiblingCommand(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(new UnlinkSiblingCommand(memberId)));
     }
 
     /// <summary>A member's confirmed siblings — powers the fiche "Frères et sœurs". Gated by member access.</summary>
@@ -96,11 +79,7 @@ public class SiblingsController : BaseApiController
     /// <summary>A member reports a fratrie problem (missing sibling / wrong sibling / other). Auth-only (own member).</summary>
     [HttpPost("report")]
     public async Task<IActionResult> Report([FromBody] ReportRequest req)
-    {
-        var result = await Mediator.Send(new CreateSiblingReportCommand(req.Kind, req.Note));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new CreateSiblingReportCommand(req.Kind, req.Note)));
 
     /// <summary>The fratrie error-report worklist. Requires maitrise.manage.</summary>
     [HttpGet("reports")]
@@ -112,11 +91,7 @@ public class SiblingsController : BaseApiController
     [HttpPost("reports/{id:guid}/resolve")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> ResolveReport(Guid id, [FromQuery] bool resolve = true)
-    {
-        var result = await Mediator.Send(new ResolveSiblingReportCommand(id, resolve));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new ResolveSiblingReportCommand(id, resolve)));
 
     public record ReplyReportRequest(string Message);
 
@@ -124,11 +99,7 @@ public class SiblingsController : BaseApiController
     [HttpPost("reports/{id:guid}/reply")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> ReplyReport(Guid id, [FromBody] ReplyReportRequest req)
-    {
-        var result = await Mediator.Send(new ReplySiblingReportCommand(id, req.Message));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new ReplySiblingReportCommand(id, req.Message)));
 
     // ── Duplicate members ("Doublons" tab): same name + same DOB = likely the same person entered twice ──
 
@@ -139,9 +110,7 @@ public class SiblingsController : BaseApiController
     public async Task<IActionResult> Duplicates([FromQuery] string? keys)
     {
         var keyList = (keys ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var result = await Mediator.Send(new GetDuplicateMemberSuggestionsQuery(keyList));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetDuplicateMemberSuggestionsQuery(keyList)));
     }
 
     /// <summary>Fetch the merge details for specific members (manual "merge any two members" flow). `ids` = comma-separated member GUIDs. Requires maitrise.manage.</summary>
@@ -151,9 +120,7 @@ public class SiblingsController : BaseApiController
     {
         var idList = (ids ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToList();
-        var result = await Mediator.Send(new GetMembersForMergeQuery(idList));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetMembersForMergeQuery(idList)));
     }
 
     /// <summary>Merges duplicate members into a keeper (moves their data, applies chosen fields, soft-deletes the losers). Requires maitrise.manage.</summary>
@@ -170,9 +137,5 @@ public class SiblingsController : BaseApiController
     [HttpPost("not-duplicates")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> NotDuplicates([FromBody] MemberIdsRequest req)
-    {
-        var result = await Mediator.Send(new RejectDuplicateMembersCommand(req.MemberIds));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new RejectDuplicateMembersCommand(req.MemberIds)));
 }

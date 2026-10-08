@@ -55,9 +55,5 @@ public class ApiKeysController : BaseApiController
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteApiKeyCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteApiKeyCommand(id)));
 }

@@ -17,21 +17,13 @@ public class OrganizationController : BaseApiController
     [HttpGet("unit/{unitId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> GetUnit(Guid unitId)
-    {
-        var result = await Mediator.Send(new GetUnitOrganizationQuery(unitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetUnitOrganizationQuery(unitId)));
 
     /// <summary>Moves a member (team + fonction) by editing their existing active assignment in place. Requires members.edit + leadership of the unit.</summary>
     [HttpPut("placement/{assignmentId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> SetPlacement(Guid assignmentId, [FromBody] SetPlacementRequest body)
-    {
-        var result = await Mediator.Send(new SetAssignmentPlacementCommand(assignmentId, body.TeamId, body.FunctionalRoleId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SetAssignmentPlacementCommand(assignmentId, body.TeamId, body.FunctionalRoleId)));
 
     // Body for SetPlacement — the assignment id comes from the route.
     public record SetPlacementRequest(Guid? TeamId, Guid FunctionalRoleId);

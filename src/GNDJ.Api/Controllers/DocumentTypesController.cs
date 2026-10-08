@@ -160,28 +160,18 @@ public class DocumentTypesController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDocumentTypeCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Reorders document types (drag-and-drop). Sets display order from the given id sequence. Requires document_types.manage.</summary>
     [HttpPut("reorder")]
     [HasPermission(Permissions.DocumentTypesManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderDocumentTypesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Deletes a document type. Requires document_types.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.DocumentTypesManage)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteDocumentTypeCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteDocumentTypeCommand(id)));
 }

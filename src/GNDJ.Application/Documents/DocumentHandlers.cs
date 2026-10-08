@@ -656,38 +656,3 @@ public class GetUnitDocumentFilesQueryHandler(IApplicationDbContext context, ICu
         return Result<IReadOnlyList<ZipDocumentDto>>.Success(files);
     }
 }
-
-// Dashboard: approved documents expiring within DaysAhead (or already expired). Unit-scoped for non-admins.
-public record GetExpiringDocumentsQuery(int DaysAhead = 30) : IRequest<IReadOnlyList<ExpiringDocumentDto>>;
-public record ExpiringDocumentDto(Guid DocumentId, Guid MemberId, string MemberName, string DocumentTypeName, string Title, DateOnly ExpiryDate, bool IsExpired);
-
-public class GetExpiringDocumentsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetExpiringDocumentsQuery, IReadOnlyList<ExpiringDocumentDto>>
-{
-    public async ValueTask<IReadOnlyList<ExpiringDocumentDto>> Handle(GetExpiringDocumentsQuery request, CancellationToken ct)
-    {
-        var today = LebanonClock.Today;
-        var cutoff = today.AddDays(request.DaysAhead);
-
-        var query = context.MemberDocuments
-            .Where(d => d.ExpiryDate != null && d.ExpiryDate <= cutoff && d.Status == DocumentStatus.Approved);
-
-        // Leader-only dashboard tile: a non-leader (read-only youth holds documents.view) gets nothing.
-        // Unit-scope for non-super-admin leaders.
-        if (!currentUser.IsSuperAdmin)
-        {
-            if (!currentUser.Permissions.Contains(Permissions.MembersEdit))
-                return [];
-            var authorizedUnitIds = currentUser.AuthorizedUnitIds;
-            query = query.Where(d => context.MemberAssignments.Any(a =>
-                a.MemberId == d.MemberId && !a.IsDeleted && a.EndDate == null && authorizedUnitIds.Contains(a.UnitId)));
-        }
-
-        return await query
-            .OrderBy(d => d.ExpiryDate)
-            .Select(d => new ExpiringDocumentDto(
-                d.Id, d.MemberId, d.Member.FirstName + " " + d.Member.LastName,
-                d.DocumentType.Name, d.Title, d.ExpiryDate!.Value, d.ExpiryDate < today
-            ))
-            .ToListAsync(ct);
-    }
-}

@@ -4,7 +4,7 @@ import { Bell, FileText, ClipboardCheck, UserPlus, PauseCircle, Check, Trash2, X
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { cn, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseApiError } from '@/lib/error-utils'
 import { Tip } from '@/components/ui/tooltip'
@@ -25,21 +25,6 @@ const META: Record<NotificationType, { icon: typeof Bell; cls: string }> = {
   info: { icon: Bell, cls: 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800' },
   calendar: { icon: CalendarDays, cls: 'text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-950/50' },
   absence: { icon: CalendarX, cls: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50' },
-}
-
-// Compact French relative time ("il y a 3 min", "hier", "il y a 5 j").
-function timeAgo(iso: string): string {
-  const then = new Date(iso).getTime()
-  const s = Math.max(0, Math.round((Date.now() - then) / 1000))
-  if (s < 60) return "à l'instant"
-  const m = Math.round(s / 60)
-  if (m < 60) return `il y a ${m} min`
-  const h = Math.round(m / 60)
-  if (h < 24) return `il y a ${h} h`
-  const d = Math.round(h / 24)
-  if (d === 1) return 'hier'
-  if (d < 30) return `il y a ${d} j`
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 }
 
 // The header bell: an unread badge + a dropdown of recent notifications. Clicking one navigates to its target

@@ -64,9 +64,7 @@ public class AssignmentsController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateAssignmentCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Sets an assignment's end date ("Terminer aujourd'hui") without a full edit. Requires assignments.edit.</summary>
@@ -75,9 +73,7 @@ public class AssignmentsController : BaseApiController
     public async Task<IActionResult> End(Guid id, [FromBody] EndAssignmentCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>
@@ -88,11 +84,7 @@ public class AssignmentsController : BaseApiController
     [HttpPut("{id:guid}/correct-unit")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> CorrectUnit(Guid id, [FromBody] CorrectUnitRequest body)
-    {
-        var result = await Mediator.Send(new CorrectMemberUnitCommand(id, body.NewUnitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new CorrectMemberUnitCommand(id, body.NewUnitId)));
 
     public record CorrectUnitRequest(Guid NewUnitId);
 
@@ -100,9 +92,5 @@ public class AssignmentsController : BaseApiController
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssignmentsDelete)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteAssignmentCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteAssignmentCommand(id)));
 }

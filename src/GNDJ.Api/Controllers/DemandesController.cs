@@ -31,9 +31,7 @@ public class DemandesController : BaseApiController
         [FromQuery] int? ageMin, [FromQuery] int? ageMax, [FromQuery] Guid? unitId, [FromQuery] Guid? accountId)
     {
         if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetDemandesForReviewQuery(scoutYear, status, gender, classe, school, ageMin, ageMax, unitId, accountId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetDemandesForReviewQuery(scoutYear, status, gender, classe, school, ageMin, ageMax, unitId, accountId)));
     }
 
     /// <summary>Returns the count of pending (undecided) demandes, for the CG sidebar badge. Requires demande.view.</summary>
@@ -52,9 +50,7 @@ public class DemandesController : BaseApiController
     public async Task<IActionResult> Occupancy([FromQuery] string scoutYear)
     {
         if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetUnitOccupancyQuery(scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetUnitOccupancyQuery(scoutYear)));
     }
 
     /// <summary>Returns the demande statistics dashboard (pipeline, capacity, demographics, quality). Requires demande.view.</summary>
@@ -64,9 +60,7 @@ public class DemandesController : BaseApiController
     public async Task<IActionResult> Statistics([FromQuery] string scoutYear)
     {
         if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetDemandeStatisticsQuery(scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetDemandeStatisticsQuery(scoutYear)));
     }
 
     /// <summary>Approves (with chosen unit) or declines (with reason) a single demande. Requires demande.manage.</summary>
@@ -97,54 +91,34 @@ public class DemandesController : BaseApiController
     [HttpPut("{id:guid}")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> Edit(Guid id, [FromBody] AdminEditDemandeBody body)
-    {
-        var result = await Mediator.Send(new AdminEditDemandeCommand(id, body.Child, body.Household));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new AdminEditDemandeCommand(id, body.Child, body.Household)));
 
     /// <summary>Deletes a single demande (junk/spam/duplicate cleanup). Soft-delete; blocked once a member was
     /// created. Requires demande.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteDemandeCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteDemandeCommand(id)));
 
     /// <summary>Removes the auto-matched sibling on a proche-scout relation (so the conversion won't share the
     /// household's guardians / declare a fratrie for that pair). Requires demande.manage.</summary>
     [HttpPost("relations/{relationId:guid}/unlink-member")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> UnlinkRelationMember(Guid relationId)
-    {
-        var result = await Mediator.Send(new ClearScoutRelationMatchCommand(relationId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new ClearScoutRelationMatchCommand(relationId)));
 
     /// <summary>What the CG compares before confirming a link: the declared proche + family parents next to the member
     /// (birth date, posts, parents), with the parents in common flagged. Requires demande.manage.</summary>
     [HttpGet("relations/{relationId:guid}/link-preview")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> LinkPreview(Guid relationId, [FromQuery] Guid memberId)
-    {
-        var result = await Mediator.Send(new GetScoutRelationLinkPreviewQuery(relationId, memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetScoutRelationLinkPreviewQuery(relationId, memberId)));
 
     /// <summary>"Ce n'est pas lui": drops the app's suggested match for a proche. Requires demande.manage.</summary>
     [HttpPost("relations/{relationId:guid}/dismiss-suggestion")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> DismissSuggestion(Guid relationId)
-    {
-        var result = await Mediator.Send(new DismissScoutRelationSuggestionCommand(relationId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DismissScoutRelationSuggestionCommand(relationId)));
 
     /// <summary>« Déjà membre ? » — the child IS this existing member. Not sent yet: the send will update that member
     /// instead of creating a new file. Already sent: the new file is merged into it now and the access email (existing
@@ -152,42 +126,26 @@ public class DemandesController : BaseApiController
     [HttpPost("{id:guid}/member-match/confirm")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> ConfirmMemberMatch(Guid id, [FromBody] LinkRelationMemberBody body)
-    {
-        var result = await Mediator.Send(new ConfirmDemandeMemberMatchCommand(id, body.MemberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new ConfirmDemandeMemberMatchCommand(id, body.MemberId)));
 
     /// <summary>« Déjà membre ? » — not the same person: a new member file is created. Requires demande.manage.</summary>
     [HttpPost("{id:guid}/member-match/reject")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> RejectMemberMatch(Guid id, [FromBody] LinkRelationMemberBody body)
-    {
-        var result = await Mediator.Send(new RejectDemandeMemberMatchCommand(id, body.MemberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new RejectDemandeMemberMatchCommand(id, body.MemberId)));
 
     /// <summary>Undoes a « Déjà membre ? » answer (only while nothing was merged). Requires demande.manage.</summary>
     [HttpDelete("{id:guid}/member-match")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> ClearMemberMatch(Guid id)
-    {
-        var result = await Mediator.Send(new ClearDemandeMemberMatchCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new ClearDemandeMemberMatchCommand(id)));
 
     /// <summary>Confirms a brother/sister proche as an existing member (the suggested match or one picked by the CG),
     /// so the conversion shares the parents and declares the fratrie. Requires demande.manage.</summary>
     [HttpPost("relations/{relationId:guid}/link-member")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> LinkRelationMember(Guid relationId, [FromBody] LinkRelationMemberBody body)
-    {
-        var result = await Mediator.Send(new LinkScoutRelationMemberCommand(relationId, body.MemberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new LinkScoutRelationMemberCommand(relationId, body.MemberId)));
 
     /// <summary>Lists groups of duplicate demandes (same child submitted more than once) for the scout year, so
     /// the CG can merge them. Only mergeable demandes (not yet converted/sent). Requires demande.view.</summary>
@@ -196,9 +154,7 @@ public class DemandesController : BaseApiController
     public async Task<IActionResult> Duplicates([FromQuery] string scoutYear)
     {
         if (string.IsNullOrWhiteSpace(scoutYear)) return BadRequest(new { error = "L'année scoute est requise." });
-        var result = await Mediator.Send(new GetDuplicateDemandeSuggestionsQuery(scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new GetDuplicateDemandeSuggestionsQuery(scoutYear)));
     }
 
     /// <summary>Merges duplicate demandes onto a keeper (chosen child fields + item-by-item parents/proches),
@@ -207,21 +163,13 @@ public class DemandesController : BaseApiController
     [HttpPost("merge")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> Merge([FromBody] MergeDemandesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Saves the pre-selected unit for a demande WITHOUT deciding (staged). Requires demande.manage.</summary>
     [HttpPut("{id:guid}/unit")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> SetUnit(Guid id, [FromBody] SetUnitBody body)
-    {
-        var result = await Mediator.Send(new SetDemandeUnitCommand(id, body.DecidedUnitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SetDemandeUnitCommand(id, body.DecidedUnitId)));
 
     /// <summary>
     /// Bulk approve/decline (per-item unit), skipping already-sent demandes; returns a per-item result summary.
@@ -230,11 +178,7 @@ public class DemandesController : BaseApiController
     [HttpPost("bulk-decide")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> BulkDecide([FromBody] BulkDecideDemandeCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Sets a unit's intake quota for a scout year. Requires demande.manage.</summary>
     [HttpPut("quota")]
@@ -254,44 +198,28 @@ public class DemandesController : BaseApiController
     [HttpPost("send-responses")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> SendResponses([FromBody] SendDemandeResponsesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>« Ce qui va se passer » before « Envoyer les réponses »: members created per unit, refusals, emails to families,
     /// chefs d'unité notified, plus what would block the send. Read-only. Requires demande.view (+ group manager).</summary>
     [HttpGet("send-responses/preview")]
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> SendResponsesPreview([FromQuery] string scoutYear)
-    {
-        var result = await Mediator.Send(new GetSendResponsesPreviewQuery(scoutYear ?? ""));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetSendResponsesPreviewQuery(scoutYear ?? "")));
 
     /// <summary>The scheduled automatic « Envoyer les réponses » (Lebanon time) + the result of the last automatic run.
     /// Requires demande.view (+ group manager in the handler).</summary>
     [HttpGet("responses-schedule")]
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> GetResponsesSchedule()
-    {
-        var result = await Mediator.Send(new GetDemandeResponsesScheduleQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetDemandeResponsesScheduleQuery()));
 
     /// <summary>Schedules « Envoyer les réponses » for a date and time ("yyyy-MM-ddTHH:mm", Lebanon time; empty = cancel).
     /// A background job runs the same send at that moment. Requires demande.manage.</summary>
     [HttpPut("responses-schedule")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> ScheduleResponses([FromBody] ScheduleDemandeResponsesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>
     /// Closes the campaign: archives every demande + its outcome into the permanent archive, then HARD-deletes all
@@ -301,21 +229,13 @@ public class DemandesController : BaseApiController
     [HttpPost("close-campaign")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> CloseCampaign([FromBody] CloseDemandeCampaignCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Campaign status for the CG: portal open? submission window open? scout year. Requires demande.view.</summary>
     [HttpGet("campaign-status")]
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> CampaignStatus()
-    {
-        var result = await Mediator.Send(new GetDemandeCampaignStatusQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetDemandeCampaignStatusQuery()));
 
     /// <summary>Opens/closes the submission window (inner period). Closing starts the review phase — parents keep
     /// read-only access but can no longer create/edit/submit. Requires demande.manage.</summary>
@@ -333,11 +253,7 @@ public class DemandesController : BaseApiController
     [HttpGet("accounts")]
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> Accounts([FromQuery] bool unverifiedOnly = false, [FromQuery] string? search = null, [FromQuery] bool notSubmittedOnly = false)
-    {
-        var result = await Mediator.Send(new GetDemandeAccountsQuery(unverifiedOnly, search, notSubmittedOnly));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetDemandeAccountsQuery(unverifiedOnly, search, notSubmittedOnly)));
 
     /// <summary>Manually marks an applicant account's email as verified (safety net when the verification email
     /// never arrived, so the parent can log in + submit). Requires demande.manage.</summary>
@@ -355,22 +271,14 @@ public class DemandesController : BaseApiController
     [HttpPost("accounts/{id:guid}/reset-password")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> ResetAccountPassword(Guid id)
-    {
-        var result = await Mediator.Send(new ResetApplicantPasswordCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new ResetApplicantPasswordCommand(id)));
 
     /// <summary>Hard-deletes an applicant account and ALL its data (demandes, guardians, scout relations).
     /// Any member already created from a demande is kept. Irreversible. Requires demande.manage.</summary>
     [HttpDelete("accounts/{id:guid}")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> DeleteAccount(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteApplicantAccountCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new DeleteApplicantAccountCommand(id)));
 
     // ── Late-submission invites ─────────────────────────────────────────────────────────────────────
     /// <summary>Lists the CG-generated late-submission invite links (active / claimed / expired / revoked).
@@ -388,11 +296,7 @@ public class DemandesController : BaseApiController
     [HttpPost("invites")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> CreateInvite([FromBody] CreateDemandeInviteCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Revokes a late-submission invite (kept in the trail; marked revoked). Requires demande.manage.</summary>
     [HttpDelete("invites/{id:guid}")]
@@ -431,11 +335,7 @@ public class DemandesController : BaseApiController
     [HttpGet("archives")]
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> Archives([FromQuery] string? search, [FromQuery] string? scoutYear, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
-    {
-        var result = await Mediator.Send(new GetDemandeArchivesQuery(search, scoutYear, page, pageSize));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetDemandeArchivesQuery(search, scoutYear, page, pageSize)));
 
     // ── Excel decisions round-trip (I) ───────────────────────────────────────────────────────────────
     /// <summary>Exports the submitted demandes to an .xlsx (Décision/Unité/Motif columns to fill). demande.view.</summary>
@@ -460,9 +360,7 @@ public class DemandesController : BaseApiController
         if (file is null || file.Length == 0) return BadRequest(new { error = "Aucun fichier." });
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        var result = await Mediator.Send(new ImportDemandeDecisionsCommand(scoutYear, ms.ToArray()));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
+        return OkOrBadRequest(await Mediator.Send(new ImportDemandeDecisionsCommand(scoutYear, ms.ToArray())));
     }
 
     // ── Rejection reasons (managed list) ─────────────────────────────────────────────────────────────

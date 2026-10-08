@@ -45,9 +45,7 @@ public class RolesController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateFunctionalRoleCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Lists the members who currently hold this role. Requires roles.view.</summary>
@@ -73,31 +71,19 @@ public class RolesController : BaseApiController
     [HttpPost("{id:guid}/unarchive")]
     [HasPermission(Permissions.RolesManage)]
     public async Task<IActionResult> Unarchive(Guid id)
-    {
-        var result = await Mediator.Send(new UnarchiveFunctionalRoleCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new UnarchiveFunctionalRoleCommand(id)));
 
     /// <summary>Reorders functional roles within a unit type (drag-to-rank, top = most senior). Requires roles.manage.</summary>
     [HttpPut("reorder")]
     [HasPermission(Permissions.RolesManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderFunctionalRolesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Marks this role as the default auto-assigned role for new members of its unit type (clears the others). Requires roles.manage.</summary>
     [HttpPost("{id:guid}/set-default")]
     [HasPermission(Permissions.RolesManage)]
     public async Task<IActionResult> SetDefault(Guid id)
-    {
-        var result = await Mediator.Send(new SetDefaultFunctionalRoleCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SetDefaultFunctionalRoleCommand(id)));
 
     /// <summary>Returns the per-area access matrix for group staff functions (ACG, Aumônier…). Requires roles.manage_group.</summary>
     [HttpGet("group-access")]
@@ -114,9 +100,7 @@ public class RolesController : BaseApiController
     public async Task<IActionResult> SetGroupAccess(Guid id, [FromBody] SetGroupFunctionAccessCommand command)
     {
         if (id != command.FunctionalRoleId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 }
 
@@ -197,9 +181,7 @@ public class SecurityProfilesController : BaseApiController
     public async Task<IActionResult> UpdatePermissions(Guid id, [FromBody] UpdateSecurityProfilePermissionsCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>
@@ -210,11 +192,7 @@ public class SecurityProfilesController : BaseApiController
     [HttpPut("{id:guid}/area-access")]
     [HasPermission(Permissions.RolesManageGroup)]
     public async Task<IActionResult> SetAreaAccess(Guid id, [FromBody] SetProfileAreaAccessBody body)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Roles.Commands.SetProfileAreaAccessCommand(id, body?.AreaLevels ?? []));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new GNDJ.Application.Roles.Commands.SetProfileAreaAccessCommand(id, body?.AreaLevels ?? [])));
 
     public record SetProfileAreaAccessBody(Dictionary<string, string>? AreaLevels);
 

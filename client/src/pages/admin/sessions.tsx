@@ -13,25 +13,11 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { PageHeader } from '@/components/shared/page-header'
 import { Page } from '@/components/shared/page'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, timeAgo } from '@/lib/utils'
 import { Callout } from '@/components/shared/callout'
 import { parseApiError } from '@/lib/error-utils'
 import { parseUserAgent } from '@/lib/audit-format'
 import { Users, LogOut, Wifi, Info, Eye, EyeOff } from 'lucide-react'
-
-// "il y a 3 min" / "il y a 2 h" / "il y a 1 j" — coarse relative time; '—' when null.
-function timeAgo(iso: string | null): string {
-  if (!iso) return '—'
-  const diff = Date.now() - new Date(iso).getTime()
-  if (diff < 0) return "à l'instant"
-  const min = Math.floor(diff / 60_000)
-  if (min < 1) return "à l'instant"
-  if (min < 60) return `il y a ${min} min`
-  const h = Math.floor(min / 60)
-  if (h < 24) return `il y a ${h} h`
-  const d = Math.floor(h / 24)
-  return `il y a ${d} j`
-}
 
 function fmt(iso: string | null): string {
   return iso ? formatDateTime(iso) : '—'

@@ -56,9 +56,7 @@ public class ScoutStagesController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateScoutStageCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a scout stage, or archives it (IsActive=false) if it is used by any progression. Requires progression.manage.</summary>
@@ -75,11 +73,7 @@ public class ScoutStagesController : BaseApiController
     [HttpPut("reorder")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderScoutStagesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 }
 
 // ─── Badges ────────────────────────────────
@@ -132,9 +126,7 @@ public class BadgesController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBadgeCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a badge, or archives it (IsActive=false) if it is held by any member. Requires progression.manage.</summary>
@@ -151,11 +143,7 @@ public class BadgesController : BaseApiController
     [HttpPut("reorder")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderBadgesCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 }
 
 // ─── Member Progressions ───────────────────
@@ -171,11 +159,7 @@ public class ProgressionsController : BaseApiController
     /// <summary>Lists a member's progressions (stages/badges earned). Auth-only; handler enforces own-profile or unit-scoped access.</summary>
     [HttpGet("member/{memberId:guid}")]
     public async Task<IActionResult> GetMemberProgressions(Guid memberId)
-    {
-        var result = await Mediator.Send(new GetMemberProgressionsQuery(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetMemberProgressionsQuery(memberId)));
 
     /// <summary>Records a stage/badge a member earned (date, location, notes). Requires progression.manage.</summary>
     /// <response code="201">Progression recorded; body contains the new id.</response>
@@ -195,18 +179,12 @@ public class ProgressionsController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMemberProgressionCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "Identifiant incohérent." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a member progression record. Requires progression.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.ProgressionManage)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteMemberProgressionCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteMemberProgressionCommand(id)));
 }

@@ -30,9 +30,5 @@ public class SystemController : BaseApiController
     /// <summary>Deletes the stray files found by a fresh scan. Super-admin.</summary>
     [HttpDelete("orphan-files")]
     public async Task<IActionResult> DeleteOrphanFiles()
-    {
-        var result = await Mediator.Send(new DeleteOrphanFilesCommand());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new DeleteOrphanFilesCommand()));
 }

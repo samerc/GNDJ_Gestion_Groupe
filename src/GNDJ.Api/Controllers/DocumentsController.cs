@@ -35,11 +35,7 @@ public class DocumentsController : BaseApiController
     // Handler checks unit-scoped access for CU viewing other members.
     [HttpGet("member/{memberId:guid}")]
     public async Task<IActionResult> GetMemberDocuments(Guid memberId)
-    {
-        var result = await Mediator.Send(new GetMemberDocumentsQuery(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetMemberDocumentsQuery(memberId)));
 
     /// <summary>« Remplir en ligne »: the form of a document type that can be filled online (the template with the
     /// member's data written in + the keys of its blanks). Same access/campaign rules as an upload.</summary>
@@ -174,20 +170,14 @@ public class DocumentsController : BaseApiController
     public async Task<IActionResult> Review(Guid id, [FromBody] ReviewDocumentCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a member document. Requires documents.delete.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.DocumentsDelete)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteMemberDocumentCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteMemberDocumentCommand(id)));
 
     /// <summary>Downloads an extra page of a document. Auth-only (own/leader access in the handler); traversal guarded.</summary>
     /// <response code="404">Page not found, or the file no longer exists.</response>
@@ -244,16 +234,6 @@ public class DocumentsController : BaseApiController
         return NoContent();
     }
 
-    /// <summary>Lists documents expiring within the given window. Requires documents.view.</summary>
-    /// <param name="daysAhead">Look-ahead window in days (default 30).</param>
-    [HttpGet("expiring")]
-    [HasPermission(Permissions.DocumentsView)]
-    public async Task<IActionResult> GetExpiring([FromQuery] int daysAhead = 30)
-    {
-        var result = await Mediator.Send(new GetExpiringDocumentsQuery(daysAhead));
-        return Ok(result);
-    }
-
     /// <summary>
     /// Returns the CU compliance matrix (members by document types, plus cotisation) for a unit and scout year.
     /// Requires documents.view.
@@ -261,11 +241,7 @@ public class DocumentsController : BaseApiController
     [HttpGet("unit/{unitId:guid}/matrix")]
     [HasPermission(Permissions.DocumentsView)]
     public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string scoutYear = "2025-2026")
-    {
-        var result = await Mediator.Send(new GetUnitDocumentsMatrixQuery(unitId, scoutYear));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetUnitDocumentsMatrixQuery(unitId, scoutYear)));
 
     /// <summary>
     /// Returns a zip file of the unit's documents (optionally filtered by doc type), organized into
@@ -327,11 +303,7 @@ public class DocumentsController : BaseApiController
     [HttpGet("reminder-summary")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetReminderSummary()
-    {
-        var result = await Mediator.Send(new GetDocumentReminderSummaryQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetDocumentReminderSummaryQuery()));
 
     /// <summary>
     /// "Relance documents" (Chef de Groupe) — lists a unit's members whose dossier is incomplete (missing /
@@ -342,11 +314,7 @@ public class DocumentsController : BaseApiController
     [HttpGet("unit/{unitId:guid}/reminder-candidates")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetReminderCandidates(Guid unitId)
-    {
-        var result = await Mediator.Send(new GetDocumentReminderCandidatesQuery(unitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetDocumentReminderCandidatesQuery(unitId)));
 
     /// <summary>
     /// Sends a document-reminder email (the member's list of missing/to-correct/to-renew documents) to a whole
@@ -356,11 +324,7 @@ public class DocumentsController : BaseApiController
     [HttpPost("send-reminders")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> SendReminders([FromBody] SendDocumentRemindersCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     // ══════════════ Document-verification campaign ══════════════
     // A group-wide, date-driven schedule that opens/closes member uploads automatically and runs the two

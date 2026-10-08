@@ -158,7 +158,7 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         if (!cherryPick)
         {
             phoneKeys = (await context.GuardianPhones.Where(p => p.GuardianId == canonicalId).Select(p => p.Number).ToListAsync(ct))
-                .Select(SiblingUtil.Digits).Where(d => d.Length >= 4).ToHashSet();
+                .Select(PhoneNumbers.Digits).Where(d => d.Length >= 4).ToHashSet();
             emailKeys = (await context.GuardianEmails.Where(e => e.GuardianId == canonicalId).Select(e => e.Address).ToListAsync(ct))
                 .Select(SiblingUtil.NormEmail).Where(n => n.Length > 0).ToHashSet();
         }
@@ -195,7 +195,7 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         var poolEmails = await context.GuardianEmails.Where(e => poolGuardianIds.Contains(e.GuardianId)).ToListAsync(ct);
 
         // The normalized values the CG chose to keep (only rows whose id was checked count).
-        var keptPhoneVals = poolPhones.Where(p => keepP.Contains(p.Id)).Select(p => SiblingUtil.Digits(p.Number)).Where(d => d.Length >= 4).ToHashSet();
+        var keptPhoneVals = poolPhones.Where(p => keepP.Contains(p.Id)).Select(p => PhoneNumbers.Digits(p.Number)).Where(d => d.Length >= 4).ToHashSet();
         var keptEmailVals = poolEmails.Where(e => keepE.Contains(e.Id)).Select(e => SiblingUtil.NormEmail(e.Address)).Where(n => n.Length > 0).ToHashSet();
 
         // Canonical's own rows: keep the ones whose value is chosen, remove the rest (this is what lets the CG drop a
@@ -203,7 +203,7 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         var have = new HashSet<string>();
         foreach (var p in poolPhones.Where(p => p.GuardianId == canonicalId))
         {
-            var d = SiblingUtil.Digits(p.Number);
+            var d = PhoneNumbers.Digits(p.Number);
             if (d.Length >= 4 && keptPhoneVals.Contains(d)) have.Add(d);
             else context.GuardianPhones.Remove(p);
         }
@@ -218,7 +218,7 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         // Copy on the checked contacts from the OTHER (duplicate) records, deduped by value.
         foreach (var p in poolPhones.Where(p => p.GuardianId != canonicalId && keepP.Contains(p.Id)))
         {
-            var d = SiblingUtil.Digits(p.Number);
+            var d = PhoneNumbers.Digits(p.Number);
             if (d.Length >= 4 && have.Add(d))
                 context.GuardianPhones.Add(new GuardianPhone { GuardianId = canonicalId, CountryCode = p.CountryCode, Number = p.Number, Type = p.Type, IsPrimary = false });
         }
@@ -237,7 +237,7 @@ public class ApproveSiblingGroupCommandHandler(IApplicationDbContext context, IA
         var dupPhones = await context.GuardianPhones.Where(p => p.GuardianId == dupGuardianId).ToListAsync(ct);
         foreach (var p in dupPhones)
         {
-            var d = SiblingUtil.Digits(p.Number);
+            var d = PhoneNumbers.Digits(p.Number);
             if (d.Length >= 4 && phoneKeys.Add(d))
                 context.GuardianPhones.Add(new GuardianPhone { GuardianId = canonicalId, CountryCode = p.CountryCode, Number = p.Number, Type = p.Type, IsPrimary = false });
         }
@@ -315,59 +315,6 @@ public class RejectSiblingSuggestionCommandHandler(IApplicationDbContext context
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("RejectSiblingSuggestion", "SiblingRejection", null, newValues: new { ids }, cancellationToken: ct);
         return Result<bool>.Success(true);
-    }
-}
-
-// ── Manual link: put two members in the same fratrie (merging groups if needed) ──
-public record LinkSiblingsCommand(Guid MemberId, Guid TargetMemberId) : IRequest<Result<Guid>>;
-
-public class LinkSiblingsCommandHandler(IApplicationDbContext context, IAuditService audit)
-    : IRequestHandler<LinkSiblingsCommand, Result<Guid>>
-{
-    public async ValueTask<Result<Guid>> Handle(LinkSiblingsCommand request, CancellationToken ct)
-    {
-        if (request.MemberId == request.TargetMemberId) return Result<Guid>.Failure("Sélectionnez deux membres différents.");
-
-        var members = await context.Members
-            .Where(m => (m.Id == request.MemberId || m.Id == request.TargetMemberId) && !m.IsDeleted)
-            .ToListAsync(ct);
-        if (members.Count != 2) return Result<Guid>.Failure("Un ou plusieurs membres sont introuvables.");
-
-        // Reuse/merge an existing group among the two, else create one.
-        var existing = members.Where(m => m.SiblingGroupId != null).Select(m => m.SiblingGroupId!.Value).Distinct().ToList();
-        Guid groupId;
-        if (existing.Count > 0)
-        {
-            groupId = existing[0];
-            if (existing.Count > 1)
-            {
-                var others = existing.Skip(1).ToList();
-                var toMove = await context.Members.Where(m => m.SiblingGroupId != null && others.Contains(m.SiblingGroupId!.Value)).ToListAsync(ct);
-                foreach (var m in toMove) m.SiblingGroupId = groupId;
-                var emptied = await context.SiblingGroups.Where(g => others.Contains(g.Id)).ToListAsync(ct);
-                context.SiblingGroups.RemoveRange(emptied);
-            }
-        }
-        else
-        {
-            var group = new SiblingGroup();
-            context.SiblingGroups.Add(group);
-            groupId = group.Id;
-        }
-        foreach (var m in members) m.SiblingGroupId = groupId;
-
-        // Remove a "not siblings" tombstone on this pair (the CG has now confirmed it).
-        var (a, b) = SiblingUtil.Pair(request.MemberId, request.TargetMemberId);
-        var tomb = await context.SiblingRejections.Where(r => r.MemberAId == a && r.MemberBId == b).ToListAsync(ct);
-        context.SiblingRejections.RemoveRange(tomb);
-
-        await context.SaveChangesAsync(ct);
-        await audit.LogAsync("LinkSiblings", "SiblingGroup", groupId, newValues: new
-        {
-            Member = await AuditNames.MemberAsync(context, request.MemberId, ct),
-            Target = await AuditNames.MemberAsync(context, request.TargetMemberId, ct),
-        }, cancellationToken: ct);
-        return Result<Guid>.Success(groupId);
     }
 }
 

@@ -141,7 +141,7 @@ public class SearchParentsQueryHandler(IApplicationDbContext context, ICurrentUs
         var q = request.Search.Trim().ToLower();
         // Phone matching is digit-only (numbers are stored formatted with spaces, e.g. "76 123 456"); a short
         // digit run would match too much, so require ≥ 4 digits to search by phone.
-        var digits = new string(q.Where(char.IsDigit).ToArray());
+        var digits = PhoneNumbers.Digits(q);
 
         var links = context.GuardianLinks
             .Where(l => !l.IsDeleted && !l.Guardian.IsDeleted && !l.Member.IsDeleted)

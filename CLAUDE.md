@@ -6634,6 +6634,12 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   MemberAccess.IsGroupManager reused instead of copies.
 - **Comments pass:** ~400 comment lines on the 80 least-commented files (components, pages, backend handlers/services);
   `tools/comments-only-check.py [git diff args]` verifies a diff only touches comment lines.
-- Left for later (reported): one `OkOrBadRequest` helper for the 348 repeated controller result lines; shared phone-digit
-  matcher (3 copies); relative-time formatter (2 copies, different rounding); MemberTodo batching for « Ma famille ».
+- **Follow-up (same day):** nothing outside connects to the API, so the 6 kept endpoints were REMOVED with their handlers
+  (POST /camps/swap, GET /custom-fields/active + /member/{id}, GET /maitrises, POST /siblings/link, GET /documents/expiring).
+  `BaseApiController` gained `OkOrBadRequest` / `NoContentOrBadRequest` / `OkIdOrBadRequest` (Result → 200 / 204 /
+  200 {id}, else 400 {error}); 187 repeated blocks + the local Res / Wrap / FromResult helpers use them (actions that do
+  more than send-and-map keep their own code). « Ma famille »: `MemberTodo.ComputeManyAsync` (group data once, each table
+  one query for all children) + `DocumentCampaign.ForMembersAsync`; the single-member forms wrap them. `Common/PhoneNumbers`
+  (Digits + SameDigits = last 7 digits) replaces the copies in demande conversion / Déjà membre ? / Fratries / guardian
+  search / leaver contact. `timeAgo` in lib/utils (rounded down, « hier », short date after 30 days) for the bell + Sessions.
 

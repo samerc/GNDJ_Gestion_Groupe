@@ -181,7 +181,7 @@ public static class DemandeMemberMatch
         var set = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in phones)
         {
-            var digits = new string((p ?? "").Where(char.IsDigit).ToArray());
+            var digits = PhoneNumbers.Digits(p);
             if (digits.Length >= 7) set.Add("p:" + digits[^7..]);
         }
         foreach (var e in emails)

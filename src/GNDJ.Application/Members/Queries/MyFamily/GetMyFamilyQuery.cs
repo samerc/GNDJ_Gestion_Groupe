@@ -33,12 +33,15 @@ public class GetMyFamilyQueryHandler(IApplicationDbContext context, ICurrentUser
             .GroupBy(a => a.MemberId)
             .ToDictionary(g => g.Key, g => g.OrderBy(a => a.IsMaitrise).Select(a => a.Name).First());
 
+        // To-dos for every child at once: the caller's own is always shown, a protected sibling's never is.
+        var todos = await MemberTodo.ComputeManyAsync(context,
+            family.Where(f => f.MemberId == memberId || !f.Protected).Select(f => f.MemberId).ToList(), ct);
+
         var result = new List<FamilyChildDto>();
         foreach (var f in family)
         {
             var isMe = f.MemberId == memberId;
-            // The caller's own to-do is always shown; a protected sibling's never is.
-            var todo = isMe || !f.Protected ? await MemberTodo.ComputeAsync(context, f.MemberId, ct) : null;
+            var todo = todos.GetValueOrDefault(f.MemberId);
             result.Add(new FamilyChildDto(f.MemberId, $"{f.FirstName} {f.LastName}", units.GetValueOrDefault(f.MemberId),
                 isMe, f.UserId is not null, f.Protected, !isMe && FamilyAccess.CanSwitchWithoutPassword(me, f), todo));
         }

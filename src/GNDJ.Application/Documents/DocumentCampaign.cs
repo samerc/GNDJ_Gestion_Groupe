@@ -115,13 +115,26 @@ public static class DocumentCampaign
     public static async Task<DocumentCampaignStatus> ForMemberAsync(IApplicationDbContext context, Guid? memberId, CancellationToken ct)
     {
         var status = await LoadAsync(context, ct);
-        if (!status.Enabled || status.UploadOpen || memberId is null || status.DepositDeadline is not { } deadline) return status;
+        if (memberId is not Guid id) return status;
+        return (await ForMembersAsync(context, status, [id], ct))[id];
+    }
+
+    // Batched form (« Ma famille »): the campaign status is loaded once by the caller, then the "in the campaign"
+    // test runs as two queries for all the members together. Every id gets an entry.
+    public static async Task<Dictionary<Guid, DocumentCampaignStatus>> ForMembersAsync(
+        IApplicationDbContext context, DocumentCampaignStatus status, IReadOnlyCollection<Guid> memberIds, CancellationToken ct)
+    {
+        if (!status.Enabled || status.UploadOpen || status.DepositDeadline is not { } deadline)
+            return memberIds.Distinct().ToDictionary(id => id, _ => status);
         // In the campaign = the file existed by the deadline AND a current post had started by then. (Both: a demande
         // member's post can be backdated by demande.member_start_date; a merged returning member keeps an old file.)
         var lastDay = deadline.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
-        var inCampaign = await context.Members.AnyAsync(m => m.Id == memberId && m.CreatedAt <= lastDay, ct)
-            && await context.MemberAssignments.AnyAsync(a => a.MemberId == memberId && a.EndDate == null && a.StartDate <= deadline, ct);
-        if (inCampaign) return status;
-        return status with { Phase = DocumentCampaignPhases.Inactive, UploadOpen = true, UploadReopensOn = null, UploadClosesOn = null };
+        var oldFiles = await context.Members.Where(m => memberIds.Contains(m.Id) && m.CreatedAt <= lastDay)
+            .Select(m => m.Id).ToListAsync(ct);
+        var oldPosts = await context.MemberAssignments
+            .Where(a => memberIds.Contains(a.MemberId) && a.EndDate == null && a.StartDate <= deadline)
+            .Select(a => a.MemberId).Distinct().ToListAsync(ct);
+        var open = status with { Phase = DocumentCampaignPhases.Inactive, UploadOpen = true, UploadReopensOn = null, UploadClosesOn = null };
+        return memberIds.Distinct().ToDictionary(id => id, id => oldFiles.Contains(id) && oldPosts.Contains(id) ? status : open);
     }
 }

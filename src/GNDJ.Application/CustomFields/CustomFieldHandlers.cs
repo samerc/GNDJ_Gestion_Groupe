@@ -95,45 +95,6 @@ public class GetCustomFieldsQueryHandler(IApplicationDbContext context) : IReque
     }
 }
 
-// GetActiveCustomFields (for forms/dropdowns)
-public record GetActiveCustomFieldsQuery() : IRequest<List<CustomFieldListDto>>;
-
-public class GetActiveCustomFieldsQueryHandler(IApplicationDbContext context) : IRequestHandler<GetActiveCustomFieldsQuery, List<CustomFieldListDto>>
-{
-    public async ValueTask<List<CustomFieldListDto>> Handle(GetActiveCustomFieldsQuery request, CancellationToken ct)
-    {
-        return await context.CustomFields
-            .Where(cf => cf.IsActive)
-            .OrderBy(cf => cf.DisplayOrder).ThenBy(cf => cf.Name)
-            .Select(cf => new CustomFieldListDto(cf.Id, cf.Name, cf.Code, cf.FieldType, cf.Options, cf.ShowOnCard, cf.EditableBy))
-            .ToListAsync(ct);
-    }
-}
-
-// GetMemberCustomFieldValues
-public record GetMemberCustomFieldValuesQuery(Guid MemberId) : IRequest<List<MemberCustomFieldValueDto>>;
-
-public class GetMemberCustomFieldValuesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<GetMemberCustomFieldValuesQuery, List<MemberCustomFieldValueDto>>
-{
-    public async ValueTask<List<MemberCustomFieldValueDto>> Handle(GetMemberCustomFieldValuesQuery request, CancellationToken ct)
-    {
-        // Access check: own member, or a leader (members.edit) of the member's unit. A read-only youth
-        // holds members.view + their own unit in AuthorizedUnitIds, so without this any authenticated user
-        // could read another member's custom-field values. Unauthorized → empty list.
-        if (!await MemberAccess.CanViewMemberAsync(context, currentUser, request.MemberId, ct))
-            return [];
-
-        return await context.MemberCustomFieldValues
-            .Where(v => v.MemberId == request.MemberId && v.CustomField.IsActive)
-            .OrderBy(v => v.CustomField.DisplayOrder)
-            .Select(v => new MemberCustomFieldValueDto(
-                v.Id, v.CustomFieldId, v.CustomField.Name, v.CustomField.Code,
-                v.CustomField.FieldType, v.CustomField.Options, v.Value
-            ))
-            .ToListAsync(ct);
-    }
-}
-
 // GetMemberApplicableCustomFields — the fields that APPLY to a specific member (targeting) AND that the caller
 // may VIEW (visibility), each merged with the member's stored value. Drives the member "Infos complémentaires"
 // tab + Ma fiche (replaces the old "all active fields" list, which ignored targeting). Non-viewable fields are

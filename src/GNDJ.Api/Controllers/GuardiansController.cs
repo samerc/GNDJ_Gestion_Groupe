@@ -68,9 +68,7 @@ public class GuardiansController : BaseApiController
     public async Task<IActionResult> Update(Guid guardianId, [FromBody] UpdateGuardianCommand command)
     {
         if (guardianId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Updates a member-guardian link (relationship, contact flags). Requires members.edit.</summary>
@@ -79,9 +77,7 @@ public class GuardiansController : BaseApiController
     public async Task<IActionResult> UpdateLink(Guid linkId, [FromBody] UpdateGuardianLinkCommand command)
     {
         if (linkId != command.LinkId) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Attaches an existing shared guardian to this member (sibling case); distinct from Create which adds a new one. Requires members.edit.</summary>
@@ -101,11 +97,7 @@ public class GuardiansController : BaseApiController
     [HttpDelete("guardian-links/{linkId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> Unlink(Guid linkId)
-    {
-        var result = await Mediator.Send(new UnlinkGuardianCommand(linkId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new UnlinkGuardianCommand(linkId)));
 
     /// <summary>Adds a phone number to a guardian. Requires members.edit.</summary>
     /// <response code="201">Phone added; body contains the new id.</response>
@@ -139,9 +131,7 @@ public class GuardiansController : BaseApiController
     public async Task<IActionResult> UpdatePhone(Guid phoneId, [FromBody] UpdateGuardianPhoneCommand command)
     {
         if (phoneId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Edits a guardian email address (value/type/primary flag) in place. Requires members.edit.</summary>
@@ -150,28 +140,18 @@ public class GuardiansController : BaseApiController
     public async Task<IActionResult> UpdateEmail(Guid emailId, [FromBody] UpdateGuardianEmailCommand command)
     {
         if (emailId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a guardian phone number. Requires members.edit.</summary>
     [HttpDelete("phones/{phoneId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeletePhone(Guid phoneId)
-    {
-        var result = await Mediator.Send(new DeleteGuardianPhoneCommand(phoneId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteGuardianPhoneCommand(phoneId)));
 
     /// <summary>Deletes a guardian email address. Requires members.edit.</summary>
     [HttpDelete("emails/{emailId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteEmail(Guid emailId)
-    {
-        var result = await Mediator.Send(new DeleteGuardianEmailCommand(emailId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteGuardianEmailCommand(emailId)));
 }

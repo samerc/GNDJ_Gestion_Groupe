@@ -29,11 +29,7 @@ public class ApplicantController : BaseApiController
     [AllowAnonymous]
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> Register([FromBody] RegisterApplicantCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Confirms an applicant email using the verification token. Anonymous, rate-limited.</summary>
     [HttpPost("verify-email")]
@@ -132,11 +128,7 @@ public class ApplicantController : BaseApiController
     [Authorize]
     [HttpPost("invite/{token}/claim")]
     public async Task<IActionResult> ClaimInvite(string token)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Demandes.ClaimDemandeInviteCommand(token));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Demandes.ClaimDemandeInviteCommand(token)));
 
     /// <summary>Records the applicant's acceptance of the terms &amp; conditions (separate post-login step).</summary>
     /// <response code="401">Applicant token missing or invalid.</response>
@@ -168,11 +160,7 @@ public class ApplicantController : BaseApiController
     [HttpPost("household-lookup/verify")]
     [EnableRateLimiting("forms")]
     public async Task<IActionResult> VerifyHouseholdLookup([FromBody] VerifyHouseholdLookupCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Saves the applicant's household (shared parents, address, scout relations).</summary>
     [Authorize]
@@ -188,11 +176,7 @@ public class ApplicantController : BaseApiController
     [Authorize]
     [HttpPost("demandes")]
     public async Task<IActionResult> Create([FromBody] CreateDemandeCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { id = result.Value });
-    }
+        => OkIdOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Updates a draft demande owned by the current account.</summary>
     [Authorize]
@@ -218,11 +202,7 @@ public class ApplicantController : BaseApiController
     [Authorize]
     [HttpDelete("demandes/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteDemandeCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteDemandeCommand(id)));
 
     /// <summary>Re-sends the member account activation (set-password) email for an accepted demande. Rate-limited.</summary>
     [Authorize]

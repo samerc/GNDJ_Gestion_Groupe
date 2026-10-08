@@ -43,20 +43,14 @@ public class ReportTemplatesController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateReportTemplateCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a report template. Requires members.edit (chef d'unité, chef de groupe, super-admin).</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteReportTemplateCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteReportTemplateCommand(id)));
 
     /// <summary>Generates a report from a template (resolves its scope → units, runs the roster/export generator).
     /// Requires members.view; the generator further enforces group-manager access for group/branch/multi-unit

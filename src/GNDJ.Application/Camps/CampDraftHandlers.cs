@@ -177,21 +177,6 @@ public class MoveCampParticipantCommandHandler(IApplicationDbContext context, IC
     }
 }
 
-public record SwapCampParticipantsCommand(Guid ParticipantAId, Guid ParticipantBId) : IRequest<Result<bool>>;
-public class SwapCampParticipantsCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<SwapCampParticipantsCommand, Result<bool>>
-{
-    public async ValueTask<Result<bool>> Handle(SwapCampParticipantsCommand request, CancellationToken ct)
-    {
-        var a = await context.CampParticipants.FirstOrDefaultAsync(x => x.Id == request.ParticipantAId && !x.IsDeleted, ct);
-        var b = await context.CampParticipants.FirstOrDefaultAsync(x => x.Id == request.ParticipantBId && !x.IsDeleted, ct);
-        if (a is null || b is null || a.CampId != b.CampId) return Result<bool>.Failure("Participant introuvable.");
-        if (await CampAccess.DenyAsync(context, currentUser, a.CampId, CampArea.Familles, true, ct) is { } denied) return Result<bool>.Failure(denied);
-        (a.FamilleId, b.FamilleId) = (b.FamilleId, a.FamilleId);
-        await context.SaveChangesAsync(ct);
-        return Result<bool>.Success(true);
-    }
-}
-
 // ─── Père / Mère ─────────────────────────────────────────────────────────────
 public record SetFamillePereMereCommand(Guid FamilleId, Guid? PereMemberId, Guid? MereMemberId) : IRequest<Result<bool>>;
 public class SetFamillePereMereCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser) : IRequestHandler<SetFamillePereMereCommand, Result<bool>>

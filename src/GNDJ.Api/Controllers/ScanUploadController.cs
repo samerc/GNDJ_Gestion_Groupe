@@ -28,30 +28,18 @@ public class ScanUploadController : BaseApiController
     /// <summary>Creates a scan-upload session for a member (desktop, authenticated). Returns the token to encode in the QR.</summary>
     [HttpPost("sessions")]
     public async Task<IActionResult> CreateSession([FromBody] CreateSessionBody body)
-    {
-        var result = await Mediator.Send(new CreateUploadSessionCommand(body.MemberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new CreateUploadSessionCommand(body.MemberId)));
 
     /// <summary>Polls a session's status (how many documents have arrived + whether it expired). Creator/super-admin only.</summary>
     [HttpGet("sessions/{id:guid}")]
     public async Task<IActionResult> GetStatus(Guid id)
-    {
-        var result = await Mediator.Send(new GetUploadSessionStatusQuery(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetUploadSessionStatusQuery(id)));
 
     /// <summary>Minimal context for the phone scan page (member label + document types). Anonymous — the token authorizes it.</summary>
     [AllowAnonymous]
     [HttpGet("{token}")]
     public async Task<IActionResult> GetInfo(string token)
-    {
-        var result = await Mediator.Send(new GetScanUploadInfoQuery(token));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetScanUploadInfoQuery(token)));
 
     /// <summary>
     /// Uploads photographed document file(s) via a scan session (anonymous — the token authorizes it). Validates

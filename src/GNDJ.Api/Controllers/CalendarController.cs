@@ -18,11 +18,7 @@ public class CalendarController : BaseApiController
     /// sorties / camps of their units, and the year's important dates. unitId: a manager also sees that unit's réunions.</summary>
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] Guid? unitId)
-    {
-        var result = await Mediator.Send(new GetCalendarQuery(from, to, unitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetCalendarQuery(from, to, unitId)));
 
     /// <summary>What the caller may create (audiences, units, branches) — for the event form.</summary>
     [HttpGet("options")]
@@ -40,40 +36,24 @@ public class CalendarController : BaseApiController
     /// <summary>Creates an event (group / branch / maîtrise / CG team: Chef de Groupe team; unit: that unit's chefs).</summary>
     [HttpPost("events")]
     public async Task<IActionResult> Create([FromBody] CalendarEventInput data)
-    {
-        var result = await Mediator.Send(new CreateCalendarEventCommand(data));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { id = result.Value });
-    }
+        => OkIdOrBadRequest(await Mediator.Send(new CreateCalendarEventCommand(data)));
 
     /// <summary>Updates an event (the whole series for a repeating one).</summary>
     [HttpPut("events/{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] CalendarEventInput data)
-    {
-        var result = await Mediator.Send(new UpdateCalendarEventCommand(id, data));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new UpdateCalendarEventCommand(id, data)));
 
     /// <summary>Deletes an event (the whole series) and its public copy if it was published on the site.</summary>
     [HttpDelete("events/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteCalendarEventCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteCalendarEventCommand(id)));
 
     public record CancelDateBody(DateOnly Date, bool Restore = false);
 
     /// <summary>Cancels (or restores) one date of a repeating event.</summary>
     [HttpPost("events/{id:guid}/cancel-date")]
     public async Task<IActionResult> CancelDate(Guid id, [FromBody] CancelDateBody body)
-    {
-        var result = await Mediator.Send(new CancelCalendarOccurrenceCommand(id, body.Date, body.Restore));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new CancelCalendarOccurrenceCommand(id, body.Date, body.Restore)));
 
     public record EditDateBody(DateOnly Date, CalendarEventInput Data);
 
@@ -81,11 +61,7 @@ public class CalendarController : BaseApiController
     /// series skips that date, a one-off event replaces it). Returns the new event id.</summary>
     [HttpPost("events/{id:guid}/edit-date")]
     public async Task<IActionResult> EditDate(Guid id, [FromBody] EditDateBody body)
-    {
-        var result = await Mediator.Send(new EditCalendarOccurrenceCommand(id, body.Date, body.Data));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { id = result.Value });
-    }
+        => OkIdOrBadRequest(await Mediator.Send(new EditCalendarOccurrenceCommand(id, body.Date, body.Data)));
 
     public record FeedLinkBody(bool Reset = false);
 
@@ -93,11 +69,7 @@ public class CalendarController : BaseApiController
     /// link stops working). The client builds the URL.</summary>
     [HttpPost("feed-link")]
     public async Task<IActionResult> FeedLink([FromBody] FeedLinkBody body)
-    {
-        var result = await Mediator.Send(new GetCalendarFeedLinkCommand(body.Reset));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetCalendarFeedLinkCommand(body.Reset)));
 
     /// <summary>The .ics a phone calendar subscribes to (anonymous; the secret token is the authorization).</summary>
     [AllowAnonymous]

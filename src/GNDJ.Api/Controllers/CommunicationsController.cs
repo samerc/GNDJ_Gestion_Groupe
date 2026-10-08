@@ -18,31 +18,19 @@ public class CommunicationsController : BaseApiController
     [HttpGet("leaders")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Leaders([FromQuery] Guid? unitId = null, [FromQuery] bool neverLoggedInOnly = false)
-    {
-        var result = await Mediator.Send(new GetLeaderRecipientsQuery(unitId, neverLoggedInOnly));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetLeaderRecipientsQuery(unitId, neverLoggedInOnly)));
 
     /// <summary>Lists the active email templates (id/name/code/subject/body) a CG can send + preview. Requires
     /// maitrise.manage — a CG-accessible read-only view of the templates (editing stays super-admin).</summary>
     [HttpGet("templates")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Templates()
-    {
-        var result = await Mediator.Send(new GetLeaderMessageTemplatesQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetLeaderMessageTemplatesQuery()));
 
     /// <summary>Sends the chosen email template to the selected leaders (queued via the durable outbox). Returns a
     /// sent / no-email report. Requires maitrise.manage.</summary>
     [HttpPost("send")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> Send([FromBody] SendLeaderMessageCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 }

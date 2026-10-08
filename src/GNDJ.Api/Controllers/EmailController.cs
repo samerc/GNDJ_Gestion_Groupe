@@ -40,9 +40,7 @@ public class EmailController : BaseApiController
     public async Task<IActionResult> UpdateSmtpServer(Guid id, [FromBody] UpdateSmtpServerCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Marks this SMTP server as the default (used by templates set to "Par défaut"). Clears the flag
@@ -50,21 +48,13 @@ public class EmailController : BaseApiController
     [HttpPost("smtp-servers/{id:guid}/default")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> SetDefaultSmtpServer(Guid id)
-    {
-        var result = await Mediator.Send(new SetDefaultSmtpServerCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SetDefaultSmtpServerCommand(id)));
 
     /// <summary>Deletes an SMTP server configuration. Requires associations.manage.</summary>
     [HttpDelete("smtp-servers/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> DeleteSmtpServer(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteSmtpServerCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteSmtpServerCommand(id)));
 
     /// <summary>
     /// Sends a live test email through the stored SMTP config to verify credentials/connectivity.
@@ -118,20 +108,14 @@ public class EmailController : BaseApiController
     public async Task<IActionResult> UpdateTemplate(Guid id, [FromBody] UpdateEmailTemplateCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes an email template. Requires associations.manage.</summary>
     [HttpDelete("templates/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> DeleteTemplate(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteEmailTemplateCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteEmailTemplateCommand(id)));
 
     // ── Outbox (durable email queue) — delivery visibility + requeue ──────────
     /// <summary>Lists outbox emails (filterable by status/search) + overall pending/failed/sent counts. Requires associations.manage.</summary>
@@ -148,11 +132,7 @@ public class EmailController : BaseApiController
     [HttpPost("outbox/{id:guid}/retry")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> RetryOutbox(Guid id)
-    {
-        var result = await Mediator.Send(new RetryOutboxEmailCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new RetryOutboxEmailCommand(id)));
 
     /// <summary>Requeues every failed outbox email; returns the count. Requires associations.manage.</summary>
     [HttpPost("outbox/retry-failed")]
@@ -168,11 +148,7 @@ public class EmailController : BaseApiController
     [HttpDelete("outbox/{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> DeleteOutbox(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteOutboxEmailCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteOutboxEmailCommand(id)));
 
     /// <summary>Purges sent outbox rows (housekeeping); optional ?before= keeps newer. Returns the count. Requires associations.manage.</summary>
     [HttpDelete("outbox/sent")]

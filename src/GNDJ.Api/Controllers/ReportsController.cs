@@ -30,31 +30,19 @@ public class ReportsController : BaseApiController
     [HttpPost("trombinoscope/archive")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> ArchiveTrombinoscope([FromBody] ArchiveTrombinoscoreCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Whether a saved trombinoscope exists for a unit + scout year (and when it was saved). Requires members.edit.</summary>
     [HttpGet("trombinoscope/archive")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> TrombinoscopeArchiveInfo([FromQuery] Guid unitId, [FromQuery] string scoutYear)
-    {
-        var result = await Mediator.Send(new GetTrombinoscoreArchiveInfoQuery(unitId, scoutYear ?? ""));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetTrombinoscoreArchiveInfoQuery(unitId, scoutYear ?? "")));
 
     /// <summary>Publishes/unpublishes a saved trombinoscope (member visibility) without regenerating it. Requires members.edit.</summary>
     [HttpPost("trombinoscope/archive/publish")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> SetTrombinoscopePublished([FromBody] SetTrombinoscorePublishedCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Re-downloads the saved trombinoscope PDF for a unit + scout year. Requires members.edit.</summary>
     [HttpGet("trombinoscope/archive/download")]

@@ -24,11 +24,7 @@ public class CotisationsController : BaseApiController
     // Handler checks unit-scoped access for CU viewing other members.
     [HttpGet("member/{memberId:guid}")]
     public async Task<IActionResult> GetMemberCotisations(Guid memberId)
-    {
-        var result = await Mediator.Send(new GetMemberCotisationsQuery(memberId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GetMemberCotisationsQuery(memberId)));
 
     /// <summary>Creates a cotisation (with payment lines) for a member and scout year. Requires cotisations.create.</summary>
     [HttpPost]
@@ -47,9 +43,7 @@ public class CotisationsController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCotisationCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>
@@ -58,21 +52,13 @@ public class CotisationsController : BaseApiController
     [HttpPut("exempt")]
     [HasPermission(Permissions.CotisationsEdit)]
     public async Task<IActionResult> SetExempt([FromBody] SetCotisationExemptCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Deletes a cotisation. Requires cotisations.delete.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.CotisationsDelete)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteCotisationCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteCotisationCommand(id)));
 
     /// <summary>
     /// Generates and returns the cotisation receipt as a PDF file. Auth-only: members can download their own receipts.

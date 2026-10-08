@@ -1177,11 +1177,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // Phone match is now DIGIT-normalized ("76 123 456" ≡ "76123456"): numbers are entered formatted
         // (per-country grouping), and legacy/migrated data is unformatted, so an exact string match would
         // create duplicate guardians. The guardian_phones table is small, so load it once and key by digits.
-        var agPhoneDigits = agAll.Select(a => PhoneDigits(a.PhoneNumber)).Where(d => d.Length >= 6).ToHashSet();
+        var agPhoneDigits = agAll.Select(a => PhoneNumbers.Digits(a.PhoneNumber)).Where(d => d.Length >= 6).ToHashSet();
         var guardianByPhone = agPhoneDigits.Count == 0
             ? new Dictionary<string, List<Guardian>>()
             : (await context.GuardianPhones.Select(p => new { p.Number, p.Guardian }).ToListAsync(ct))
-                .Select(x => new { Key = PhoneDigits(x.Number), x.Guardian })
+                .Select(x => new { Key = PhoneNumbers.Digits(x.Number), x.Guardian })
                 .Where(x => x.Key.Length >= 6 && agPhoneDigits.Contains(x.Key))
                 .GroupBy(x => x.Key, StringComparer.Ordinal)
                 .ToDictionary(x => x.Key, x => x.Select(y => y.Guardian).Distinct().ToList(), StringComparer.Ordinal);
@@ -1232,7 +1232,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 .Select(x => (x.MemberId, x.ScoutStageId)).ToHashSet();
         var reusePhones = reuseIds.Count == 0 ? new List<(Guid MemberId, string Digits)>()
             : (await context.MemberPhones.Where(p => reuseIds.Contains(p.MemberId)).Select(p => new { p.MemberId, p.Number }).ToListAsync(ct))
-                .Select(x => (x.MemberId, Digits: PhoneDigits(x.Number))).ToList();
+                .Select(x => (x.MemberId, Digits: PhoneNumbers.Digits(x.Number))).ToList();
         var reuseEmails = reuseIds.Count == 0 ? new HashSet<(Guid, string)>()
             : (await context.MemberEmails.Where(e => reuseIds.Contains(e.MemberId)).Select(e => new { e.MemberId, e.Address }).ToListAsync(ct))
                 .Select(x => (x.MemberId, x.Address.Trim().ToLowerInvariant())).ToHashSet();
@@ -1293,7 +1293,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
             // child contacts (an existing file only gets the ones it doesn't have yet)
             if (!string.IsNullOrWhiteSpace(d.PhoneNumber)
-                && !(reused && reusePhones.Any(p => p.MemberId == member.Id && SamePhone(p.Digits, PhoneDigits(d.PhoneNumber)))))
+                && !(reused && reusePhones.Any(p => p.MemberId == member.Id && PhoneNumbers.SameDigits(p.Digits, PhoneNumbers.Digits(d.PhoneNumber)))))
                 context.MemberPhones.Add(new MemberPhone { MemberId = member.Id, CountryCode = d.PhoneCountryCode ?? "", Number = d.PhoneNumber!, Type = "Mobile", IsPrimary = !reused });
             if (!string.IsNullOrWhiteSpace(d.Email)
                 && !(reused && reuseEmails.Contains((member.Id, d.Email.Trim().ToLowerInvariant()))))
@@ -1341,11 +1341,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                         if (!string.IsNullOrWhiteSpace(ag.ProfessionDomain)) guardian.ProfessionDomain = ag.ProfessionDomain.Trim();
                         if (ag.IsDeceased) guardian.IsDeceased = true;
                         var gid = guardian.Id;
-                        var phoneDigits = PhoneDigits(ag.PhoneNumber);
+                        var phoneDigits = PhoneNumbers.Digits(ag.PhoneNumber);
                         if (phoneDigits.Length >= 6)
                         {
                             var has = (await context.GuardianPhones.Where(p => p.GuardianId == gid).Select(p => p.Number).ToListAsync(ct))
-                                .Any(n => SamePhone(PhoneDigits(n), phoneDigits));
+                                .Any(n => PhoneNumbers.SameDigits(PhoneNumbers.Digits(n), phoneDigits));
                             if (!has)
                                 context.GuardianPhones.Add(new GuardianPhone { GuardianId = gid, CountryCode = ag.PhoneCountryCode ?? "", Number = ag.PhoneNumber!, Type = "Mobile" });
                         }
@@ -1606,19 +1606,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             candidates?.FirstOrDefault(g => TextNormalization.NormalizeKey(g.FirstName) == first);
 
         if (!string.IsNullOrWhiteSpace(ag.Email) && SameName(byEmail.GetValueOrDefault(ag.Email)) is { } g1) return g1;
-        var digits = PhoneDigits(ag.PhoneNumber);
+        var digits = PhoneNumbers.Digits(ag.PhoneNumber);
         if (digits.Length >= 6 && SameName(byPhone.GetValueOrDefault(digits)) is { } g2) return g2;
         return null;
     }
-
-
-    // Digits only, for format-insensitive phone matching ("+961 76 123 456" / "76123456" → "76123456").
-    private static string PhoneDigits(string? s) => new(( s ?? "").Where(char.IsDigit).ToArray());
-
-    // Same number written differently: "03 188 090", "3188090", "+961 3 188 090", "009613188090" → compare the
-    // last 7 digits (Lebanese numbers are 7–8 digits after the country code / trunk 0).
-    private static bool SamePhone(string a, string b) =>
-        a.Length >= 6 && b.Length >= 6 && (a.Length >= 7 && b.Length >= 7 ? a[^7..] == b[^7..] : a == b);
 
     // Unique login local-part, checked against usernames taken in this batch (`used`) and already-existing
     // ones (`taken`, pre-loaded) — no per-member DB round-trip.

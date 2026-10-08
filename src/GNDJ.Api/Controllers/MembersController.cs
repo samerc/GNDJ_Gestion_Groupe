@@ -149,9 +149,7 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMemberCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Soft-deletes a member. Requires members.delete.</summary>
@@ -247,11 +245,7 @@ public class MembersController : BaseApiController
     [HttpPost("send-access")]
     [HasPermission(Permissions.MembersResetPassword)]
     public async Task<IActionResult> SendAccess([FromBody] SendAccessRequest body)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(body?.MemberIds ?? []));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.SendAccessEmailsCommand(body?.MemberIds ?? [])));
 
     public record SendAccessRequest(List<Guid>? MemberIds);
 
@@ -262,11 +256,7 @@ public class MembersController : BaseApiController
     [HttpGet("missing-logins")]
     [HasPermission(Permissions.MembersResetPassword)]
     public async Task<IActionResult> MissingLogins([FromQuery] Guid? unitId)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetMissingLoginsQuery(unitId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.GetMissingLoginsQuery(unitId)));
 
     /// <summary>
     /// Creates a login for one member who has none: generates a prenom.nom username, then either emails a
@@ -276,11 +266,7 @@ public class MembersController : BaseApiController
     [HttpPost("{id:guid}/create-login")]
     [HasPermission(Permissions.MembersResetPassword)]
     public async Task<IActionResult> CreateLogin(Guid id)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.CreateMemberLoginCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.CreateMemberLoginCommand(id)));
 
     /// <summary>
     /// Bulk-creates logins for members without one — a whole unit (unitId), all active members (allActive,
@@ -290,11 +276,7 @@ public class MembersController : BaseApiController
     [HttpPost("create-logins")]
     [HasPermission(Permissions.MembersResetPassword)]
     public async Task<IActionResult> CreateLogins([FromBody] CreateLoginsRequest body)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.CreateMissingLoginsCommand(body?.UnitId, body?.MemberIds, body?.AllActive ?? false));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.CreateMissingLoginsCommand(body?.UnitId, body?.MemberIds, body?.AllActive ?? false)));
 
     // AllActive = every active member missing a login group-wide (group-manager only); else unitId or an explicit list.
     public record CreateLoginsRequest(Guid? UnitId, List<Guid>? MemberIds, bool AllActive = false);
@@ -303,11 +285,7 @@ public class MembersController : BaseApiController
     [HttpPut("{id:guid}/primary-email")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> SetPrimaryEmail(Guid id, [FromBody] SetPrimaryEmailRequest body)
-    {
-        var result = await Mediator.Send(new SetPrimaryContactEmailCommand(id, body?.Email));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SetPrimaryContactEmailCommand(id, body?.Email)));
 
     public record SetPrimaryEmailRequest(string? Email);
 
@@ -316,11 +294,7 @@ public class MembersController : BaseApiController
     /// only, never the content. Any reader of the member (handler: CanViewMemberAsync).</summary>
     [HttpGet("{id:guid}/emails-received")]
     public async Task<IActionResult> GetEmailsReceived(Guid id)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberEmailsReceivedQuery(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.GetMemberEmailsReceivedQuery(id)));
 
     /// <summary>
     /// Captures/confirms a leaving member's personal email + phone (used at passage "Quitte le groupe") so the
@@ -330,11 +304,7 @@ public class MembersController : BaseApiController
     [HttpPut("{id:guid}/leaver-contact")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> SaveLeaverContact(Guid id, [FromBody] SaveLeaverContactRequest body)
-    {
-        var result = await Mediator.Send(new SaveLeaverContactCommand(id, body?.Email, body?.PhoneCountryCode, body?.Phone));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new SaveLeaverContactCommand(id, body?.Email, body?.PhoneCountryCode, body?.Phone)));
 
     public record SaveLeaverContactRequest(string? Email, string? PhoneCountryCode, string? Phone);
 
@@ -342,11 +312,7 @@ public class MembersController : BaseApiController
     [HttpPut("{id:guid}/username")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> UpdateUsername(Guid id, [FromBody] UpdateUsernameRequest body)
-    {
-        var result = await Mediator.Send(new UpdateMemberUsernameCommand(id, body?.Username ?? ""));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new UpdateMemberUsernameCommand(id, body?.Username ?? "")));
 
     public record UpdateUsernameRequest(string? Username);
 
@@ -357,11 +323,7 @@ public class MembersController : BaseApiController
     [HttpGet("delegations")]
     [HasPermission(Permissions.RolesManageGroup)]
     public async Task<IActionResult> GetDelegations()
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberDelegationsQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.GetMemberDelegationsQuery()));
 
     /// <summary>
     /// Gets the member's current access delegation (per-area levels + full-CG flag). Requires roles.manage_group
@@ -370,11 +332,7 @@ public class MembersController : BaseApiController
     [HttpGet("{id:guid}/delegation")]
     [HasPermission(Permissions.RolesManageGroup)]
     public async Task<IActionResult> GetDelegation(Guid id)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberDelegationQuery(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.GetMemberDelegationQuery(id)));
 
     /// <summary>
     /// Sets (profileId = attach a profile "acts as", and/or areaLevels = granular per-area) or clears (empty) a
@@ -401,11 +359,7 @@ public class MembersController : BaseApiController
     [HttpGet("{id:guid}/effective-access")]
     [HasPermission(Permissions.MaitriseManage)]
     public async Task<IActionResult> GetEffectiveAccess(Guid id)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetMemberEffectiveAccessQuery(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.GetMemberEffectiveAccessQuery(id)));
 
     // --- Super-admin (grant / revoke) — the flag is not a permission, so ONLY an existing super-admin (enforced
     // in the handler) can list or change it. Takes effect on the target's next login/refresh. ---
@@ -413,20 +367,12 @@ public class MembersController : BaseApiController
     /// <summary>Lists the super-admin accounts. Super-admin only (enforced in the handler).</summary>
     [HttpGet("super-admins")]
     public async Task<IActionResult> GetSuperAdmins()
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.GetSuperAdminsQuery());
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(result.Value);
-    }
+        => OkOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.GetSuperAdminsQuery()));
 
     /// <summary>Grants or revokes super-admin on a member's account. Super-admin only; the last super-admin cannot be revoked.</summary>
     [HttpPut("{id:guid}/super-admin")]
     public async Task<IActionResult> SetSuperAdmin(Guid id, [FromBody] SetSuperAdminRequest body)
-    {
-        var result = await Mediator.Send(new GNDJ.Application.Members.SetSuperAdminCommand(id, body?.Grant ?? false));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new GNDJ.Application.Members.SetSuperAdminCommand(id, body?.Grant ?? false)));
 
     public record SetSuperAdminRequest(bool Grant);
 
@@ -449,11 +395,7 @@ public class MembersController : BaseApiController
     [HttpDelete("phones/{phoneId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeletePhone(Guid phoneId)
-    {
-        var result = await Mediator.Send(new DeletePhoneCommand(phoneId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeletePhoneCommand(phoneId)));
 
     /// <summary>Adds an email address to a member. Requires members.edit.</summary>
     /// <response code="201">Email added; body contains the new id.</response>
@@ -472,11 +414,7 @@ public class MembersController : BaseApiController
     [HttpDelete("emails/{emailId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteEmail(Guid emailId)
-    {
-        var result = await Mediator.Send(new DeleteEmailCommand(emailId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteEmailCommand(emailId)));
 
     /// <summary>Adds an address to a member. Requires members.edit.</summary>
     /// <response code="201">Address added; body contains the new id.</response>
@@ -495,11 +433,7 @@ public class MembersController : BaseApiController
     [HttpDelete("addresses/{addressId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteAddress(Guid addressId)
-    {
-        var result = await Mediator.Send(new DeleteAddressCommand(addressId));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteAddressCommand(addressId)));
 
     /// <summary>Updates a member phone number. Requires members.edit.</summary>
     [HttpPut("phones/{phoneId:guid}")]
@@ -507,9 +441,7 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> UpdatePhone(Guid phoneId, [FromBody] UpdatePhoneCommand command)
     {
         if (phoneId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Updates a member email address. Requires members.edit.</summary>
@@ -518,9 +450,7 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> UpdateEmail(Guid emailId, [FromBody] UpdateEmailCommand command)
     {
         if (emailId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Updates a member address. Requires members.edit.</summary>
@@ -529,9 +459,7 @@ public class MembersController : BaseApiController
     public async Task<IActionResult> UpdateAddress(Guid addressId, [FromBody] UpdateAddressCommand command)
     {
         if (addressId != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     // --- Photo endpoints ---

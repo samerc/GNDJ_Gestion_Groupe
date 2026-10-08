@@ -24,15 +24,6 @@ public class CustomFieldsController : BaseApiController
         return Ok(result);
     }
 
-    /// <summary>Lists active custom field definitions. Auth-only — needed by any member form (e.g. Ma fiche).</summary>
-    // No permission attribute — active field defs needed by any member form (e.g. Ma fiche).
-    [HttpGet("active")]
-    public async Task<IActionResult> GetActive()
-    {
-        var result = await Mediator.Send(new GetActiveCustomFieldsQuery());
-        return Ok(result);
-    }
-
     /// <summary>Creates a custom field definition. Requires associations.manage.</summary>
     [HttpPost]
     [ProducesResponseType(201)]
@@ -50,39 +41,20 @@ public class CustomFieldsController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCustomFieldCommand command)
     {
         if (id != command.Id) return BadRequest(new { error = "L'identifiant ne correspond pas." });
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
+        return NoContentOrBadRequest(await Mediator.Send(command));
     }
 
     /// <summary>Deletes a custom field definition. Requires associations.manage.</summary>
     [HttpDelete("{id:guid}")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Delete(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteCustomFieldCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteCustomFieldCommand(id)));
 
     /// <summary>Reorders the custom field definitions (drag-and-drop; DisplayOrder = position). Requires associations.manage.</summary>
     [HttpPut("reorder")]
     [HasPermission(Permissions.AssociationsManage)]
     public async Task<IActionResult> Reorder([FromBody] ReorderCustomFieldsCommand command)
-    {
-        var result = await Mediator.Send(command);
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
-
-    /// <summary>Lists a member's custom field values. Auth-only: the handler (MemberAccess) enforces access —
-    /// own record with no permission, else a members.edit leader of the member's unit.</summary>
-    [HttpGet("member/{memberId:guid}")]
-    public async Task<IActionResult> GetMemberValues(Guid memberId)
-    {
-        var result = await Mediator.Send(new GetMemberCustomFieldValuesQuery(memberId));
-        return Ok(result);
-    }
+        => NoContentOrBadRequest(await Mediator.Send(command));
 
     /// <summary>Lists the custom fields that APPLY to a member (targeting) and that the caller may VIEW, with the
     /// member's values merged. Drives the member "Infos complémentaires" tab + Ma fiche. Auth-only: the handler
@@ -98,21 +70,13 @@ public class CustomFieldsController : BaseApiController
     [HttpPut("member/{memberId:guid}/{customFieldId:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> SetValue(Guid memberId, Guid customFieldId, [FromBody] SetValueRequest request)
-    {
-        var result = await Mediator.Send(new SetMemberCustomFieldValueCommand(memberId, customFieldId, request.Value));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return Ok(new { id = result.Value });
-    }
+        => OkIdOrBadRequest(await Mediator.Send(new SetMemberCustomFieldValueCommand(memberId, customFieldId, request.Value)));
 
     /// <summary>Deletes a member's custom field value. Requires members.edit.</summary>
     [HttpDelete("values/{id:guid}")]
     [HasPermission(Permissions.MembersEdit)]
     public async Task<IActionResult> DeleteValue(Guid id)
-    {
-        var result = await Mediator.Send(new DeleteMemberCustomFieldValueCommand(id));
-        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
-        return NoContent();
-    }
+        => NoContentOrBadRequest(await Mediator.Send(new DeleteMemberCustomFieldValueCommand(id)));
 }
 
 public record SetValueRequest(string Value);
