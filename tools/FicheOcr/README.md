@@ -83,7 +83,7 @@ effacez la copie après usage.
 ## Options
 
 `FicheOcr.exe --help` — `--check` vérifie la base, les fichiers et Ollama sans rien lire ; `--limit N`,
-`--threads N`, `--model`, `--all-members` (inclut les anciens membres), `--max-pages` (2 : recto/verso ; un document plus long est signalé « Pages non lues »), `--max-px` (1600),
+`--threads N`, `--model`, `--all-members` (inclut les anciens membres et ceux marqués « Quitte le groupe » au passage ; par défaut ils ne sont ni lus ni dans l'Excel), `--max-pages` (2 : recto/verso ; un document plus long est signalé « Pages non lues »), `--max-px` (1600),
 `--dpi` (150).
 
 ## Si la lecture est trop lente ou pas assez bonne

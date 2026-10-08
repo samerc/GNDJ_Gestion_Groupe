@@ -6526,6 +6526,8 @@ Full-app audit (4 reviewers) → fixes by area. Conventions written down in the 
   starts Ollama 127.0.0.1 below-normal, stops it after; runs add up in one Excel; the night task passes
   `-Until 06:00 -Night` and only it honours `C:\gndj-ocr\PAUSE`). Tested here
   against a fake Ollama (rotation, flags, resume, export/manifest, script wrapper); the real model is only on the server.
+- Members marked « Quitte le groupe » at this year's passage (passage line, effective leaving, `passage.scout_year`) are not read and
+  are left out of the Excel (an earlier read stays in resultats.jsonl); `--all-members` includes them (2026-10-08).
 - Not built yet: the import of the checked Excel; the « En ligne uniquement » document-type option for next year.
 
 ### Absence alerts + sibling switch without password + « Ma famille » (2026-10-07, DEV until deploy)

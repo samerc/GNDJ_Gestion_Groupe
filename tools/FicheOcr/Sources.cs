@@ -14,7 +14,8 @@ public record FicheDoc(
 public static class Sources
 {
     /// <summary>One document per member: the accepted one first, else the newest (rejected ones are skipped).
-    /// By default only members active today (they are the ones whose next form gets pre-filled).</summary>
+    /// By default only members active today and not leaving at this year's passage (« Quitte le groupe ») — they are the
+    /// ones whose next form gets pre-filled.</summary>
     public static async Task<List<FicheDoc>> FromDatabaseAsync(string connectionString, string docTypeCode, bool allMembers)
     {
         await using var conn = new NpgsqlConnection(connectionString);
@@ -37,6 +38,11 @@ public static class Sources
             WHERE t.code = @code AND NOT d.is_deleted AND NOT m.is_deleted AND d.status <> 'Rejected'
               AND (@all OR EXISTS (SELECT 1 FROM member_assignments a
                                    WHERE a.member_id = m.id AND a.end_date IS NULL AND NOT a.is_deleted))
+              -- « Quitte le groupe » at this year's passage: leaving, so no fiche to pre-fill next year.
+              AND (@all OR NOT EXISTS (SELECT 1 FROM passages p
+                                       WHERE p.member_id = m.id AND NOT p.is_deleted AND p.status <> 'Rejected'
+                                         AND COALESCE(p.final_is_leaving, p.is_leaving)
+                                         AND p.scout_year = (SELECT s.value FROM settings s WHERE s.key = 'passage.scout_year')))
             ORDER BY d.member_id, (d.status = 'Approved') DESC, d.created_at DESC
             """, conn))
         {

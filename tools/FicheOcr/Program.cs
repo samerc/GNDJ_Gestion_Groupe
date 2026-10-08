@@ -34,6 +34,10 @@ else
 }
 Console.WriteLine($"{docs.Count} fiche(s) « {opt.DocType} » trouvée(s) (une par membre).");
 var allDocsCount = docs.Count; // for the Excel summary, which always covers every unit read so far
+// Members still to report (from the database: active and not leaving at the passage). A fiche read earlier for a
+// member who has since left or is marked « Quitte le groupe » stays in resultats.jsonl but is left out of the Excel.
+var keepMembers = opt.Manifest is null ? docs.Select(d => d.MemberId).ToHashSet() : null;
+List<FicheResult> ForExcel(IEnumerable<FicheResult> rows) => rows.Where(r => keepMembers is null || keepMembers.Contains(r.MemberId)).ToList();
 
 if (opt.ListUnits)
 {
@@ -70,7 +74,7 @@ if (opt.Report)
     // Rewrites the Excel from the saved results (current checks), without reading any fiche.
     var reportDir = opt.Trial > 0 ? Path.Combine(opt.Out, "essai") : opt.Out;
     var saved = new ResultStore(reportDir);
-    Console.WriteLine($"Excel : {ExcelReport.Write(saved.All, reportDir, opt.AppUrl, filesRoot, allDocsCount)} ({saved.All.Count} fiche(s)).");
+    Console.WriteLine($"Excel : {ExcelReport.Write(ForExcel(saved.All), reportDir, opt.AppUrl, filesRoot, allDocsCount)} ({ForExcel(saved.All).Count} fiche(s)).");
     return 0;
 }
 
@@ -172,10 +176,10 @@ using (runLock)
                           (result.Ok ? $"{(result.Reasons.Count > 0 ? "à vérifier" : "OK")}" : $"ERREUR : {result.Error}") +
                           $" — {result.Seconds:0}s");
 
-        if (done % 10 == 0) ExcelReport.Write(store.All, outDir, opt.AppUrl, filesRoot, allDocsCount);
+        if (done % 10 == 0) ExcelReport.Write(ForExcel(store.All), outDir, opt.AppUrl, filesRoot, allDocsCount);
     }
 
-    var path = ExcelReport.Write(store.All, outDir, opt.AppUrl, filesRoot, allDocsCount);
+    var path = ExcelReport.Write(ForExcel(store.All), outDir, opt.AppUrl, filesRoot, allDocsCount);
     // Figures for the fiches chosen in this run (one unit, or all).
     var mine = store.All.Where(r => docs.Any(d => d.DocumentId == r.DocumentId)).ToList();
     Console.WriteLine($"Excel : {path}");
@@ -291,7 +295,7 @@ record Options
           --model <nom>         modèle Ollama                                                 [qwen2.5vl:7b]
           --check               vérifie la base, les fichiers et Ollama, sans rien lire
           --retry-errors        relit les fiches en erreur
-          --all-members         inclut les anciens membres (par défaut : membres actifs)
+          --all-members         inclut les anciens membres et ceux qui quittent (par défaut : membres actifs, sans « Quitte le groupe »)
           --export <dossier>    copie les fiches + un manifeste (pour lire sur un autre PC)
           --manifest <fichier>  lit les fiches d'un export au lieu de la base
           --connection <cs>     chaîne de connexion (sinon lue dans les appsettings du site)
