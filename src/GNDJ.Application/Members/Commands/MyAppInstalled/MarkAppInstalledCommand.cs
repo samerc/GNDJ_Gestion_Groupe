@@ -19,14 +19,10 @@ public class MarkAppInstalledHandler(IApplicationDbContext context, ICurrentUser
         var memberId = currentUser.MemberId;
         if (memberId is null) return Result<bool>.Failure("Aucun membre associé à ce compte.");
 
-        var member = await context.Members.FirstOrDefaultAsync(m => m.Id == memberId.Value, ct);
-        if (member is null) return Result<bool>.Failure("Membre introuvable.");
-
-        if (member.AppInstalledAt is null)
-        {
-            member.AppInstalledAt = DateTime.UtcNow; // a real instant, not a calendar date
-            await context.SaveChangesAsync(ct);
-        }
+        // One UPDATE that only touches a member not flagged yet (no row load; a repeat call changes nothing).
+        // AppInstalledAt is a real instant, not a calendar date.
+        await context.Members.Where(m => m.Id == memberId.Value && m.AppInstalledAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.AppInstalledAt, DateTime.UtcNow), ct);
         return Result<bool>.Success(true);
     }
 }

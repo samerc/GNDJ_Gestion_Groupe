@@ -224,11 +224,16 @@ static class DemandeReviewProjection
             .GroupBy(g => g.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
         var relations = (await context.ApplicantScoutRelations.Where(r => accountIds.Contains(r.ApplicantAccountId)).ToListAsync(ct))
             .GroupBy(r => r.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
-        // All demandes per account (this year) for sibling context
-        var allByAccount = (await context.Demandes.Where(d => accountIds.Contains(d.ApplicantAccountId) && d.ScoutYear == scoutYear && d.Status != DemandeStatus.Draft).ToListAsync(ct))
+        // All demandes per account (this year) for sibling context — only the 5 fields the sibling chips show.
+        var allByAccount = (await context.Demandes
+                .Where(d => accountIds.Contains(d.ApplicantAccountId) && d.ScoutYear == scoutYear && d.Status != DemandeStatus.Draft)
+                .Select(d => new { d.Id, d.ApplicantAccountId, d.FirstName, d.LastName, d.Status, Sent = d.ResponseSentAt != null })
+                .ToListAsync(ct))
             .GroupBy(d => d.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
 
-        var unitNames = await context.Units.ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+        // Names of the decided units only (not the whole units table).
+        var decidedUnitIds = demandes.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
+        var unitNames = await context.Units.Where(u => decidedUnitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
 
         // Resolve linked AND suggested relatives so the CG can see who they are (name + current active unit) and
         // confirm a suggestion ("Lier") or remove a link.
@@ -256,7 +261,7 @@ static class DemandeReviewProjection
             var gs = guardians.GetValueOrDefault(d.ApplicantAccountId) ?? [];
             var rs = relations.GetValueOrDefault(d.ApplicantAccountId) ?? [];
             var sibs = (allByAccount.GetValueOrDefault(d.ApplicantAccountId) ?? []).Where(x => x.Id != d.Id)
-                .Select(x => new SiblingDto(x.Id, x.FirstName, x.LastName, x.Status, x.ResponseSentAt != null)).ToList();
+                .Select(x => new SiblingDto(x.Id, x.FirstName, x.LastName, x.Status, x.Sent)).ToList();
             return new DemandeReviewDto(
                 d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, DemandeAdminHelpers.AgeAt(d.DateOfBirth, today),
                 d.Gender, d.Nationality, d.School, d.Classe, d.Section, d.BloodType, d.MedicalNotes, d.Allergies,

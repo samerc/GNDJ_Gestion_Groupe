@@ -63,9 +63,14 @@ public class GetDashboardOverviewQueryHandler(IApplicationDbContext context, ICu
         var demandeYear = SettingOr("demande.scout_year", operatingYear);
         var demandeEnabled = SettingOr("demande.enabled", "false") == "true";
 
+        // ── Campaign pipeline (over non-draft demandes of the campaign year) — also gives the « à traiter » count ──
+        var demStatuses = await context.Demandes
+            .Where(d => d.ScoutYear == demandeYear && d.Status != DemandeStatus.Draft)
+            .Select(d => new { d.Status, Sent = d.ResponseSentAt != null })
+            .ToListAsync(ct);
+
         // ── Action items ──
-        var pendingDemandes = await context.Demandes
-            .CountAsync(d => d.ScoutYear == demandeYear && d.Status == DemandeStatus.Submitted && d.ResponseSentAt == null, ct);
+        var pendingDemandes = demStatuses.Count(d => d.Status == DemandeStatus.Submitted && !d.Sent);
         var pendingChangeRequests = await context.MemberChangeRequests
             .CountAsync(r => r.Status == ChangeRequests.ChangeRequestStatus.Pending, ct);
         var passagesToFinalize = await GNDJ.Application.Passages.PassageScope.Lines(context)
@@ -74,13 +79,8 @@ public class GetDashboardOverviewQueryHandler(IApplicationDbContext context, ICu
             .CountAsync(d => d.Status == DocumentStatus.Pending && d.DocumentType.IsActive, ct);
         var membersOnHold = await context.Members.CountAsync(m => m.IsOnHold, ct);
 
-        // ── Campaign pipeline (over non-draft demandes of the campaign year) ──
-        var demStatuses = await context.Demandes
-            .Where(d => d.ScoutYear == demandeYear && d.Status != DemandeStatus.Draft)
-            .Select(d => new { d.Status, Sent = d.ResponseSentAt != null })
-            .ToListAsync(ct);
         var campTotal = demStatuses.Count;
-        var campPending = demStatuses.Count(d => d.Status == DemandeStatus.Submitted && !d.Sent);
+        var campPending = pendingDemandes;
         var campApproved = demStatuses.Count(d => d.Status == DemandeStatus.Approved);
         var campDeclined = demStatuses.Count(d => d.Status == DemandeStatus.Declined);
         var campSent = demStatuses.Count(d => d.Sent);

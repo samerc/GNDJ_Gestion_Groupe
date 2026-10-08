@@ -12,10 +12,12 @@ export interface PasswordPolicy {
   requireSpecial: boolean
 }
 
-export function usePasswordPolicy() {
+// `enabled` lets an always-mounted caller (the account menu) fetch the policy only when its dialog opens.
+export function usePasswordPolicy(enabled = true) {
   return useQuery({
     queryKey: ['password-policy'],
     queryFn: () => apiClient.get<PasswordPolicy>('/auth/password-policy').then((r) => r.data),
+    enabled,
     staleTime: 5 * 60 * 1000, // rarely changes; cache 5 min
   })
 }

@@ -118,7 +118,7 @@ public class SystemHealthService : ISystemHealthService
     }
 
     // Free space of the drive holding the app folder. "Low" = under Monitoring:DiskLowPercent (default 10 %) or
-    // under Monitoring:DiskLowGb (default 5 GB). Uploads size is summed from the folder (a few thousand files).
+    // under Monitoring:DiskLowGb (default 5 GB). Uploads size: see UploadsSize (cached one hour).
     private DiskStats? ReadDisk()
     {
         try
@@ -130,15 +130,27 @@ public class SystemHealthService : ISystemHealthService
             var pct = total > 0 ? free * 100.0 / total : 0;
             var lowPct = double.TryParse(_config["Monitoring:DiskLowPercent"], out var p) ? p : 10;
             var lowGb = double.TryParse(_config["Monitoring:DiskLowGb"], out var g) ? g : 5;
-            var uploads = Path.Combine(appDir, "uploads");
-            long uploadsBytes = 0;
-            if (Directory.Exists(uploads))
-                foreach (var f in Directory.EnumerateFiles(uploads, "*", SearchOption.AllDirectories))
-                    try { uploadsBytes += new FileInfo(f).Length; } catch { /* file vanished mid-scan */ }
+            var uploadsBytes = UploadsSize(Path.Combine(appDir, "uploads"));
             var low = pct < lowPct || free < lowGb * 1024 * 1024 * 1024;
             return new DiskStats(drive.Name, total, free, Math.Round(pct, 1), uploadsBytes, low);
         }
         catch { return null; }
+    }
+
+    // Size of the uploads folder. Walking every file is slow-ish and the hourly ops alert calls this, so the total is
+    // kept for an hour (it only feeds the « Système » page figure; low-disk detection uses the live free space).
+    private long _uploadsBytes;
+    private DateTime _uploadsMeasuredAt = DateTime.MinValue;
+    private long UploadsSize(string uploads)
+    {
+        if (DateTime.UtcNow - _uploadsMeasuredAt < TimeSpan.FromHours(1)) return _uploadsBytes;
+        long total = 0;
+        if (Directory.Exists(uploads))
+            foreach (var f in Directory.EnumerateFiles(uploads, "*", SearchOption.AllDirectories))
+                try { total += new FileInfo(f).Length; } catch { /* file vanished mid-scan */ }
+        _uploadsBytes = total;
+        _uploadsMeasuredAt = DateTime.UtcNow;
+        return total;
     }
 
     private static string Gb(long bytes) => $"{bytes / 1024d / 1024 / 1024:0.#} Go";

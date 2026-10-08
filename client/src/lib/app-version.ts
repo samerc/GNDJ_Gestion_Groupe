@@ -1,8 +1,7 @@
-// Single access point for the app's release identity + changelog.
-// - APP_VERSION / BUILD_COMMIT / BUILD_DATE are baked in at build time (vite.config.ts `define`).
-// - CHANGELOG is the auto-generated release history (deploy/bump.ps1 writes src/data/changelog.json from
-//   the git commits since the previous version tag). Newest entry first.
-import changelogData from '@/data/changelog.json'
+// The app's release identity: APP_VERSION / BUILD_COMMIT / BUILD_DATE, baked in at build time (vite.config.ts
+// `define`). Read by the header and sidebar on every page, so this file must stay tiny: the changelog itself lives in
+// lib/changelog.ts, imported only by the « Journal des versions » page (it is ~250 KB of JSON and used to sit in the
+// start-up script of every user).
 
 // A change is either a plain string (legacy — falls back to the release date) or an object carrying its own
 // date (so entries added on different days within one unreleased block show their true date).
@@ -18,5 +17,3 @@ export interface ChangelogEntry {
 export const APP_VERSION: string = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
 export const BUILD_COMMIT: string = typeof __BUILD_COMMIT__ !== 'undefined' ? __BUILD_COMMIT__ : 'dev'
 export const BUILD_DATE: string = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
-
-export const CHANGELOG: ChangelogEntry[] = changelogData as ChangelogEntry[]

@@ -22,3 +22,13 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+// Member photos are cached as blob URLs (components/shared/member-photo.tsx, key ['member-photo', …]). Free the blob
+// when its cache entry goes away (unused for a while, or the cache is cleared at login/logout), so photos never
+// outlive the session that was allowed to see them and memory doesn't grow.
+queryClient.getQueryCache().subscribe((event) => {
+  if (event.type === 'removed' && event.query.queryKey[0] === 'member-photo') {
+    const url = event.query.state.data
+    if (typeof url === 'string') URL.revokeObjectURL(url)
+  }
+})

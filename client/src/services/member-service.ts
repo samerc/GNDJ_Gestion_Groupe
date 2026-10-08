@@ -562,6 +562,8 @@ export function useUploadPhoto(memberId: string) {
       }).then(r => r.data)
     },
     onSuccess: () => {
+      // The photo file name is fixed per member, so the cached picture must be dropped explicitly.
+      qc.removeQueries({ queryKey: ['member-photo', memberId] })
       qc.invalidateQueries({ queryKey: ['members', memberId] })
       qc.invalidateQueries({ queryKey: ['members'] })
     },
@@ -574,6 +576,8 @@ export function useDeletePhoto(memberId: string) {
   return useMutation({
     mutationFn: () => apiClient.delete(`/members/${memberId}/photo`).then(r => r.data),
     onSuccess: () => {
+      // The photo file name is fixed per member, so the cached picture must be dropped explicitly.
+      qc.removeQueries({ queryKey: ['member-photo', memberId] })
       qc.invalidateQueries({ queryKey: ['members', memberId] })
       qc.invalidateQueries({ queryKey: ['members'] })
     },

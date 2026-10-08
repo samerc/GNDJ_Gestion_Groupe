@@ -227,15 +227,20 @@ public static class CalendarFeed
 
         var groupIds = meetings.Select(m => m.GroupId).Distinct().ToList();
         var groups = await context.MemberGroups.Include(g => g.Rules).Where(g => groupIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id, ct);
-        // Is the viewer in the roster? One query per (group, unit) — réunions of groups are few.
+        // Is the viewer in the roster? One query per (group, unit) — réunions of groups are few — and only when it
+        // matters: a manager (top-level group) or a chef of the unit sees the réunion anyway.
         var inRoster = new Dictionary<(Guid, Guid?), bool>();
         foreach (var m in meetings)
         {
             if (!groups.TryGetValue(m.GroupId, out var g)) continue;
             var topLevel = MemberGroupModes.IsTopLevel(g.ScopeType, g.PerUnit);
             var leads = topLevel ? viewer.IsManager : viewer.IsManager || viewer.LeadUnitIds.Contains(m.UnitId);
+            // A chef sees their unit's group réunions; a manager looking at one unit sees that unit's too.
+            var seenAnyway = topLevel ? viewer.IsManager
+                : viewer.LeadUnitIds.Contains(m.UnitId) || (viewer.IsManager && meetingUnitId == m.UnitId);
             var key = (g.Id, topLevel ? (Guid?)null : m.UnitId);
-            if (!inRoster.TryGetValue(key, out var member))
+            var member = false;
+            if (!seenAnyway && !inRoster.TryGetValue(key, out member))
             {
                 member = false;
                 if (viewer.MemberId is Guid me)
@@ -246,10 +251,7 @@ public static class CalendarFeed
                 }
                 inRoster[key] = member;
             }
-            // A chef sees their unit's group réunions; a manager looking at one unit sees that unit's too.
-            var shown = member || (topLevel ? viewer.IsManager
-                : viewer.LeadUnitIds.Contains(m.UnitId) || (viewer.IsManager && meetingUnitId == m.UnitId));
-            if (!shown) continue;
+            if (!seenAnyway && !member) continue;
             if (!leads && m.Status != MeetingStatuses.Approved) continue;
 
             var typeLabel = m.Type switch { MeetingTypes.Sortie => "Sortie", MeetingTypes.Camp => "Camp", _ => "Réunion" };

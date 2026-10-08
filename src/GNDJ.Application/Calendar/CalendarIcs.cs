@@ -60,8 +60,10 @@ public static class CalendarIcs
         var bytes = 0;
         foreach (var ch in line)
         {
-            var n = Encoding.UTF8.GetByteCount(ch.ToString());
-            if (bytes + n > 74) { sb.Append("\r\n "); bytes = 1; }
+            // UTF-8 size of the char without allocating a string: 1 (ASCII), 2, 3, or 4 for a surrogate pair —
+            // counted on the high surrogate so a pair is never split across two lines.
+            var n = ch < 0x80 ? 1 : ch < 0x800 ? 2 : char.IsHighSurrogate(ch) ? 4 : char.IsLowSurrogate(ch) ? 0 : 3;
+            if (n > 0 && bytes + n > 74) { sb.Append("\r\n "); bytes = 1; }
             sb.Append(ch);
             bytes += n;
         }

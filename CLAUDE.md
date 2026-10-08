@@ -6591,3 +6591,28 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
   « Déjà membre ? (à vérifier) »; hooks in `services/demande-member-match-service.ts` (kept out of the entry chunk).
   Account-menu « Mes appareils » dialog is lazy-loaded (entry 451 → 438 KB).
 
+### Performance audit (2026-10-08, DEV until deploy)
+Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compressed payloads fine), then fixed:
+- **Entry chunk 438 → 214 KB**: `lib/app-version.ts` no longer imports `data/changelog.json` (~200 KB, grew every
+  release); the changelog is in `lib/changelog.ts`, imported only by the changelog page. Budget lowered to entry
+  280 KB / first-load 260 KB gzip (`tests/e2e/bundle_budget.mjs`).
+- `/auth/bootstrap` also returns `shellSettings` (cotisation.currency_symbols, pwa.install_promotion) + `switchAccounts`,
+  primed into the cache; `GetMeQuery` computes `ProtectedAccount` from rows it already loads (`FamilyAccess.IsProtectedAsync`
+  removed). Account menu fetches the password policy only when its dialog opens; maintenance poll 60 s → 120 s.
+- `PublicCacheMiddleware`: frequent non-public writes (my-profile, documents, meetings, camps, cotisations, passages,
+  demandes, …) no longer evict the public output cache; passage finalize, send-responses, close-campaign, submissions
+  and rentrée run-action still do. `MarkAppInstalled` = one conditional UPDATE, and the client skips it once flagged.
+- Demande review: haystacks built once per load + `useDeferredValue` search; only the visible layout is mounted
+  (`hooks/use-media-query.ts`); waits for `demande.scout_year` instead of fetching with a fallback year; review
+  projection loads 5 sibling fields and only decided units.
+- Dashboard editor (dnd-kit) split to `components/dashboard/dashboard-editor.tsx` (lazy). Member photos cached in
+  TanStack (`['member-photo', id, photoPath, refreshKey]`, blob URL revoked on removal — lib/query-client.ts);
+  upload/delete drop the cached photo.
+- Attendance save applies a diff (no soft-deleted copies per save). Calendar skips the roster query when the viewer
+  sees the réunion anyway; ICS line folding without per-char allocation. Dashboard overview: one demande query.
+  System status caches the uploads-folder size 1 h. Partial index `ix_member_change_requests_pending`
+  (migration `AddChangeRequestPendingIndex`).
+- Manual probe `tests/e2e/page_probe.mjs` (page load time + API calls per page on a `vite preview` build).
+- Not changed (measured fine / low value): MemberTodo batching for « Ma famille », document-campaign triple compute,
+  audit-log filter options, narrower demande-mutation invalidation.
+

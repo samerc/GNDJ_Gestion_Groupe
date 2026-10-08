@@ -6,9 +6,10 @@
 // quota warnings, incomplete-dossier flags, and keyboard triage (A/R/arrows in the drawer).
 // Decisions are staged (Approved/Declined) and only become final/emailed on "Envoyer les réponses",
 // which is gated until every demande in scope is decided (no undecided 'Submitted' left).
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import { useSearchParams } from 'react-router'
-import { useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
+import { useSetting, useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useSendResponsesPreview, useCloseCampaign,
   useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember,
@@ -172,9 +173,17 @@ function relationsSummary(d: DemandeReview): string {
 
 type SortKey = 'lastName' | 'firstName' | 'age' | 'classe' | 'status'
 
+// Lowercase without accents, for the review search.
+const normSearch = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 export default function DemandeValidationPage() {
   const emailToast = useEmailQueuedToast()
-  const scoutYear = useSettingValue('demande.scout_year') ?? '2026-2027'
+  // Wait for the setting before loading anything: a hard-coded fallback year made the page fetch the whole list
+  // twice whenever the real year differed. The fallback only applies once the setting is known to be empty.
+  const { data: yearSetting, isLoading: yearLoading } = useSetting('demande.scout_year')
+  const scoutYear = yearLoading ? '' : (yearSetting?.value || '2026-2027')
+  // Only the visible layout is mounted (table on a computer, cards on a phone) — not both with one hidden.
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const siblingsTogether = useSettingValue('demande.decide_siblings_together') === 'true'
   const schoolCode = useSchoolCode()
 
@@ -326,23 +335,25 @@ export default function DemandeValidationPage() {
     setFSent('all'); setFRelation('all'); setFIncomplete(false); setFMemberMatch(false); setFHasRelations(false); setFSibling(false); setFPrevious(false); setFConflict(false)
   }
 
+  // Multi-field + multi-term search: each space-separated word must match SOMEWHERE in the row's haystack
+  // (accent/case-insensitive AND) — so "marie beyrouth" or "hariri usj" narrows across the whole file, not just the
+  // child's name. Covers child + household + every parent + every proche. The haystacks are built once per list
+  // load (not on every keystroke), and the typed text is deferred so typing stays smooth on ~250 rows.
+  const haystacks = useMemo(() => new Map(all.map((d) => [d.id, normSearch([
+    d.firstName, d.lastName, d.serialNumber, d.nationality, d.school, d.classe, d.section,
+    d.email, d.phoneNumber, d.gender, d.bloodType, d.addressCity, d.addressCountry, d.addressDetails,
+    d.contactName, d.accountEmail, d.age != null ? String(d.age) : '',
+    ...d.guardians.flatMap((g) => [g.firstName, g.lastName, g.profession, g.professionDomain, g.email, g.phoneNumber]),
+    ...d.scoutRelations.flatMap((r) => [r.firstName, r.lastName, r.otherGroupName, r.lastUnit, r.lastFunction, r.relatedMemberName]),
+  ].filter(Boolean).join(' '))])), [all])
+  const deferredSearch = useDeferredValue(search)
+
   // filter (search) → sort → group siblings adjacent
   const rows = useMemo(() => {
-    // Multi-field + multi-term search: each space-separated word must match SOMEWHERE in the row's
-    // haystack (accent/case-insensitive AND) — so "marie beyrouth" or "hariri usj" narrows across the
-    // whole file, not just the child's name. Covers child + household + every parent + every proche.
-    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    const tokens = norm(search).split(/\s+/).filter(Boolean)
-    const haystack = (d: DemandeReview) => norm([
-      d.firstName, d.lastName, d.serialNumber, d.nationality, d.school, d.classe, d.section,
-      d.email, d.phoneNumber, d.gender, d.bloodType, d.addressCity, d.addressCountry, d.addressDetails,
-      d.contactName, d.accountEmail, d.age != null ? String(d.age) : '',
-      ...d.guardians.flatMap((g) => [g.firstName, g.lastName, g.profession, g.professionDomain, g.email, g.phoneNumber]),
-      ...d.scoutRelations.flatMap((r) => [r.firstName, r.lastName, r.otherGroupName, r.lastUnit, r.lastFunction, r.relatedMemberName]),
-    ].filter(Boolean).join(' '))
+    const tokens = normSearch(deferredSearch).split(/\s+/).filter(Boolean)
     // Apply the extra dropdown/flag filters first, then the free-text search tokens.
     const base = all.filter(matchesFilters)
-    const filtered = tokens.length ? base.filter((d) => { const h = haystack(d); return tokens.every((t) => h.includes(t)) }) : base
+    const filtered = tokens.length ? base.filter((d) => { const h = haystacks.get(d.id) ?? ''; return tokens.every((t) => h.includes(t)) }) : base
     const dir = sortDir === 'asc' ? 1 : -1
     const sorted = [...filtered].sort((a, b) => {
       switch (sortKey) {
@@ -366,7 +377,7 @@ export default function DemandeValidationPage() {
       }
     }
     return grouped
-  }, [all, search, sortKey, sortDir, siblingsTogether, accountCounts, matchesFilters])
+  }, [all, haystacks, deferredSearch, sortKey, sortDir, siblingsTogether, accountCounts, matchesFilters])
 
   // Send gate: there must be staged decisions to send AND no demande still undecided.
   // status==='all' forces the user to view the full set so a filtered-out 'Submitted' can't be missed.
@@ -785,14 +796,14 @@ export default function DemandeValidationPage() {
               </Tip>
             )}
           </div>
-          {gridMode && (
-            <div className="hidden md:block">
+          {gridMode && isDesktop && (
+            <div>
               <DemandeGrid rows={rows} units={occList} reasons={rejectionReasons} classes={gridClasses} schools={gridSchools}
                 onClose={() => setGridMode(false)} />
             </div>
           )}
           {/* Desktop: dense sortable table. Phones get a card list below (md:hidden). */}
-          <div className={cn('hidden', !gridMode && 'md:block')}>
+          {isDesktop && !gridMode && <div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -883,12 +894,12 @@ export default function DemandeValidationPage() {
               })}
             </TableBody>
           </Table>
-          </div>
+          </div>}
 
           {/* Mobile cards — the dense table is unusable on a phone. Tap the card to open the full detail
               drawer (with large footer actions); the quick accept/refuse/reset/delete are also here at a
               comfortable size, and the bulk checkbox stays available. */}
-          <div className="space-y-2.5 p-3 md:hidden">
+          {!isDesktop && <div className="space-y-2.5 p-3">
             {rows.map((d) => {
               const locked = !!d.createdMemberId
               const si = statusInfo(d)
@@ -943,7 +954,7 @@ export default function DemandeValidationPage() {
                 </div>
               )
             })}
-          </div>
+          </div>}
         </Card>
       )}
 

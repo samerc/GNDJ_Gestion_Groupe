@@ -20,14 +20,7 @@ public static class FamilyAccess
         && (a.FunctionalRole.IsMaitrise || a.FunctionalRole.SecurityProfile.IsGroupLevel
             || a.FunctionalRole.SecurityProfile.Permissions.Any(p => p.Permission == GNDJ.Domain.Enums.Permissions.MembersEdit));
 
-    // Is this one account protected? (Same rule as LoadAsync, for the signed-in member's own account.)
-    public static async Task<bool> IsProtectedAsync(IApplicationDbContext ctx, Guid memberId, bool isSuperAdmin, CancellationToken ct)
-    {
-        if (isSuperAdmin) return true;
-        if (await ctx.MemberAssignments.Where(a => a.MemberId == memberId).AnyAsync(LeaderPost, ct)) return true;
-        return await ctx.Members.AnyAsync(m => m.Id == memberId
-            && (m.DelegatedPermissionsJson != null || m.DelegatedGroupAccess || m.DelegatedProfileId != null), ct);
-    }
+    // (The signed-in member's own flag is computed by GetMeQuery from the posts it already loads — same rule.)
 
     public record FamilyMember(Guid MemberId, string FirstName, string LastName, DateOnly? DateOfBirth,
         Guid? UserId, string? Username, bool Protected, string? MainEmail);

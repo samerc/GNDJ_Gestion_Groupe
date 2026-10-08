@@ -596,21 +596,27 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
         var rosterQ = await GetMeetingsQueryHandler.RosterQueryForAsync(context, m, ct);
         var rosterIds = (await rosterQ.Select(a => a.MemberId).Distinct().ToListAsync(ct)).ToHashSet();
 
-        var existing = await context.MeetingAbsences.Where(a => a.MeetingId == m.Id).ToListAsync(ct);
-        // Keep the "alert already sent" mark of members still absent, so saving again never re-alerts.
-        var alertedAt = existing.Where(a => a.AlertSentAt != null).ToDictionary(a => a.MemberId, a => a.AlertSentAt);
-        context.MeetingAbsences.RemoveRange(existing);
+        // Apply only the differences: a member still absent keeps their row (reason updated, and the "alert already
+        // sent" mark stays, so saving again never re-alerts); new absentees get a row; members no longer absent lose
+        // theirs. (Replacing every row on each save left a soft-deleted copy behind each time.)
+        var existing = (await context.MeetingAbsences.Where(a => a.MeetingId == m.Id).ToListAsync(ct))
+            .GroupBy(a => a.MemberId).ToDictionary(g => g.Key, g => g.First());
         var kept = request.Absences.Where(a => rosterIds.Contains(a.MemberId)).DistinctBy(a => a.MemberId).ToList();
+        var keptIds = kept.Select(a => a.MemberId).ToHashSet();
+        context.MeetingAbsences.RemoveRange(existing.Values.Where(a => !keptIds.Contains(a.MemberId)));
         var rows = new Dictionary<Guid, MeetingAbsence>();
         foreach (var a in kept)
         {
-            var row = new MeetingAbsence
+            var reason = string.IsNullOrWhiteSpace(a.Reason) ? null : a.Reason.Trim();
+            if (existing.TryGetValue(a.MemberId, out var row))
             {
-                MeetingId = m.Id, MemberId = a.MemberId,
-                Reason = string.IsNullOrWhiteSpace(a.Reason) ? null : a.Reason.Trim(),
-                AlertSentAt = alertedAt.GetValueOrDefault(a.MemberId),
-            };
-            context.MeetingAbsences.Add(row);
+                if (row.Reason != reason) row.Reason = reason;
+            }
+            else
+            {
+                row = new MeetingAbsence { MeetingId = m.Id, MemberId = a.MemberId, Reason = reason };
+                context.MeetingAbsences.Add(row);
+            }
             rows[a.MemberId] = row;
         }
 

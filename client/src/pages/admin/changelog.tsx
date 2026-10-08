@@ -2,7 +2,8 @@
 // nav; reached from the version number in the sidebar footer). Shows the live build's identity (version +
 // git commit + build date, baked in at build time) and the auto-generated changelog (deploy/bump.ps1 fills
 // src/data/changelog.json from the git commits since the previous version tag).
-import { APP_VERSION, BUILD_COMMIT, BUILD_DATE, CHANGELOG, type ChangelogChange } from '@/lib/app-version'
+import { APP_VERSION, BUILD_COMMIT, BUILD_DATE, type ChangelogChange } from '@/lib/app-version'
+import { CHANGELOG } from '@/lib/changelog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/shared/empty-state'

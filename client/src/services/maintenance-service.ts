@@ -16,11 +16,10 @@ export function useMaintenance() {
   return useQuery({
     queryKey: ['maintenance'],
     queryFn: () => publicApi.get<MaintenanceStatus>('/public/maintenance').then((r) => r.data),
-    // The 60s interval already keeps this fresh; a focus refetch just fired a redundant second
-    // /public/maintenance right after login/tab-refocus (the "maintenance called twice" the user saw).
-    // Match staleTime to the interval so the focus refetch is a cache hit.
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    // Polled every 2 minutes in each open tab (maintenance is switched on rarely, and any API call made meanwhile
+    // already gets a 503 « maintenance »). No focus refetch: it fired a redundant second call right after login.
+    staleTime: 120_000,
+    refetchInterval: 120_000,
     refetchOnWindowFocus: false,
     retry: false,
   })

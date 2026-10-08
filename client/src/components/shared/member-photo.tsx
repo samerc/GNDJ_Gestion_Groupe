@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useUploadPhoto, useDeletePhoto } from '@/services/member-service'
 import { parseApiError } from '@/lib/error-utils'
 import apiClient from '@/lib/api-client'
@@ -24,7 +25,6 @@ interface MemberPhotoProps {
 
 export function MemberPhoto({ memberId, name, photoPath, size = 40, height, rounded = 'rounded-full', editable = false, className, refreshKey = 0 }: MemberPhotoProps) {
   const h = height ?? size
-  const [src, setSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [inView, setInView] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -58,34 +58,17 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
     return () => observer.disconnect()
   }, [inView])
 
-  useEffect(() => {
-    if (!photoPath || !inView) {
-      // Reset while there's nothing to show; the real work below is an async blob fetch with object-URL
-      // cleanup, so this is legitimately an effect.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSrc(null)
-      return
-    }
-    let revoked = false
-    apiClient
-      .get(`/members/${memberId}/photo`, { responseType: 'blob' })
-      .then(r => {
-        if (!revoked) setSrc(URL.createObjectURL(r.data))
-      })
-      .catch(() => {
-        if (!revoked) setSrc(null)
-      })
-    return () => {
-      revoked = true
-    }
-  }, [memberId, photoPath, refreshKey, inView])
-
-  // Clean up blob URL on unmount or change
-  useEffect(() => {
-    return () => {
-      if (src) URL.revokeObjectURL(src)
-    }
-  }, [src])
+  // The photo itself, cached by member + file (a new upload changes photoPath → new entry): going back to a list no
+  // longer re-downloads every photo. The blob URL is freed when the cache entry is dropped (lib/query-client.ts),
+  // and the whole cache is cleared at login/logout.
+  const { data: src = null } = useQuery({
+    queryKey: ['member-photo', memberId, photoPath, refreshKey],
+    queryFn: () => apiClient.get(`/members/${memberId}/photo`, { responseType: 'blob' }).then((r) => URL.createObjectURL(r.data)),
+    enabled: !!photoPath && inView,
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+    retry: false,
+  })
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -107,7 +90,6 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
     setLoading(true)
     try {
       await deleteMutation.mutateAsync()
-      setSrc(null)
       toast.success('Photo supprimée')
     } catch (err) {
       toast.error(parseApiError(err))

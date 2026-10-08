@@ -58,8 +58,9 @@ export function UserMenu() {
   const [devicesOpen, setDevicesOpen] = useState(false)
 
   const changePasswordMutation = useChangePassword()
-  const { data: passwordPolicy } = usePasswordPolicy()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  // Only needed inside the « Modifier le mot de passe » dialog — not fetched on every page load.
+  const { data: passwordPolicy } = usePasswordPolicy(changePasswordOpen)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordError, setPasswordError] = useState('')
 

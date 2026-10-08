@@ -45,7 +45,11 @@ export function AppLayout() {
   // CG can see who installed it. Runs here because the shell is authenticated; the call self-guards (only when
   // standalone, once per load). A one-shot side-effect (no state) — impersonation would flag the wrong member,
   // so skip it while viewing as someone else (read the store directly to avoid ordering/stale-closure issues).
-  useEffect(() => { if (!useImpersonationStore.getState().active) void reportPwaInstall() }, [])
+  // Skipped once the server already has the flag (user.appInstalled), so an installed app doesn't ping on every load.
+  const alreadyFlagged = useAuthStore((s) => s.user?.appInstalled)
+  useEffect(() => {
+    if (alreadyFlagged === false && !useImpersonationStore.getState().active) void reportPwaInstall()
+  }, [alreadyFlagged])
   // Re-subscribe this device to push if its subscription uses an old VAPID key (silent; only if already enabled).
   useEffect(() => { if (!useImpersonationStore.getState().active) void syncPush() }, [])
 

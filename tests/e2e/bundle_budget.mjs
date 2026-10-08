@@ -4,8 +4,8 @@
 // disappear again. Raise a limit deliberately (env vars below) when a real feature needs it.
 //
 //   node tests/e2e/bundle_budget.mjs         (run.ps1 does it unless -SkipBundle)
-// Limits (KB): GNDJ_BUDGET_ENTRY_KB (entry script, raw, default 450), GNDJ_BUDGET_FIRSTLOAD_GZ_KB (all first-load
-// JS gzipped, default 320).
+// Limits (KB): GNDJ_BUDGET_ENTRY_KB (entry script, raw, default 280), GNDJ_BUDGET_FIRSTLOAD_GZ_KB (all first-load
+// JS gzipped, default 260). Lowered 2026-10-08 after the changelog left the entry (438 → 214 KB): keep the headroom.
 import { execSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,8 +14,8 @@ import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 
 const client = resolve(dirname(fileURLToPath(import.meta.url)), '../../client')
-const ENTRY_KB = Number(process.env.GNDJ_BUDGET_ENTRY_KB || 450)
-const FIRSTLOAD_GZ_KB = Number(process.env.GNDJ_BUDGET_FIRSTLOAD_GZ_KB || 320)
+const ENTRY_KB = Number(process.env.GNDJ_BUDGET_ENTRY_KB || 280)
+const FIRSTLOAD_GZ_KB = Number(process.env.GNDJ_BUDGET_FIRSTLOAD_GZ_KB || 260)
 
 const out = mkdtempSync(join(tmpdir(), 'gndj-budget-'))
 let failed = false

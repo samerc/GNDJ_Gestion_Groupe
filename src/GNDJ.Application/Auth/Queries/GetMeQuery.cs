@@ -75,6 +75,13 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
         var needsContactReview = !user.IsSuperAdmin
             && ContactReview.IsDue(user.Member.ContactReviewedAt, await ContactReview.YearStartAsync(_context, cancellationToken));
 
+        // « Protected » account (FamilyAccess): super-admin, delegated access, or an active maîtrise / group-level /
+        // members.edit post. Same rule as FamilyAccess.LeaderPost, computed from the rows already loaded above
+        // (was 2 extra queries on every bootstrap).
+        var protectedAccount = user.IsSuperAdmin
+            || activeAssignments.Any(a => a.IsMaitrise || a.IsGroupLevel || a.IsLeader)
+            || user.Member.DelegatedPermissionsJson != null || user.Member.DelegatedGroupAccess || user.Member.DelegatedProfileId != null;
+
         // Étapiste of a game in a live camp → "Mes jeux" page (see GetMyCampGamesQuery).
         var isCampEtapiste = await _context.CampGameEtapistes.AnyAsync(e => e.MemberId == user.MemberId && !e.IsDeleted
             && !e.CampGame.IsDeleted && !e.CampGame.Camp.IsDeleted && !e.CampGame.Camp.IsArchived, cancellationToken);
@@ -96,7 +103,7 @@ public class GetMeQueryHandler : IRequestHandler<GetMeQuery, Result<MeResponse>>
             needsContactReview,
             user.Member.AppInstalledAt != null,
             isCampEtapiste,
-            await GNDJ.Application.Members.FamilyAccess.IsProtectedAsync(_context, user.MemberId, user.IsSuperAdmin, cancellationToken)
+            protectedAccount
         ));
     }
 }
