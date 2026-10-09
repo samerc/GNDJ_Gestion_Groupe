@@ -795,6 +795,10 @@ public static class SeedData
             // Master switch for member-card generation (single + bulk). When off, the "Cartes" buttons are hidden
             // and the card endpoints refuse. The CG/super-admin toggles it (e.g. only enable during card-print season).
             new() { Key = "reports.cards_enabled", Value = "true", Category = "reports", Label = "Génération des cartes membres", Description = "Autorise la génération des cartes membres (individuelles et par unité). Désactivez pour masquer les boutons « Cartes » et empêcher leur génération.", ValueType = "boolean" },
+            // Master switch for the CU « Session photo » page (camera with the silhouette frame). Off = the page, its menu
+            // link, the « Photos » button and the rentrée task « Organiser la séance photo » are hidden. Uploading a photo
+            // from a member file still works.
+            new() { Key = "members.photo_session_enabled", Value = "true", Category = "members", Label = "Session photo", Description = "Active la page « Session photo » des chefs d'unité (photos prises avec l'appareil et le cadre). Désactivez pour la masquer, avec son bouton et sa tâche de rentrée. La photo depuis la fiche d'un membre reste possible.", ValueType = "boolean" },
             new() { Key = "app.base_url", Value = "http://localhost:5180", Category = "general", Label = "URL de l'application", Description = "URL de base utilisée pour les liens dans les emails (ex: https://app.gndj.org)", ValueType = "string" },
             new() { Key = "demande.enabled", Value = "false", Category = "demande", Label = "Inscriptions ouvertes", Description = "Ouvre ou ferme le portail public de demande d'inscription", ValueType = "boolean" },
             new() { Key = "demande.submissions_open", Value = "true", Category = "demande", Label = "Soumissions ouvertes", Description = "Période (à l'intérieur des inscriptions) où les parents peuvent créer/modifier/soumettre leurs demandes. Une fois fermée, le portail reste ouvert en consultation mais plus aucune modification n'est possible (phase de revue par la Maîtrise de Groupe).", ValueType = "boolean" },

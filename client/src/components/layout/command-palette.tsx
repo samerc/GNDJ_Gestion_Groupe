@@ -5,6 +5,7 @@ import { Search, Home, Users, Star, Clock, Contact } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
 import { useMembers, useSearchParents } from '@/services/member-service'
+import { usePhotoSessionEnabled } from '@/services/settings-service'
 import { getRecentMembers, getFavoriteMembers, type RecentMember } from '@/lib/recent-members'
 import { useDebounce } from '@/hooks/use-debounce'
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut } from '@/components/ui/command'
@@ -70,12 +71,15 @@ export function CommandPalette() {
   const parents = searchable ? (parentData ?? []) : []
 
   // Nav destinations visible to this user, filtered by the typed query.
+  // « Session photo » can be switched off in Paramètres → Membres (then it's not offered here either).
+  const photoSessionOn = usePhotoSessionEnabled()
   const dests = useMemo(() => {
-    const visible = buildDestinations(isManager).filter((d) => !d.perm || hasPermission(d.perm))
+    const visible = buildDestinations(isManager).filter((d) => (!d.perm || hasPermission(d.perm))
+      && !(d.path === '/photo-session' && !photoSessionOn))
     if (!debounced) return visible
     const q = norm(debounced)
     return visible.filter((d) => norm(d.label).includes(q))
-  }, [debounced, hasPermission, isManager])
+  }, [debounced, hasPermission, isManager, photoSessionOn])
 
   // Ctrl/⌘-K toggles the palette from anywhere. `openRef` keeps the handler's view of open current without
   // re-subscribing on every toggle; favorites/recents are loaded in the handler (an event, not an effect).

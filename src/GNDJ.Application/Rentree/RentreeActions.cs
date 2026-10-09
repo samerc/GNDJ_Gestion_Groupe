@@ -40,8 +40,13 @@ public static class RentreeActions
 public static class RentreeFeatureGates
 {
     public const string Cards = "goto-cards"; // member cards — setting reports.cards_enabled
+    public const string Photo = "goto-photo"; // CU photo session — setting members.photo_session_enabled
 
-    private static readonly Dictionary<string, string> SettingByAction = new() { [Cards] = "reports.cards_enabled" };
+    private static readonly Dictionary<string, string> SettingByAction = new()
+    {
+        [Cards] = "reports.cards_enabled",
+        [Photo] = "members.photo_session_enabled",
+    };
 
     // The action keys whose feature is currently OFF (a missing setting counts as on).
     public static async Task<HashSet<string>> OffActionsAsync(IApplicationDbContext context, CancellationToken ct)

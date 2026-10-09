@@ -6655,6 +6655,12 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
 - Not changed (measured fine / low value): MemberTodo batching for « Ma famille », document-campaign triple compute,
   audit-log filter options, narrower demande-mutation invalidation.
 
+### « Session photo » switch (2026-10-09, DEV until deploy)
+- Setting `members.photo_session_enabled` (boolean, default true, category members = CG-editable; SeedMissingSettings).
+  Off → `/photo-session` shows a « désactivée » notice, its menu link + Ctrl-K entry and the « Photos » button on Mon unité
+  are hidden, and the rentrée task with action `goto-photo` is gated (`RentreeFeatureGates.Photo`). Uploading a photo
+  from the member file is unaffected. Client hook `usePhotoSessionEnabled()` (settings-service).
+
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
 - **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),
   `HiddenPassword()` (never-shown logins: demande conversion), `UrlToken()` (activation / reset links; was copied 6×).

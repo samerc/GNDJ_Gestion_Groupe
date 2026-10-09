@@ -15,6 +15,7 @@ import { usePendingDemandeCount, useCampaignStatus } from '@/services/demande-ad
 import { usePendingChangeRequestsCount } from '@/services/change-request-service'
 import { useUnreadContactMessageCount } from '@/services/contact-message-service'
 import { useCamps } from '@/services/camp-service'
+import { usePhotoSessionEnabled } from '@/services/settings-service'
 import { APP_VERSION, BUILD_COMMIT, BUILD_DATE } from '@/lib/app-version'
 import { BrandMark } from '@/components/shared/brand-mark'
 import { personalNavItems, adminNavItems, leaderNavItems, adminGroups, placeDemandes, type NavLink, type AdminGroup } from './nav-items'
@@ -63,9 +64,12 @@ function NavContent({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
   const { data: campList } = useCamps(canGradeCamp || canManageCamp)
   const hasLiveCamp = !!campList?.some((c) => !c.isArchived)
 
+  // « Session photo » can be switched off in Paramètres → Membres.
+  const photoSessionOn = usePhotoSessionEnabled()
   const visibleNav = navItems.filter((item) =>
     // The CU main-menu "Camp BP" grading link (/camp) shows only once a camp is active.
-    (!item.permission || hasPermission(item.permission)) && !(item.path === '/camp' && !hasLiveCamp))
+    (!item.permission || hasPermission(item.permission)) && !(item.path === '/camp' && !hasLiveCamp)
+    && !(item.path === '/photo-session' && !photoSessionOn))
   // A chef d'équipe (leads a team) who is otherwise a read-only youth has no attendance.manage permission, so
   // the "Réunions" link above is filtered out — add it explicitly so they can fill their team's présences.
   if (user?.leadsTeam && !visibleNav.some((i) => i.path === '/attendance')) {

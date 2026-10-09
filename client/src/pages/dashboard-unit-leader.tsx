@@ -24,7 +24,7 @@ import { generateBulkCards } from '@/services/report-service'
 import { parseBlobError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { calendarScoutYear } from '@/hooks/use-scout-year'
-import { useSettingValue } from '@/services/settings-service'
+import { useSettingValue, usePhotoSessionEnabled } from '@/services/settings-service'
 import { useUnitAbsenceCounts } from '@/services/meeting-service'
 import { Users, Search, GripVertical, FileDown, List, CreditCard, FileSpreadsheet, Camera, CalendarCheck, UsersRound, SlidersHorizontal, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { BirthdaysButton } from '@/components/shared/birthdays-card'
@@ -99,6 +99,8 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
   const [exportOpen, setExportOpen] = useState(false)
   // Member-card generation is a group-wide toggle (Paramètres → Rapports). Off => hide the "Cartes" button.
   const cardsEnabled = useSettingValue('reports.cards_enabled') !== 'false'
+  // « Session photo » can be switched off (Paramètres → Membres) → hide the "Photos" button.
+  const photoSessionOn = usePhotoSessionEnabled()
   // The CU's own "Mon unité" preferences (button bar, roster row fields, grouping), saved on their account.
   const { data: prefsJson } = useUnitDashboardPrefs()
   const prefs = useMemo(() => mergeUnitPrefs(prefsJson), [prefsJson])
@@ -215,13 +217,13 @@ export default function UnitLeaderDashboard({ unitId }: Props) {
         </Button>
       </Tip>
     ) : null,
-    photos: (
+    photos: photoSessionOn ? (
       <Tip content="Session photo de l'unité">
         <Button variant="outline" size="sm" className="shrink-0" onClick={() => navigate('/photo-session')}>
           <Camera className="mr-1 h-4 w-4" />Photos
         </Button>
       </Tip>
-    ),
+    ) : null,
     // Opens the unit detail page (unit info + teams), where the CU edits équipes and their foulard colours.
     teams: (
       <Tip content="Gérer les équipes de l'unité (noms, couleurs des foulards…)">

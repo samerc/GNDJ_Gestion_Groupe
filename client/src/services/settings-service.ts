@@ -102,6 +102,11 @@ export function useSettingValue(key: string): string | null {
   return data?.value ?? null
 }
 
+// « Session photo » page switch (Paramètres → Membres). A missing setting counts as on.
+export function usePhotoSessionEnabled(): boolean {
+  return useSettingValue('members.photo_session_enabled') !== 'false'
+}
+
 export function useSettingArray(key: string): string[] {
   const { data } = useSetting(key)
   if (!data?.value) return []

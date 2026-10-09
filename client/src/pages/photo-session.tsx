@@ -12,6 +12,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useLeaderUnits } from '@/hooks/use-leader-units'
+import { usePhotoSessionEnabled } from '@/services/settings-service'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Check, ArrowRight, Camera, Users, List } from 'lucide-react'
@@ -58,6 +59,7 @@ function PhotoUploader({ memberId, memberName, onDone }: { memberId: string; mem
 export default function PhotoSessionPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const photoSessionOn = usePhotoSessionEnabled()
   // Units this leader runs (CU/ACU). A CU leading >1 unit gets a picker in the header; before, the page was
   // hardcoded to unitAccess[0] so a multi-unit CU could only ever photograph their first unit.
   const leaderUnits = useLeaderUnits()
@@ -95,6 +97,18 @@ export default function PhotoSessionPage() {
       setCapturedPhotos(prev => new Set(prev).add(selectedMemberId))
       setPhotoRefreshKeys(prev => ({ ...prev, [selectedMemberId]: (prev[selectedMemberId] ?? 0) + 1 }))
     }
+  }
+
+  // Switched off in Paramètres → Membres (e.g. while the camera frame is being fixed): no camera, just a notice.
+  if (!photoSessionOn) {
+    return (
+      <EmptyState
+        icon={Camera}
+        title="Session photo désactivée"
+        description="La session photo est désactivée pour le moment. Vous pouvez toujours ajouter une photo depuis la fiche d'un membre."
+        action={<Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>Retour</Button>}
+      />
+    )
   }
 
   if (isLoading) return <LoadingSpinner variant="page" />

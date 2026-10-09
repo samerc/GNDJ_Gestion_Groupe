@@ -384,6 +384,8 @@ apparaissent automatiquement dans le calendrier, y compris ceux d'un groupe de m
 Prenez les photos de vos membres directement avec votre téléphone : la page affiche la liste, vous touchez un nom,
 l'appareil photo s'ouvre avec un cadre pour bien placer le visage, et la photo est enregistrée sur la fiche.
 
+Si la page n'apparaît pas, le chef de groupe l'a désactivée : ajoutez la photo depuis la fiche du membre.
+
 ![Session photo](img/cu-photo.png)
 
 ## Impressions : liste, trombinoscope, cartes, export
