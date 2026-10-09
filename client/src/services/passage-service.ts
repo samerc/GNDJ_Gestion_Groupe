@@ -338,3 +338,20 @@ export async function downloadPassageNewcomersDoc(scoutYear: string, association
   })
   return { blob: res.data, fileName: filenameFromDisposition(res.headers['content-disposition']) ?? `Passage ${scoutYear}.docx` }
 }
+
+// GET /passages/member/{id} → one member's passage lines, every year (newest first), for the member file.
+// Staff only (the server refuses the member themselves). Keyed under ['passages'] so passage edits refresh it.
+export interface MemberPassage {
+  id: string; scoutYear: string; status: string
+  currentUnit: string; currentTeam: string | null; currentRole: string
+  proposedUnit: string; proposedTeam: string | null; proposedRole: string; isLeaving: boolean; cuNotes: string | null; proposedBy: string | null
+  finalUnit: string | null; finalTeam: string | null; finalRole: string | null; finalIsLeaving: boolean | null
+  cgModified: boolean; cgNotes: string | null; reviewedBy: string | null; reviewedAt: string | null; createdAt: string
+}
+export function useMemberPassages(memberId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['passages', 'member', memberId],
+    queryFn: () => apiClient.get<MemberPassage[]>(`/passages/member/${memberId}`).then((r) => r.data),
+    enabled: enabled && !!memberId,
+  })
+}

@@ -6683,6 +6683,15 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   swapped) AND père/mère identical — each role present on both sides or neither, one record each, same full name — with
   at least one parent. One letter off, a missing parent or two fathers on file → stays manual. Dev: 55 of 69.
 
+### Passage lines on the member file (2026-10-09, DEV until deploy)
+- `GET /passages/member/{memberId}` (`GetMemberPassagesQuery`, Application/Passages/MemberPassageHistory.cs): every
+  non-deleted passage line of the member, newest year first — current / proposed / final placement (unit, team,
+  role, leaving), CU + CG notes, CgModified, status, proposed-by / reviewed-by names (+ date). Staff only:
+  `HasMemberRead` + `CanViewMemberAsync` (chef of the member's unit, group manager, super-admin); the member
+  themselves gets 403 (CG notes are internal). Card « Passages » (`components/members/member-passages.tsx`) at the
+  bottom of the member file's Unités / Fonctions tab, hidden when there's no line; hook `useMemberPassages`
+  (['passages','member',id]).
+
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
 - **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),
   `HiddenPassword()` (never-shown logins: demande conversion), `UrlToken()` (activation / reset links; was copied 6×).

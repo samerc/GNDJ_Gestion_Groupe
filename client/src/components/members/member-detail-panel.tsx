@@ -24,6 +24,7 @@ import { SearchableSelect } from '@/components/shared/searchable-select'
 import { useSettingArray, useSettingValue } from '@/services/settings-service'
 import { SchoolSelect } from '@/components/shared/school-select'
 import { MemberAssignments } from '@/components/members/member-assignments'
+import { MemberPassages } from '@/components/members/member-passages'
 import { MemberGuardians } from '@/components/members/member-guardians'
 import { MemberSiblings } from '@/components/members/member-siblings'
 import { HouseholdContacts } from '@/components/members/household-contacts'
@@ -108,6 +109,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
   const updateUsername = useUpdateMemberUsername(memberId)
   const sendAccess = useSendAccess()
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_EDIT))
+  const canSeePassages = useAuthStore((s) => s.user?.isSuperAdmin || s.hasPermission(PERMISSIONS.MEMBERS_EDIT) || s.hasPermission(PERMISSIONS.MEMBERS_VIEW))
   const canResetPassword = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_RESET_PASSWORD))
   const canDelete = useAuthStore((s) => s.hasPermission(PERMISSIONS.MEMBERS_DELETE))
   const canDelegate = useAuthStore((s) => s.hasPermission(PERMISSIONS.ROLES_MANAGE_GROUP)) // CG/super-admin: accès délégué
@@ -619,6 +621,8 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
 
           <TabsContent value="unites" className="mt-0">
             <MemberAssignments memberId={memberId} memberName="" readOnly={!canEdit} />
+            {/* Passage lines of every year — chefs and admins only (the server refuses anyone else). */}
+            {canSeePassages && <MemberPassages memberId={memberId} />}
           </TabsContent>
 
           {/* Documents + Cotisations merged */}

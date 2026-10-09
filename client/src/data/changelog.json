@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-10-09",
+        "text": "Fiche d'un membre, onglet Unités / Fonctions : nouvelle carte « Passages » avec ses lignes de passage de chaque année (proposition du chef d'unité, décision du chef de groupe et raison, statut, qui l'a fait) — visible par les chefs et les administrateurs"
+      },
+      {
+        "date": "2026-10-09",
         "text": "Demandes, « Frères et sœurs à lier » : bouton « Lier automatiquement les correspondances sûres » pour lier d'un coup les frères et sœurs qui ont exactement le même nom et les mêmes père et mère que le membre reconnu"
       },
       {

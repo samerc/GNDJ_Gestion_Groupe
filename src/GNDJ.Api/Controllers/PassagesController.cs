@@ -16,6 +16,14 @@ namespace GNDJ.Api.Controllers;
 [Route("api/v1/passages")]
 public class PassagesController : BaseApiController
 {
+    /// <summary>
+    /// One member's passage lines, every year (member file). Staff who can see the member (chef of their unit with
+    /// members.view / members.edit, or a group manager); checked in the handler.
+    /// </summary>
+    [HttpGet("member/{memberId:guid}")]
+    public async Task<IActionResult> GetMemberPassages(Guid memberId)
+        => Ok(await Mediator.Send(new GetMemberPassagesQuery(memberId)));
+
     /// <summary>CU view: passage proposals for one unit. Requires passage.view.</summary>
     /// <param name="scoutYear">Required scout year scoping the round.</param>
     [HttpGet("unit/{unitId:guid}")]
