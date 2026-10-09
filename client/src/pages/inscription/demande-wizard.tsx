@@ -153,6 +153,9 @@ export default function DemandeWizardPage() {
   const [step, setStep] = useState(0)
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
+  // Time of the last automatic save (« Brouillon enregistré à 14:32 »): reassures the parent that leaving now
+  // doesn't lose what they typed.
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
   // Double-tap guard for persist() (see there): the in-flight save shared by concurrent calls, and the id of a
   // demande created in THIS session (state only updates on the next render).
   const inflightSave = useRef<Promise<string | null> | null>(null)
@@ -346,6 +349,7 @@ export default function DemandeWizardPage() {
     setSaving(true)
     try { await persist() } catch (err) { toast.error(parseApiError(err)); setSaving(false); return }
     setSaving(false)
+    setSavedAt(new Date())
     setStep(target)
   }
 
@@ -773,6 +777,12 @@ export default function DemandeWizardPage() {
       </Card>
 
       {/* Nav */}
+      {savedAt && !readonly && (
+        <p className="text-right text-xs text-muted-foreground" aria-live="polite">
+          <Check className="mr-1 inline h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          Brouillon enregistré à {savedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <Button variant="outline" onClick={() => go(step - 1)} disabled={step === 0 || saving}><ChevronLeft className="mr-1 h-4 w-4" />Précédent</Button>
         {step < 3 ? (

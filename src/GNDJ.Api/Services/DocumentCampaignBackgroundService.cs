@@ -34,7 +34,7 @@ public class DocumentCampaignBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(InitialDelay, stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -46,11 +46,11 @@ public class DocumentCampaignBackgroundService : BackgroundService
                 await RunOnceAsync(context, emailQueue, stoppingToken);
                 _jobs.Succeeded(JobKey);
             }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Document campaign run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }
 

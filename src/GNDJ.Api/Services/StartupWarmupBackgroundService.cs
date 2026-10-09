@@ -23,7 +23,7 @@ public class StartupWarmupBackgroundService(IServiceScopeFactory scopeFactory, I
             await DemandeReviewList.WarmUpAsync(db, stoppingToken);
             logger.LogInformation("Startup warm-up done in {Ms} ms", (int)(DateTime.UtcNow - started).TotalMilliseconds);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
         catch (Exception ex) { logger.LogInformation(ex, "Startup warm-up skipped"); }
     }
 }

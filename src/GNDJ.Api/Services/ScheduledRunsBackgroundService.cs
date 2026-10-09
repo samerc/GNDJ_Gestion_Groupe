@@ -38,7 +38,7 @@ public class ScheduledRunsBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(InitialDelay, stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -55,13 +55,13 @@ public class ScheduledRunsBackgroundService : BackgroundService
                     var message = await run(context, mediator, notifications, stoppingToken);
                     if (message is not null) _logger.LogInformation("Scheduled {Action}: {Message}", name, message);
                 }
-                catch (OperationCanceledException) { return; }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
                 catch (Exception ex) { failure = ex; _logger.LogError(ex, "Scheduled {Action} check failed; will retry next minute.", name); }
             }
             if (failure is null) _jobs.Succeeded(JobKey); else _jobs.Failed(JobKey, failure);
 
             try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }
 }

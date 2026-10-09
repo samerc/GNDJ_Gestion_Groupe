@@ -10,8 +10,8 @@ Settings (environment variables, defaults = the dev database after deploy/dev-sy
   GNDJ_API        http://localhost:5000/api/v1
   GNDJ_PASSWORD   Gndj2026!            (every dev login)
   GNDJ_ADMIN      admin@gndj.local     (super-admin)
-  GNDJ_CG         giorgio.rizk@scouts.gndj   (chef de groupe)
-  GNDJ_CU         wissam.azouri@scouts.gndj  (chef d'unite)
+  GNDJ_CG         christian.asmar@scouts.gndj   (chef de groupe)
+  GNDJ_CU         valerie.chedid.el.helou@scouts.gndj  (chef d'unite)
   GNDJ_YOUTH      fayez.a.boudaher@scouts.gndj (plain member)
   GNDJ_WEBHOOK_TOKEN   dev-webhook-token (EmailBounces:WebhookToken in appsettings.Development.json)
 Refuses to run against anything but localhost (it signs in/out and records test bounces).
@@ -27,8 +27,8 @@ import uuid
 API = os.environ.get("GNDJ_API", "http://localhost:5000/api/v1").rstrip("/")
 PWD = os.environ.get("GNDJ_PASSWORD", "Gndj2026!")
 ADMIN = os.environ.get("GNDJ_ADMIN", "admin@gndj.local")
-CG = os.environ.get("GNDJ_CG", "giorgio.rizk@scouts.gndj")
-CU = os.environ.get("GNDJ_CU", "wissam.azouri@scouts.gndj")
+CG = os.environ.get("GNDJ_CG", "christian.asmar@scouts.gndj")
+CU = os.environ.get("GNDJ_CU", "valerie.chedid.el.helou@scouts.gndj")
 YOUTH = os.environ.get("GNDJ_YOUTH", "fayez.a.boudaher@scouts.gndj")
 WEBHOOK_TOKEN = os.environ.get("GNDJ_WEBHOOK_TOKEN", "dev-webhook-token")
 

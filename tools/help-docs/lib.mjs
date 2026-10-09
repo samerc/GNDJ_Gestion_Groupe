@@ -19,8 +19,8 @@ if (!/localhost|127\.0\.0\.1/.test(APP)) { console.error(`Refusing to run agains
 // The dev accounts used for each role (override with env vars).
 export const ACCOUNTS = {
   member: process.env.GNDJ_MEMBER || 'fayez.a.boudaher@scouts.gndj',
-  cu: process.env.GNDJ_CU || 'wissam.azouri@scouts.gndj',
-  cg: process.env.GNDJ_CG || 'giorgio.rizk@scouts.gndj',
+  cu: process.env.GNDJ_CU || 'valerie.chedid.el.helou@scouts.gndj',
+  cg: process.env.GNDJ_CG || 'christian.asmar@scouts.gndj',
   admin: process.env.GNDJ_ADMIN || 'admin@gndj.local',
 }
 

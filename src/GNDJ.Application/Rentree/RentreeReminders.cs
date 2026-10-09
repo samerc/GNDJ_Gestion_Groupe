@@ -29,12 +29,15 @@ public static class RentreeReminders
 
         var sent = await SendDigestAsync(context, queue, today, ct);
 
-        // Stamp the marker even when 0 were sent, so we don't recompute every 12h all week.
+        // Stamp the marker even when 0 were sent, so we don't recompute every 12h all week. The digests were STAGED
+        // on this context: they and the marker are saved together — a failed save can no longer send the week's
+        // reminders twice (emails out, marker not stamped).
         var marker = await context.Settings.FirstOrDefaultAsync(s => s.Key == LastSentKey, ct);
         if (marker is null)
             context.Settings.Add(new Setting { Key = LastSentKey, Value = today.ToString("yyyy-MM-dd"), Category = "rentree", Label = "Dernier envoi des rappels de rentrée", ValueType = "string" });
         else marker.Value = today.ToString("yyyy-MM-dd");
         await context.SaveChangesAsync(ct);
+        if (sent > 0) queue.Wake();
 
         return sent;
     }
@@ -42,9 +45,12 @@ public static class RentreeReminders
     // Build + queue one digest per assignee with relevant (overdue or upcoming, not-done) tasks.
     public static async Task<int> SendDigestAsync(IApplicationDbContext context, IEmailQueue queue, DateOnly today, CancellationToken ct)
     {
-        // Candidate tasks: not done + carry some deadline (a fixed date or a live anchor).
+        // Candidate tasks: the CURRENT scout year only (old years' unfinished tasks were emailed every week forever,
+        // and an anchored one even looked due again from this year's dates), not done, with some deadline.
+        var year = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct)
+                   ?? ScoutYearHelper.Of(today);
         var tasks = await context.RentreeTasks
-            .Where(t => t.Status != "done" && (t.DueDate != null || t.DeadlineAnchor != null))
+            .Where(t => t.ScoutYear == year && t.Status != "done" && (t.DueDate != null || t.DeadlineAnchor != null))
             .ToListAsync(ct);
         var off = await RentreeFeatureGates.OffActionsAsync(context, ct);
         tasks = tasks.Where(t => !RentreeFeatureGates.IsOff(t, off)).ToList(); // switched-off feature → no reminder
@@ -120,7 +126,8 @@ public static class RentreeReminders
             }));
         }
 
-        await queue.EnqueueManyAsync(jobs, ct);
+        // Staged on the caller's context (saved with the "sent" marker, see RunIfDueAsync).
+        queue.Stage(context, jobs);
         return jobs.Count;
     }
 }

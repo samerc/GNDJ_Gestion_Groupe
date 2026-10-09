@@ -36,6 +36,7 @@ public class OutboxSenderBackgroundService : BackgroundService
     private static readonly TimeSpan Lease = TimeSpan.FromMinutes(2);          // claim window; a crash mid-send retries after this
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);  // fallback poll when no wake signal (enqueue wakes it instantly)
     // Backoff before the Nth retry (index = attempts already made − 1). After the last, the row is Failed.
+    private static readonly TimeSpan OutageRetry = TimeSpan.FromMinutes(5); // provider down: wait, don't burn attempts
     private static readonly TimeSpan[] Backoff =
         [TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(30)];
 
@@ -193,9 +194,23 @@ public class OutboxSenderBackgroundService : BackgroundService
 
             var outcome = results.ToDictionary(r => r.Id, r => (r.ok, r.error));
             doneAt = DateTime.UtcNow;
+            // Every email of a sweep failing (3+) = the provider is down, not these addresses. Those attempts don't
+            // count: the rows wait a few minutes and are retried, instead of a ~45-minute outage turning a whole mass
+            // send into "Failed" for someone to retry by hand. Only for recent rows (< 24 h), so a permanently broken
+            // setup still ends in Failed instead of retrying forever.
+            var outage = toSendNow.Count >= 3 && results.All(r => !r.ok);
+            if (outage)
+                _logger.LogWarning("Outbox: all {Count} emails of this sweep failed — treating it as a provider outage, retrying in {Minutes} min.",
+                    toSendNow.Count, OutageRetry.TotalMinutes);
             foreach (var row in toSendNow)
             {
                 var (ok, error) = outcome[row.Id];
+                if (!ok && outage && row.CreatedAt > doneAt.AddHours(-24))
+                {
+                    row.LastError = Truncate(error, 2000);
+                    row.NextAttemptAt = doneAt.Add(OutageRetry);
+                    continue;
+                }
                 row.Attempts++;
                 if (ok)
                 {

@@ -39,7 +39,7 @@ public class ApplicationLogMaintenanceBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(InitialDelay, stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -90,13 +90,19 @@ END $$;";
                         .Where(p => (p.Status == PushOutboxStatus.Sent || p.Status == PushOutboxStatus.Failed) && p.CreatedAt < cutoff)
                         .ExecuteDeleteAsync(stoppingToken);
                 }
+
+                // 4. Calendar reminder markers for dates long past (only today's and future ones are ever checked).
+                var markerCutoff = GNDJ.Application.Common.LebanonClock.Today.AddDays(-60);
+                await context.CalendarRemindersSent
+                    .Where(r => r.OccurrenceDate < markerCutoff)
+                    .ExecuteDeleteAsync(stoppingToken);
                 _jobs.Succeeded(JobKey);
             }
-            catch (OperationCanceledException) { break; } // shutting down
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; } // shutting down
             catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Application-log maintenance run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }
 

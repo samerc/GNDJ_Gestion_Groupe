@@ -28,7 +28,7 @@ public class MemberPurgeBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(InitialDelay, stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -41,11 +41,11 @@ public class MemberPurgeBackgroundService : BackgroundService
                 await purge.PurgeExpiredAsync(days, stoppingToken);
                 _jobs.Succeeded(JobKey);
             }
-            catch (OperationCanceledException) { break; } // shutting down
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; } // shutting down
             catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Member purge run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }
 

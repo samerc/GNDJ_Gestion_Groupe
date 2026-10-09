@@ -10,7 +10,7 @@ import { chromium } from 'playwright-core'
 const APP = (process.env.GNDJ_APP || 'http://localhost:5180').replace(/\/$/, '')
 const PWD = process.env.GNDJ_PASSWORD || 'Gndj2026!'
 const ADMIN = process.env.GNDJ_ADMIN || 'admin@gndj.local'
-const CU = process.env.GNDJ_CU || 'wissam.azouri@scouts.gndj'
+const CU = process.env.GNDJ_CU || 'valerie.chedid.el.helou@scouts.gndj'
 const BROWSER = process.env.GNDJ_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 if (!/localhost|127\.0\.0\.1/.test(APP)) { console.error(`Refusing to run against ${APP}: local dev only.`); process.exit(2) }
 

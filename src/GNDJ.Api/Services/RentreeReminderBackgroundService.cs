@@ -27,7 +27,7 @@ public class RentreeReminderBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(InitialDelay, stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -40,11 +40,11 @@ public class RentreeReminderBackgroundService : BackgroundService
                 if (sent > 0) _logger.LogInformation("Rentrée reminders: queued {Count} digest email(s).", sent);
                 _jobs.Succeeded(JobKey);
             }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Rentrée reminder run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }
 }

@@ -78,12 +78,18 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
     onError: (e) => toast.error(parseApiError(e)),
   })
 
-  const body = useMemo(() => {
+  // Parse the template ONCE per form (it used to be re-parsed on every keystroke — noticeable lag on a long fiche
+  // médicale on a low-end phone); only the cheap node → React mapping follows the answers.
+  const nodes = useMemo(() => {
     if (!form) return null
-    const doc = new DOMParser().parseFromString(form.html, 'text/html')
+    return Array.from(new DOMParser().parseFromString(form.html, 'text/html').body.childNodes)
+  }, [form])
+
+  const body = useMemo(() => {
+    if (!nodes) return null
     const set = (k: string, v: string) => setAnswers((a) => ({ ...a, [k]: v }))
-    return <>{Array.from(doc.body.childNodes).map((n, i) => toReact(n, `${i}`, answers, set))}</>
-  }, [form, answers])
+    return <>{nodes.map((n, i) => toReact(n, `${i}`, answers, set))}</>
+  }, [nodes, answers])
 
   const send = () => {
     if (!signerName.trim()) { toast.error('Indiquez votre nom.'); return }

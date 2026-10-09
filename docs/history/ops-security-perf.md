@@ -1263,3 +1263,19 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   (Digits + SameDigits = last 7 digits) replaces the copies in demande conversion / Déjà membre ? / Fratries / guardian
   search / leaver contact. `timeAgo` in lib/utils (rounded down, « hier », short date after 30 days) for the bell + Sessions.
 
+### Background-jobs fix batch from the full-app review (2026-10-10, DEV until deploy)
+- **Member purge**: re-checks (`FOR UPDATE`) that the member is still soft-deleted inside the transaction (a member
+  restored from the Corbeille mid-run was wiped); the photo file is deleted only if no remaining member points to it
+  (a merge keeps the loser's photo for the keeper).
+- **Rentrée digest**: current scout year only (`passage.scout_year`); digests are STAGED and saved with the "sent"
+  marker in one SaveChanges (no double send on a failed save). **Passage reminders**: marker saved before sending.
+- **Background services**: every `catch (OperationCanceledException)` is now `when (stoppingToken.IsCancellationRequested)`
+  — a timeout inside a run no longer stops the job until the next restart.
+- **LebanonClock.ToUtc**: a time skipped by summer time (00:00–00:59 on the spring-forward night) moves one hour later
+  instead of throwing (it broke the whole phone calendar feed). Unit test added.
+- **Email outbox**: a sweep where every email (3+) fails = provider outage → rows retried in 5 min without using an
+  attempt (only rows < 24 h old, so a broken setup still ends Failed).
+- **Housekeeping**: calendar reminder markers older than 60 days pruned daily (outbox/push/notifications already were).
+- **Smoke suite**: default CG/CU accounts updated after the 2026 publish (christian.asmar / valerie.chedid.el.helou);
+  62/62 API + 21/21 browser checks pass.
+

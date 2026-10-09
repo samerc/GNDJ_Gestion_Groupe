@@ -57,6 +57,16 @@ public class MemberPurgeService : IMemberPurgeService
         try
         {
             var p = new object[] { memberId };
+            // Re-check (and lock) the row inside the transaction: the list of members to purge was read earlier, and a
+            // CG may have RESTORED this member from the Corbeille meanwhile — never wipe a member who is back.
+            var stillDeleted = (await _context.Database.SqlQueryRaw<int>(
+                "SELECT 1 AS \"Value\" FROM members WHERE id = {0} AND is_deleted FOR UPDATE", memberId).ToListAsync(ct)).Count > 0;
+            if (!stillDeleted)
+            {
+                await tx.RollbackAsync(ct);
+                _logger.LogInformation("Member {MemberId} was restored before the purge — skipped.", memberId);
+                return;
+            }
             // RESTRICT children first (each would otherwise block the member delete).
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM member_assignments WHERE member_id = {0}", p, ct);
             await _context.Database.ExecuteSqlRawAsync("DELETE FROM passages WHERE member_id = {0}", p, ct);
@@ -87,7 +97,11 @@ public class MemberPurgeService : IMemberPurgeService
         }
 
         // Files last — outside the transaction, so a missing/locked file can't undo the DB purge.
-        DeleteFileSafe(photoPath);
+        // The photo may now belong to another member (a merge keeps the loser's photo for the kept file): only delete
+        // it when no remaining member points to that file.
+        var photoStillUsed = !string.IsNullOrWhiteSpace(photoPath) && (await _context.Database.SqlQueryRaw<int>(
+            "SELECT 1 AS \"Value\" FROM members WHERE photo_path = {0}", photoPath!).ToListAsync(ct)).Count > 0;
+        if (!photoStillUsed) DeleteFileSafe(photoPath);
         foreach (var d in docPaths) DeleteFileSafe(d);
         foreach (var d in pagePaths) DeleteFileSafe(d);
     }

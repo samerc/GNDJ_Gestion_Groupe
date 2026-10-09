@@ -44,7 +44,7 @@ public class OpsAlertBackgroundService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(InitialDelay, stoppingToken); }
-        catch (OperationCanceledException) { return; }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -53,11 +53,11 @@ public class OpsAlertBackgroundService : BackgroundService
                 await RunOnceAsync(stoppingToken);
                 _jobs.Succeeded(JobKey);
             }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { _jobs.Failed(JobKey, ex); _logger.LogError(ex, "Ops alert run failed; will retry next interval."); }
 
             try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }
 

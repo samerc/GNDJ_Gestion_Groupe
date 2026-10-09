@@ -30,6 +30,12 @@ public static class LebanonClock
     public static DateOnly Today => DateOnly.FromDateTime(Now);
 
     // A Lebanon local date + time → the UTC instant (calendar feed: phone calendars need an absolute time).
-    public static DateTime ToUtc(DateOnly date, TimeOnly time) =>
-        TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(date.ToDateTime(time), DateTimeKind.Unspecified), Tz);
+    // A time that doesn't exist (the hour skipped when summer time starts, 00:00–00:59 on Lebanon's spring-forward
+    // night) used to throw and break the whole phone feed; it is moved one hour later, like a phone calendar does.
+    public static DateTime ToUtc(DateOnly date, TimeOnly time)
+    {
+        var local = DateTime.SpecifyKind(date.ToDateTime(time), DateTimeKind.Unspecified);
+        if (Tz.IsInvalidTime(local)) local = local.AddHours(1);
+        return TimeZoneInfo.ConvertTimeToUtc(local, Tz);
+    }
 }

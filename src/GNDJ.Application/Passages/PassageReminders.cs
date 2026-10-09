@@ -110,9 +110,9 @@ public static class PassageReminders
         var due = AutoDaysBefore.Where(t => daysLeft <= t && !sent.Contains(t.ToString())).DefaultIfEmpty(-1).Min();
         if (due < 0) return null;
 
-        var result = await SendAsync(context, emailQueue, notifications, year, ct);
-
-        // Mark this threshold AND any larger one as done (don't send the 7-day reminder after the 2-day one).
+        // Mark this threshold AND any larger one as done (don't send the 7-day reminder after the 2-day one) — saved
+        // BEFORE sending: if the save failed after the notifications went out, the next run (6 h later) sent them all
+        // again. Claiming first means a crash mid-send loses that reminder at worst, never doubles it.
         foreach (var t in AutoDaysBefore.Where(t => t >= due)) sent.Add(t.ToString());
         var value = $"{year}:{string.Join(',', sent.OrderByDescending(int.Parse))}";
         var row = s.FirstOrDefault(x => x.Key == MarkerKey);
@@ -121,7 +121,8 @@ public static class PassageReminders
                 Description = "Rappels automatiques du passage déjà envoyés (interne)" });
         else row.Value = value;
         await context.SaveChangesAsync(ct);
-        return result;
+
+        return await SendAsync(context, emailQueue, notifications, year, ct);
     }
 }
 

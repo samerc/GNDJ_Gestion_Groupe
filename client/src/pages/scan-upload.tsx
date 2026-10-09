@@ -32,6 +32,9 @@ export default function ScanUploadPage() {
   const [sending, setSending] = useState(false)
   const [progress, setProgress] = useState<number | null>(null)
   const [sentCount, setSentCount] = useState(0)
+  // Pages sent per document type in this session — so the parent sees « Carte d'identité : 1 page ✓ » and knows
+  // whether the back (verso) still has to be photographed.
+  const [sentByType, setSentByType] = useState<Record<string, number>>({})
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   // The captured/chosen file awaiting confirmation — shown as a preview so the parent can check it's readable
   // and confirm (or retake) BEFORE it uploads (the camera otherwise sent the instant the photo was taken).
@@ -71,7 +74,13 @@ export default function ScanUploadPage() {
     try {
       await scanUploadFiles(token, fd, setProgress)
       setSentCount((c) => c + 1)
-      setMsg({ type: 'success', text: 'Document envoyé ! Vous pouvez en photographier un autre.' })
+      const pages = (sentByType[docTypeId] ?? 0) + 1
+      setSentByType((m) => ({ ...m, [docTypeId]: pages }))
+      setMsg({
+        type: 'success',
+        text: `${selectedType?.name ?? 'Document'} : ${pages} page${pages > 1 ? 's' : ''} envoyée${pages > 1 ? 's' : ''} ✓. `
+          + 'Photographiez une autre page du même document (le verso par exemple) ou choisissez un autre document.',
+      })
       cancelPending()
     } catch (err) {
       setMsg({ type: 'error', text: parseApiError(err) })
@@ -117,7 +126,11 @@ export default function ScanUploadPage() {
                   <SelectValue placeholder="Choisir un type…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {info.docTypes.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  {info.docTypes.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}{sentByType[d.id] ? ` — ${sentByType[d.id]} page${sentByType[d.id] > 1 ? 's' : ''} ✓` : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
