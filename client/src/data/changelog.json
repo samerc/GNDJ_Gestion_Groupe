@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-10-09",
+        "text": "Identifiants des nouveaux membres : seulement des lettres sans accents, des chiffres et des tirets (« Jean Marie D'Amour » → jeanmarie.damour@…) ; en cas de doublon, l'initiale du père puis un numéro, aussi pour les membres venant des demandes"
+      },
+      {
+        "date": "2026-10-09",
         "text": "Fiche d'un membre, onglet Unités / Fonctions : nouvelle carte « Passages » avec ses lignes de passage de chaque année (proposition du chef d'unité, décision du chef de groupe et raison, statut, qui l'a fait) — visible par les chefs et les administrateurs"
       },
       {

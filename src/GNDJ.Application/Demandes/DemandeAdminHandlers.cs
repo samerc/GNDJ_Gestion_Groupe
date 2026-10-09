@@ -1444,7 +1444,11 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             }
             else
             {
-                username = UniqueEmail(d.FirstName, d.LastName, domain, usedEmails, takenEmails);
+                // Same rule as a member created by hand: prenom.nom, then the father's initial, then a number.
+                var fatherFirst = (acctGuardians.GetValueOrDefault(d.ApplicantAccountId) ?? [])
+                    .FirstOrDefault(g => ParentRoles.IsFather(g.Relationship))?.FirstName;
+                username = UsernameFactory.PickUnique(d.FirstName, d.LastName, fatherFirst, domain,
+                    e => usedEmails.Contains(e) || takenEmails.Contains(e));
                 usedEmails.Add(username);
                 string passwordHash = creds.TryGetValue(d.Id, out var c)
                     ? c
@@ -1656,21 +1660,6 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var digits = PhoneNumbers.Digits(ag.PhoneNumber);
         if (digits.Length >= 6 && SameName(byPhone.GetValueOrDefault(digits)) is { } g2) return g2;
         return null;
-    }
-
-    // Unique login local-part, checked against usernames taken in this batch (`used`) and already-existing
-    // ones (`taken`, pre-loaded) — no per-member DB round-trip.
-    private static string UniqueEmail(string first, string last, string domain, HashSet<string> used, HashSet<string> taken)
-    {
-        var baseName = $"{UsernameFactory.Normalize(first)}.{UsernameFactory.Normalize(last)}";
-        var email = $"{baseName}@{domain}";
-        var suffix = 2;
-        while (used.Contains(email) || taken.Contains(email))
-        {
-            email = $"{baseName}{suffix}@{domain}";
-            suffix++;
-        }
-        return email;
     }
 }
 

@@ -6692,6 +6692,13 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   TOP of the member file's Unités / Fonctions tab, hidden when there's no line; hook `useMemberPassages`
   (['passages','member',id]).
 
+### Username rules unified (2026-10-09, DEV until deploy)
+- `UsernameFactory` (Common) is the ONE rule for new logins (« Nouveau membre », « Comptes manquants », demande send):
+  `Normalize` keeps only a–z / 0–9 / inner hyphens (all accents removed, œ→oe, spaces/apostrophes/dots dropped:
+  « Jean Marie D'Amour » → `jeanmarie.damour`); `Candidates` = prenom.nom → prenom.<father initial>.nom → …nom2, nom3;
+  `PickUnique` (in-memory, demande send — father = the account's Père) / `GenerateUniqueAsync` (DB). Existing
+  usernames are untouched (3 malformed ones left on purpose). Tests: `UsernameFactoryTests`.
+
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
 - **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),
   `HiddenPassword()` (never-shown logins: demande conversion), `UrlToken()` (activation / reset links; was copied 6×).
