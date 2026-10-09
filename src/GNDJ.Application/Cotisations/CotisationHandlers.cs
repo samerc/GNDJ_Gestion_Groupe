@@ -146,20 +146,17 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
 
         // Generate receipt number: GNDJ-YYYY-NNNN
         var year = request.ScoutYear.Split('-')[0];
-        var lastReceipt = await context.MemberCotisations
+        // Highest NUMBER, not the highest string: "GNDJ-2026-9999" sorts after "GNDJ-2026-10000" as text, so past
+        // 9999 every new receipt would get 10000 again and hit the unique index.
+        var prefix = $"GNDJ-{year}-";
+        var existingNumbers = await context.MemberCotisations
             .IgnoreQueryFilters()
-            .Where(c => c.ReceiptNumber.StartsWith($"GNDJ-{year}-"))
-            .OrderByDescending(c => c.ReceiptNumber)
+            .Where(c => c.ReceiptNumber.StartsWith(prefix))
             .Select(c => c.ReceiptNumber)
-            .FirstOrDefaultAsync(ct);
-
-        int nextNumber = 1;
-        if (lastReceipt is not null)
-        {
-            var parts = lastReceipt.Split('-');
-            if (parts.Length == 3 && int.TryParse(parts[2], out var last))
-                nextNumber = last + 1;
-        }
+            .ToListAsync(ct);
+        var nextNumber = existingNumbers
+            .Select(r => int.TryParse(r[prefix.Length..], out var n) ? n : 0)
+            .DefaultIfEmpty(0).Max() + 1;
         var receiptNumber = $"GNDJ-{year}-{nextNumber:D4}";
 
         var entity = new MemberCotisation
@@ -176,7 +173,7 @@ public class CreateCotisationCommandHandler(IApplicationDbContext context, ICurr
             entity.Payments.Add(new CotisationPayment
             {
                 Amount = p.Amount,
-                Currency = p.Currency,
+                Currency = p.Currency.Trim().ToUpperInvariant(), // codes stored uppercase ("lbp" → "LBP")
                 PaymentMethod = p.PaymentMethod
             });
         }
@@ -243,7 +240,7 @@ public class UpdateCotisationCommandHandler(IApplicationDbContext context, ICurr
             {
                 CotisationId = entity.Id,
                 Amount = p.Amount,
-                Currency = p.Currency,
+                Currency = p.Currency.Trim().ToUpperInvariant(), // codes stored uppercase ("lbp" → "LBP")
                 PaymentMethod = p.PaymentMethod
             });
         }

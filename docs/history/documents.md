@@ -440,3 +440,19 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   are left out of the Excel (an earlier read stays in resultats.jsonl); `--all-members` includes them (2026-10-08).
 - Not built yet: the import of the checked Excel; the « En ligne uniquement » document-type option for next year.
 
+### Fix batch from the full-app review (2026-10-09, DEV until deploy)
+- **Upload files** (`DocumentUploadFiles`): stored as `<guid>.<ext>` (original name kept in the DB, ≤200 chars) —
+  names with `| " * ? : < >` used to throw a 500 and leave files; MIME type from the checked extension, never the
+  browser's; a disk error or an exception in the command cleans the batch (`SendOrCleanupAsync`).
+- **Create-or-append** (`MemberDocumentWriter`) runs in a transaction with an advisory lock per (member, type)
+  (`DocumentLocks.Key`): two simultaneous uploads → one document, distinct page numbers. Inactive doc type refused.
+- **Add pages** refused on an Approved, non-expired document; an expired accepted one goes back to Pending.
+- **Scan upload**: per-session cap claimed atomically (conditional UPDATE), slots given back on failure.
+- **Unit zip**: built in a temp file (`DeleteOnClose`) instead of MemoryStream+ToArray; the file is opened before the
+  entry is created (no empty entries); UnauthorizedAccess skipped too. Matrix default year = `passage.scout_year`.
+- **New-year cleanup**: the archive export uses `IgnoreQueryFilters` (same set as the deletion), and page files of
+  soft-deleted documents are deleted from disk.
+- **Cotisations**: currency codes saved uppercase, `CotisationCalc` matches them case-insensitively (patch 043 fixes
+  old rows); receipt number = highest NUMBER + 1 (string max broke past 9999).
+- Live-tested: odd file name upload, 2 parallel uploads → 1 doc, page on accepted doc refused, zip valid.
+

@@ -179,7 +179,13 @@ public class ScanUploadDocumentCommandHandler(IApplicationDbContext context, IAu
     {
         var session = await GetScanUploadInfoQueryHandler.ResolveValidSessionAsync(context, request.Token, ct);
         if (session is null) return Result<Guid>.Failure("Ce lien a expiré ou n'est plus valide. Demandez un nouveau code sur l'ordinateur.");
-        if (session.UploadedCount >= ScanUploadConstants.MaxUploadsPerSession)
+        // Claim the slots atomically (conditional UPDATE): parallel uploads from the phone could otherwise all pass a
+        // read-then-check and go over the per-session cap.
+        var n = request.Files.Count;
+        var claimed = await context.UploadSessions
+            .Where(x => x.Id == session.Id && x.UploadedCount + n <= ScanUploadConstants.MaxUploadsPerSession)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.UploadedCount, x => x.UploadedCount + n), ct);
+        if (claimed == 0)
             return Result<Guid>.Failure("Limite d'envois atteinte pour cette session. Demandez un nouveau code sur l'ordinateur.");
 
         // Route through the shared writer (create-or-append + auto-approve + audit), attributed to the session's
@@ -188,12 +194,17 @@ public class ScanUploadDocumentCommandHandler(IApplicationDbContext context, IAu
             session.MemberId, request.DocumentTypeId, title: null,
             request.ExpiryDate, LebanonClock.Today, request.Files,
             session.CreatedByUserId, via: "scan mobile", ct);
-        if (!result.IsSuccess) return result;
+        if (!result.IsSuccess)
+        {
+            // Give the slots back: nothing was saved.
+            await context.UploadSessions.Where(x => x.Id == session.Id)
+                .ExecuteUpdateAsync(u => u.SetProperty(x => x.UploadedCount, x => x.UploadedCount - n), ct);
+            return result;
+        }
 
-        // Bump the session counter + remember the last document, so the desktop's poll sees the arrival.
-        session.UploadedCount += request.Files.Count;
-        session.LastDocumentId = result.Value;
-        await context.SaveChangesAsync(ct);
+        // Remember the last document (the counter was bumped above), so the desktop's poll sees the arrival.
+        await context.UploadSessions.Where(x => x.Id == session.Id)
+            .ExecuteUpdateAsync(u => u.SetProperty(x => x.LastDocumentId, result.Value), ct);
 
         return result;
     }

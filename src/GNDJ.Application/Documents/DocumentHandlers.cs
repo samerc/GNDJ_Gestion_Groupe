@@ -74,6 +74,18 @@ static class DocumentPageMapper
 // can never drift between them. The CALLER is responsible for authorization (this method trusts it). actingUserId
 // stamps ReviewedBy on an auto-approved (no-approval-required) doc + the audit actor; `via` tags the audit
 // (e.g. "scan mobile") when the upload didn't come through the standard path.
+// Advisory-lock keys for document writes (stable across processes: built from the GUID bytes, not GetHashCode).
+static class DocumentLocks
+{
+    public static long Key(Guid a, Guid b)
+    {
+        var x = a.ToByteArray(); var y = b.ToByteArray();
+        long k = 0x5D0C_0000_0000_0000;
+        for (var i = 0; i < 8; i++) k ^= (long)(x[i] ^ y[i + 8]) << (8 * i);
+        return k;
+    }
+}
+
 static class MemberDocumentWriter
 {
     public static async Task<Result<Guid>> WriteAsync(
@@ -85,12 +97,28 @@ static class MemberDocumentWriter
         if (files.Count == 0) return Result<Guid>.Failure("Aucun fichier n'a été fourni.");
 
         var docType = await context.DocumentTypes.FindAsync([documentTypeId], ct);
-        if (docType is null) return Result<Guid>.Failure("Type de document introuvable.");
+        if (docType is null || !docType.IsActive) return Result<Guid>.Failure("Type de document introuvable.");
         if (docType.RequiresExpiry && expiryDate is null)
             return Result<Guid>.Failure("La date d'expiration est requise pour ce type de document.");
 
         var docTitle = string.IsNullOrWhiteSpace(title) ? docType.Name : title;
         var now = DateTime.UtcNow;
+
+        // One upload at a time per (member, type): two simultaneous uploads (double tap, phone + PC) could both find no
+        // pending document and create TWO, or both append with the same page number. A transaction-scoped advisory lock
+        // makes the second wait for the first, then append to the document it created.
+        await using var tx = await context.BeginTransactionAsync(ct);
+        await context.AcquireAdvisoryLockAsync(DocumentLocks.Key(memberId, documentTypeId), ct);
+        var result = await WriteLockedAsync(context, audit, memberId, documentTypeId, docType, docTitle, expiryDate, issuedDate, files, actingUserId, via, now, ct);
+        await tx.CommitAsync(ct);
+        return result;
+    }
+
+    private static async Task<Result<Guid>> WriteLockedAsync(
+        IApplicationDbContext context, IAuditService audit, Guid memberId, Guid documentTypeId, DocumentType docType,
+        string docTitle, DateOnly? expiryDate, DateOnly? issuedDate, IReadOnlyList<SavedDocFile> files,
+        Guid? actingUserId, string? via, DateTime now, CancellationToken ct)
+    {
 
         // Append to an in-progress (Pending) document of the same type if one exists. Insert the pages directly
         // (don't load/mutate the tracked parent + its collection) so SaveChanges only does INSERTs.
@@ -366,9 +394,13 @@ public class AddDocumentPagesCommandHandler(IApplicationDbContext context, ICurr
         // Load only what we need (no tracked parent to mutate).
         var doc = await context.MemberDocuments
             .Where(d => d.Id == request.DocumentId)
-            .Select(d => new { d.Id, d.MemberId, d.Status, DocTypeName = d.DocumentType.Name })
+            .Select(d => new { d.Id, d.MemberId, d.Status, d.ExpiryDate, DocTypeName = d.DocumentType.Name })
             .FirstOrDefaultAsync(ct);
         if (doc is null) return Result<Guid>.Failure("Document introuvable.");
+        // An ACCEPTED, still-valid document is closed: adding a page would slip an unreviewed file into it.
+        var expired = doc.ExpiryDate != null && doc.ExpiryDate < LebanonClock.Today;
+        if (doc.Status == DocumentStatus.Approved && !expired)
+            return Result<Guid>.Failure("Ce document a déjà été accepté : il ne peut plus être complété.");
         if (!await DocumentAccessHelper.CanAccessMember(context, currentUser, doc.MemberId, ct))
             return Result<Guid>.Failure("Accès non autorisé.");
         // Same campaign/on-hold gate as a fresh upload (adding a page is a member-facing upload).
@@ -377,8 +409,8 @@ public class AddDocumentPagesCommandHandler(IApplicationDbContext context, ICurr
 
         await DocumentPageMapper.AppendPagesAsync(context, doc.Id, request.Files, DateTime.UtcNow, ct);
 
-        // Adding a page to a rejected document re-opens it for review (targeted update, no tracking needed).
-        if (doc.Status == DocumentStatus.Rejected)
+        // Adding a page to a rejected (or accepted-but-expired) document re-opens it for review (targeted update).
+        if (doc.Status == DocumentStatus.Rejected || doc.Status == DocumentStatus.Approved)
             await context.MemberDocuments.Where(d => d.Id == doc.Id)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.Status, DocumentStatus.Pending)

@@ -171,8 +171,10 @@ public class NewYearCleanupService(IServiceScopeFactory scopes, IConfiguration c
             var cwd = Path.GetFullPath(Directory.GetCurrentDirectory());
             var uploadsRoot = Path.GetFullPath(Path.Combine(cwd, "uploads"));
 
-            // ── 1. Export every (non-deleted) document + its pages to a zip: <unité>/<NOM Prénom>/<type>[ - pN].ext ──
-            var docs = await ctx.MemberDocuments
+            // ── 1. Export every document + its pages to a zip: <unité>/<NOM Prénom>/<type>[ - pN].ext ──
+            // IgnoreQueryFilters: the SAME set the deletion below works on (soft-deleted documents, documents of members
+            // in the Corbeille) — otherwise those files were deleted without ever being archived.
+            var docs = await ctx.MemberDocuments.IgnoreQueryFilters()
                 .Select(d => new
                 {
                     d.Id, d.FilePath, d.FileName, d.DocumentTypeId, Type = d.DocumentType.Name,
@@ -219,7 +221,9 @@ public class NewYearCleanupService(IServiceScopeFactory scopes, IConfiguration c
                 .Select(d => new { d.Id, d.FilePath }).ToListAsync();
             var delIds = delDocs.Select(d => d.Id).ToList();
             var delPaths = delDocs.Select(d => d.FilePath).ToList();
-            delPaths.AddRange(await ctx.MemberDocumentPages.Where(p => delIds.Contains(p.MemberDocumentId)).Select(p => p.FilePath).ToListAsync());
+            // Pages too, including those of soft-deleted documents (the page filter hides them): the database cascade
+            // removes the rows, so without IgnoreQueryFilters their files stayed on disk forever.
+            delPaths.AddRange(await ctx.MemberDocumentPages.IgnoreQueryFilters().Where(p => delIds.Contains(p.MemberDocumentId)).Select(p => p.FilePath).ToListAsync());
 
             int approvalsReset = 0, sectionsCleared, promoted = 0;
             await using (var tx = await ctx.Database.BeginTransactionAsync())
@@ -227,7 +231,7 @@ public class NewYearCleanupService(IServiceScopeFactory scopes, IConfiguration c
                 // Chunked so a large year never builds one giant IN (...) list.
                 foreach (var chunk in delIds.Chunk(1000))
                 {
-                    await ctx.MemberDocumentPages.Where(p => chunk.Contains(p.MemberDocumentId)).ExecuteDeleteAsync();
+                    await ctx.MemberDocumentPages.IgnoreQueryFilters().Where(p => chunk.Contains(p.MemberDocumentId)).ExecuteDeleteAsync();
                     await ctx.MemberDocuments.IgnoreQueryFilters().Where(d => chunk.Contains(d.Id)).ExecuteDeleteAsync();
                 }
                 if (!plan.KeepApproval)

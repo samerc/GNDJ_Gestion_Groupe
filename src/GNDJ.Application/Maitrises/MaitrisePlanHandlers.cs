@@ -50,7 +50,8 @@ public static class MaitrisePlan
 
         var endIds = lines.Where(l => l.Kind == MaitrisePlanKinds.End && l.AssignmentId != null).Select(l => l.AssignmentId!.Value).ToList();
         var toEnd = await context.MemberAssignments.Where(a => endIds.Contains(a.Id) && a.EndDate == null).ToListAsync(ct);
-        foreach (var a in toEnd) a.EndDate = passageDate;
+        // Never end a post before its own start (a post begun after the passage date ends the day it started).
+        foreach (var a in toEnd) a.EndDate = a.StartDate > passageDate ? a.StartDate : passageDate;
 
         var starts = lines.Where(l => l.Kind == MaitrisePlanKinds.Start).ToList();
         var unitIds = starts.Select(l => l.UnitId).Distinct().ToList();

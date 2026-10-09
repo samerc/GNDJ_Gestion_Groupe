@@ -475,6 +475,10 @@ public class ProposePassageCommandHandler(IApplicationDbContext context, ICurren
                 return Result<Guid>.Failure("Ce passage a déjà été traité et ne peut plus être modifié.");
             if (existing.CgModified && !isManager)
                 return Result<Guid>.Failure(PassageLocks.CgModified);
+            // Held by the maîtrise plan (youth joining the maîtrise → line set to "leaving"): no new proposal may
+            // replace it, or the publish would give them a youth post AND their chef post (same rule as Review).
+            if (await GNDJ.Application.Maitrises.MaitrisePlan.HoldsYouthLineAsync(context, existing.ScoutYear, existing.MemberId, ct))
+                return Result<Guid>.Failure(GNDJ.Application.Maitrises.MaitrisePlan.YouthLocked);
 
             existing.ProposedUnitId = request.ProposedUnitId;
             existing.ProposedTeamId = request.ProposedTeamId;
@@ -661,6 +665,13 @@ public class BulkProposePassageCommandHandler(IApplicationDbContext context, ICu
                     continue; // already posted
                 if (existing.CgModified && !isManager)
                     continue; // changed by the CG — the CU can no longer overwrite it
+                if (await GNDJ.Application.Maitrises.MaitrisePlan.HoldsYouthLineAsync(context, existing.ScoutYear, memberId, ct))
+                {
+                    // Held by the maîtrise plan (joins the maîtrise): keep the "leaving" line, else two posts at publish.
+                    memberNames.TryGetValue(memberId, out var heldName);
+                    errors.Add($"{heldName}: rejoint la maîtrise, ligne verrouillée.");
+                    continue;
+                }
 
                 existing.ProposedUnitId = request.ProposedUnitId;
                 existing.ProposedTeamId = request.ProposedTeamId;
@@ -1106,6 +1117,33 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
             .GroupBy(a => a.MemberId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // A line whose member has NO active youth post anymore (post ended / member left / deleted since the CU
+        // answered) is not published: it would create a fresh post for someone who is gone. It is archived with the
+        // other left-out lines below.
+        passages = passages.Where(p => activeByMember.ContainsKey(p.MemberId)).ToList();
+
+        // Gate 4: a line answered for a unit the member is no longer in (e.g. the CG used « Corriger l'unité » after
+        // the CU's answer) would move them back. Refuse and name them: the line must be answered again.
+        var stale = passages.Where(p => !activeByMember[p.MemberId].Any(a => a.UnitId == p.CurrentUnitId))
+            .Select(p => p.MemberId).ToList();
+        if (stale.Count > 0)
+        {
+            var names = await context.Members.Where(m => stale.Contains(m.Id))
+                .OrderBy(m => m.LastName).Select(m => m.FirstName + " " + m.LastName).ToListAsync(ct);
+            return Result<int>.Failure($"Ces membres ont changé d'unité depuis leur ligne de passage : {string.Join(", ", names)}. " +
+                "Refaites leur ligne (« Modifier le choix ») avant de publier.");
+        }
+
+        // Members the maîtrise plan brings into the maîtrise this year: their youth line must not create a youth post
+        // (they get their chef post from ApplyAsync below). Safety net if their held "leaving" line was changed.
+        var joiningMaitrise = (await context.MaitrisePlanLines
+                .Where(l => l.ScoutYear == request.ScoutYear && l.Kind == GNDJ.Domain.Entities.MaitrisePlanKinds.Start && l.AppliedAt == null)
+                .Select(l => l.MemberId).ToListAsync(ct)).ToHashSet();
+
+        // Every team a line points to, with its unit: a team is only applied if it belongs to the final unit.
+        var lineTeamIds = passages.SelectMany(p => new[] { p.FinalTeamId, p.ProposedTeamId }).OfType<Guid>().Distinct().ToList();
+        var unitOfTeam = await context.Teams.Where(t => lineTeamIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.UnitId, ct);
+
         // Pre-load (once, outside the loop) what the entrée auto-create needs, so it costs no extra query per
         // member inside the advisory lock. Destination units = where a non-leaving member joins a DIFFERENT unit.
         var destUnitIds = passages
@@ -1127,23 +1165,33 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
 
         foreach (var passage in passages)
         {
-            // End the member's current active assignment
+            // End the member's current active youth post(s). Never before the post's own start (a post started after
+            // the passage date would otherwise end before it began); the new post starts when the old one ends.
+            var startOfNew = passageDate;
             if (activeByMember.TryGetValue(passage.MemberId, out var activeAssignments))
                 foreach (var activeAssignment in activeAssignments)
-                    activeAssignment.EndDate = passageDate;
+                {
+                    var end = activeAssignment.StartDate > passageDate ? activeAssignment.StartDate : passageDate;
+                    activeAssignment.EndDate = end;
+                    if (end > startOfNew) startOfNew = end;
+                }
 
-            // "Quitte le groupe": close the assignment and create NO new one — member becomes alumni.
-            if (!(passage.FinalIsLeaving ?? passage.IsLeaving))
+            // "Quitte le groupe": close the assignment and create NO new one — member becomes alumni. Same for a youth
+            // joining the maîtrise through the plan (their chef post comes from ApplyAsync).
+            if (!(passage.FinalIsLeaving ?? passage.IsLeaving) && !joiningMaitrise.Contains(passage.MemberId))
             {
                 var finalUnitId = passage.FinalUnitId ?? passage.ProposedUnitId;
                 var finalRoleId = passage.FinalRoleId ?? passage.ProposedRoleId;
 
-                // If unit changed, clear team (member joins new unit without team — CU assigns later)
-                Guid? finalTeamId;
-                if (finalUnitId != passage.CurrentUnitId)
-                    finalTeamId = null;
-                else
-                    finalTeamId = passage.FinalTeamId ?? passage.ProposedTeamId;
+                // Team: none when changing unit (the receiving CU assigns it). In the same unit, the CG's decision
+                // wins when there is one (even "no team"), else the CU's proposal — and only a team of THAT unit
+                // (a proposal for another unit's team must never be applied to the member's unit).
+                Guid? finalTeamId = null;
+                if (finalUnitId == passage.CurrentUnitId)
+                {
+                    var candidate = passage.FinalUnitId != null ? passage.FinalTeamId : passage.ProposedTeamId;
+                    if (candidate is Guid tid && unitOfTeam.GetValueOrDefault(tid) == finalUnitId) finalTeamId = tid;
+                }
 
                 context.MemberAssignments.Add(new MemberAssignment
                 {
@@ -1151,7 +1199,7 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
                     UnitId = finalUnitId,
                     TeamId = finalTeamId,
                     FunctionalRoleId = finalRoleId,
-                    StartDate = passageDate,
+                    StartDate = startOfNew,
                     Notes = $"Passage {passage.ScoutYear}"
                 });
 

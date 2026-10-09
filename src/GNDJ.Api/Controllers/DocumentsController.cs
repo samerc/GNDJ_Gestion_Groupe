@@ -88,8 +88,8 @@ public class DocumentsController : BaseApiController
         var (saved, savedPaths, error) = await DocumentUploadFiles.SaveAsync(_context, files);
         if (error is not null) return BadRequest(new { error });
 
-        var result = await Mediator.Send(new UploadMemberDocumentCommand(
-            memberId, documentTypeId, title!, expiryDate, issuedDate, saved));
+        var result = await DocumentUploadFiles.SendOrCleanupAsync(savedPaths, () => Mediator.Send(new UploadMemberDocumentCommand(
+            memberId, documentTypeId, title!, expiryDate, issuedDate, saved)));
 
         if (!result.IsSuccess)
         {
@@ -115,7 +115,7 @@ public class DocumentsController : BaseApiController
         var (saved, savedPaths, error) = await DocumentUploadFiles.SaveAsync(_context, files);
         if (error is not null) return BadRequest(new { error });
 
-        var result = await Mediator.Send(new AddDocumentPagesCommand(id, saved));
+        var result = await DocumentUploadFiles.SendOrCleanupAsync(savedPaths, () => Mediator.Send(new AddDocumentPagesCommand(id, saved)));
         if (!result.IsSuccess)
         {
             DocumentUploadFiles.Cleanup(savedPaths);
@@ -240,8 +240,14 @@ public class DocumentsController : BaseApiController
     /// </summary>
     [HttpGet("unit/{unitId:guid}/matrix")]
     [HasPermission(Permissions.DocumentsView)]
-    public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string scoutYear = "2025-2026")
-        => OkOrBadRequest(await Mediator.Send(new GetUnitDocumentsMatrixQuery(unitId, scoutYear)));
+    public async Task<IActionResult> GetUnitMatrix(Guid unitId, [FromQuery] string? scoutYear = null)
+    {
+        // No year given → the configured current scout year (was a hard-coded "2025-2026").
+        if (string.IsNullOrWhiteSpace(scoutYear))
+            scoutYear = await _context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync()
+                        ?? GNDJ.Application.Common.ScoutYearHelper.Of(GNDJ.Application.Common.LebanonClock.Today);
+        return OkOrBadRequest(await Mediator.Send(new GetUnitDocumentsMatrixQuery(unitId, scoutYear)));
+    }
 
     /// <summary>
     /// Returns a zip file of the unit's documents (optionally filtered by doc type), organized into
@@ -262,8 +268,11 @@ public class DocumentsController : BaseApiController
             return BadRequest(new { error = "Aucun document à télécharger dans cette unité pour le moment." });
 
         var uploadsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "uploads"));
-        using var memoryStream = new MemoryStream();
-        using (var archive = new System.IO.Compression.ZipArchive(memoryStream, System.IO.Compression.ZipArchiveMode.Create, true))
+        // Built in a temporary file deleted when the response is done (a large unit no longer sits in memory twice —
+        // MemoryStream + ToArray — on the shared server).
+        var tempZip = new FileStream(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite, FileShare.None,
+            81920, FileOptions.DeleteOnClose);
+        using (var archive = new System.IO.Compression.ZipArchive(tempZip, System.IO.Compression.ZipArchiveMode.Create, true))
         {
             foreach (var doc in files)
             {
@@ -277,22 +286,23 @@ public class DocumentsController : BaseApiController
                 var entryName = $"{sanitizedMember}/{sanitizedDocType}{doc.PageLabel}{ext}";
 
                 // A single unreadable/locked file must not abort the whole zip (500) — skip it and continue.
+                // The file is opened BEFORE the entry is created, so a failure never leaves an empty entry in the zip.
                 try
                 {
-                    var entry = archive.CreateEntry(entryName);
-                    using var entryStream = entry.Open();
                     using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+                    var entry = archive.CreateEntry(entryName, System.IO.Compression.CompressionLevel.NoCompression);
+                    using var entryStream = entry.Open();
                     await fileStream.CopyToAsync(entryStream);
                 }
-                catch (IOException) { /* skip this file, keep building the zip */ }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* skip this file, keep building */ }
             }
         }
 
-        memoryStream.Position = 0;
+        tempZip.Position = 0;
         var zipName = docTypeId.HasValue ? $"Documents_{docTypeId}.zip" : "Documents_Unite.zip";
         // Sensitive-access audit: a bulk export of a whole unit's documents is the highest-exposure download.
         await LogDownload(new LogZipDownloadCommand(unitId, docTypeId, files.Count));
-        return File(memoryStream.ToArray(), "application/zip", zipName);
+        return File(tempZip, "application/zip", zipName); // the FileResult disposes (and so deletes) the temp file
     }
 
     /// <summary>

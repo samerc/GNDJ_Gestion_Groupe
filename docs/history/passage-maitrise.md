@@ -251,3 +251,18 @@ batch) to keep the build 0/0. DEV until deploy — **prod still 500s on that uni
   published, back during next year's passage); hook `useMemberPassages`
   (['passages','member',id]).
 
+### Fix batch from the full-app review (2026-10-09, DEV until deploy)
+Checked first on the dev copy that already holds this afternoon's real publish (1,008 lines): none of the bugs
+below had hit it (`deploy/diagnostics/passage-publish-check.sql`, run it on prod too). Fixes for next year:
+- **Propose / BulkPropose** refuse a line held by the maîtrise plan (`HoldsYouthLineAsync`), like Review/BulkChange.
+- **Finalize**: lines of members with no active youth post are not published (archived); **gate 4** refuses lines
+  whose member is no longer in the line's current unit (e.g. « Corriger l'unité » after the CU answered) and names
+  them; a youth with an unapplied maîtrise Start never gets a youth post; team = CG decision when there is one (even
+  "none") else the CU's, and only a team OF the final unit; posts never end before their start (and the new post
+  starts when the old one ends). `MaitrisePlan.ApplyAsync` uses the same end-date guard.
+- **Preview** (`GetFinalizePreviewQuery`) shows the same cases before the click (blocker: changed unit; warnings:
+  no post, other-unit team, youth joining the maîtrise whose line isn't "leaving").
+- **ScheduledRun**: `IApplicationDbContext.ClearChangeTracker()` after the action, so a FAILED scheduled send /
+  publish can't have its rolled-back edits saved by the status write; the status write is guarded and the managers
+  are always notified.
+

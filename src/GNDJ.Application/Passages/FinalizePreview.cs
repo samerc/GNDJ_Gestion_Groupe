@@ -46,10 +46,40 @@ public class GetFinalizePreviewQueryHandler(IApplicationDbContext context, ICurr
             .Where(p => p.ScoutYear == year && (p.Status == PassageStatus.Approved || p.Status == PassageStatus.Pending))
             .Select(p => new
             {
-                p.Status, p.CurrentUnitId,
+                p.MemberId, p.Status, p.CurrentUnitId,
                 Leaving = p.FinalIsLeaving ?? p.IsLeaving,
                 Dest = p.FinalUnitId ?? p.ProposedUnitId,
+                Team = p.FinalUnitId != null ? p.FinalTeamId : p.ProposedTeamId,
             }).ToListAsync(ct);
+
+        // Same safety checks as the publication, shown BEFORE the click.
+        var lineMembers = lines.Select(l => l.MemberId).Distinct().ToList();
+        var livePosts = (await context.MemberAssignments
+                .Where(a => a.EndDate == null && !a.FunctionalRole.IsMaitrise && lineMembers.Contains(a.MemberId))
+                .Select(a => new { a.MemberId, a.UnitId }).ToListAsync(ct))
+            .GroupBy(a => a.MemberId).ToDictionary(g => g.Key, g => g.Select(a => a.UnitId).ToHashSet());
+        var noPost = lines.Count(l => !livePosts.ContainsKey(l.MemberId));
+        if (noPost > 0)
+            warnings.Add($"{noPost} ligne(s) de membres qui n'ont plus de poste actif : elles ne seront pas publiées (archivées).");
+        lines = lines.Where(l => livePosts.ContainsKey(l.MemberId)).ToList();
+        var staleIds = lines.Where(l => !livePosts[l.MemberId].Contains(l.CurrentUnitId)).Select(l => l.MemberId).ToList();
+        if (staleIds.Count > 0)
+        {
+            var names = await context.Members.Where(m => staleIds.Contains(m.Id)).OrderBy(m => m.LastName)
+                .Select(m => m.FirstName + " " + m.LastName).ToListAsync(ct);
+            blockers.Add($"Ont changé d'unité depuis leur ligne (à refaire) : {string.Join(", ", names)}.");
+        }
+        var teamIds = lines.Where(l => l.Team != null).Select(l => l.Team!.Value).Distinct().ToList();
+        var unitOfTeam = await context.Teams.Where(t => teamIds.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.UnitId, ct);
+        var wrongTeam = lines.Count(l => !l.Leaving && l.Dest == l.CurrentUnitId && l.Team is Guid t && unitOfTeam.GetValueOrDefault(t) != l.Dest);
+        if (wrongTeam > 0)
+            warnings.Add($"{wrongTeam} ligne(s) avec une équipe d'une autre unité : l'équipe ne sera pas appliquée (à choisir ensuite).");
+        var joining = (await context.MaitrisePlanLines
+                .Where(l => l.ScoutYear == year && l.Kind == MaitrisePlanKinds.Start && l.AppliedAt == null)
+                .Select(l => l.MemberId).ToListAsync(ct)).ToHashSet();
+        var joiningNotLeaving = lines.Count(l => !l.Leaving && joining.Contains(l.MemberId));
+        if (joiningNotLeaving > 0)
+            warnings.Add($"{joiningNotLeaving} jeune(s) rejoignent la maîtrise mais leur ligne n'est pas « quitte » : aucun poste jeune ne leur sera donné.");
         if (lines.Count == 0 && blockers.Count == 0)
             blockers.Add("Aucune ligne à publier : le passage de cette année est déjà publié.");
 

@@ -95,6 +95,9 @@ public interface IApplicationDbContext
     DbSet<UploadSession> UploadSessions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    // Forget every pending (unsaved) change in this context. Used after a command FAILED mid-way on a shared context:
+    // its rolled-back edits are still tracked, and the next SaveChanges would write them outside its transaction.
+    void ClearChangeTracker();
 
     // For handlers needing explicit serialization (e.g. passage finalize). Implemented in Infrastructure
     // so the relational/raw-SQL dependency stays out of the Application layer.

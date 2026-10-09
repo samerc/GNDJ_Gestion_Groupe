@@ -57,7 +57,7 @@ public class ScanUploadController : BaseApiController
         var (saved, savedPaths, error) = await DocumentUploadFiles.SaveAsync(_context, files);
         if (error is not null) return BadRequest(new { error });
 
-        var result = await Mediator.Send(new ScanUploadDocumentCommand(token, documentTypeId, expiryDate, saved));
+        var result = await DocumentUploadFiles.SendOrCleanupAsync(savedPaths, () => Mediator.Send(new ScanUploadDocumentCommand(token, documentTypeId, expiryDate, saved)));
         if (!result.IsSuccess)
         {
             DocumentUploadFiles.Cleanup(savedPaths);

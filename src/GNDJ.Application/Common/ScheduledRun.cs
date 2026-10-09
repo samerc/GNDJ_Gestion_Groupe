@@ -86,9 +86,23 @@ public static class ScheduledRun
             message = ex is ValidationException ve ? string.Join(" ", ve.Errors.Select(e => e.ErrorMessage)) : "Erreur inattendue pendant l'exécution.";
         }
 
+        // The action ran on THIS context. If it failed after editing tracked entities, its transaction was rolled back
+        // but those edits are still tracked — saving the status below would write them for real (half a send / half a
+        // publish, outside the lock). Drop everything pending first; a successful action has already saved its work.
+        context.ClearChangeTracker();
         var status = JsonSerializer.Serialize(new { at = LebanonClock.Now.ToString(Format, CultureInfo.InvariantCulture), scheduledFor = raw, ok, message });
-        await SetAsync(context, keys.StatusKey, status, "Dernière exécution programmée", keys.Category, ct);
-        await context.SaveChangesAsync(ct);
+        try
+        {
+            await SetAsync(context, keys.StatusKey, status, "Dernière exécution programmée", keys.Category, ct);
+            await context.SaveChangesAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Couldn't record the status (database trouble): still tell the managers below — the schedule is already
+            // cleared, so without the notification nobody would know the action didn't run.
+            context.ClearChangeTracker();
+            if (ok) message += " (le statut n'a pas pu être enregistré)";
+        }
 
         await notify(ok, message);
         return message;

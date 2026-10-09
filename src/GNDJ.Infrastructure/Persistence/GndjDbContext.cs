@@ -131,6 +131,8 @@ public class GndjDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<T>().HasQueryFilter(e => !e.IsDeleted);
     }
 
+    public void ClearChangeTracker() => ChangeTracker.Clear();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         => Database.BeginTransactionAsync(cancellationToken);
 

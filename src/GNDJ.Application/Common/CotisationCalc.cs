@@ -53,7 +53,9 @@ public static class CotisationCalc
         try
         {
             var parsed = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, decimal>>(json);
-            return parsed ?? new();
+            // Currency codes are matched case-insensitively ("lbp" = "LBP"): a lowercase code used to fall through to
+            // the 1:1 fallback and read 2,500,000 lbp as $2,500,000.
+            return parsed is null ? new() : new Dictionary<string, decimal>(parsed, StringComparer.OrdinalIgnoreCase);
         }
         catch { return new(); }
     }
@@ -62,7 +64,7 @@ public static class CotisationCalc
     // (rate = units per 1 reference); unknown → best-effort as-is.
     public static decimal ToReference(decimal amount, string currency, Config cfg)
     {
-        if (currency == cfg.ReferenceCurrency) return amount;
+        if (string.Equals(currency, cfg.ReferenceCurrency, StringComparison.OrdinalIgnoreCase)) return amount;
         return cfg.Rates.TryGetValue(currency, out var rate) && rate > 0 ? amount / rate : amount;
     }
 

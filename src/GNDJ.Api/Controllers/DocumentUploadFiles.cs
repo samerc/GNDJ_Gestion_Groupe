@@ -59,17 +59,43 @@ public static class DocumentUploadFiles
                 if (!isValid) { Cleanup(paths); return (saved, paths, "Le contenu du fichier ne correspond pas à son extension."); }
             }
 
-            var safeFileName = Path.GetFileName(file.FileName); // Strip any directory components
-            var uniqueName = $"{Guid.CreateVersion7()}_{safeFileName}";
+            // On disk: a generated name + the checked extension only. The original name (kept in the database for
+            // display/download) can hold characters Windows refuses (| " * ? : < >, common from a Mac) or be too long
+            // — saving it as-is used to throw a 500 and leave the batch's earlier files behind.
+            var uniqueName = $"{Guid.CreateVersion7()}.{ext}";
             var fullPath = Path.Combine(uploadsDir, uniqueName);
-            using (var stream = new FileStream(fullPath, FileMode.Create))
+            try
+            {
+                using var stream = new FileStream(fullPath, FileMode.CreateNew);
                 await file.CopyToAsync(stream);
+            }
+            catch (IOException)
+            {
+                Cleanup(paths.Append(fullPath));
+                return (saved, paths, "Le fichier n'a pas pu être enregistré. Réessayez.");
+            }
 
+            // Display name: no folder parts, at most 200 characters (keeps the extension).
+            var displayName = Path.GetFileName(file.FileName);
+            if (string.IsNullOrWhiteSpace(displayName)) displayName = uniqueName;
+            if (displayName.Length > 200) displayName = displayName[..(200 - ext.Length - 1)] + "." + ext;
+
+            // The type comes from the CHECKED extension, never from what the browser claims (a %PDF file sent as
+            // "text/html" would otherwise be stored — and previewed — as HTML).
+            var mime = ext switch { "pdf" => "application/pdf", "png" => "image/png", _ => "image/jpeg" };
             var relativePath = Path.Combine("uploads", "documents", uniqueName);
-            saved.Add(new SavedDocFile(relativePath, file.FileName, file.Length, file.ContentType));
+            saved.Add(new SavedDocFile(relativePath, displayName, file.Length, mime));
             paths.Add(fullPath);
         }
         return (saved, paths, null);
+    }
+
+    // Runs the command that records the saved files; if it THROWS (validation error, database error…) the files just
+    // written are deleted before the exception continues — otherwise they would stay on disk with no row pointing to them.
+    public static async Task<T> SendOrCleanupAsync<T>(List<string> savedPaths, Func<ValueTask<T>> send)
+    {
+        try { return await send(); }
+        catch { Cleanup(savedPaths); throw; }
     }
 
     public static void Cleanup(IEnumerable<string> fullPaths)
