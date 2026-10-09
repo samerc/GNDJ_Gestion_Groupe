@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-10-09",
+        "text": "Calendrier : l'équipe du chef de groupe peut donner une heure de début et de fin aux dates importantes (Passage, première réunion, dates des documents et des inscriptions) avec « Modifier l'heure » ; la date elle-même reste dans Paramètres"
+      },
+      {
+        "date": "2026-10-09",
         "text": "Identifiants des nouveaux membres : seulement des lettres sans accents, des chiffres et des tirets (« Jean Marie D'Amour » → jeanmarie.damour@…) ; en cas de doublon, l'initiale du père puis un numéro, aussi pour les membres venant des demandes"
       },
       {

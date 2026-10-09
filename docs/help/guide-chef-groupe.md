@@ -486,7 +486,9 @@ Le Camp BP se prépare dans **Camp BP** (vous, ou les chefs de commission que vo
 
 **Calendrier** réunit les événements, les réunions des unités et les dates importantes de l'année (dates des
 documents, du passage, de la première réunion ; les dates des inscriptions ne sont visibles que par votre équipe).
-Ces dates viennent des **Paramètres** : les changer met le calendrier à jour.
+Ces dates viennent des **Paramètres** : les changer met le calendrier à jour. Pour leur donner une **heure**, cliquez
+sur la date dans le calendrier → **Modifier l'heure** (heure de début et de fin ; sans heure de début, la date reste
+« toute la journée »).
 
 **Nouvel événement** — choisissez **pour qui** :
 

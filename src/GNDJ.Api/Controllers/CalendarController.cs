@@ -43,6 +43,13 @@ public class CalendarController : BaseApiController
     public async Task<IActionResult> Update(Guid id, [FromBody] CalendarEventInput data)
         => NoContentOrBadRequest(await Mediator.Send(new UpdateCalendarEventCommand(id, data)));
 
+    public record ImportantDateTimeBody(TimeOnly? StartTime, TimeOnly? EndTime);
+
+    /// <summary>Sets (or clears) the start / end time of an important date (Passage, deadlines…). CG team only.</summary>
+    [HttpPut("important-dates/{key}/time")]
+    public async Task<IActionResult> SetImportantDateTime(string key, [FromBody] ImportantDateTimeBody body)
+        => NoContentOrBadRequest(await Mediator.Send(new SetImportantDateTimeCommand(key, body.StartTime, body.EndTime)));
+
     /// <summary>Deletes an event (the whole series) and its public copy if it was published on the site.</summary>
     [HttpDelete("events/{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)

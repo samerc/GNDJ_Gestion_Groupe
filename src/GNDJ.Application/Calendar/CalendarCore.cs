@@ -131,6 +131,27 @@ public static class CalendarItemKinds
 public static class CalendarFeed
 {
     // The year's important dates, read from the settings. Families' enrolment dates are for the CG team only.
+    // Optional start / end time of each important date, set from the calendar by the CG team (the date itself stays
+    // in Paramètres): JSON { "<setting key>": { "start": "HH:mm", "end": "HH:mm" } }. Hidden from the settings page.
+    public const string TimesKey = "calendar.important_date_times";
+
+    public static bool IsImportantDate(string key) => ImportantDates.Any(d => d.Key == key);
+
+    public record DateTimes(string? Start, string? End);
+
+    public static Dictionary<string, DateTimes> ParseTimes(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, DateTimes>>(json, JsonOpts) ?? []; }
+        catch (System.Text.Json.JsonException) { return []; }
+    }
+
+    public static readonly System.Text.Json.JsonSerializerOptions JsonOpts = new(System.Text.Json.JsonSerializerDefaults.Web);
+
+    private static TimeOnly? Time(string? s) =>
+        TimeOnly.TryParseExact(s ?? "", "HH:mm", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var t) ? t : null;
+
     private static readonly (string Key, string Label, bool CgOnly)[] ImportantDates =
     [
         ("documents.deposit_start", "Ouverture du dépôt des documents", false),
@@ -201,16 +222,20 @@ public static class CalendarFeed
         await AddGroupMeetingsAsync(context, viewer, from, to, meetingUnitId, units.ToDictionary(u => u.Key, u => ((string?)u.Value.Code, u.Value.Name)), items, ct);
 
         // 3. Important dates of the year (settings).
-        var keys = ImportantDates.Select(d => d.Key).ToList();
+        var keys = ImportantDates.Select(d => d.Key).Append(TimesKey).ToList();
         var values = await context.Settings.Where(s => keys.Contains(s.Key)).ToDictionaryAsync(s => s.Key, s => s.Value, ct);
+        var times = ParseTimes(values.GetValueOrDefault(TimesKey));
         foreach (var (key, label, cgOnly) in ImportantDates)
         {
             if (cgOnly && !viewer.IsCgTeam) continue;
             if (!DateOnly.TryParseExact(values.GetValueOrDefault(key), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None, out var d) || d < from || d > to) continue;
-            items.Add(new CalendarItemDto($"d:{key}", CalendarItemKinds.Date, null, null, label, null, null, d, null, null, null,
+            var t = times.GetValueOrDefault(key);
+            var start = Time(t?.Start);
+            // Only the CG team sets the time of an important date (CanEdit on a « date » item = may set its time).
+            items.Add(new CalendarItemDto($"d:{key}", CalendarItemKinds.Date, null, null, label, null, null, d, null, start, start is null ? null : Time(t?.End),
                 cgOnly ? CalendarAudiences.CgTeam : CalendarAudiences.Group, cgOnly ? "Équipe du Chef de Groupe" : "Tout le groupe",
-                null, null, false, false, null));
+                null, null, false, viewer.IsManager, null));
         }
 
         return items.OrderBy(i => i.Date).ThenBy(i => i.StartTime ?? TimeOnly.MinValue).ThenBy(i => i.Title).ToList();

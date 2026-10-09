@@ -355,3 +355,48 @@ public class GetCalendarIcsQueryHandler(IApplicationDbContext context) : IReques
         return CalendarIcs.Build(items);
     }
 }
+
+// ===== Time of an important date =====
+// The CG team gives an important date (Passage, Première réunion, deadlines…) a start / end time, from the calendar.
+// The date itself stays in Paramètres. Empty start = all day (the end time is dropped).
+public record SetImportantDateTimeCommand(string Key, TimeOnly? StartTime, TimeOnly? EndTime) : IRequest<Result<bool>>;
+
+public class SetImportantDateTimeCommandValidator : AbstractValidator<SetImportantDateTimeCommand>
+{
+    public SetImportantDateTimeCommandValidator()
+    {
+        RuleFor(x => x.Key).NotEmpty().MaximumLength(100).Must(CalendarFeed.IsImportantDate).WithMessage("Date inconnue.");
+        RuleFor(x => x).Must(x => x.StartTime is null || x.EndTime is null || x.EndTime > x.StartTime)
+            .WithMessage("L'heure de fin doit être après l'heure de début.");
+    }
+}
+
+public class SetImportantDateTimeCommandHandler(IApplicationDbContext context, ICurrentUserService user, IAuditService audit)
+    : IRequestHandler<SetImportantDateTimeCommand, Result<bool>>
+{
+    public async ValueTask<Result<bool>> Handle(SetImportantDateTimeCommand request, CancellationToken ct)
+    {
+        var viewer = await CalendarAccess.ViewerAsync(context, user, ct);
+        if (!viewer.IsManager) return Result<bool>.Failure("Seule l'équipe du Chef de Groupe peut modifier l'heure de cette date.");
+
+        var setting = await context.Settings.FirstOrDefaultAsync(s => s.Key == CalendarFeed.TimesKey, ct);
+        if (setting is null)
+        {
+            setting = new Setting
+            {
+                Key = CalendarFeed.TimesKey, Value = "{}", Category = "passage", ValueType = "json",
+                Label = "Heures des dates importantes", Description = "Heures des dates importantes affichées dans le calendrier (modifiées depuis le calendrier).",
+            };
+            context.Settings.Add(setting);
+        }
+        var times = CalendarFeed.ParseTimes(setting.Value);
+        if (request.StartTime is TimeOnly start)
+            times[request.Key] = new CalendarFeed.DateTimes(start.ToString("HH:mm"), request.EndTime?.ToString("HH:mm"));
+        else
+            times.Remove(request.Key);
+        setting.Value = System.Text.Json.JsonSerializer.Serialize(times, CalendarFeed.JsonOpts);
+        await context.SaveChangesAsync(ct);
+        await audit.LogAsync("Update", "Setting", null, newValues: new { Date = request.Key, request.StartTime, request.EndTime }, cancellationToken: ct);
+        return Result<bool>.Success(true);
+    }
+}

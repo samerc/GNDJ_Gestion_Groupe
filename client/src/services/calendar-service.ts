@@ -107,6 +107,12 @@ export const useEditCalendarDate = () =>
   useCalendarMutation(({ id, date, data }: { id: string; date: string; data: CalendarEventInput }) =>
     apiClient.post<{ id: string }>(`/calendar/events/${id}/edit-date`, { date, data }).then((r) => r.data))
 
+// Start / end time of an important date (Passage, deadlines…) — CG team. key = the setting key (item id « d:<key> »);
+// startTime null = all day.
+export const useSetImportantDateTime = () =>
+  useCalendarMutation(({ key, startTime, endTime }: { key: string; startTime: string | null; endTime: string | null }) =>
+    apiClient.put(`/calendar/important-dates/${encodeURIComponent(key)}/time`, { startTime, endTime }))
+
 // The personal phone-calendar link (token → full URL built here). Asking for it is idempotent (created the first
 // time), so it's a query; « Nouveau lien » is a mutation that replaces it (the old link stops working).
 const feedUrl = (token: string) => `${window.location.origin}/api/v1/calendar/feed/${token}.ics`

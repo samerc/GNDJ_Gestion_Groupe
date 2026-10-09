@@ -6699,6 +6699,14 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   `PickUnique` (in-memory, demande send — father = the account's Père) / `GenerateUniqueAsync` (DB). Existing
   usernames are untouched (3 malformed ones left on purpose). Tests: `UsernameFactoryTests`.
 
+### Times on the calendar's important dates (2026-10-09, DEV until deploy)
+- Important dates (settings-driven, `CalendarFeed.ImportantDates`) can carry a start / end time: JSON setting
+  `calendar.important_date_times` ({ "<setting key>": { start, end } }, created on first save, hidden in Paramètres),
+  read into the « date » calendar items (and so the iCal feed). `SetImportantDateTimeCommand` +
+  `PUT /calendar/important-dates/{key}/time {startTime, endTime}` — CG team only (`CalendarViewer.IsManager`, which
+  is also the item's CanEdit); null start = all day. UI: « Modifier l'heure » in the calendar's detail dialog. The
+  date itself is still changed in Paramètres.
+
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
 - **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),
   `HiddenPassword()` (never-shown logins: demande conversion), `UrlToken()` (activation / reset links; was copied 6×).
