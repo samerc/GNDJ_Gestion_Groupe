@@ -149,7 +149,7 @@ La fiche est organisée en onglets :
 |---|---|
 | **Informations** | Identité, photo, scolarité ou profession |
 | **Contact & famille** | Téléphones et emails du foyer, adresse, parents, frères et sœurs |
-| **Unités / Fonctions** | L'historique des postes du membre dans le groupe, et en bas ses **passages** de chaque année (votre proposition, la décision du chef de groupe et sa raison) |
+| **Unités / Fonctions** | En haut, ses **passages** de chaque année (votre proposition, la décision du chef de groupe et sa raison), puis l'historique de ses postes dans le groupe |
 | **Documents & cotisations** | Les documents déposés et la cotisation de l'année |
 | **Progression** | Étapes et badges |
 | **Médical & infos** | Groupe sanguin, allergies, informations complémentaires |

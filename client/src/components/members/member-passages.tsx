@@ -1,4 +1,4 @@
-// « Passages » card on the member file (Unités / Fonctions tab), for chefs and admins: the member's passage line for
+// « Passages » card at the top of the member file's Unités / Fonctions tab, for chefs and admins: the member's passage line for
 // every scout year — where they were, what the chef d'unité proposed (with their note), what the CG decided (with
 // their reason when it differs), the status, and who did what.
 import { ArrowRight, ArrowRightLeft, LogOut } from 'lucide-react'
@@ -59,7 +59,7 @@ export function MemberPassages({ memberId }: { memberId: string }) {
   // Nothing to show (or no right to see it): no card at all.
   if (isLoading || isError || !data || data.length === 0) return null
   return (
-    <Card className="mt-4">
+    <Card className="mb-4">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base"><ArrowRightLeft className="h-4 w-4" />Passages</CardTitle>
       </CardHeader>

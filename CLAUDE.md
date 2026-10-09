@@ -6689,7 +6689,7 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   role, leaving), CU + CG notes, CgModified, status, proposed-by / reviewed-by names (+ date). Staff only:
   `HasMemberRead` + `CanViewMemberAsync` (chef of the member's unit, group manager, super-admin); the member
   themselves gets 403 (CG notes are internal). Card « Passages » (`components/members/member-passages.tsx`) at the
-  bottom of the member file's Unités / Fonctions tab, hidden when there's no line; hook `useMemberPassages`
+  TOP of the member file's Unités / Fonctions tab, hidden when there's no line; hook `useMemberPassages`
   (['passages','member',id]).
 
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)

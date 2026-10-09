@@ -620,9 +620,10 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
           </TabsContent>
 
           <TabsContent value="unites" className="mt-0">
-            <MemberAssignments memberId={memberId} memberName="" readOnly={!canEdit} />
-            {/* Passage lines of every year — chefs and admins only (the server refuses anyone else). */}
+            {/* Passage lines of every year, first because they're looked up quickly — chefs and admins only
+                (the server refuses anyone else). */}
             {canSeePassages && <MemberPassages memberId={memberId} />}
+            <MemberAssignments memberId={memberId} memberName="" readOnly={!canEdit} />
           </TabsContent>
 
           {/* Documents + Cotisations merged */}
