@@ -926,3 +926,20 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
 - Tested on a DB copy: 3 active matches set aside, posts unchanged (T3/T10/R2), 0 email to those families, classe
   updated; 160 accepted / 81 refused / 252 emails (241 families + 11 chefs). Excel export shows « Déjà membre ».
 
+### Fix batch from the full-app review (2026-10-09, DEV until deploy)
+- **Family lock** (`ApplicantHelpers.IsLockedForFamily`): update / delete / SUBMIT refused unless the demande is a
+  Draft or an undecided Submitted (ReviewedAt null). Before, Submit had no status guard (a direct call could turn an
+  Approved / Declined / « Déjà membre » back into Submitted, blocking the send) and the « déjà traitée » message
+  leaked a staged decision. Neutral `LockedMessage`; `DemandeDto.Locked` makes the wizard read-only.
+- **« Remettre à étudier »** (Decide → Submitted) clears ReviewedAt/ReviewedBy so the family can edit again.
+- **Close campaign**: server now blocks while ANY demande is decided-but-unsent (was Submitted only — on dev 245
+  unsent decisions would have been deleted); also cancels `demande.responses_scheduled_at`.
+- **Resend activation**: refused for a reused member (« Déjà membre » / confirmed match) or an account already used.
+- **Proche links**: a CG-confirmed link sent back by the portal is kept only while the proche keeps that name.
+- **Send**: existing parents matched by email case-insensitively; reused parents' phones/emails checked in memory
+  (preloaded) instead of 2 queries per parent inside the advisory lock.
+- **Portal UI**: network error → `GateLoadError` retry (landing, open route, invitation, result page) instead of
+  « fermées » / « indisponible »; `DemandeNotFound` card (wizard + result); wizard hydrates once per demande (a
+  profile refetch no longer overwrites typing); activation page `submitting` guard covers set-password + sign-in.
+- Live-tested: close refused (245 unsent); parent sees Submitted+locked; re-submit / delete refused; status kept.
+

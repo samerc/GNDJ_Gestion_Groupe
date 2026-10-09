@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { Ticket, CalendarClock, XCircle } from 'lucide-react'
 import { useApplicantStore } from '@/stores/applicant-store'
 import { useInviteInfo, useClaimInvite } from '@/services/applicant-service'
+import { GateLoadError } from '@/components/applicant/gate-load-error'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,7 +30,7 @@ export default function ApplicantInvitationPage() {
   const navigate = useNavigate()
   const isAuthenticated = useApplicantStore((s) => s.isAuthenticated)
   const register = useApplicantStore((s) => s.register)
-  const { data: info, isLoading } = useInviteInfo(token)
+  const { data: info, isLoading, isError, isFetching, refetch } = useInviteInfo(token)
   const claimInvite = useClaimInvite()
 
   const [contactName, setContactName] = useState('')
@@ -47,6 +48,11 @@ export default function ApplicantInvitationPage() {
 
   if (isLoading) {
     return <ApplicantAuthShell><LoadingSpinner /></ApplicantAuthShell>
+  }
+
+  // Could not reach the server: a retry, not « Invitation indisponible » (the link may be perfectly valid).
+  if (isError && !info) {
+    return <ApplicantAuthShell subtitle="Invitation"><GateLoadError message="Impossible de vérifier l'invitation." retrying={isFetching} onRetry={() => refetch()} /></ApplicantAuthShell>
   }
 
   // Invalid / used / expired / revoked token → explain + offer the login (in case they already have an account).

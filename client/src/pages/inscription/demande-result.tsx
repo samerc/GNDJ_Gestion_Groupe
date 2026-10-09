@@ -9,6 +9,8 @@ import { parseApiError } from '@/lib/error-utils'
 import { CheckCircle2, XCircle, LogIn, Mail, KeyRound, UploadCloud, UserCheck } from 'lucide-react'
 import { BackLink } from '@/components/shared/back-link'
 import { PageHeader } from '@/components/shared/page-header'
+import { DemandeNotFound } from '@/components/applicant/demande-not-found'
+import { GateLoadError } from '@/components/applicant/gate-load-error'
 
 // Result page for a demande whose response has been SENT. Replaces the (now-useless) read-only wizard once
 // a decision is posted:
@@ -21,7 +23,7 @@ import { PageHeader } from '@/components/shared/page-header'
 export default function DemandeResultPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { data: profile, isLoading } = useApplicantProfile()
+  const { data: profile, isLoading, isError, isFetching, refetch } = useApplicantProfile()
   const { data: config } = useApplicantConfig()
   const resend = useResendMemberActivation()
 
@@ -33,7 +35,8 @@ export default function DemandeResultPage() {
   }, [isLoading, demande, id, navigate])
 
   if (isLoading) return <LoadingSpinner variant="page" />
-  if (!demande) return null
+  if (isError && !profile) return <GateLoadError retrying={isFetching} onRetry={() => refetch()} />
+  if (!demande) return <DemandeNotFound />
   if (!demande.responseSentAt) return null // redirecting
 
   const accepted = demande.status === 'Approved'

@@ -78,7 +78,10 @@ public record DemandeDto(Guid Id, string ScoutYear, string FirstName, string Las
     // MemberUsername = that member's login; MemberHasLoggedIn = they've already entered the member area
     // (so the portal stops showing onboarding steps and just links to the login page).
     bool Converted = false, string? DecidedUnitName = null, string? MemberUsername = null, bool MemberHasLoggedIn = false,
-    DateTime? LastEditedAt = null); // last real change after submission (« modifiée le … »)
+    DateTime? LastEditedAt = null, // last real change after submission (« modifiée le … »)
+    // The family can no longer change this demande (the CG is deciding / has decided). Says nothing about the
+    // outcome — the wizard just opens read-only with "en cours d'étude".
+    bool Locked = false);
 
 public record ApplicantProfileDto(Guid AccountId, string Email, bool EmailVerified, string? ContactName,
     string? AddressCountry, string? AddressCity, string? AddressDetails,
@@ -228,8 +231,17 @@ static class ApplicantHelpers
             d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.Nationality, d.School, d.Classe, d.Section,
             d.BloodType, d.MedicalNotes, d.Allergies, d.PhoneCountryCode, d.PhoneNumber, d.Email, d.ParentNotes,
             status, notes, d.SubmittedAt, d.ResponseSentAt, d.HasPreviousDemande, d.PreviousDemandeYear, d.SerialNumber,
-            LastEditedAt: d.LastEditedAt);
+            LastEditedAt: d.LastEditedAt, Locked: IsLockedForFamily(d));
     }
+
+    // A demande the family may still edit / submit / delete: a draft, or a submitted one the CG hasn't decided yet.
+    // Anything else (decided — even if not sent yet —, « déjà membre », sent) is locked.
+    public static bool IsLockedForFamily(Demande d)
+        => d.ResponseSentAt != null || d.ReviewedAt != null
+           || d.Status is not (DemandeStatus.Draft or DemandeStatus.Submitted);
+
+    // Deliberately neutral: must not reveal whether the CG accepted or refused before the answers are sent.
+    public const string LockedMessage = "Cette demande est en cours d'étude par le groupe et ne peut plus être modifiée.";
 
     // What the family entered on the child form, to tell a real change from a save of the same data.
     public static string ChildSignature(Demande d) => System.Text.Json.JsonSerializer.Serialize(new object?[]
@@ -325,7 +337,10 @@ static class ApplicantHelpers
 
         // The set is replaced on every save, so carry over what the CG already did: a CONFIRMED link survives a
         // re-save of the same person (same name, or the same member id sent back by the portal).
-        var confirmedIds = existingRelations.Where(r => r.RelatedMemberId.HasValue).Select(r => r.RelatedMemberId!.Value).ToHashSet();
+        // id → the name it was confirmed under: a link sent back by the portal is kept only while the proche still has
+        // that name (a parent who renames the proche to someone else must not keep the CG's link to the first person).
+        var confirmedNameById = existingRelations.Where(r => r.RelatedMemberId.HasValue)
+            .GroupBy(r => r.RelatedMemberId!.Value).ToDictionary(g => g.Key, g => g.Select(r => NameKey(r.FirstName, r.LastName)).ToHashSet());
         var confirmedByName = existingRelations.Where(r => r.RelatedMemberId.HasValue)
             .GroupBy(r => NameKey(r.FirstName, r.LastName)).ToDictionary(g => g.Key, g => g.First().RelatedMemberId!.Value);
         // …and a pending SUGGESTION survives too (the CG edit form / the portal don't send it back).
@@ -347,8 +362,12 @@ static class ApplicantHelpers
         {
             var sent = r.RelatedMemberId is Guid g && realIds.Contains(g) ? g : (Guid?)null;
             Guid? confirmed = null, suggested = null;
+            var sameNameAsConfirmed = sent.HasValue && confirmedNameById.TryGetValue(sent.Value, out var names)
+                && names.Contains(NameKey(r.FirstName, r.LastName));
+            // Renamed proche (was confirmed under another name): drop the old link and match the new name below.
+            if (!trustLinks && sent.HasValue && !sameNameAsConfirmed && confirmedNameById.ContainsKey(sent.Value)) sent = null;
 
-            if (sent.HasValue && (trustLinks || confirmedIds.Contains(sent.Value))) confirmed = sent;
+            if (sent.HasValue && (trustLinks || sameNameAsConfirmed)) confirmed = sent;
             else if (confirmedByName.TryGetValue(NameKey(r.FirstName, r.LastName), out var keep)) confirmed = keep;
             else if (sent.HasValue) suggested = sent; // e.g. a sibling added via "Retrouver mes informations"
             else if (suggestedByName.TryGetValue(NameKey(r.FirstName, r.LastName), out var prev)) suggested = prev;
@@ -787,8 +806,16 @@ public class ResendMemberActivationCommandHandler(IApplicationDbContext context,
         if (demande.ResponseSentAt is null || demande.CreatedMemberId is null)
             return Result<bool>.Failure("Aucun compte membre n'est associé à cette demande.");
 
+        // Only for an account this demande CREATED and that nobody has activated yet. A reused member (confirmed
+        // « déjà membre » match) or an account already in use belongs to someone who may not be this applicant:
+        // minting a set-password link for it from the portal would let the account holder take over that login.
+        if (demande.Status == DemandeStatus.AlreadyMember || demande.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed)
+            return Result<bool>.Failure("Ce membre avait déjà un compte : utilisez « Mot de passe oublié » sur la page de connexion des membres.");
+
         var user = await context.Users.FirstOrDefaultAsync(u => u.MemberId == demande.CreatedMemberId, ct);
         if (user is null || !user.IsActive) return Result<bool>.Failure("Compte membre introuvable.");
+        if (user.LastLoginAt is not null)
+            return Result<bool>.Failure("Ce compte est déjà activé : utilisez « Mot de passe oublié » sur la page de connexion des membres.");
 
         // Activation-link validity is configurable (member.activation_link_days, default 30).
         var activationDays = int.TryParse(await ApplicantHelpers.Setting(context, "member.activation_link_days", ct), out var ad) && ad > 0 ? ad : 30;
@@ -1176,8 +1203,8 @@ public class UpdateDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");
-        if (demande.ResponseSentAt is not null || demande.ReviewedAt is not null)
-            return Result<bool>.Failure("Cette demande a déjà été traitée et ne peut plus être modifiée.");
+        if (ApplicantHelpers.IsLockedForFamily(demande))
+            return Result<bool>.Failure(ApplicantHelpers.LockedMessage);
 
         var before = ApplicantHelpers.ChildSignature(demande);
         ApplicantHelpers.Apply(demande, request.Data);
@@ -1213,6 +1240,9 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
         if (demande is null) return Result<string>.Failure("Demande introuvable.");
+        // Only a draft or a not-yet-decided demande can be (re)submitted — otherwise a direct call could overwrite the
+        // CG's decision (Approved / Declined / « Déjà membre ») with Submitted, or reopen a sent one.
+        if (ApplicantHelpers.IsLockedForFamily(demande)) return Result<string>.Failure(ApplicantHelpers.LockedMessage);
 
         // Required member-equivalent fields
         var missing = new List<string>();
@@ -1308,8 +1338,8 @@ public class DeleteDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id && d.ApplicantAccountId == id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");
-        if (demande.ResponseSentAt is not null || demande.ReviewedAt is not null)
-            return Result<bool>.Failure("Cette demande a déjà été traitée et ne peut plus être supprimée.");
+        if (ApplicantHelpers.IsLockedForFamily(demande))
+            return Result<bool>.Failure(ApplicantHelpers.LockedMessage);
 
         context.Demandes.Remove(demande);
         await context.SaveChangesAsync(ct);

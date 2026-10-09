@@ -3,6 +3,7 @@ import { CalendarX } from 'lucide-react'
 import { useApplicantConfig, isSubmissionDeadlinePassed } from '@/services/applicant-service'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { GateLoadError } from '@/components/applicant/gate-load-error'
 import { Callout } from '@/components/shared/callout'
 import { formatDateLong } from '@/lib/utils'
 
@@ -16,13 +17,22 @@ import { formatDateLong } from '@/lib/utils'
 // Instead of silently bouncing to login, it shows WHY (deadline passed) with a link for
 // families that already have an account.
 export function ApplicantOpenRoute({ submissionsRequired = false }: { submissionsRequired?: boolean }) {
-  const { data: config, isLoading } = useApplicantConfig()
+  const { data: config, isLoading, isError, isFetching, refetch } = useApplicantConfig()
 
   // Wait for the config so we don't flash the form before knowing it's closed.
   if (isLoading) {
     return (
       <ApplicantAuthShell>
         <LoadingSpinner />
+      </ApplicantAuthShell>
+    )
+  }
+
+  // A failed load (weak mobile signal) is NOT "inscriptions closed": offer a retry instead of the closed notice.
+  if (isError && !config) {
+    return (
+      <ApplicantAuthShell>
+        <GateLoadError message="Impossible de joindre le portail des inscriptions." retrying={isFetching} onRetry={() => refetch()} />
       </ApplicantAuthShell>
     )
   }

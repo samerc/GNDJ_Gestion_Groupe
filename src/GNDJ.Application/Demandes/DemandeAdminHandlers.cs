@@ -821,8 +821,10 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
         demande.Status = request.Status;
         demande.DecidedUnitId = request.Status == DemandeStatus.Approved ? request.DecidedUnitId : null;
         demande.DecisionNotes = request.DecisionNotes;
-        demande.ReviewedByUserId = currentUser.UserId;
-        demande.ReviewedAt = DateTime.UtcNow;
+        // « Remettre à étudier » (back to Submitted) clears the review marks, so the family can edit it again.
+        var backToStudy = request.Status == DemandeStatus.Submitted;
+        demande.ReviewedByUserId = backToStudy ? null : currentUser.UserId;
+        demande.ReviewedAt = backToStudy ? null : DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("Decide", "Demande", demande.Id, newValues: new
         {
@@ -1177,13 +1179,20 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // created automatically (batched here, added in the loop below; new members never have a prior entrée).
         var entreeStageByUnit = await EntreeStageResolver.ResolveStagesForUnitsAsync(context, unitIds, ct);
 
-        // (B) Existing guardians matched by email (case-sensitive, as before) then phone — loaded once.
+        // (B) Existing guardians matched by email (case- and space-insensitive: "Marie@Gmail.com" is the same parent as
+        // "marie@gmail.com", else a duplicate parent is created) then phone — loaded once.
         var agAll = acctGuardians.Values.SelectMany(g => g).ToList();
-        var agEmails = agAll.Where(a => !string.IsNullOrWhiteSpace(a.Email)).Select(a => a.Email!).Distinct().ToList();
-        var guardianByEmail = (await context.GuardianEmails.Where(e => agEmails.Contains(e.Address))
+        var agEmails = agAll.Where(a => !string.IsNullOrWhiteSpace(a.Email)).Select(a => a.Email!.Trim().ToLower()).Distinct().ToList();
+        var guardianByEmail = (await context.GuardianEmails.Where(e => agEmails.Contains(e.Address.Trim().ToLower()))
                 .Select(e => new { e.Address, e.Guardian }).ToListAsync(ct))
-            .GroupBy(x => x.Address, StringComparer.Ordinal)
-            .ToDictionary(x => x.Key, x => x.Select(y => y.Guardian).Distinct().ToList(), StringComparer.Ordinal);
+            .GroupBy(x => x.Address.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.Select(y => y.Guardian).Distinct().ToList(), StringComparer.OrdinalIgnoreCase);
+        // Every guardian's phones (digits) and emails (lower-case), loaded once: when a reused parent gets the demande's
+        // phone/email "if missing", the check is in memory instead of 2 queries per parent inside the advisory lock.
+        var phonesByGuardian = (await context.GuardianPhones.Select(p => new { p.GuardianId, p.Number }).ToListAsync(ct))
+            .GroupBy(p => p.GuardianId).ToDictionary(g => g.Key, g => g.Select(p => PhoneNumbers.Digits(p.Number)).ToList());
+        var emailsByGuardian = (await context.GuardianEmails.Select(e => new { e.GuardianId, e.Address }).ToListAsync(ct))
+            .GroupBy(e => e.GuardianId).ToDictionary(g => g.Key, g => g.Select(e => e.Address.Trim().ToLower()).ToHashSet());
         // Phone match is now DIGIT-normalized ("76 123 456" ≡ "76123456"): numbers are entered formatted
         // (per-country grouping), and legacy/migrated data is unformatted, so an exact string match would
         // create duplicate guardians. The guardian_phones table is small, so load it once and key by digits.
@@ -1365,16 +1374,18 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                         var phoneDigits = PhoneNumbers.Digits(ag.PhoneNumber);
                         if (phoneDigits.Length >= 6)
                         {
-                            var has = (await context.GuardianPhones.Where(p => p.GuardianId == gid).Select(p => p.Number).ToListAsync(ct))
-                                .Any(n => PhoneNumbers.SameDigits(PhoneNumbers.Digits(n), phoneDigits));
-                            if (!has)
+                            var known = phonesByGuardian.TryGetValue(gid, out var pl) ? pl : (phonesByGuardian[gid] = []);
+                            if (!known.Any(n => PhoneNumbers.SameDigits(n, phoneDigits)))
+                            {
                                 context.GuardianPhones.Add(new GuardianPhone { GuardianId = gid, CountryCode = ag.PhoneCountryCode ?? "", Number = ag.PhoneNumber!, Type = "Mobile" });
+                                known.Add(phoneDigits); // a sibling's demande in the same send won't add it twice
+                            }
                         }
                         if (!string.IsNullOrWhiteSpace(ag.Email))
                         {
                             var email = ag.Email.Trim();
-                            var lower = email.ToLower();
-                            if (!await context.GuardianEmails.AnyAsync(e => e.GuardianId == gid && e.Address.ToLower() == lower, ct))
+                            var known = emailsByGuardian.TryGetValue(gid, out var el) ? el : (emailsByGuardian[gid] = []);
+                            if (known.Add(email.ToLower()))
                                 context.GuardianEmails.Add(new GuardianEmail { GuardianId = gid, Address = email, Type = "Personnel" });
                         }
                     }
@@ -1656,7 +1667,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         Guardian? SameName(List<Guardian>? candidates) =>
             candidates?.FirstOrDefault(g => TextNormalization.NormalizeKey(g.FirstName) == first);
 
-        if (!string.IsNullOrWhiteSpace(ag.Email) && SameName(byEmail.GetValueOrDefault(ag.Email)) is { } g1) return g1;
+        if (!string.IsNullOrWhiteSpace(ag.Email) && SameName(byEmail.GetValueOrDefault(ag.Email.Trim())) is { } g1) return g1;
         var digits = PhoneNumbers.Digits(ag.PhoneNumber);
         if (digits.Length >= 6 && SameName(byPhone.GetValueOrDefault(digits)) is { } g2) return g2;
         return null;
@@ -1832,9 +1843,14 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
         await context.AcquireAdvisoryLockAsync(917320251, ct); // shared with SendDemandeResponses — mutually exclusive
 
         // Block if any submitted application is still awaiting a response — closing would discard it unreviewed.
-        var pendingResponse = await context.Demandes.CountAsync(d => d.Status == DemandeStatus.Submitted && d.ResponseSentAt == null, ct);
+        // Also block decided-but-unsent demandes (Approved / Declined / « Déjà membre »): closing deletes them, so those
+        // families would never get an answer and accepted children would never become members. The screen already
+        // checks this; the server must too.
+        var pendingResponse = await context.Demandes.CountAsync(d => d.ResponseSentAt == null
+            && (d.Status == DemandeStatus.Submitted || d.Status == DemandeStatus.Approved
+                || d.Status == DemandeStatus.Declined || d.Status == DemandeStatus.AlreadyMember), ct);
         if (pendingResponse > 0)
-            return Result<CloseDemandeCampaignResult>.Failure($"{pendingResponse} demande(s) sans réponse. Envoyez toutes les réponses avant de clôturer.");
+            return Result<CloseDemandeCampaignResult>.Failure($"{pendingResponse} demande(s) sans réponse envoyée. Envoyez toutes les réponses avant de clôturer.");
 
         var demandes = await context.Demandes.ToListAsync(ct);
         var accIds = demandes.Select(d => d.ApplicantAccountId).Distinct().ToList();
@@ -1876,6 +1892,9 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
         // Close inscriptions.
         var enabled = await context.Settings.FirstOrDefaultAsync(s => s.Key == "demande.enabled", ct);
         if (enabled is not null) enabled.Value = "false";
+        // Cancel any scheduled « Envoyer les réponses »: nothing is left to send.
+        var scheduled = await context.Settings.FirstOrDefaultAsync(s => s.Key == DemandeResponsesSchedule.ScheduledAtKey, ct);
+        if (scheduled is not null) scheduled.Value = "";
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 

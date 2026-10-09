@@ -105,6 +105,7 @@ export interface Demande {
   decisionNotes?: string | null
   submittedAt?: string | null
   lastEditedAt?: string | null // last real change by the family after submitting (« modifiée le … »)
+  locked?: boolean // the CG is deciding / has decided: the family can only consult it (says nothing about the outcome)
   responseSentAt?: string | null
   // Result-page fields — only populated once the response is sent (never a staged decision):
   converted?: boolean          // accepted → a member account was created
@@ -154,7 +155,7 @@ export function useClaimInvite() {
   })
 }
 
-export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'lastEditedAt' | 'responseSentAt'>
+export type DemandeInput = Omit<Demande, 'id' | 'scoutYear' | 'status' | 'decisionNotes' | 'submittedAt' | 'lastEditedAt' | 'responseSentAt' | 'locked'>
 
 // GET /applicant/config → portal config (open flag, scout year, caps, school/class/city/unit/domain lists).
 export function useApplicantConfig() {

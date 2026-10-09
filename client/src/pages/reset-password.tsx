@@ -31,6 +31,9 @@ export default function ResetPasswordPage() {
   const [website, setWebsite] = useState('') // honeypot — see forgot-password.tsx
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  // Covers BOTH steps (set the password, then sign in): the mutation alone re-enabled the button during the sign-in,
+  // and a second tap re-posted the now-used link → a confusing « expiré » flash just before the redirect.
+  const [submitting, setSubmitting] = useState(false)
   const mutation = useResetPassword()
   const { data: policy } = usePasswordPolicy()
   const login = useAuthStore((s) => s.login)
@@ -38,6 +41,7 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitting) return
     setError('')
 
     if (newPassword !== confirmPassword) {
@@ -50,10 +54,12 @@ export default function ResetPasswordPage() {
       return
     }
 
+    setSubmitting(true)
     try {
       await mutation.mutateAsync({ email, token, newPassword, website })
     } catch (err) {
       setError(parseApiError(err))
+      setSubmitting(false)
       return
     }
     // Password set → sign in straight away (remembered on this device, like the login's default).
@@ -62,6 +68,7 @@ export default function ResetPasswordPage() {
       navigate('/dashboard', { replace: true })
     } catch {
       setSuccess(true)
+      setSubmitting(false)
     }
   }
 
@@ -134,8 +141,8 @@ export default function ResetPasswordPage() {
               autoComplete="new-password"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting
               ? (isSetup ? 'Activation…' : 'Réinitialisation…')
               : (isSetup ? 'Activer mon compte' : 'Réinitialiser le mot de passe')}
           </Button>

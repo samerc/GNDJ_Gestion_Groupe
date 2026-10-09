@@ -4,6 +4,7 @@ import { useApplicantConfig } from '@/services/applicant-service'
 import { ApplicantAuthShell } from '@/components/applicant/applicant-auth-shell'
 import { Card, CardContent } from '@/components/ui/card'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
+import { GateLoadError } from '@/components/applicant/gate-load-error'
 import { CalendarClock } from 'lucide-react'
 import { formatDateLong } from '@/lib/utils'
 
@@ -13,7 +14,7 @@ import { formatDateLong } from '@/lib/utils'
 
 export default function InscriptionLandingPage() {
   const isAuthenticated = useApplicantStore((s) => s.isAuthenticated)
-  const { data: config, isLoading } = useApplicantConfig()
+  const { data: config, isLoading, isError, isFetching, refetch } = useApplicantConfig()
 
   // Skip the landing for a returning applicant who still has a valid session.
   if (isAuthenticated) return <Navigate to="/inscription/portail" replace />
@@ -23,6 +24,14 @@ export default function InscriptionLandingPage() {
   // notice here (login itself is behind ApplicantOpenRoute, which bounces back here when closed → no loop).
   if (isLoading) {
     return <ApplicantAuthShell><Card className="shadow-elevated"><CardContent><LoadingSpinner /></CardContent></Card></ApplicantAuthShell>
+  }
+  // Network failure ≠ closed: show a retry rather than « Les inscriptions sont fermées ».
+  if (isError && !config) {
+    return (
+      <ApplicantAuthShell>
+        <GateLoadError message="Impossible de joindre le portail des inscriptions." retrying={isFetching} onRetry={() => refetch()} />
+      </ApplicantAuthShell>
+    )
   }
   if (config?.isOpen) return <Navigate to="/inscription/login" replace />
 

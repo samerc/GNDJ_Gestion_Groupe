@@ -24,6 +24,7 @@ import { parseApiError } from '@/lib/error-utils'
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Plus, Trash2, Send, UserRound, Users, Link2, Pencil, FileText } from 'lucide-react'
 import { Callout } from '@/components/shared/callout'
 import { PageHeader } from '@/components/shared/page-header'
+import { DemandeNotFound } from '@/components/applicant/demande-not-found'
 import { Tip } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
@@ -175,7 +176,7 @@ export default function DemandeWizardPage() {
   // (canSubmitLate) also unlocks editing after the deadline for one invited family.
   const canSubmit = (profile?.canSubmitLate ?? false) || ((config?.isOpen ?? false) && (config?.submissionsOpen ?? false))
   const deadlinePassed = isSubmissionDeadlinePassed(config?.submissionDeadline)
-  const readonly = !canSubmit || (!!existing && !!existing.responseSentAt)
+  const readonly = !canSubmit || (!!existing && (!!existing.responseSentAt || !!existing.locked))
   const notesMax = config?.notesMaxLength ?? 500
   const maxRelations = config?.maxScoutRelations ?? 50
 
@@ -187,8 +188,16 @@ export default function DemandeWizardPage() {
 
   // Hydrate from profile (shared data always; child only when editing existing). Multi-source hydration
   // (profile + existing + config), so it stays an effect rather than a render-phase reset.
+  // Hydrate ONCE per demande: every save re-fetches the profile, and re-hydrating then would overwrite what the
+  // parent is already typing on the next step (slow connection → their first keystrokes vanish).
+  const hydratedFor = useRef<string | null>(null)
   useEffect(() => {
     if (!profile) return
+    if (id !== 'new' && !existing) return // wait for the demande (or the « introuvable » card)
+    if (hydratedFor.current === id) return
+    // The route moving from 'new' to the id this wizard just created is the same demande: nothing to reload.
+    if (hydratedFor.current === 'new' && id && createdIdRef.current === id) { hydratedFor.current = id; return }
+    hydratedFor.current = id ?? null
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (profile.guardians.length) setGuardians(profile.guardians)
     if (profile.scoutRelations.length) setRelations(profile.scoutRelations)
@@ -198,13 +207,15 @@ export default function DemandeWizardPage() {
     if (existing) {
       // Strip server-managed/metadata fields off the demande so `rest` is exactly the editable
       // DemandeInput shape for the child form. (void = silence unused-var lint on the discards.)
-      const { id: _id, scoutYear, status, decisionNotes, submittedAt, responseSentAt, ...rest } = existing
-      void _id; void scoutYear; void status; void decisionNotes; void submittedAt; void responseSentAt
+      const { id: _id, scoutYear, status, decisionNotes, submittedAt, responseSentAt, locked, lastEditedAt, ...rest } = existing
+      void _id; void scoutYear; void status; void decisionNotes; void submittedAt; void responseSentAt; void locked; void lastEditedAt
       setChild(rest)
     }
-  }, [profile, existing, config])
+  }, [profile, existing, config, id])
 
   if (isLoading) return <LoadingSpinner variant="page" />
+  // An unknown id (merged / deleted demande, old link): a clear card instead of a blank form whose save fails.
+  if (id && id !== 'new' && profile && !existing) return <DemandeNotFound />
 
   const setC = (patch: Partial<DemandeInput>) => setChild((c) => ({ ...c, ...patch }))
 
@@ -414,7 +425,7 @@ export default function DemandeWizardPage() {
         <Callout tone={deadlinePassed && !existing?.responseSentAt ? 'warning' : 'muted'}>
           {existing?.responseSentAt
             ? 'Cette demande a été traitée — consultation uniquement.'
-            : existing?.status === 'Submitted'
+            : existing?.status === 'Submitted' || existing?.locked
               ? 'Votre demande a bien été soumise ; elle est en cours d\'étude (consultation uniquement).'
             : deadlinePassed
               ? `La date limite de soumission était le ${formatDateLong(config?.submissionDeadline)}. Le délai est dépassé : vous ne pouvez plus soumettre cette demande (consultation uniquement).`
