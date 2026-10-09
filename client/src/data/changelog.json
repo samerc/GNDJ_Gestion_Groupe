@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-09", "text": "Fiche membre : la carte « Passages » n'apparaît plus que pendant le passage (lignes en attente ou acceptées) ; elle disparaît une fois le passage publié." },
       {
         "date": "2026-10-09",
         "text": "Calendrier : l'équipe du chef de groupe peut donner une heure de début et de fin aux dates importantes (Passage, première réunion, dates des documents et des inscriptions) avec « Modifier l'heure » ; la date elle-même reste dans Paramètres"

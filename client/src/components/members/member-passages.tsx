@@ -1,5 +1,5 @@
-// « Passages » card at the top of the member file's Unités / Fonctions tab, for chefs and admins: the member's passage line for
-// every scout year — where they were, what the chef d'unité proposed (with their note), what the CG decided (with
+// « Passages » card at the top of the member file's Unités / Fonctions tab, for chefs and admins: the member's passage line
+// while the passage is in progress (hidden once published) — where they were, what the chef d'unité proposed (with their note), what the CG decided (with
 // their reason when it differs), the status, and who did what.
 import { ArrowRight, ArrowRightLeft, LogOut } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -56,15 +56,18 @@ function PassageLine({ p }: { p: MemberPassage }) {
 
 export function MemberPassages({ memberId }: { memberId: string }) {
   const { data, isLoading, isError } = useMemberPassages(memberId)
+  // Only passages still in progress (proposed / accepted, not yet published). Once the passage is published every
+  // line is Finalized, so the card disappears by itself and comes back with next year's passage.
+  const open = (data ?? []).filter((p) => p.status === 'Pending' || p.status === 'Approved')
   // Nothing to show (or no right to see it): no card at all.
-  if (isLoading || isError || !data || data.length === 0) return null
+  if (isLoading || isError || open.length === 0) return null
   return (
     <Card className="mb-4">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base"><ArrowRightLeft className="h-4 w-4" />Passages</CardTitle>
       </CardHeader>
       <CardContent>
-        <ul className="divide-y">{data.map((p) => <PassageLine key={p.id} p={p} />)}</ul>
+        <ul className="divide-y">{open.map((p) => <PassageLine key={p.id} p={p} />)}</ul>
       </CardContent>
     </Card>
   )
