@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-10-09",
+        "text": "Demandes, « Frères et sœurs à lier » : bouton « Lier automatiquement les correspondances sûres » pour lier d'un coup les frères et sœurs qui ont exactement le même nom et les mêmes père et mère que le membre reconnu"
+      },
+      {
+        "date": "2026-10-09",
         "text": "Photos plus rapides : les listes et la page « Photos des membres » chargent une petite version de chaque photo. Sur la fiche d'un membre, l'appareil photo propose « Prendre une photo » (avec le cadre) ou « Choisir une photo »"
       },
       {

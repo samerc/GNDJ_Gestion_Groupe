@@ -131,7 +131,9 @@ la recherche porte sur **tous** les champs (enfant, parents, proches).
 > bouton **Vérifier** des deux premières lignes ouvre une liste : pour chaque cas, les mêmes lignes des deux côtés
 > (nom, naissance, unité, parents) — la demande à gauche, le membre du groupe à droite, ce qui est identique en
 > vert — avec les réponses sur la ligne (**Même personne** / **Personne différente** ; **Lier** /
-> **Pas lui**). Une ligne répondue disparaît ; **Voir la demande** ouvre la fiche. Le bouton **Vérifier** des
+> **Pas lui**). Une ligne répondue disparaît ; **Voir la demande** ouvre la fiche. Dans la liste des frères et
+> sœurs, **Lier automatiquement les correspondances sûres** lie d'un coup ceux qui ont exactement le même nom et les
+> mêmes père et mère que le membre reconnu ; les autres restent à vérifier. Le bouton **Vérifier** des
 > décisions à vérifier ouvre les refus à revoir, regroupés par famille, avec la raison en orange : pour chaque refus,
 > **Remettre à étudier** (c'était une erreur) ou **Le refus est voulu** (le signal disparaît ; il revient si la
 > décision change). **Archives** cherche la famille dans les demandes des années précédentes.

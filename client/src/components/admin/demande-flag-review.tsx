@@ -5,17 +5,19 @@
 // demandes list is refetched).
 //   • memberMatch — « Déjà membre ? »: the child looks like an existing member (same person / different person).
 //   • toLink — a brother/sister declared by the family was recognised as a member: compare and link, or « Pas lui ».
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { Check, CheckCircle2, ExternalLink, Link2, UserCheck, UserX, X } from 'lucide-react'
+import { Check, CheckCircle2, ExternalLink, Link2, UserCheck, UserX, Wand2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/shared/empty-state'
 import { parseApiError } from '@/lib/error-utils'
+import { confirmAsync } from '@/lib/confirm'
+import { canonicalRelationship } from '@/lib/options'
 import { cn, formatDate, normalizeSearch } from '@/lib/utils'
 import type { ApplicantScoutRelation, MemberParent } from '@/services/applicant-service'
-import { useDismissRelationSuggestion, type DemandeReview } from '@/services/demande-admin-service'
+import { useDismissRelationSuggestion, useLinkRelationMember, type DemandeReview } from '@/services/demande-admin-service'
 import { activeMove, useMemberMatchActions } from './member-match-actions'
 import type { LinkTarget } from './link-relation-dialog'
 
@@ -40,6 +42,36 @@ function sameName(a?: string | null, b?: string | null) {
     prev = cur
   }
   return prev[y.length] <= (Math.min(x.length, y.length) >= 8 ? 2 : 1)
+}
+
+// « Lier automatiquement »: a suggestion is SURE when the declared brother/sister has exactly the member's name
+// (accents / case / spaces / hyphens ignored, first and last name possibly swapped) AND the parents are the same:
+// the family and the member both give a father, or neither does — same for the mother — with identical names, and at
+// least one parent on each side. Anything less (one letter off, a parent missing on one side, two fathers on file)
+// stays for the CG to look at.
+function parentsByRole(list: MemberParent[]): Map<string, string[]> {
+  const m = new Map<string, string[]>()
+  for (const p of list) {
+    const role = canonicalRelationship(p.relationship)
+    if (role !== 'Père' && role !== 'Mère') continue
+    m.set(role, [...(m.get(role) ?? []), key(p.name)])
+  }
+  return m
+}
+
+function isSureLink({ d, r }: ToLinkItem): boolean {
+  if (!r.id || !r.suggestedMemberId || !r.firstName?.trim() || !r.lastName?.trim()) return false
+  const member = key(r.suggestedMemberName)
+  if (!member || (key(`${r.firstName}${r.lastName}`) !== member && key(`${r.lastName}${r.firstName}`) !== member)) return false
+  const fam = parentsByRole(familyParents(d))
+  const mem = parentsByRole(r.suggestedMemberParents ?? [])
+  if (fam.size === 0) return false
+  for (const role of ['Père', 'Mère']) {
+    const a = fam.get(role) ?? [], b = mem.get(role) ?? []
+    if (a.length !== b.length || a.length > 1) return false
+    if (a.length === 1 && (!a[0] || a[0] !== b[0])) return false
+  }
+  return true
 }
 
 // One side of the comparison, already reduced to the four rows shown.
@@ -139,7 +171,29 @@ export function DemandeFlagReview({ kind, matches, links, onClose, onOpenDemande
 }) {
   const actions = useMemberMatchActions()
   const dismiss = useDismissRelationSuggestion()
+  const link = useLinkRelationMember()
   const count = kind === 'memberMatch' ? matches.length : links.length
+  // Suggestions sure enough to link without looking (see isSureLink).
+  const sure = kind === 'toLink' ? links.filter(isSureLink) : []
+  const [autoLinking, setAutoLinking] = useState(false)
+
+  const autoLink = async () => {
+    const ok = await confirmAsync({
+      title: 'Lier automatiquement ?',
+      description: `${sure.length} frère(s) / sœur(s) ont exactement le même nom que le membre reconnu et les mêmes parents (père et mère). Ils seront liés ; les autres restent à vérifier une par une.`,
+      confirmLabel: `Lier (${sure.length})`,
+    })
+    if (!ok) return
+    setAutoLinking(true)
+    let done = 0, failed = 0
+    for (const { r } of sure) {
+      try { await link.mutateAsync({ relationId: r.id!, memberId: r.suggestedMemberId! }); done++ }
+      catch { failed++ }
+    }
+    setAutoLinking(false)
+    if (failed) toast.warning(`${done} lié(s), ${failed} échec(s)`)
+    else toast.success(`${done} frère(s) / sœur(s) lié(s)`)
+  }
 
   const openButton = (id: string) => (
     <Button size="sm" variant="ghost" onClick={() => onOpenDemande(id)}>
@@ -159,6 +213,14 @@ export function DemandeFlagReview({ kind, matches, links, onClose, onOpenDemande
               ? 'À gauche l\'enfant de la demande, à droite le membre du groupe qui lui ressemble. Ce qui est identique est en vert. Même personne : sa fiche existante sera utilisée (pas de deuxième fiche).'
               : 'À gauche le frère ou la sœur déclaré(e) par la famille, à droite le membre reconnu. Ce qui est identique est en vert. La famille ne donne pas la date de naissance du frère ou de la sœur : les parents en commun sont le meilleur indice.'}
           </DialogDescription>
+          {sure.length > 0 && (
+            <div className="pt-2">
+              <Button size="sm" variant="success" disabled={autoLinking} onClick={autoLink}>
+                <Wand2 className="mr-1.5 h-4 w-4" />
+                {autoLinking ? 'Liaison en cours…' : `Lier automatiquement les correspondances sûres (${sure.length})`}
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="-mx-1 flex-1 overflow-y-auto px-1">
