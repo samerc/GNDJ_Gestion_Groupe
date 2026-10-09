@@ -386,6 +386,9 @@ l'appareil photo s'ouvre avec un cadre pour bien placer le visage, et la photo e
 
 Si la page n'apparaît pas, le chef de groupe l'a désactivée : ajoutez la photo depuis la fiche du membre.
 
+Sur la fiche d'un membre, le petit appareil photo sur sa photo propose **Prendre une photo** (l'appareil photo avec
+le cadre) ou **Choisir une photo** (une image déjà sur votre téléphone ou votre ordinateur).
+
 ## Photos des membres
 
 **Photos des membres** affiche toutes les photos de votre unité, par équipe, au format de la carte (portrait). Un

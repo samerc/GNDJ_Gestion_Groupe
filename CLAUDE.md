@@ -6668,6 +6668,13 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   manager picks any active unit (parcours order). `GET /units/{id}/photos` (`GetUnitPhotosQuery`: CanLeadUnit or
   IsGroupManager, one row per member = most senior post). Menu: CU leader nav + « Unités & maîtrise » for managers.
   Hook `useUnitPhotos` keyed under ['members', …] so photo uploads refresh it.
+- **Photo thumbnails:** `GET /members/{id}/photo?size=thumb` → `IPhotoThumbnails` / `PhotoThumbnails` (SkiaSharp,
+  ≤320 px tall, JPEG q75, EXIF orientation applied) cached in `uploads/photo-thumbs/<file>.<lastWriteTicks>.jpg`
+  (outside uploads/photos → not seen by the stray-file check; old versions deleted when remade; falls back to the
+  original if decoding fails). `MemberPhoto` fetches the thumb whenever its height ≤ 160 px (query key adds 'thumb').
+- **Camera choice on the member file:** `MemberPhoto editable` camera button = menu « Prendre une photo » (dialog with
+  the lazy-loaded `CameraCapture` silhouette frame) / « Choisir une photo » (file picker, unchanged). With
+  `members.photo_session_enabled` off the button picks a file directly.
 
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
 - **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),

@@ -591,7 +591,8 @@ public class MembersController : BaseApiController
     /// <response code="404">No access, the member has no photo, or the file is missing.</response>
     [HttpGet("{memberId:guid}/photo")]
     [ProducesResponseType(404)]
-    public async Task<IActionResult> GetPhoto(Guid memberId, [FromServices] ICurrentUserService currentUser)
+    public async Task<IActionResult> GetPhoto(Guid memberId, [FromServices] ICurrentUserService currentUser,
+        [FromServices] IPhotoThumbnails thumbnails, [FromQuery] string? size = null)
     {
         // IDOR guard: own photo always; another member's photo is leader-only (members.edit) + unit-scoped.
         // A read-only youth carries their own unit in AuthorizedUnitIds, so a unit-only check would let them
@@ -608,6 +609,10 @@ public class MembersController : BaseApiController
         var fullPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), member.PhotoPath));
         if (!fullPath.StartsWith(uploadsRoot) || !System.IO.File.Exists(fullPath))
             return NotFound();
+
+        // ?size=thumb → a small JPEG copy for lists / photo walls (falls back to the original if it can't be made).
+        if (string.Equals(size, "thumb", StringComparison.OrdinalIgnoreCase) && thumbnails.GetThumbnail(fullPath) is { } thumb)
+            return PhysicalFile(thumb, "image/jpeg");
 
         var contentType = Path.GetExtension(fullPath).ToLower() == ".png" ? "image/png" : "image/jpeg";
         return PhysicalFile(fullPath, contentType);

@@ -24,6 +24,7 @@
          this unifies the graph and avoids the MSB3277 version-conflict warning). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
     <PackageReference Include="WebPush" Version="1.0.13" />
   </ItemGroup>

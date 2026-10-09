@@ -529,7 +529,8 @@ différentes…) avec un lien pour corriger.
 
 Dans **Membres**, « Alerte après absences de suite » fixe le nombre de réunions manquées de suite au-delà duquel le
 chef d'unité est prévenu (0 = pas d'alerte). « Session photo » active ou coupe la page **Session photo** des chefs
-d'unité (avec son bouton et sa tâche de rentrée) ; la photo depuis la fiche d'un membre reste toujours possible.
+d'unité (avec son bouton et sa tâche de rentrée) ; sur la fiche d'un membre, il ne reste alors que « Choisir une
+photo » (pas d'appareil photo).
 
 > 💡 Renommer une école ou une ville dans **Listes** la renomme aussi sur toutes les fiches. Supprimer une valeur
 > utilisée l'**archive** (elle reste sur les fiches mais disparaît des choix).

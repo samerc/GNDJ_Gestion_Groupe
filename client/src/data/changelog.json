@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-10-09",
+        "text": "Photos plus rapides : les listes et la page « Photos des membres » chargent une petite version de chaque photo. Sur la fiche d'un membre, l'appareil photo propose « Prendre une photo » (avec le cadre) ou « Choisir une photo »"
+      },
+      {
+        "date": "2026-10-09",
         "text": "Nouvelle page « Photos des membres » : toutes les photos d'une unité par équipe, une silhouette pour les membres sans photo, filtre « Sans photo », photo en grand pour la remplacer ; chaque chef voit son unité, le chef de groupe choisit l'unité"
       },
       {

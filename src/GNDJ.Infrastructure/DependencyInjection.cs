@@ -77,7 +77,8 @@ public static class DependencyInjection
         services.AddSingleton<IOpsAlertSender, OpsAlertSender>();  // admin alert email (dedicated alert SMTP, else the queue)
         services.AddSingleton<ISlowRequestLog, SlowRequestLog>();  // requests over Monitoring:SlowRequestMs (Système page)
         services.AddSingleton<GNDJ.Application.SystemHealth.ISystemHealthService, SystemHealthService>(); // Système page + daily ops alert
-        services.AddSingleton<GNDJ.Application.SystemHealth.IUploadFileAudit, UploadFileAudit>();          // stray upload files
+        services.AddSingleton<GNDJ.Application.SystemHealth.IUploadFileAudit, UploadFileAudit>();
+        services.AddSingleton<IPhotoThumbnails, PhotoThumbnails>();                                       // small member-photo copies          // stray upload files
         services.AddSingleton<ILoginThrottle, LoginThrottle>();
 
         // Web Push notifications + durable push outbox (mirrors the email outbox). Enqueuing persists a
