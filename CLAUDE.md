@@ -6661,6 +6661,14 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
   are hidden, and the rentrée task with action `goto-photo` is gated (`RentreeFeatureGates.Photo`). Uploading a photo
   from the member file is unaffected. Client hook `usePhotoSessionEnabled()` (settings-service).
 
+### « Photos des membres » page (2026-10-09, DEV until deploy)
+- `/unit-photos` (`pages/unit-photos.tsx`): one unit's active members as 3:4 photo tiles grouped by team (maîtrise
+  first), grey silhouette when no photo (`MemberPhoto placeholder="silhouette"`), « Sans photo » filter, click → big
+  photo (editable: replace/delete) + « Ouvrir la fiche ». A chef sees the units they lead (picker if several); a group
+  manager picks any active unit (parcours order). `GET /units/{id}/photos` (`GetUnitPhotosQuery`: CanLeadUnit or
+  IsGroupManager, one row per member = most senior post). Menu: CU leader nav + « Unités & maîtrise » for managers.
+  Hook `useUnitPhotos` keyed under ['members', …] so photo uploads refresh it.
+
 ### Code audit fixes + comments pass (2026-10-08, DEV until deploy)
 - **Secrets:** `Common/SecureTokens` — `TempPassword()` (shown passwords, « Scout2026!K7mQ4x », ~2.7e10 values; was 900),
   `HiddenPassword()` (never-shown logins: demande conversion), `UrlToken()` (activation / reset links; was copied 6×).

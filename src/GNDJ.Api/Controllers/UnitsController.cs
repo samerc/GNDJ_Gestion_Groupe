@@ -34,6 +34,19 @@ public class UnitsController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>
+    /// « Photos des membres »: the unit's active members with their photo state, grouped by team. A chef of the
+    /// unit (members.edit) or a group manager (any unit); checked in the handler.
+    /// </summary>
+    /// <response code="404">No unit exists for the given id.</response>
+    [HttpGet("{id:guid}/photos")]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetPhotos(Guid id)
+    {
+        var result = await Mediator.Send(new GetUnitPhotosQuery(id));
+        return result is null ? NotFound() : Ok(result);
+    }
+
     /// <summary>Gets a single unit by id. Requires units.view.</summary>
     /// <response code="404">No unit exists for the given id.</response>
     [HttpGet("{id:guid}")]

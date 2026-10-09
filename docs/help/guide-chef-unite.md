@@ -386,6 +386,13 @@ l'appareil photo s'ouvre avec un cadre pour bien placer le visage, et la photo e
 
 Si la page n'apparaît pas, le chef de groupe l'a désactivée : ajoutez la photo depuis la fiche du membre.
 
+## Photos des membres
+
+**Photos des membres** affiche toutes les photos de votre unité, par équipe, au format de la carte (portrait). Un
+membre sans photo a une silhouette grise ; le filtre **Sans photo** ne garde que ceux-là. Touchez une photo pour la
+voir en grand : vous pouvez la remplacer ou la supprimer, ou ouvrir la fiche du membre. Le chef de groupe choisit
+l'unité à afficher.
+
 ![Session photo](img/cu-photo.png)
 
 ## Impressions : liste, trombinoscope, cartes, export

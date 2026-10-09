@@ -60,6 +60,7 @@ const MembersPage = lazy(() => import('@/pages/members/index'))
 const UnitDocumentsPage = lazy(() => import('@/pages/unit-documents'))
 const PassagePage = lazy(() => import('@/pages/passage'))
 const PhotoSessionPage = lazy(() => import('@/pages/photo-session'))
+const UnitPhotosPage = lazy(() => import('@/pages/unit-photos'))
 const RentreePage = lazy(() => import('@/pages/rentree'))
 const CalendarPage = lazy(() => import('@/pages/calendar'))
 const AttendancePage = lazy(() => import('@/pages/attendance/index'))
@@ -203,6 +204,7 @@ export default function App() {
             <Route path="/unit-documents" element={<UnitDocumentsPage />} />
             <Route path="/passage" element={<PassagePage />} />
             <Route path="/photo-session" element={<PhotoSessionPage />} />
+            <Route path="/unit-photos" element={<UnitPhotosPage />} />
             <Route path="/rentree" element={<RentreePage />} />
             <Route path="/calendrier" element={<CalendarPage />} />
             {/* Réunions / absences — authenticated-only (a chef d'équipe has no permission; the page shows an

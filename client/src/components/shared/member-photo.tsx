@@ -4,7 +4,7 @@ import { useUploadPhoto, useDeletePhoto } from '@/services/member-service'
 import { parseApiError } from '@/lib/error-utils'
 import apiClient from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import { Camera, X } from 'lucide-react'
+import { Camera, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { confirmAsync } from '@/lib/confirm'
 
@@ -21,9 +21,11 @@ interface MemberPhotoProps {
   className?: string
   /** Increment to force refresh after external upload */
   refreshKey?: number
+  /** What to show when there is no photo: the initials (default) or a grey silhouette. */
+  placeholder?: 'initials' | 'silhouette'
 }
 
-export function MemberPhoto({ memberId, name, photoPath, size = 40, height, rounded = 'rounded-full', editable = false, className, refreshKey = 0 }: MemberPhotoProps) {
+export function MemberPhoto({ memberId, name, photoPath, size = 40, height, rounded = 'rounded-full', editable = false, className, refreshKey = 0, placeholder = 'initials' }: MemberPhotoProps) {
   const h = height ?? size
   const [loading, setLoading] = useState(false)
   const [inView, setInView] = useState(false)
@@ -106,6 +108,15 @@ export function MemberPhoto({ memberId, name, photoPath, size = 40, height, roun
       className={cn(rounded, 'object-cover', className)}
       style={{ width: size, height: h }}
     />
+  ) : placeholder === 'silhouette' ? (
+    <div
+      ref={el => { elRef.current = el }}
+      className={cn('flex items-end justify-center overflow-hidden bg-muted text-muted-foreground/40', rounded, className)}
+      style={{ width: size, height: h }}
+      aria-label={`${name} — pas de photo`}
+    >
+      <UserRound style={{ width: size * 0.9, height: size * 0.9 }} strokeWidth={1.25} />
+    </div>
   ) : (
     <div
       ref={el => { elRef.current = el }}

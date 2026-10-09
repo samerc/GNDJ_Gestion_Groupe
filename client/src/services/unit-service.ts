@@ -70,3 +70,17 @@ export function useDeleteUnit() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['units'] }),
   })
 }
+
+// « Photos des membres » (GET /units/{id}/photos): the unit's active members with their photo, grouped by team.
+// Keyed under ['members', …] so a photo upload/delete (which invalidates ['members']) refreshes it.
+export interface UnitPhotoMember { memberId: string; firstName: string; lastName: string; photoPath: string | null; roleName: string | null; isMaitrise: boolean }
+export interface UnitPhotoTeam { name: string; isMaitrise: boolean; members: UnitPhotoMember[] }
+export interface UnitPhotos { unitId: string; unitName: string; unitCode: string; memberCount: number; withPhotoCount: number; teams: UnitPhotoTeam[] }
+
+export function useUnitPhotos(unitId: string) {
+  return useQuery({
+    queryKey: ['members', 'unit-photos', unitId],
+    queryFn: () => apiClient.get<UnitPhotos>(`/units/${unitId}/photos`).then(r => r.data),
+    enabled: !!unitId,
+  })
+}

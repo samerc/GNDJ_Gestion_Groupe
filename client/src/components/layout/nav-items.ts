@@ -5,7 +5,7 @@ import {
   Users, Building2, ShieldCheck, FolderTree, FileText, ScrollText, ArrowRightLeft, Camera, Settings2,
   Receipt, FileWarning, Route, Inbox, Send, Newspaper, CalendarDays, CalendarCheck, Library, BarChart3,
   Crown, ListChecks, Tent, ClipboardList, Trash2, AlertTriangle, LayoutGrid, Archive, MessageSquare, UserPlus,
-  CalendarClock, Activity, BookOpen, User, FolderOpen, Briefcase, Award, Mail, Bell, FolderCheck,
+  CalendarClock, Activity, BookOpen, User, FolderOpen, Briefcase, Award, Mail, Bell, FolderCheck, Images,
 } from 'lucide-react'
 
 // Admin/super admin nav
@@ -44,6 +44,7 @@ export const leaderNavItems = [
   { path: '/attendance', label: 'Réunions & absences', icon: CalendarCheck, permission: PERMISSIONS.ATTENDANCE_MANAGE },
   { path: '/passage', label: 'Passage des membres', icon: ArrowRightLeft, permission: PERMISSIONS.PASSAGE_PROPOSE },
   { path: '/photo-session', label: 'Session photo', icon: Camera, permission: PERMISSIONS.MEMBERS_EDIT },
+  { path: '/unit-photos', label: 'Photos des membres', icon: Images, permission: PERMISSIONS.MEMBERS_EDIT },
   { path: '/camp', label: 'Camp BP', icon: Tent, permission: PERMISSIONS.CAMP_GRADE },
   // Rentrée = a leader checklist; regular youth members have no tasks, so gate it on members.edit
   // (leaders) like "Mon unité" rather than showing it to everyone.
@@ -98,6 +99,7 @@ export const adminGroups: AdminGroup[] = [
       { path: '/units', label: 'Unités', icon: Building2, permission: PERMISSIONS.UNITS_VIEW },
       { path: '/organiser', label: 'Organiser une unité', icon: LayoutGrid, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/maitrises', label: 'Maîtrises', icon: Crown, permission: PERMISSIONS.MAITRISE_MANAGE },
+      { path: '/unit-photos', label: 'Photos des membres', icon: Images, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/member-groups', label: 'Groupes', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/siblings', label: 'Fratries', icon: Users, permission: PERMISSIONS.MAITRISE_MANAGE },
       { path: '/admin/zero-day-assignments', label: 'Affectations à dater', icon: CalendarClock, permission: PERMISSIONS.MAITRISE_MANAGE },

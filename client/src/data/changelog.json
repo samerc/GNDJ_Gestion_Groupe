@@ -5,6 +5,10 @@
     "changes": [
       {
         "date": "2026-10-09",
+        "text": "Nouvelle page « Photos des membres » : toutes les photos d'une unité par équipe, une silhouette pour les membres sans photo, filtre « Sans photo », photo en grand pour la remplacer ; chaque chef voit son unité, le chef de groupe choisit l'unité"
+      },
+      {
+        "date": "2026-10-09",
         "text": "Paramètres → Membres : interrupteur « Session photo » pour masquer la page Session photo des chefs d'unité, son bouton « Photos » et sa tâche de rentrée (la photo depuis la fiche d'un membre reste possible)"
       },
       {"date": "2026-10-08", "text": "Demandes : un enfant qui est encore membre actif du groupe (« Déjà membre ? » confirmé) n'est plus converti — la demande passe en « Déjà membre », sa fiche est seulement mise à jour avec la demande à l'envoi des réponses, sans changement de poste et sans email à la famille ; s'il est accepté dans une autre unité, son poste actuel se termine et un nouveau commence dans cette unité, toujours sans email. L'aperçu de l'envoi le compte à part et prévient si un refus partirait à la famille d'un membre actif."},

@@ -28,6 +28,7 @@ const PAGE_HELP: Record<string, PageHelp[]> = {
   '/change-requests': [CU('Modifications à valider')],
   '/attendance': [CU('Réunions et absences')],
   '/photo-session': [CU('Session photo')],
+  '/unit-photos': [CU('Photos des membres')],
   '/rentree': [CG('La liste de rentrée'), CU('Votre liste de rentrée')],
   '/camp': [CU('Le Camp BP')],
   // Chef de Groupe
