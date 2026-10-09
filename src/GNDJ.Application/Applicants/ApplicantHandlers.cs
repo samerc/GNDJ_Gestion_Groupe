@@ -944,7 +944,8 @@ public class RequestHouseholdLookupCommandHandler(IApplicationDbContext context,
         var seedMemberIds = await HouseholdLookup.SeedMemberIdsAsync(context, email, ct);
         if (seedMemberIds.Count > 0)
         {
-            var code = Random.Shared.Next(100000, 999999).ToString();
+            // Cryptographic RNG (Random.Shared is predictable).
+            var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
             account.HouseholdLookupEmail = email;
             account.HouseholdLookupCodeHash = hasher.HashToken(code);
             account.HouseholdLookupExpiry = DateTime.UtcNow.AddMinutes(15);
@@ -966,7 +967,8 @@ public class VerifyHouseholdLookupCommandValidator : AbstractValidator<VerifyHou
     }
 }
 
-public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IPasswordHasher hasher)
+public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, ICurrentApplicantService current, IPasswordHasher hasher,
+    ILoginThrottle throttle)
     : IRequestHandler<VerifyHouseholdLookupCommand, Result<HouseholdLookupDto>>
 {
     public async ValueTask<Result<HouseholdLookupDto>> Handle(VerifyHouseholdLookupCommand request, CancellationToken ct)
@@ -976,11 +978,21 @@ public class VerifyHouseholdLookupCommandHandler(IApplicationDbContext context, 
         var account = await context.ApplicantAccounts.FirstOrDefaultAsync(a => a.Id == id, ct);
         if (account is null) return Result<HouseholdLookupDto>.Failure("Compte introuvable.");
 
+        // Wrong guesses lock this account's lookup for a growing delay (same per-key lockout as the login screens):
+        // a success reveals another family's parents, phones and address, so the 6-digit code mustn't be guessable.
+        var throttleKey = account.Id.ToString();
+        if (throttle.LockedFor("household", throttleKey) is TimeSpan wait)
+            return Result<HouseholdLookupDto>.Failure(LoginThrottleMessages.Locked(wait).Replace("de connexion", "de code"));
+
         var email = request.Email.Trim();
         if (account.HouseholdLookupEmail is null || account.HouseholdLookupExpiry is null || account.HouseholdLookupExpiry < DateTime.UtcNow
             || !string.Equals(account.HouseholdLookupEmail, email, StringComparison.OrdinalIgnoreCase)
             || account.HouseholdLookupCodeHash != hasher.HashToken(request.Code.Trim()))
+        {
+            throttle.RecordFailure("household", throttleKey);
             return Result<HouseholdLookupDto>.Failure("Code invalide ou expiré.");
+        }
+        throttle.Reset("household", throttleKey);
 
         // One-time: clear the code now.
         account.HouseholdLookupEmail = null; account.HouseholdLookupCodeHash = null; account.HouseholdLookupExpiry = null;

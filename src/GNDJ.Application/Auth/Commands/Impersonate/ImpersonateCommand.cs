@@ -53,6 +53,16 @@ public class ImpersonateCommandHandler(
         // The target's REAL permissions + units (isSuperAdmin: false — an impersonation session is never super-admin).
         var (permissions, unitIds) = await AuthAccess.LoadAsync(context, target.Id, isSuperAdmin: false, ct);
 
+        // A non-super-admin may only see as someone whose access fits inside their own (same rule as delegation):
+        // otherwise an assistant CG could « voir comme » the CG and read the pages reserved to the CG (demandes with
+        // children's medical data, delegations…).
+        if (!currentUser.IsSuperAdmin)
+        {
+            var extra = permissions.Except(currentUser.Permissions).ToList();
+            if (extra.Count > 0)
+                return Result<ImpersonateResponse>.Failure("Ce membre a des accès que vous n'avez pas : impossible de voir l'application comme lui.");
+        }
+
         var token = tokenService.GenerateImpersonationToken(
             targetUser?.Id, target.Id, targetUser?.Email ?? "", permissions, unitIds, currentUser.UserId.Value);
 

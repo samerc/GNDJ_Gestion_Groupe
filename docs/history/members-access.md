@@ -1300,3 +1300,25 @@ Signing in on one device used to sign the others out: each account had ONE rotat
   swapped) AND père/mère identical — each role present on both sides or neither, one record each, same full name — with
   at least one parent. One letter off, a missing parent or two fathers on file → stays manual. Dev: 55 of 69.
 
+### Security fix batch from the full-app review (2026-10-09, DEV until deploy)
+- **« Inscrire un frère ou une sœur »** (`StartSiblingDemande`): an EXISTING parent-portal account is opened without
+  its password only when it provably belongs to the family (one of its demandes created this member or a confirmed
+  sibling, or the CG confirmed a link). Before, a youth could type any email on Ma fiche, set it as main contact and
+  get signed in to another family's portal account. A new account is still created as before.
+- **Shared parent emails** (`MyGuardianAccess.CanEditEmails`): self-service add/edit/delete of a parent's EMAIL is
+  refused when that parent is also linked to a member outside the caller's confirmed fratrie or to a protected member
+  (chef / group-level / delegated / super-admin) — parent emails feed other members' login codes and resets.
+- **Sibling switch** requires the calling device's session to still exist and be live (a signed-out device could use
+  its 15-min access token to mint a sibling session).
+- **« Voir comme »**: a non-super-admin may only impersonate someone whose permissions are a subset of their own
+  (an ACG could read the CG's pages).
+- **Codes**: login code + household-lookup code use `RandomNumberGenerator`; login code not re-sent within 1 minute
+  (cooldown, kept valid); household-lookup verify locked after repeated wrong codes (`ILoginThrottle` realm
+  "household", keyed by account). The masked-email hint is kept on purpose (product decision).
+- **API keys**: `members:read-own` / `cotisations:read-own` now grant no permission (own data via the own-record rule);
+  unit scope only added for unit-wide scopes.
+- **Refresh race**: `DeviceSession.TokenHash` is a concurrency token (migration `SessionTokenConcurrency`, no schema
+  change) → a second simultaneous rotation gets 409; both API clients replay with the tokens the other tab stored.
+- Live-tested: ACG → CG impersonation refused, CG → ACG ok; signed-out device switch refused, normal switch ok; two
+  quick code requests → one email; chef-shared parent email refused, normal family ok.
+

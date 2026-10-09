@@ -125,6 +125,15 @@ apiClient.interceptors.response.use(
         clearTokens('member')
         window.location.href = '/login'
       }
+      if (status === 409) {
+        // 409 = another tab refreshed this same device a split-second earlier (the server refuses the second
+        // rotation). Its new tokens are already in storage: replay with them instead of failing the request.
+        const fresh = getAccessToken('member')
+        if (fresh && getRefreshToken('member') !== refreshToken) {
+          originalRequest.headers.Authorization = `Bearer ${fresh}`
+          return apiClient(originalRequest)
+        }
+      }
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false

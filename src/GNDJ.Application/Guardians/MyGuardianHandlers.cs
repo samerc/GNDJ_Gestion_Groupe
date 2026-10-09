@@ -21,6 +21,30 @@ static class MyGuardianAccess
         if (user.MemberId is null) return false;
         return await ctx.GuardianLinks.AnyAsync(l => l.GuardianId == guardianId && l.MemberId == user.MemberId && !l.IsDeleted, ct);
     }
+
+    // Parent EMAILS feed other members' sign-in emails (login code, password reset) through ContactEmailResolver.
+    // So a member may change a parent's emails only when every OTHER child linked to that parent is a confirmed
+    // sibling (same family) and none of them is "protected" (chef / group-level / delegated / super-admin) —
+    // otherwise a youth could redirect a chef's or another family's login code to an address they control.
+    public static async Task<bool> CanEditEmails(IApplicationDbContext ctx, ICurrentUserService user, Guid guardianId, CancellationToken ct)
+    {
+        if (!await IsMine(ctx, user, guardianId, ct)) return false;
+        var myGroup = await ctx.Members.Where(m => m.Id == user.MemberId).Select(m => m.SiblingGroupId).FirstOrDefaultAsync(ct);
+        var others = await ctx.GuardianLinks
+            .Where(l => l.GuardianId == guardianId && l.MemberId != user.MemberId && !l.IsDeleted && !l.Member.IsDeleted)
+            .Select(l => new
+            {
+                l.Member.SiblingGroupId,
+                Protected = l.Member.Assignments.AsQueryable().Any(GNDJ.Application.Members.FamilyAccess.LeaderPost)
+                    || l.Member.DelegatedPermissionsJson != null || l.Member.DelegatedGroupAccess || l.Member.DelegatedProfileId != null
+                    || ctx.Users.Any(u => u.MemberId == l.MemberId && u.IsSuperAdmin),
+            })
+            .ToListAsync(ct);
+        return others.All(o => !o.Protected && myGroup != null && o.SiblingGroupId == myGroup);
+    }
+
+    public const string SharedParentLocked =
+        "Ce parent est aussi lié à un autre membre : seul un chef peut modifier ses emails. Contactez votre chef d'unité.";
 }
 
 // ── Create a new guardian + link to self ─────────────────────────────────────
@@ -249,6 +273,7 @@ public class UpdateMyGuardianEmailHandler(IApplicationDbContext context, ICurren
     {
         var entity = await context.GuardianEmails.FindAsync([request.Id], ct);
         if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Email introuvable.");
+        if (!await MyGuardianAccess.CanEditEmails(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure(MyGuardianAccess.SharedParentLocked);
         var old = entity.Address;
         entity.Address = request.Address; entity.Type = request.Type; entity.IsPrimary = request.IsPrimary;
         await context.SaveChangesAsync(ct);
@@ -276,6 +301,7 @@ public class AddMyGuardianEmailHandler(IApplicationDbContext context, ICurrentUs
     public async ValueTask<Result<Guid>> Handle(AddMyGuardianEmailCommand request, CancellationToken ct)
     {
         if (!await MyGuardianAccess.IsMine(context, currentUser, request.GuardianId, ct)) return Result<Guid>.Failure("Parent introuvable.");
+        if (!await MyGuardianAccess.CanEditEmails(context, currentUser, request.GuardianId, ct)) return Result<Guid>.Failure(MyGuardianAccess.SharedParentLocked);
         var entity = new GuardianEmail { GuardianId = request.GuardianId, Address = request.Address, Type = request.Type, IsPrimary = request.IsPrimary };
         context.GuardianEmails.Add(entity);
         await context.SaveChangesAsync(ct);
@@ -289,6 +315,7 @@ public class DeleteMyGuardianEmailHandler(IApplicationDbContext context, ICurren
     {
         var entity = await context.GuardianEmails.FindAsync([request.Id], ct);
         if (entity is null || !await MyGuardianAccess.IsMine(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure("Email introuvable.");
+        if (!await MyGuardianAccess.CanEditEmails(context, currentUser, entity.GuardianId, ct)) return Result<bool>.Failure(MyGuardianAccess.SharedParentLocked);
         var info = new { Parent = await AuditNames.GuardianAsync(context, entity.GuardianId, ct), Email = entity.Address };
         context.GuardianEmails.Remove(entity);
         await context.SaveChangesAsync(ct);

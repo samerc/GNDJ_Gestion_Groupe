@@ -30,10 +30,18 @@ public class SwitchToSiblingCommandHandler(
         if (currentUser.SessionId is null || currentUser.MemberId is not Guid memberId || request.MemberId == memberId)
             return Result<AuthResponse>.Failure(denied);
 
+        // The device's session must still exist and be live, and the caller's own login still active. Without this,
+        // a device that was signed out (logout, « déconnecter les autres », disabled login) could use its still-valid
+        // 15-minute access token to mint a brand-new session on a sibling's account.
+        var now = DateTime.UtcNow;
+        var sessionLive = await context.UserSessions.AnyAsync(s => s.Id == currentUser.SessionId && s.UserId == currentUser.UserId
+            && s.ExpiresAt > now && s.User.IsActive && !s.User.IsDeleted, ct);
+        if (!sessionLive) return Result<AuthResponse>.Failure(denied);
+
         var family = await FamilyAccess.LoadAsync(context, memberId, ct);
         var me = family.FirstOrDefault(f => f.MemberId == memberId);
         var target = family.FirstOrDefault(f => f.MemberId == request.MemberId);
-        if (me is null || target?.UserId is null || !FamilyAccess.CanSwitchWithoutPassword(me, target))
+        if (me?.UserId is null || target?.UserId is null || !FamilyAccess.CanSwitchWithoutPassword(me, target))
             return Result<AuthResponse>.Failure(denied);
 
         var user = await context.Users.Include(u => u.Member)

@@ -31,6 +31,8 @@ public class RequestLoginCodeCommandValidator : AbstractValidator<RequestLoginCo
 public class RequestLoginCodeCommandHandler(IApplicationDbContext context, IEmailQueue emailQueue, IPasswordHasher hasher)
     : IRequestHandler<RequestLoginCodeCommand, Result<LoginCodeRequestResult>>
 {
+    private const int CodeMinutes = 15;
+
     public async ValueTask<Result<LoginCodeRequestResult>> Handle(RequestLoginCodeCommand request, CancellationToken ct)
     {
         // Match the username like member Login: trimmed + case-insensitive (mobile auto-capitalises / adds a space).
@@ -48,11 +50,17 @@ public class RequestLoginCodeCommandHandler(IApplicationDbContext context, IEmai
         if (string.IsNullOrWhiteSpace(email))
             return Result<LoginCodeRequestResult>.Success(new LoginCodeRequestResult(true, false, null)); // no email on file
 
+        // Cooldown: a code sent less than a minute ago is still valid — don't send another (and don't invalidate
+        // it). Without this anyone could flood a family's inbox and keep cancelling the code they're about to type.
+        if (user.LoginCodeExpiry is DateTime prev && prev > DateTime.UtcNow.AddMinutes(CodeMinutes - 1))
+            return Result<LoginCodeRequestResult>.Success(new LoginCodeRequestResult(true, true, MaskEmail(email)));
+
         // Generate + store a hashed single-use code (15-min expiry). SHA-256 (HashToken) is fine — a 6-digit
-        // code is low-entropy, but it's single-use, short-lived and rate-limited, and never stored in clear.
-        var code = Random.Shared.Next(100000, 999999).ToString();
+        // code is low-entropy, but it's single-use, short-lived and the verify step is locked after repeated
+        // failures (ILoginThrottle), and never stored in clear. Cryptographic RNG: Random.Shared is predictable.
+        var code = System.Security.Cryptography.RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
         user.LoginCode = hasher.HashToken(code);
-        user.LoginCodeExpiry = DateTime.UtcNow.AddMinutes(15);
+        user.LoginCodeExpiry = DateTime.UtcNow.AddMinutes(CodeMinutes);
         await context.SaveChangesAsync(ct);
 
         await emailQueue.EnqueueAsync(new EmailJob("login_code", email, new Dictionary<string, string>

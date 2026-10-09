@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-09", "text": "Sécurité : « Inscrire un frère ou une sœur » n'ouvre plus un compte du portail qui n'appartient pas à la famille ; un membre ne peut plus changer les emails d'un parent partagé avec un chef ; un appareil déconnecté ne peut plus passer au compte d'un frère ou d'une sœur ; « Voir comme » limité aux membres qui n'ont pas plus d'accès que vous ; codes de connexion plus sûrs (pas de renvoi avant 1 minute, tentatives limitées) ; deux rafraîchissements simultanés ne déconnectent plus l'appareil." },
       { "date": "2026-10-09", "text": "Fiche membre : la carte « Passages » n'apparaît plus que pendant le passage (lignes en attente ou acceptées) ; elle disparaît une fois le passage publié." },
       {
         "date": "2026-10-09",

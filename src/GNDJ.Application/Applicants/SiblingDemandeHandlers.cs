@@ -76,7 +76,26 @@ public class StartSiblingDemandeCommandHandler(IApplicationDbContext context, IC
             context.ApplicantAccounts.Add(account);
             created = true;
         }
-        else if (!account.EmailVerified) { account.EmailVerified = true; account.EmailVerificationToken = null; }
+        else
+        {
+            // An EXISTING account is opened without its password only when it provably belongs to this family: one
+            // of its demandes created this member or a confirmed sibling, or the CG confirmed a link to one of them.
+            // The email alone proves nothing — a member can type any address on their own fiche and set it as main
+            // contact, which would otherwise open another family's portal account (children's medical data).
+            var siblingGroupId = await context.Members.Where(m => m.Id == memberId).Select(m => m.SiblingGroupId).FirstOrDefaultAsync(ct);
+            var family = siblingGroupId is Guid gid
+                ? await context.Members.Where(m => m.SiblingGroupId == gid).Select(m => m.Id).ToListAsync(ct)
+                : [memberId];
+            var ownsAccount = await context.Demandes.AnyAsync(d => d.ApplicantAccountId == account.Id
+                                  && d.CreatedMemberId != null && family.Contains(d.CreatedMemberId.Value), ct)
+                || await context.ApplicantScoutRelations.AnyAsync(r => r.ApplicantAccountId == account.Id
+                                  && r.RelatedMemberId != null && family.Contains(r.RelatedMemberId.Value), ct);
+            if (!ownsAccount)
+                return Result<ApplicantAuthDto>.Failure(
+                    "Un compte du portail des inscriptions existe déjà pour l'email de votre famille. Connectez-vous sur le portail des " +
+                    "inscriptions avec ce compte (utilisez « Mot de passe oublié » si besoin).");
+            if (!account.EmailVerified) { account.EmailVerified = true; account.EmailVerificationToken = null; }
+        }
 
         // 3. Prefill the household on a new / still-empty account (never overwrite what the family already entered).
         var hasGuardians = !created && await context.ApplicantGuardians.AnyAsync(g => g.ApplicantAccountId == account.Id, ct);

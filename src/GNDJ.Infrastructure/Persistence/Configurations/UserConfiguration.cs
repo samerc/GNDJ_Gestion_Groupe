@@ -31,7 +31,10 @@ public class UserSessionConfiguration : IEntityTypeConfiguration<UserSession>
     {
         builder.ToTable("user_sessions");
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.TokenHash).HasMaxLength(100).IsRequired();
+        // Concurrency token: two simultaneous refreshes of the same device would both rotate it and the loser's new
+        // token would be lost (device signed out at its next refresh). Now the second save fails (409) and the
+        // client keeps the token the first one stored.
+        builder.Property(e => e.TokenHash).HasMaxLength(100).IsRequired().IsConcurrencyToken();
         builder.Property(e => e.PreviousTokenHash).HasMaxLength(100);
         builder.Property(e => e.UserAgent).HasMaxLength(500);
         builder.Property(e => e.IpAddress).HasMaxLength(64);
@@ -52,7 +55,10 @@ public class ApplicantSessionConfiguration : IEntityTypeConfiguration<ApplicantS
     {
         builder.ToTable("applicant_sessions");
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.TokenHash).HasMaxLength(100).IsRequired();
+        // Concurrency token: two simultaneous refreshes of the same device would both rotate it and the loser's new
+        // token would be lost (device signed out at its next refresh). Now the second save fails (409) and the
+        // client keeps the token the first one stored.
+        builder.Property(e => e.TokenHash).HasMaxLength(100).IsRequired().IsConcurrencyToken();
         builder.Property(e => e.PreviousTokenHash).HasMaxLength(100);
         builder.Property(e => e.UserAgent).HasMaxLength(500);
         builder.Property(e => e.IpAddress).HasMaxLength(64);

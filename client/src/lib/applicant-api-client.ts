@@ -76,6 +76,14 @@ applicantApi.interceptors.response.use(
         clearTokens('applicant')
         window.location.href = '/inscription/login'
       }
+      if (status === 409) {
+        // 409 = another tab refreshed this same device a split-second earlier: replay with the tokens it stored.
+        const fresh = getAccessToken('applicant')
+        if (fresh && getRefreshToken('applicant') !== refreshToken) {
+          original.headers.Authorization = `Bearer ${fresh}`
+          return applicantApi(original)
+        }
+      }
       return Promise.reject(e)
     } finally {
       isRefreshing = false

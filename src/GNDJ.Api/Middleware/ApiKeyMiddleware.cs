@@ -17,12 +17,15 @@ public class ApiKeyMiddleware
     // Map each public API-key scope to the internal permission strings it grants.
     private static readonly Dictionary<string, string[]> ScopeToPermissions = new()
     {
-        ["members:read-own"] = ["members.view"],
+        // "read-own" grants NO permission: the bound member's own record/cotisations are reachable through the
+        // own-record rule (MemberAccess), like a youth account with zero permissions. Granting members.view here
+        // let a "read-own" key read every co-unit member's file.
+        ["members:read-own"] = [],
         ["members:read"] = ["members.view"],
         ["members:write"] = ["members.view", "members.create", "members.edit", "members.delete"],
         ["documents:upload"] = ["documents.view", "documents.create"],
         ["documents:read"] = ["documents.view"],
-        ["cotisations:read-own"] = ["cotisations.view"],
+        ["cotisations:read-own"] = [],
         ["cotisations:read"] = ["cotisations.view"],
     };
 
@@ -119,7 +122,8 @@ public class ApiKeyMiddleware
                 .Select(a => a.UnitId)
                 .Distinct()
                 .ToListAsync();
-            if (unitIds.Count > 0)
+            // Unit scope only matters for unit-wide scopes; a pure "read-own" key gets none.
+            if (unitIds.Count > 0 && permissions.Count > 0)
                 claims.Add(new("unit_ids", string.Join(",", unitIds)));
         }
 
