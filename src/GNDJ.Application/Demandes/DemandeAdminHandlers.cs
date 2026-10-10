@@ -41,7 +41,8 @@ public record DemandeReviewDto(
     string? PhoneCountryCode = null, // carried so the merge tool can keep the phone's country code intact
     DateTime? LastEditedAt = null, // last change by the family after submission (« modifiée le … »)
     MemberMatchDto? MemberMatch = null, // « Déjà membre ? » — the existing member this child looks like (DemandeMemberMatch)
-    string? DecisionCheckedAs = null); // « Décisions à vérifier » — the refusal the CG confirmed as intended
+    string? DecisionCheckedAs = null, // « Décisions à vérifier » — the refusal the CG confirmed as intended
+    IReadOnlyList<ArchiveMatchDto>? ArchiveMatches = null); // « Demande précédente » found in the archive (DemandeArchiveMatch)
 
 // Per-unit capacity card for the CG: current active members, Projected (after applying this year's
 // passage moves in/out), the editable intake Quota, and how many demandes are already Accepted into it.
@@ -272,6 +273,10 @@ static class DemandeReviewProjection
 
         // « Déjà membre ? » flags, computed live for the whole list in one batch.
         var memberMatches = await DemandeMemberMatch.FindAsync(context, demandes.Select(DemandeMemberMatch.Input).ToList(), ct);
+        // « Demande précédente » — the same child in the archive of earlier campaigns (with that year's answer).
+        var archiveMatches = await DemandeArchiveMatch.FindAsync(context, demandes
+            .Select(d => new DemandeArchiveInput(d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth,
+                accounts.GetValueOrDefault(d.ApplicantAccountId)?.Email)).ToList(), ct);
 
         return demandes.Select(d =>
         {
@@ -299,7 +304,7 @@ static class DemandeReviewProjection
                         r.SuggestedMemberId.HasValue ? suggestedParents.GetValueOrDefault(r.SuggestedMemberId.Value) : null);
                 }).ToList(),
                 sibs, d.HasPreviousDemande, d.PreviousDemandeYear, acc?.ParentsSituation, d.SerialNumber, d.PhoneCountryCode, d.LastEditedAt,
-                memberMatches.GetValueOrDefault(d.Id), d.DecisionCheckedAs);
+                memberMatches.GetValueOrDefault(d.Id), d.DecisionCheckedAs, archiveMatches.GetValueOrDefault(d.Id));
         }).ToList();
     }
 }

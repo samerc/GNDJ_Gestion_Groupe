@@ -37,7 +37,7 @@ import { MemberMatchCard } from '@/components/admin/member-match-card'
 import { DemandeFlagReview, type FlagKind } from '@/components/admin/demande-flag-review'
 import { DemandeDecisionReview, type DecisionFamily } from '@/components/admin/demande-decision-review'
 import {
-  hasMixedFamilyDecision, hasSiblingToLink, isDeclinedWithPreviousDemande, isDeclinedWithSiblingInGroup, isSiblingRelation,
+  hasMixedFamilyDecision, hasPreviousDemande, hasSiblingToLink, isDeclinedWithPreviousDemande, isDeclinedWithSiblingInGroup, isSiblingRelation,
   relationName, siblingProche, siblingsInGroup,
 } from '@/lib/demande-flags'
 import { MemberPickerDialog } from '@/components/shared/member-picker-dialog'
@@ -52,7 +52,7 @@ import { parseApiError } from '@/lib/error-utils'
 import {
   Inbox, Check, X, Send, Users2, ChevronDown, ChevronRight, ChevronLeft, CheckCircle2, XCircle, Clock,
   AlertTriangle, User, Phone, Mail, MapPin, HeartPulse, GraduationCap, MessageSquare, Tent, ArrowUpDown,
-  Sparkles, Trash2, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
+  Sparkles, Trash2, History, Link2, Lock, LockOpen, Save, Download, Upload, MailWarning, Pencil, RotateCcw,
   SlidersHorizontal, UserCheck } from 'lucide-react'
 import { Page } from '@/components/shared/page'
 import { PageHeader } from '@/components/shared/page-header'
@@ -195,7 +195,7 @@ export default function DemandeValidationPage() {
   const [fMemberMatch, setFMemberMatch] = useState(false) // « Déjà membre ? » not answered yet
   const [fHasRelations, setFHasRelations] = useState(false)
   const [fSibling, setFSibling] = useState(false)    // brother/sister among proches OR ≥2 demandes on the account
-  const [fPrevious, setFPrevious] = useState(false)  // a previous demande was declared
+  const [fPrevious, setFPrevious] = useState(false)  // a previous demande: declared, or found in the archive
   const [fConflict, setFConflict] = useState(false)  // family decisions to check (mixed answers / refusal with a sibling in the group)
   const [fToLink, setFToLink] = useState(false)        // a brother/sister proche matched to a member, not confirmed yet (« Lier »)
   const [showOccupancy, setShowOccupancy] = useState(false)
@@ -304,7 +304,7 @@ export default function DemandeValidationPage() {
     (!fMemberMatch || (!!d.memberMatch && d.memberMatch.status === null && !d.memberMatch.merged)) &&
     (!fHasRelations || d.scoutRelations.length > 0) &&
     (!fSibling || !!siblingProche(d) || (accountCounts[d.accountId] ?? 0) > 1) &&
-    (!fPrevious || !!d.hasPreviousDemande) &&
+    (!fPrevious || hasPreviousDemande(d)) &&
     (!fConflict || hasMixedFamilyDecision(d) || isDeclinedWithSiblingInGroup(d) || isDeclinedWithPreviousDemande(d)) &&
     (!fToLink || hasSiblingToLink(d)),
   [fSchool, fUnit, fNationality, fCity, fSituation, fSent, fRelation, fIncomplete, fMemberMatch, fHasRelations, fSibling, fPrevious, fConflict, fToLink, accountCounts])
@@ -929,6 +929,7 @@ export default function DemandeValidationPage() {
                         )}
                         {hasSiblingToLink(d) && <Tip content="Correspondance à confirmer (Lier) dans la fiche"><Badge variant="info" className="px-1.5 text-[10px]">À lier</Badge></Tip>}
                         <MemberMatchBadge d={d} />
+                        <ArchiveMatchBadge d={d} />
                         <FamilyFlags d={d} />
                       </div>
                     </TableCell>
@@ -1006,6 +1007,7 @@ export default function DemandeValidationPage() {
                         {sib && <Badge variant="warning" className="px-1.5 text-[10px]">Frère/sœur</Badge>}
                         {hasSiblingToLink(d) && <Tip content="Correspondance à confirmer (Lier) dans la fiche"><Badge variant="info" className="px-1.5 text-[10px]">À lier</Badge></Tip>}
                         <MemberMatchBadge d={d} />
+                        <ArchiveMatchBadge d={d} />
                         <FamilyFlags d={d} />
                         {d.scoutRelations.length > 0 && <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground"><Tent className="h-3.5 w-3.5" />{d.scoutRelations.length}</span>}
                       </div>
@@ -1298,6 +1300,21 @@ function FamilyFlags({ d }: { d: DemandeReview }) {
 }
 
 // List badge for the « Déjà membre ? » flag: amber while the CG hasn't answered, green once it's the same person.
+// « Demande précédente » found in the archive: the year(s) and the answer given then, at a glance in the list.
+function ArchiveMatchBadge({ d }: { d: DemandeReview }) {
+  const ms = d.archiveMatches
+  if (!ms?.length) return null
+  const refused = ms.some((m) => m.status === 'Declined')
+  return (
+    <Tip content={`Demande précédente : ${ms.map((m) => `${m.scoutYear} (${archiveStatusLabel(m.status)})`).join(', ')}`}>
+      <Badge variant={refused ? 'danger' : 'outline'} className="px-1.5 text-[10px]">Déjà demandé {ms[0].scoutYear.split('-')[0]}</Badge>
+    </Tip>
+  )
+}
+function archiveStatusLabel(s: string): string {
+  return s === 'Approved' ? 'acceptée' : s === 'Declined' ? 'refusée' : s === 'AlreadyMember' ? 'déjà membre' : 'non décidée'
+}
+
 function MemberMatchBadge({ d }: { d: DemandeReview }) {
   const m = d.memberMatch
   if (!m) return null
@@ -1439,6 +1456,23 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
           </Callout>
         )}
         <MemberMatchCard d={d} />
+        {/* « Demande précédente » — the same child in the archive of an earlier campaign, with that year's answer. */}
+        {!!d.archiveMatches?.length && (
+          <Callout tone="warning" icon={History} title={d.hasPreviousDemande ? 'Demande précédente (archives)' : 'Demande précédente trouvée dans les archives — non déclarée par la famille'}>
+            <ul className="space-y-1">
+              {d.archiveMatches.map((m, i) => (
+                <li key={i}>
+                  <span className="font-medium">{m.scoutYear}</span> — {m.firstName} {m.lastName}{m.dateOfBirth ? ` (${formatDate(m.dateOfBirth)})` : ''} :{' '}
+                  <span className="font-medium">{archiveStatusLabel(m.status)}</span>
+                  {m.status === 'Approved' && m.decidedUnitName ? ` → ${m.decidedUnitName}` : ''}
+                  {m.createdMemberCardNumber ? ` (${m.createdMemberCardNumber})` : ''}
+                  {m.decisionNotes ? ` — « ${m.decisionNotes} »` : ''}
+                  <span className="block text-xs text-muted-foreground">Trouvée par : {m.how}</span>
+                </li>
+              ))}
+            </ul>
+          </Callout>
+        )}
         <Section icon={User} title="Enfant">
           <Grid>
             <FieldRow label="Date de naissance" value={d.dateOfBirth ? formatDate(d.dateOfBirth) : null} />

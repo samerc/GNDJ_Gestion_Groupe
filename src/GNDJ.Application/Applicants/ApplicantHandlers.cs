@@ -1335,10 +1335,15 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
             // can confirm (the existing file is reused) or reject (a new file) while reviewing.
             var match = (await Demandes.DemandeMemberMatch.FindAsync(context, [Demandes.DemandeMemberMatch.Input(demande)], ct))
                 .GetValueOrDefault(demande.Id);
+            // « Demande précédente » — the same child in the archive of an earlier campaign: say it in the alert too.
+            var previous = (await Demandes.DemandeArchiveMatch.FindAsync(context,
+                [new Demandes.DemandeArchiveInput(demande.Id, demande.ScoutYear, demande.FirstName, demande.LastName, demande.DateOfBirth, account.Email)], ct))
+                .GetValueOrDefault(demande.Id);
             await notifications.NotifyGroupManagersAsync(NotificationTypes.Demande,
                 match is null ? "Nouvelle demande d'inscription" : "Nouvelle demande — déjà membre ?",
                 $"{childName}{(string.IsNullOrWhiteSpace(demande.Classe) ? "" : $" — {demande.Classe}")} ({demande.SerialNumber})."
-                    + (match is null ? "" : $" Ressemble à {match.Name} ({match.CardNumber}) : à vérifier sur la demande."),
+                    + (match is null ? "" : $" Ressemble à {match.Name} ({match.CardNumber}) : à vérifier sur la demande.")
+                    + (previous is null ? "" : $" Demande précédente : {Demandes.DemandeArchiveMatch.Summary(previous)}."),
                 "/admin/demandes", ct: ct);
         }
 

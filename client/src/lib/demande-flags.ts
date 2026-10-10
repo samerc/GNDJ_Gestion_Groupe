@@ -41,7 +41,11 @@ export function isDeclinedWithSiblingInGroup(d: DemandeReview): boolean {
 }
 // Flag 3: a refusal for a child whose family says a demande was already made in a previous year.
 export function isDeclinedWithPreviousDemande(d: DemandeReview): boolean {
-  return d.status === 'Declined' && !refusalChecked(d) && !!d.hasPreviousDemande
+  return d.status === 'Declined' && !refusalChecked(d) && hasPreviousDemande(d)
+}
+// A previous demande: declared by the family, or found in the archive of an earlier campaign.
+export function hasPreviousDemande(d: DemandeReview): boolean {
+  return !!d.hasPreviousDemande || (d.archiveMatches?.length ?? 0) > 0
 }
 export function relationName(r: { firstName?: string | null; lastName?: string | null; relatedMemberName?: string | null }): string {
   return r.relatedMemberName || [r.firstName, r.lastName].filter(Boolean).join(' ') || '—'

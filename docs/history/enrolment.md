@@ -1019,3 +1019,17 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
   shared parents kept, demande Declined + refusal email queued; second call → 400.
 - Undo without email (user, same day): `SendRefusalNow=false` now means NO email — the demande is marked answered
   (ResponseSentAt = now) so a later batch never sends a refusal. Dialog switch « Envoyer l'email de refus à la famille ».
+
+### 2026-10-10 — « Demande précédente » found in the archive
+- `Demandes/DemandeArchiveMatch.FindAsync` (live, batched, nothing stored): a demande matches an archived demande of
+  ANOTHER year on same DOB + same name (Key-normalized, swapped) or same last name + close first name; or same
+  applicant-account email + close first name (DOB typo); or same full name when a DOB is missing. Candidates loaded
+  by DOB / account email / null DOB only.
+- `DemandeReviewDto.ArchiveMatches` (review projection, so also drafts and the CG's own submits); submit
+  notification adds « Demande précédente : 2025-2026 (refusée) ». UI: list badge « Déjà demandé YYYY » (red when a
+  refusal), drawer callout (year, name, DOB, answer, unit / matricule, motif, « Trouvée par »; title says when the
+  family did NOT declare it), filter « Demande précédente » + the refusal flag `isDeclinedWithPreviousDemande` now
+  count archive matches (`hasPreviousDemande` in lib/demande-flags).
+- Dev archive is empty (2026 = first campaign): tested with 3 temporary archive rows (name+DOB with « El-Khoury »,
+  same account + first name with another DOB, same DOB + other name = no match), then deleted. Review list of 251
+  in 0.86 s.

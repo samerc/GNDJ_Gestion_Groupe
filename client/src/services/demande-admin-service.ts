@@ -7,6 +7,11 @@ import type { ScheduledRun } from '@/components/shared/scheduled-run-panel'
 import type { ActionPreview } from '@/components/shared/action-preview'
 import type { ApplicantGuardian, ApplicantScoutRelation, DemandeInput, MemberParent } from '@/services/applicant-service'
 
+// A past demande of the same child, found in the archive of a closed campaign (server: DemandeArchiveMatch).
+export interface ArchiveMatch {
+  scoutYear: string; firstName: string; lastName: string; dateOfBirth: string | null; status: string
+  decidedUnitName: string | null; decisionNotes: string | null; createdMemberCardNumber: string | null; how: string
+}
 export interface Sibling { id: string; firstName: string; lastName: string; status: string; responseSent: boolean; decisionCheckedAs?: string | null }
 
 export interface DemandeReview {
@@ -51,6 +56,7 @@ export interface DemandeReview {
   siblings: Sibling[]
   memberMatch?: MemberMatch | null // « Déjà membre ? » — an existing member this child looks like
   decisionCheckedAs?: string | null // « Décisions à vérifier » — the refusal the CG confirmed as intended
+  archiveMatches?: ArchiveMatch[] | null // « Demande précédente » — the same child found in the archive of earlier years
 }
 
 // « Déjà membre ? » flag on a demande: the existing member the child looks like (computed by the server).
