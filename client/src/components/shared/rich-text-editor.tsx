@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2, Plus
+  List, ListOrdered, Link as LinkIcon, Undo, Redo, Variable, Image as ImageIcon, Loader2, Plus, Baseline
 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
 // Curated font choices for the document-template builder (widely-available Windows system fonts; the server
@@ -151,9 +152,8 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
   const setFont = (v: string) => withScope(c => (v === '__default__' ? c.unsetFontFamily() : c.setFontFamily(v)))
   const setSize = (v: string) => withScope(c => (v === '__default__' ? c.unsetFontSize() : c.setFontSize(v)))
   const setColor = (v: string) => withScope(c => (v === '__default__' ? c.unsetColor() : c.setColor(v)))
-  // A colour that isn't one of ours (pasted text) still shows in the box, as « Autre couleur ».
-  const currentColor = fontState.color
-  const customColor = currentColor !== '__default__' && !TEXT_COLORS.some(c => c.value === currentColor) ? currentColor : null
+  // The colour at the cursor, shown under the toolbar icon (a pasted colour too).
+  const currentColor = fontState.color === '__default__' ? null : fontState.color
 
   // Run an "Insérer" action from the grouped menu: literal text/token, or a custom node (form element).
   const runInsert = (action: InsertAction) => {
@@ -196,24 +196,26 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
         {/* Text colour (emails / CMS — the PDF document templates don't print colours, so not offered there).
             With nothing selected it applies to the whole text, like the font menus. */}
         {!enableFont && (
-          <Select value={currentColor} onValueChange={setColor}>
-            <SelectTrigger className="ml-1 h-8 w-32 gap-1 text-xs" title="Couleur du texte (sans sélection : tout le texte)">
-              <SelectValue placeholder="Couleur" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__default__">Couleur par défaut</SelectItem>
+          // A menu of ACTIONS (not a select): picking « Couleur par défaut » must work even when the cursor already
+          // sits on default-coloured text — a select ignores choosing the value it already shows.
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" title="Couleur du texte (sans sélection : tout le texte)"
+                className="flex h-8 w-9 flex-col items-center justify-center rounded hover:bg-muted transition-colors">
+                <Baseline className="h-4 w-4" />
+                <span className="mt-0.5 h-1 w-5 rounded-sm border" style={{ backgroundColor: currentColor ?? 'transparent' }} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onSelect={() => setColor('__default__')}>Couleur par défaut</DropdownMenuItem>
+              <DropdownMenuSeparator />
               {TEXT_COLORS.map(c => (
-                <SelectItem key={c.value} value={c.value}>
+                <DropdownMenuItem key={c.value} onSelect={() => setColor(c.value)}>
                   <span className="inline-block h-3 w-3 rounded-sm border" style={{ backgroundColor: c.value }} />{c.label}
-                </SelectItem>
+                </DropdownMenuItem>
               ))}
-              {customColor && (
-                <SelectItem value={customColor}>
-                  <span className="inline-block h-3 w-3 rounded-sm border" style={{ backgroundColor: customColor }} />Autre couleur
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {/* Font family + size (document-template builder only) */}
