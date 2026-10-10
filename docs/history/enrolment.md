@@ -964,3 +964,11 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
 - `SendDemandeResponsesCommand` (by hand) now clears `demande.responses_scheduled_at` in its transaction — a pending
   schedule no longer fires a second, empty run later. Same for the passage publish (`PassageFinalizeSchedule`).
   (The scheduled run itself already cleared it before running.)
+
+### 2026-10-10 — One acceptance email (old « Bienvenue nouveau membre » letter merged in)
+- Patch `045_demande_approved_welcome_letter.sql` replaces the `demande_approved` subject + body: the old site sent
+  the welcome letter separately (WEBDEV placeholders %%%UNITE%%% / %%%USERNAME%%% / %%%PASSWORD%%%, « Réinscription de
+  Membres », « Upload des Documents »). Now one email: activation button + identifiant, login, contact check,
+  « Mes documents » (FM signed online, AUT prefilled download, ID), 23 Oct deadline, first meeting, meeting/pick-up
+  points, uniform, transport → the optional « Fiche du service des transports » document. Years via {{scoutYear}} /
+  {{year}}; days/times reviewed yearly by the CG. Refusal letter (`demande_declined`) was pasted by hand on prod.
