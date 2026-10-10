@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -83,6 +84,184 @@ def login(email: str, ua: str = "gndj-e2e", remember: bool = True) -> dict:
 
 def text(b) -> str:
     return json.dumps(b, ensure_ascii=False) if not isinstance(b, bytes) else b.decode("utf-8", "replace")
+
+
+def demandes_cg_tools(cg: str, cu: str) -> None:
+    """CG tools on the demandes: guards (read-only, always safe), then one throwaway family end to end — invited
+    late, a draft the CG submits for the family (accepted into a unit, answered at once when the year's answers went
+    out), then « Annuler l'acceptation » without email. Everything it creates is removed in the finally block."""
+    section("Demandes (CG tools)")
+    s, cs = call("GET", "/demandes/campaign-status", token=cg)
+    check("campaign status says if answers went out / submissions are open",
+          s == 200 and "responsesSent" in cs and "inSubmissionPeriod" in cs, (s, cs))
+    if s != 200:
+        return
+    year = cs["scoutYear"]
+    responses_sent = bool(cs["responsesSent"])
+
+    # Drafts are only listed on request, and never mixed into the normal list.
+    s, drafts = call("GET", f"/demandes?scoutYear={year}&status=Draft", token=cg)
+    check("Brouillons filter lists drafts only", s == 200 and all(d["status"] == "Draft" for d in drafts), s)
+    drafts = drafts if s == 200 else []
+    s, listed = call("GET", f"/demandes?scoutYear={year}", token=cg)
+    check("normal demandes list never shows drafts", s == 200 and not [d for d in listed if d["status"] == "Draft"], s)
+    listed = listed if s == 200 else []
+
+    # « Listes des chefs d'unité »
+    s, lists = call("GET", f"/demandes/unit-lists?scoutYear={year}", token=cg)
+    check("CG reads the chefs d'unite new-member lists", s == 200 and isinstance(lists, list), s)
+    if s == 200 and lists:
+        s, xl = call("GET", f"/demandes/unit-lists/{lists[0]['unitId']}/xlsx?scoutYear={year}", token=cg)
+        check("a unit's new-members Excel downloads (xlsx)", s == 200 and isinstance(xl, bytes) and xl[:2] == b"PK", s)
+    else:
+        print("  (no new members this year — Excel download skipped)")
+
+    # Archives of earlier campaigns: by name and by a birth date.
+    name = next((d["lastName"] for d in listed if d.get("lastName")), "Khoury")
+    s, ar = call("GET", "/demandes/archives?search=" + urllib.parse.quote(name), token=cg)
+    check("archives search by name", s == 200 and "items" in ar, s)
+    s, ar = call("GET", "/demandes/archives?search=" + urllib.parse.quote("01/01/2015"), token=cg)
+    check("archives search by birth date", s == 200 and "items" in ar, s)
+
+    # A chef d'unité has none of these tools (random ids: the permission gate answers before any lookup).
+    rid = str(uuid.uuid4())
+    s, _ = call("GET", f"/demandes/unit-lists?scoutYear={year}", token=cu)
+    check("CU refused on the new-member lists", s == 403, s)
+    s, _ = call("POST", f"/demandes/{rid}/submit-for-family", {"decision": None}, token=cu)
+    check("CU refused on Soumettre pour la famille", s == 403, s)
+    s, _ = call("POST", f"/demandes/{rid}/send-response", token=cu)
+    check("CU refused on Envoyer cette reponse", s == 403, s)
+    s, _ = call("POST", f"/demandes/{rid}/undo-acceptance", {"decisionNotes": None, "sendRefusalNow": False}, token=cu)
+    check("CU refused on Annuler l'acceptation", s == 403, s)
+
+    # Guards on real demandes (each call is refused, so nothing changes).
+    if drafts:
+        s, b = call("PUT", f"/demandes/{drafts[0]['id']}/decide", {"status": "Declined", "decidedUnitId": None, "decisionNotes": None}, token=cg)
+        check("a draft cannot be decided (submit it for the family first)", s == 400 and "brouillon" in text(b), (s, b))
+    else:
+        print("  (no draft this year — decide-on-draft guard skipped)")
+    sent = next((d for d in listed if d.get("responseSentAt")), None)
+    if sent:
+        s, b = call("POST", f"/demandes/{sent['id']}/send-response", token=cg)
+        check("an already answered demande is not sent twice", s == 400 and "déjà été envoyée" in text(b), (s, b))
+        s, b = call("POST", f"/demandes/{sent['id']}/submit-for-family", {"decision": None}, token=cg)
+        check("Soumettre pour la famille refused on a non-draft", s == 400 and "déjà été soumise" in text(b), (s, b))
+    else:
+        print("  (no answered demande this year — send-response guards skipped)")
+
+    # ---- one throwaway family, end to end (late invite → draft → CG submits/accepts → undo) ----
+    tag = uuid.uuid4().hex[:8]
+    email = f"e2e-{tag}@example.com"
+    invite_id = account_id = demande_id = None
+    try:
+        s, inv = call("POST", "/demandes/invites", {"label": f"E2E smoke {tag}", "email": email, "validDays": 1}, token=cg)
+        check("CG creates a late-submission invite", s == 200 and inv.get("token"), (s, inv))
+        if s != 200:
+            return
+        invite_id = inv["id"]
+        # The invite pre-verifies the email and grants the late window (submissions are closed after the campaign).
+        s, auth = call("POST", "/applicant/register", {"email": email, "password": PWD, "contactName": f"E2E Parent {tag}",
+                                                        "inviteToken": inv["token"]})
+        check("family registers through the invite (email pre-verified)", s == 200 and auth.get("emailVerified"), (s, auth))
+        if s != 200:
+            return
+        account_id, fam = auth["accountId"], auth["accessToken"]
+        s, _ = call("POST", "/applicant/accept-terms", token=fam)
+        check("family accepts the terms", s == 200, s)
+
+        # A youth unit to accept the child into, and a birth date inside its age range.
+        s, occ = call("GET", f"/demandes/occupancy?scoutYear={year}", token=cg)
+        youth_units = sorted([u for u in (occ or []) if u.get("gender") in ("Masculin", None) and u.get("ageMin") is not None
+                              and u.get("ageMax") is not None and u["ageMax"] <= 17 and u["ageMax"] - u["ageMin"] >= 2],
+                             key=lambda u: u["ageMin"]) if s == 200 else []
+        check("occupancy lists the units (a youth unit to accept into)", s == 200 and youth_units, s)
+        if not youth_units:
+            return
+        unit = youth_units[0]
+        dob = f"{int(time.strftime('%Y')) - unit['ageMin'] - 1}-06-15"
+
+        # Household: a parent with a phone + the parents' situation (both required to submit).
+        s, b = call("PUT", "/applicant/household", {
+            "contactName": f"E2E Parent {tag}", "addressCountry": "Liban", "addressCity": "Achrafieh", "addressDetails": None,
+            "guardians": [{"id": None, "relationship": "Père", "firstName": "E2EPere", "lastName": f"Smoke{tag}", "profession": None,
+                           "professionDomain": None, "phoneCountryCode": "+961", "phoneNumber": "03000000", "email": email,
+                           "isDeceased": False, "isPrimaryContact": True, "isEmergencyContact": True}],
+            "scoutRelations": [], "primaryContactEmail": email, "parentsSituation": "Unis"}, token=fam)
+        check("family saves the household (late grant)", s == 200, (s, b))
+        child = {"firstName": f"E2E{tag}", "lastName": f"Smoke{tag}", "dateOfBirth": dob, "gender": "Masculin",
+                 "nationality": None, "school": "Collège Notre-Dame de Jamhour", "classe": "5ème", "section": None,
+                 "bloodType": None, "medicalNotes": None, "allergies": None, "phoneCountryCode": None, "phoneNumber": None,
+                 "email": None, "parentNotes": None}
+        s, b = call("POST", "/applicant/demandes", {"data": child}, token=fam)
+        check("family creates a draft demande (late grant)", s == 200 and b.get("id"), (s, b))
+        if s != 200:
+            return
+        demande_id = b["id"]
+
+        # Incomplete draft (no nationality) → refused with the missing fields; then complete it.
+        s, b = call("POST", f"/demandes/{demande_id}/submit-for-family", {"decision": None}, token=cg)
+        check("incomplete draft refused (Informations manquantes)", s == 400 and "Informations manquantes" in text(b), (s, b))
+        s, _ = call("PUT", f"/applicant/demandes/{demande_id}", {**child, "nationality": "Libanaise"}, token=fam)
+        check("family completes the draft", s == 200, s)
+        s, drafts = call("GET", f"/demandes?scoutYear={year}&status=Draft", token=cg)
+        check("the draft shows in the Brouillons list", s == 200 and any(d["id"] == demande_id for d in drafts), s)
+
+        def review():
+            st, rows = call("GET", f"/demandes?scoutYear={year}&accountId={account_id}", token=cg)
+            return next((d for d in (rows or []) if d["id"] == demande_id), None) if st == 200 else None
+
+        if not responses_sent:
+            # Before the answers go out, a submit just queues it for the batch.
+            s, b = call("POST", f"/demandes/{demande_id}/submit-for-family", {"decision": None}, token=cg)
+            check("CG submits the draft for the family", s == 200 and b.get("status") == "Submitted" and b.get("serialNumber"), (s, b))
+            return
+
+        # Answers already out → accepted and answered at once (member created, emails to smtp4dev).
+        s, b = call("POST", f"/demandes/{demande_id}/submit-for-family",
+                    {"decision": "Approved", "decidedUnitId": unit["unitId"], "decisionNotes": None, "sendReceivedEmail": False}, token=cg)
+        check(f"CG submits + accepts for the family into {unit['unitCode']} (answered at once)",
+              s == 200 and b.get("status") == "Approved" and b.get("responseSent") and not b.get("sendError"), (s, b))
+        d = review()
+        member_id = d and d.get("createdMemberId")
+        check("the accepted demande created a member", bool(member_id), d and {k: d.get(k) for k in ("status", "responseSentAt")})
+        if not member_id:
+            return
+        s, _ = call("GET", f"/members/{member_id}", token=cg)
+        check("CG opens the new member's file", s == 200, s)
+        s, lists = call("GET", f"/demandes/unit-lists?scoutYear={year}", token=cg)
+        check("the new member counts in the unit's list", s == 200 and any(x["unitId"] == unit["unitId"] and x["count"] > 0 for x in lists), s)
+        s, xl = call("GET", f"/demandes/unit-lists/{unit['unitId']}/xlsx?scoutYear={year}", token=cg)
+        check("that unit's Excel downloads", s == 200 and isinstance(xl, bytes) and xl[:2] == b"PK", s)
+        s, b = call("POST", "/demandes/unit-lists/send", {"scoutYear": year, "unitIds": [unit["unitId"]]}, token=cg)
+        check("CG emails that unit's list to its chefs", s == 200 and b.get("units") == 1, (s, b))
+        s, b = call("POST", f"/demandes/{demande_id}/send-response", token=cg)
+        check("answered demande: Envoyer cette reponse refused", s == 400, (s, b))
+
+        # « Annuler l'acceptation » without email → refused, file purged, marked answered.
+        s, pv = call("GET", f"/demandes/{demande_id}/undo-acceptance/preview", token=cg)
+        check("undo preview names the member, nothing blocks", s == 200 and child["firstName"] in pv.get("memberName", "")
+              and not pv.get("blocker"), (s, pv))
+        s, b = call("POST", f"/demandes/{demande_id}/undo-acceptance", {"decisionNotes": "E2E smoke", "sendRefusalNow": False}, token=cg)
+        check("Annuler l'acceptation (no email)", s == 200 and b.get("refusalSent") is False, (s, b))
+        d = review()
+        check("demande now refused, unlinked, answered silently",
+              d is not None and d["status"] == "Declined" and not d.get("createdMemberId") and d.get("responseSentAt"), d and d.get("status"))
+        s, _ = call("GET", f"/members/{member_id}", token=cg)
+        check("the member file is gone", s in (400, 404), s)
+    finally:
+        # Undo a half-finished acceptance first (a demande with a member can't be deleted), then remove everything.
+        if demande_id:
+            st, rows = call("GET", f"/demandes?scoutYear={year}&accountId={account_id}", token=cg)
+            left = next((d for d in (rows or []) if d["id"] == demande_id), None) if st == 200 else None
+            if left and left.get("createdMemberId"):
+                call("POST", f"/demandes/{demande_id}/undo-acceptance", {"decisionNotes": None, "sendRefusalNow": False}, token=cg)
+            s, _ = call("DELETE", f"/demandes/{demande_id}", token=cg)
+            check("cleanup: throwaway demande deleted", s in (200, 204), s)
+        if account_id:
+            s, _ = call("DELETE", f"/demandes/accounts/{account_id}", token=cg)
+            check("cleanup: throwaway applicant account deleted", s == 200, s)
+        if invite_id:
+            call("DELETE", f"/demandes/invites/{invite_id}", token=cg)  # already claimed: kept in the trail either way
 
 
 def main() -> int:
@@ -271,6 +450,9 @@ def main() -> int:
         check("CU refused on the technical documentation", st == 404, st)
         st, _ = call("GET", "/help/img/cu-passage.png")
         check("leader screenshots not served anonymously", st == 404, st)
+
+        # ---------------------------------------------------------------- demandes (CG tools)
+        demandes_cg_tools(cg, cu)
 
         # ---------------------------------------------------------------- public site + portal
         section("Public site + enrolment portal")
