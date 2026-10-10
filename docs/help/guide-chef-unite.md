@@ -320,6 +320,10 @@ Quand chaque membre a une ligne, cliquez sur **Terminer le passage de l'unité**
 > le passage, vous recevez par email la liste (Excel) des membres qui **arrivent** dans votre unité depuis une
 > autre unité.
 
+> ✅ Quand le chef de groupe envoie les réponses aux demandes d'inscription, vous recevez aussi par email la liste
+> (Excel) des **nouveaux membres** acceptés dans votre unité. Un enfant accepté plus tard arrive dans un email à part,
+> avec sa propre liste.
+
 ## Organiser mon unité
 
 Une vue d'ensemble de votre unité, équipe par équipe, pour déplacer rapidement les membres.
