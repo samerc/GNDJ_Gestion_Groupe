@@ -656,3 +656,10 @@ Dark mode (added 2026-08-26) works ONLY via `.dark` on `<html>` flipping the CSS
   cards in the group dashboard are slightly dim but legible.
 - Verified: `dark:` went 0 → 205 across 54 files; tsc + eslint (--max-warnings=0) + vite build all clean. DEV until deploy.
 
+
+### 2026-10-10 — Text colour in the rich-text editor
+- The Color extension was loaded (pasted colours kept) but there was no control: the `demande_declined` template had a
+  sentence pasted in white (`color: rgb(255,255,255)`), invisible in the editor and in mail clients, and the CG could
+  not fix it. `rich-text-editor.tsx`: « Couleur » select (Par défaut + 6 colours, « Autre couleur » for a pasted one),
+  same scope rule as the font menus (no selection = whole text). Hidden in the document-template builder
+  (`enableFont`) — the PDF renderer doesn't print colours.

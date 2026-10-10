@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-10", "text": "Éditeur de texte (emails, site) : nouveau menu « Couleur du texte » ; sans sélection il s'applique à tout le texte, et « Couleur par défaut » rend visible un texte collé en blanc." },
       { "date": "2026-10-10", "text": "Envois programmés : envoyer les réponses aux demandes (ou publier le passage) à la main annule aussi l'envoi programmé, qui ne se déclenche plus une seconde fois." },
       { "date": "2026-10-10", "text": "Fiche médicale en ligne : le médecin de famille, la personne à contacter en cas d'urgence et le nom du signataire sont obligatoires (marqués en rouge, l'envoi indique le champ manquant). Dans le créateur de modèles, chaque ligne ou cadre peut être rendu « Obligatoire (en ligne) » ; les cadres gardent désormais leur lien vers l'onglet Médical quand le modèle est enregistré." },
       { "date": "2026-10-10", "text": "Fiche médicale en ligne : « Remplir et signer en ligne » est réservé à la famille (compte du membre) ; un chef qui aide une famille télécharge le document pré-rempli, qui reste à signer par le parent." },

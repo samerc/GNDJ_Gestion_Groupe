@@ -32,6 +32,17 @@ const FONT_FAMILIES = [
 // Point sizes offered in the size dropdown (stored as "Npt" so the PDF size == the number chosen).
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24]
 
+// Text colours offered in the toolbar (emails / CMS). « Par défaut » removes any colour — also the fix for text
+// pasted from elsewhere in white or another colour that makes it invisible on the page.
+const TEXT_COLORS = [
+  { label: 'Noir', value: '#111827' },
+  { label: 'Gris', value: '#6b7280' },
+  { label: 'Bleu', value: '#1d4ed8' },
+  { label: 'Vert', value: '#15803d' },
+  { label: 'Orange', value: '#c2410c' },
+  { label: 'Rouge', value: '#b91c1c' },
+]
+
 // An "Insérer" dropdown action: insert literal text/token, or insert a custom node (form-builder elements).
 export type InsertAction =
   | { kind: 'text'; value: string }
@@ -105,8 +116,9 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
       // value matches a dropdown item (otherwise the box shows the placeholder instead of the real font).
       fontFamily: ((e?.getAttributes('textStyle').fontFamily as string) || '').replace(/^["']|["']$/g, '') || '__default__',
       fontSize: (e?.getAttributes('textStyle').fontSize as string) || '__default__',
+      color: ((e?.getAttributes('textStyle').color as string) || '').toLowerCase() || '__default__',
     }),
-  }) ?? { fontFamily: '__default__', fontSize: '__default__' }
+  }) ?? { fontFamily: '__default__', fontSize: '__default__', color: '__default__' }
 
   // Sync content when prop changes externally (e.g., loading template)
   useEffect(() => {
@@ -138,6 +150,10 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
   }
   const setFont = (v: string) => withScope(c => (v === '__default__' ? c.unsetFontFamily() : c.setFontFamily(v)))
   const setSize = (v: string) => withScope(c => (v === '__default__' ? c.unsetFontSize() : c.setFontSize(v)))
+  const setColor = (v: string) => withScope(c => (v === '__default__' ? c.unsetColor() : c.setColor(v)))
+  // A colour that isn't one of ours (pasted text) still shows in the box, as « Autre couleur ».
+  const currentColor = fontState.color
+  const customColor = currentColor !== '__default__' && !TEXT_COLORS.some(c => c.value === currentColor) ? currentColor : null
 
   // Run an "Insérer" action from the grouped menu: literal text/token, or a custom node (form element).
   const runInsert = (action: InsertAction) => {
@@ -176,6 +192,29 @@ export function RichTextEditor({ content, onChange, variables, insertMenu, extra
         <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} title="Barre">
           <Strikethrough className="h-4 w-4" />
         </ToolbarButton>
+
+        {/* Text colour (emails / CMS — the PDF document templates don't print colours, so not offered there).
+            With nothing selected it applies to the whole text, like the font menus. */}
+        {!enableFont && (
+          <Select value={currentColor} onValueChange={setColor}>
+            <SelectTrigger className="ml-1 h-8 w-32 gap-1 text-xs" title="Couleur du texte (sans sélection : tout le texte)">
+              <SelectValue placeholder="Couleur" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__default__">Couleur par défaut</SelectItem>
+              {TEXT_COLORS.map(c => (
+                <SelectItem key={c.value} value={c.value}>
+                  <span className="inline-block h-3 w-3 rounded-sm border" style={{ backgroundColor: c.value }} />{c.label}
+                </SelectItem>
+              ))}
+              {customColor && (
+                <SelectItem value={customColor}>
+                  <span className="inline-block h-3 w-3 rounded-sm border" style={{ backgroundColor: customColor }} />Autre couleur
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* Font family + size (document-template builder only) */}
         {enableFont && (
