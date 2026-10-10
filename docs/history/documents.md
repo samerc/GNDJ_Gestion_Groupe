@@ -466,3 +466,25 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   `DocumentTemplateRenderer.StyleSpan` applies a family only if `PdfFonts.IsAvailable`, else keeps Lato.
   Adding a font to the builder = add its file prefix to `PdfFonts.FilePrefixes`.
 - Verified: the failing type/member now returns a PDF embedding TimesNewRomanPSMT + Bold.
+
+### 2026-10-10 — Online fiche médicale: launch-day hardening
+Reviewed (backend + frontend) and live-tested before switching FM to « Remplissable en ligne » on prod.
+- **Arabic / emoji answers failed the PDF** (QuestPDF 2026.9: no system-font glyph fallback + throw on missing glyph).
+  `DependencyInjection`: `Settings.UseSystemFonts = true` (Segoe UI/Arial fill in Arabic, Segoe UI Emoji the emoji —
+  verified rendered, Arabic shaped RTL) + `ThrowOnMissingTextGlyphs/FontFamilies = false` (worst case a box, never a
+  failed document). Applies to every PDF in the app.
+- **Médical tab no longer wiped**: `SaveIntoMemberFileAsync` replaces lines written by a previous send of the form
+  (« Label : … » of its blanks) but KEEPS other text (chef/imported) under « Notes précédentes : … », carried once.
+- **Double send**: `MemberDocumentWriter.WriteAsync(newDocumentOnly: true)` refuses, under the advisory lock, when a
+  Pending doc exists (same « déjà été envoyé » message) — a signed form never becomes page 2 of another.
+- **After the document is saved nothing can fail the request**: signature audit, Médical tab and remembered answers
+  are best-effort (logged, `CancellationToken.None`, tracker cleared on failure).
+- `upload` rate limit keyed per user (per IP when anonymous) — mobile-carrier NAT shared 60/10 min.
+- Client (`online-form-dialog.tsx`): draft in localStorage per member+type+templateHash (restored on reopen, cleared on
+  success); confirm before closing a started form; « déjà été envoyé » = success (lost response on a bad network);
+  invalidates members + dashboard; last signer pre-filled only on the member's own fiche (`isOwnProfile`); date blur
+  shows how it was read. `form-dates.ts`: digits-only (iOS numeric keypad has no « / »): 8 = JJMMAAAA, 6 = MMAAAA or
+  JJMMAA, 4 = AAAA; « , » accepted. `signature-pad.tsx`: ResizeObserver re-fits the canvas on rotation (clears it);
+  < 10 points = no signature. Button needs `hasHtmlTemplate`.
+- Not changed (decisions): no required fields; a chef filling for a family picks Père/Mère (no « chef » relation);
+  a Pending document blocks a corrected re-send until the chef rejects it.

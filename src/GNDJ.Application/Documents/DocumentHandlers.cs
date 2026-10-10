@@ -92,7 +92,7 @@ static class MemberDocumentWriter
         IApplicationDbContext context, IAuditService audit,
         Guid memberId, Guid documentTypeId, string? title,
         DateOnly? expiryDate, DateOnly? issuedDate, IReadOnlyList<SavedDocFile> files,
-        Guid? actingUserId, string? via, CancellationToken ct)
+        Guid? actingUserId, string? via, CancellationToken ct, bool newDocumentOnly = false)
     {
         if (files.Count == 0) return Result<Guid>.Failure("Aucun fichier n'a été fourni.");
 
@@ -109,7 +109,7 @@ static class MemberDocumentWriter
         // makes the second wait for the first, then append to the document it created.
         await using var tx = await context.BeginTransactionAsync(ct);
         await context.AcquireAdvisoryLockAsync(DocumentLocks.Key(memberId, documentTypeId), ct);
-        var result = await WriteLockedAsync(context, audit, memberId, documentTypeId, docType, docTitle, expiryDate, issuedDate, files, actingUserId, via, now, ct);
+        var result = await WriteLockedAsync(context, audit, memberId, documentTypeId, docType, docTitle, expiryDate, issuedDate, files, actingUserId, via, now, newDocumentOnly, ct);
         await tx.CommitAsync(ct);
         return result;
     }
@@ -117,7 +117,7 @@ static class MemberDocumentWriter
     private static async Task<Result<Guid>> WriteLockedAsync(
         IApplicationDbContext context, IAuditService audit, Guid memberId, Guid documentTypeId, DocumentType docType,
         string docTitle, DateOnly? expiryDate, DateOnly? issuedDate, IReadOnlyList<SavedDocFile> files,
-        Guid? actingUserId, string? via, DateTime now, CancellationToken ct)
+        Guid? actingUserId, string? via, DateTime now, bool newDocumentOnly, CancellationToken ct)
     {
 
         // Append to an in-progress (Pending) document of the same type if one exists. Insert the pages directly
@@ -127,6 +127,11 @@ static class MemberDocumentWriter
             .OrderByDescending(d => d.CreatedAt)
             .Select(d => (Guid?)d.Id)
             .FirstOrDefaultAsync(ct);
+
+        // A signed online form is a whole document, never extra pages: a second send that raced the first (phone + PC,
+        // a retry after a lost response) is refused here, under the lock, with the same message as the gate.
+        if (existingId is not null && newDocumentOnly)
+            return Result<Guid>.Failure("Ce document a déjà été envoyé et attend la vérification.");
 
         if (existingId is Guid docId)
         {

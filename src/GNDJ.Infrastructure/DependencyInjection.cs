@@ -105,7 +105,15 @@ public static class DependencyInjection
 
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
-        PdfFonts.Register(); // the template builder's Windows fonts (QuestPDF no longer reads system fonts)
+        // QuestPDF 2026.9 changed two defaults that broke real documents: system fonts are no longer used (as a family
+        // or as a fallback for characters Lato lacks), and one missing glyph/family FAILS the whole PDF. Parents type
+        // Arabic and emoji into the online fiche médicale, so: let Windows fonts fill in those characters again (the
+        // pre-upgrade behaviour; prod and dev are both Windows), and never fail a document over a character —
+        // worst case one glyph prints as a box.
+        QuestPDF.Settings.UseSystemFonts = true;
+        QuestPDF.Settings.ThrowOnMissingTextGlyphs = false;
+        QuestPDF.Settings.ThrowOnMissingFontFamilies = false;
+        PdfFonts.Register(); // the template builder's Windows fonts, registered explicitly
         services.AddSingleton<IReceiptService, ReceiptService>();
         services.AddSingleton<ITrombinoscoreService, TrombinoscoreService>();
         services.AddSingleton<IMemberCardService, MemberCardService>();

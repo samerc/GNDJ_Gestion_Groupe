@@ -6,12 +6,13 @@
 //
 // The template HTML is turned into React elements node by node (never injected as HTML): only the tags the editor
 // produces are kept, everything else is reduced to its text.
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { FileSignature, Send } from 'lucide-react'
 import apiClient from '@/lib/api-client'
 import { parseApiError } from '@/lib/error-utils'
+import { confirmAsync } from '@/lib/confirm'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,7 +40,27 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
 const RELATIONS = ['Père', 'Mère', 'Tuteur', 'Tutrice', 'Le membre lui-même']
 
-export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { memberId: string; documentTypeId: string; onClose: () => void }) {
+// What the parent has typed so far, kept in this browser until the form is sent: a phone that goes to the Photos app
+// (to check the vaccination booklet) often comes back to a reloaded tab, and the back button leaves the page.
+// Only restored for the same template version (the keys f0, f1… follow the template).
+interface Draft { templateHash: string; answers: Record<string, string>; signerName: string; relation: string }
+const draftKey = (memberId: string, documentTypeId: string) => `online-form-draft:${memberId}:${documentTypeId}`
+function readDraft(key: string): Draft | null {
+  try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as Draft) : null } catch { return null }
+}
+function writeDraft(key: string, draft: Draft | null) {
+  try { if (draft) localStorage.setItem(key, JSON.stringify(draft)); else localStorage.removeItem(key) } catch { /* private mode: no draft */ }
+}
+
+// The server's answer when this document is already waiting for the check — after a send whose response was lost
+// on a bad network, the retry lands here: the document IS saved, so it's a success for the parent.
+const ALREADY_SENT = 'déjà été envoyé'
+
+export function OnlineFormDialog({ memberId, documentTypeId, onClose, isOwnProfile }: {
+  memberId: string; documentTypeId: string; onClose: () => void
+  // false when a chef opens a member's form: the last signer (usually a parent) is not pre-filled for them.
+  isOwnProfile?: boolean
+}) {
   const qc = useQueryClient()
   const { data: form, error, isLoading } = useQuery({
     queryKey: ['documents', 'online-form', memberId, documentTypeId],
@@ -53,15 +74,51 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
   const [certified, setCertified] = useState(false)
   const [signature, setSignature] = useState<string | null>(null)
 
-  // Start from last time's answers (and the last signer) once the form arrives — render-phase, once per form.
+  // Start from the unsent draft if there is one, else last time's answers (and the last signer) — render-phase,
+  // once per form.
+  const storageKey = draftKey(memberId, documentTypeId)
   const [hydratedFor, setHydratedFor] = useState<string | null>(null)
+  // Snapshot of the starting values: the form counts as started once anything differs (or a draft was restored).
+  const [initial, setInitial] = useState('')
+  const [restored, setRestored] = useState(false)
   if (form && hydratedFor !== form.templateHash) {
     setHydratedFor(form.templateHash)
-    // Date blanks are edited as typed text (JJ/MM/AAAA, MM/AAAA or AAAA) — show prefilled dates that way.
-    const dateKeys = new Set(form.fields.filter((f) => f.kind === 'date').map((f) => f.key))
-    setAnswers(Object.fromEntries(Object.entries(form.prefill ?? {}).map(([k, v]) => [k, dateKeys.has(k) ? displayFormDate(v) : v])))
-    if (form.signerName) setSignerName(form.signerName)
-    if (form.signerRelation && RELATIONS.includes(form.signerRelation)) setRelation(form.signerRelation)
+    const draft = readDraft(storageKey)
+    if (draft && draft.templateHash === form.templateHash) {
+      setAnswers(draft.answers ?? {})
+      setSignerName(draft.signerName ?? '')
+      setRelation(RELATIONS.includes(draft.relation) ? draft.relation : '')
+      setRestored(true)
+    } else {
+      // Date blanks are edited as typed text (JJ/MM/AAAA, MM/AAAA or AAAA) — show prefilled dates that way.
+      const dateKeys = new Set(form.fields.filter((f) => f.kind === 'date').map((f) => f.key))
+      const start = Object.fromEntries(Object.entries(form.prefill ?? {}).map(([k, v]) => [k, dateKeys.has(k) ? displayFormDate(v) : v]))
+      // The last signer is pre-filled only on the member's own fiche — not for a chef opening it.
+      const own = isOwnProfile !== false
+      const startSigner = own ? form.signerName ?? '' : ''
+      const startRelation = own && form.signerRelation && RELATIONS.includes(form.signerRelation) ? form.signerRelation : ''
+      setAnswers(start)
+      setSignerName(startSigner)
+      setRelation(startRelation)
+      setInitial(JSON.stringify([start, startSigner, startRelation]))
+    }
+  }
+  const dirty = !!form && (restored || (initial !== '' && JSON.stringify([answers, signerName, relation]) !== initial))
+
+  // Keep the draft up to date while the parent types (only once they changed something).
+  useEffect(() => {
+    if (form && dirty) writeDraft(storageKey, { templateHash: form.templateHash, answers, signerName, relation })
+  }, [form, dirty, storageKey, answers, signerName, relation])
+
+  const done = (message: string) => {
+    writeDraft(storageKey, null)
+    qc.invalidateQueries({ queryKey: ['documents', memberId] })
+    qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
+    // The send also writes the blood type / allergies / notes into the fiche and moves the dossier's progress.
+    qc.invalidateQueries({ queryKey: ['members'] })
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+    toast.success(message)
+    onClose()
   }
 
   const submit = useMutation({
@@ -69,13 +126,12 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
       memberId, documentTypeId, templateHash: form!.templateHash, answers: sent,
       signerName: signerName.trim(), signerRelation: relation, signaturePng: signature, certified,
     }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['documents', memberId] })
-      qc.invalidateQueries({ queryKey: ['documents', 'matrix'] })
-      toast.success('Document signé et envoyé. Il sera vérifié par la maîtrise.')
-      onClose()
+    onSuccess: () => done('Document signé et envoyé. Il sera vérifié par la maîtrise.'),
+    onError: (e) => {
+      const msg = parseApiError(e)
+      if (msg.includes(ALREADY_SENT)) done('Document bien reçu. Il sera vérifié par la maîtrise.')
+      else toast.error(msg)
     },
-    onError: (e) => toast.error(parseApiError(e)),
   })
 
   // Parse the template ONCE per form (it used to be re-parsed on every keystroke — noticeable lag on a long fiche
@@ -95,7 +151,7 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
     if (!signerName.trim()) { toast.error('Indiquez votre nom.'); return }
     if (!relation) { toast.error('Indiquez qui signe.'); return }
     if (!certified) { toast.error("Cochez « Je certifie l'exactitude des informations »."); return }
-    if (!signature) { toast.error('Signez dans le cadre.'); return }
+    if (!signature) { toast.error('Signez dans le cadre (une vraie signature, pas un simple point).'); return }
     // Date blanks: typed text → yyyy-MM-dd / MM/yyyy / yyyy; refuse what can't be read, naming the field.
     const sent = { ...answers }
     for (const f of form!.fields.filter((x) => x.kind === 'date')) {
@@ -106,8 +162,19 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
     submit.mutate(sent)
   }
 
+  // Closing (X, Échap, Annuler) with answers typed asks first; the draft stays saved either way.
+  const requestClose = async () => {
+    if (submit.isPending) return
+    if (dirty && !(await confirmAsync({
+      title: 'Fermer le formulaire ?',
+      description: "Il n'a pas encore été envoyé. Vos réponses restent enregistrées sur cet appareil et seront reprises la prochaine fois.",
+      confirmLabel: 'Fermer', cancelLabel: 'Continuer à remplir',
+    }))) return
+    onClose()
+  }
+
   return (
-    <Dialog open onOpenChange={(o) => { if (!o && !submit.isPending) onClose() }}>
+    <Dialog open onOpenChange={(o) => { if (!o) void requestClose() }}>
       <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-full flex-col gap-0 rounded-none p-0 sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-lg">
         <DialogHeader className="border-b p-4 text-left">
           <DialogTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5 text-primary" />{form?.documentTypeName ?? 'Remplir en ligne'}</DialogTitle>
@@ -143,7 +210,7 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose }: { member
           )}
         </div>
         <DialogFooter className="gap-2 border-t p-4">
-          <Button variant="outline" onClick={onClose} disabled={submit.isPending}>Annuler</Button>
+          <Button variant="outline" onClick={() => void requestClose()} disabled={submit.isPending}>Annuler</Button>
           <Button onClick={send} disabled={!form || submit.isPending}><Send className="mr-1.5 h-4 w-4" />{submit.isPending ? 'Envoi…' : 'Signer et envoyer'}</Button>
         </DialogFooter>
       </DialogContent>
@@ -191,6 +258,8 @@ function toReact(node: Node, key: string, answers: Record<string, string>, set: 
     const bad = normalizeFormDate(v) === null
     return <input key={key} type="text" inputMode="numeric" aria-label="Date (JJ/MM/AAAA, MM/AAAA ou année)" placeholder="JJ/MM/AAAA"
       value={v} maxLength={10} onChange={(e) => set(fieldKey, e.target.value)}
+      // Once left, show how it was read (01062019 → 01/06/2019) so the parent can check it.
+      onBlur={() => { const n = normalizeFormDate(v); if (n && displayFormDate(n) !== v) set(fieldKey, displayFormDate(n)) }}
       className={`mx-1 inline-block w-32 rounded border-b-2 border-dashed px-1 py-0.5 align-baseline text-gray-900 outline-none placeholder:text-gray-400 ${bad ? 'border-red-500 bg-red-50' : 'border-primary/50 bg-primary/5 focus:border-primary'}`} />
   }
   // The blanks to fill.

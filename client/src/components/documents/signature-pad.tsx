@@ -9,21 +9,37 @@ export function SignaturePad({ onChange }: { onChange: (png: string | null) => v
   const drawing = useRef(false)
   const last = useRef<{ x: number; y: number } | null>(null)
   const [empty, setEmpty] = useState(true)
+  // Points drawn so far: a lone tap (or a brush of the screen while scrolling) is not a signature.
+  const points = useRef(0)
+  const onChangeRef = useRef(onChange)
+  useEffect(() => { onChangeRef.current = onChange })
 
-  // Size the canvas to its CSS box × device pixel ratio once mounted (a resize would erase it, so only once).
+  // Size the canvas to its CSS box × device pixel ratio, and again when the box changes width (the phone turned):
+  // otherwise strokes land away from the finger. Resizing erases the canvas, so the signature starts over.
   useEffect(() => {
     const c = canvasRef.current
     if (!c) return
-    const ratio = window.devicePixelRatio || 1
-    // offsetWidth/Height = layout size, unaffected by the dialog's opening zoom animation (getBoundingClientRect isn't).
-    c.width = Math.round(c.offsetWidth * ratio)
-    c.height = Math.round(c.offsetHeight * ratio)
-    const ctx = c.getContext('2d')!
-    ctx.scale(ratio, ratio)
-    ctx.lineWidth = 2.2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.strokeStyle = '#111827'
+    let width = -1
+    const fit = () => {
+      // offsetWidth/Height = layout size, unaffected by the dialog's opening zoom animation (getBoundingClientRect isn't).
+      if (c.offsetWidth === width) return
+      const first = width === -1
+      width = c.offsetWidth
+      const ratio = window.devicePixelRatio || 1
+      c.width = Math.round(c.offsetWidth * ratio)
+      c.height = Math.round(c.offsetHeight * ratio)
+      const ctx = c.getContext('2d')!
+      ctx.scale(ratio, ratio)
+      ctx.lineWidth = 2.2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.strokeStyle = '#111827'
+      if (!first) { points.current = 0; setEmpty(true); onChangeRef.current(null) }
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(c)
+    return () => ro.disconnect()
   }, [])
 
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -49,17 +65,19 @@ export function SignaturePad({ onChange }: { onChange: (png: string | null) => v
     const ctx = e.currentTarget.getContext('2d')!
     ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke()
     last.current = p
+    points.current++
   }
   const end = () => {
     if (!drawing.current) return
     drawing.current = false
     last.current = null
     setEmpty(false)
-    onChange(canvasRef.current!.toDataURL('image/png'))
+    onChange(points.current >= 10 ? canvasRef.current!.toDataURL('image/png') : null)
   }
   const clear = () => {
     const c = canvasRef.current!
     c.getContext('2d')!.clearRect(0, 0, c.width, c.height)
+    points.current = 0
     setEmpty(true)
     onChange(null)
   }

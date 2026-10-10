@@ -12,7 +12,10 @@ export function normalizeFormDate(text: string): string | null {
   const t = text.trim()
   if (!t) return ''
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t // already normalized (prefill)
-  const parts = t.split(/[\s/.-]+/).filter(Boolean)
+  // Digits only: the iPhone numeric keypad has no « / », so 01062019 / 062019 / 2019 must work as typed.
+  const digitsOnly = /^\d+$/.test(t) ? splitDigits(t) : null
+  if (/^\d+$/.test(t) && !digitsOnly) return null
+  const parts = digitsOnly ?? t.split(/[\s/.,-]+/).filter(Boolean)
   if (!parts.every((p) => /^\d+$/.test(p))) return null
   const year = (p: string) => {
     if (p.length === 4) return Number(p)
@@ -32,6 +35,18 @@ export function normalizeFormDate(text: string): string | null {
     if (dt.getMonth() !== m - 1 || dt.getDate() !== d) return null // 31/02 etc.
     return `${y}-${pad(m)}-${pad(d)}`
   }
+  return null
+}
+
+// A run of digits typed without separators → its parts: 8 = JJMMAAAA, 6 = MMAAAA (when the last 4 read as a
+// year, e.g. 062019) else JJMMAA, 4 = AAAA. Other lengths are ambiguous → null (the field shows red).
+function splitDigits(t: string): string[] | null {
+  if (t.length === 8) return [t.slice(0, 2), t.slice(2, 4), t.slice(4)]
+  if (t.length === 6) {
+    const y = Number(t.slice(2))
+    return y >= 1900 && y <= 2100 ? [t.slice(0, 2), t.slice(2)] : [t.slice(0, 2), t.slice(2, 4), t.slice(4)]
+  }
+  if (t.length === 4) return [t]
   return null
 }
 

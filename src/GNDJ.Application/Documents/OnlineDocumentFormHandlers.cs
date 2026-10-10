@@ -10,6 +10,7 @@ using GNDJ.Domain.Entities;
 using GNDJ.Domain.Enums;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GNDJ.Application.Documents;
 
@@ -138,7 +139,8 @@ public class SubmitOnlineDocumentFormCommandValidator : AbstractValidator<Submit
 }
 
 public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext context, ICurrentUserService user,
-    IDocumentTemplateRenderer renderer, IAuditService audit) : IRequestHandler<SubmitOnlineDocumentFormCommand, Result<Guid>>
+    IDocumentTemplateRenderer renderer, IAuditService audit, ILogger<SubmitOnlineDocumentFormCommandHandler> logger)
+    : IRequestHandler<SubmitOnlineDocumentFormCommand, Result<Guid>>
 {
     public async ValueTask<Result<Guid>> Handle(SubmitOnlineDocumentFormCommand request, CancellationToken ct)
     {
@@ -189,7 +191,7 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         {
             result = await MemberDocumentWriter.WriteAsync(context, audit, request.MemberId, dt.Id, null, null, null,
                 [new SavedDocFile(Path.Combine("uploads", "documents", unique), fileName, pdf.Length, "application/pdf")],
-                user.UserId, via: "formulaire en ligne signé", ct);
+                user.UserId, via: "formulaire en ligne signé", ct, newDocumentOnly: true);
         }
         catch
         {
@@ -198,15 +200,28 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         }
         if (!result.IsSuccess) { try { File.Delete(fullPath); } catch { } return result; }
 
-        await audit.LogAsync("Signature", "MemberDocument", result.Value, newValues: new
+        // The signed document is saved: from here on nothing may turn the answer into an error (the parent would retry
+        // and be told « déjà envoyé »). Each follow-up step is best-effort and logged, and runs even if the phone has
+        // dropped the connection meanwhile (no request token).
+        var done = CancellationToken.None;
+        await BestEffort("signature audit", () => audit.LogAsync("Signature", "MemberDocument", result.Value, newValues: new
         {
             Member = memberName, Document = dt.Name, Signataire = request.SignerName.Trim(), Lien = request.SignerRelation,
             Reference = reference, Certifie = request.Certified, Empreinte = pdfHash, Appareil = user.UserAgent, Ip = user.IpAddress,
-        }, cancellationToken: ct);
-
-        await SaveIntoMemberFileAsync(request.MemberId, fields, request.Answers, memberName, dt.Name, ct);
-        await RememberAnswersAsync(request, fields, ct);
+        }, cancellationToken: done), result.Value);
+        await BestEffort("médical tab", () => SaveIntoMemberFileAsync(request.MemberId, fields, request.Answers, memberName, dt.Name, done), result.Value);
+        await BestEffort("form answers", () => RememberAnswersAsync(request, fields, done), result.Value);
         return result;
+    }
+
+    private async Task BestEffort(string step, Func<Task> action, Guid documentId)
+    {
+        try { await action(); }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Online form {DocumentId}: {Step} failed after the document was saved", documentId, step);
+            context.ClearChangeTracker(); // a failed SaveChanges leaves its rows tracked — don't replay them in the next step
+        }
     }
 
     // Keep these answers to pre-fill the form next time (one row per member + document type, replaced each time).
@@ -228,6 +243,9 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         row.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
     }
+
+    // Prefix of the earlier fiche text kept under a form's lines (see SaveIntoMemberFileAsync).
+    private const string PreviousNotes = "Notes précédentes : ";
 
     // « — du médecin de famille » → « Médecin de famille » (the form's sentence fragments read badly on the fiche).
     private static string CleanLabel(string? label)
@@ -262,6 +280,27 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
 
         var allergies = Combine(TemplateFormAnswers.SaveAllergies);
         var notes = Combine(TemplateFormAnswers.SaveMedicalNotes);
+
+        // What's already on the fiche: a previous send of this form (every line « Label : … » of one of its blanks) is
+        // replaced — the new form is this year's statement. Anything else (typed by a chef, imported, the member's
+        // own edit) is KEPT under the new lines, so a parent filling only the vaccine dates can't wipe « asthme ».
+        string? Keep(string? current, string? replacement, string target)
+        {
+            if (replacement is null || string.IsNullOrWhiteSpace(current)) return replacement;
+            var labels = fields.Where(f => f.Save == target).Select(f => CleanLabel(f.Label)).Where(l => l.Length > 0)
+                .Select(l => l + " : ").ToList();
+            // Text kept by an earlier send is carried forward as it is; the rest is either that earlier form's lines
+            // (replaced) or text from elsewhere (kept).
+            var at = current.IndexOf(PreviousNotes, StringComparison.Ordinal);
+            var head = (at >= 0 ? current[..at] : current).Trim();
+            var kept = at >= 0 ? current[(at + PreviousNotes.Length)..].Trim() : "";
+            var headLines = head.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+            var headFromForm = headLines.All(l => labels.Any(p => l.StartsWith(p, StringComparison.Ordinal)));
+            if (!headFromForm) kept = kept.Length == 0 ? head : $"{head}\n{kept}";
+            if (kept.Length == 0 || replacement.Contains(kept, StringComparison.Ordinal)) return replacement;
+            var text = $"{replacement}\n{PreviousNotes}{kept}";
+            return text.Length > 2000 ? text[..2000] : text;
+        }
         // Blood type: the value itself (checked against the 8 groups before the PDF was made).
         var blood = fields.Where(f => f.Save == TemplateFormAnswers.SaveBloodType)
             .Select(f => answers.TryGetValue(f.Key, out var a) ? a?.Trim() : null)
@@ -271,8 +310,8 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         var member = await context.Members.FirstOrDefaultAsync(m => m.Id == memberId, ct);
         if (member is null) return;
         var old = new { member.Allergies, member.MedicalNotes, member.BloodType };
-        if (allergies is not null) member.Allergies = allergies;
-        if (notes is not null) member.MedicalNotes = notes;
+        if (allergies is not null) member.Allergies = Keep(member.Allergies, allergies, TemplateFormAnswers.SaveAllergies);
+        if (notes is not null) member.MedicalNotes = Keep(member.MedicalNotes, notes, TemplateFormAnswers.SaveMedicalNotes);
         if (blood is not null) member.BloodType = blood;
         if (old.Allergies == member.Allergies && old.MedicalNotes == member.MedicalNotes && old.BloodType == member.BloodType) return;
         await context.SaveChangesAsync(ct);

@@ -430,7 +430,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       when the member still needs to (re)submit (canDownloadTemplate). */}
                   {/* « Remplir en ligne »: fill the blanks on the phone + sign with a finger → the signed PDF arrives
                       « à vérifier » like an upload. Only for types the admin made fillable online. */}
-                  {canDownloadTemplate && canUpload && dt.onlineFillable && (
+                  {canDownloadTemplate && canUpload && dt.onlineFillable && dt.hasHtmlTemplate && (
                     <button type="button" onClick={() => setOnlineFormType(dt.id)}
                       className="mr-2 mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:h-9">
                       <PenLine className="h-4 w-4" />Remplir et signer en ligne
@@ -777,7 +777,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
       />
 
       {/* Desktop QR dialog for scanning a document with the phone. */}
-      {onlineFormType && <OnlineFormDialog memberId={memberId} documentTypeId={onlineFormType} onClose={() => setOnlineFormType(null)} />}
+      {onlineFormType && <OnlineFormDialog memberId={memberId} documentTypeId={onlineFormType} isOwnProfile={!!isOwnProfile} onClose={() => setOnlineFormType(null)} />}
       <ScanUploadDialog memberId={memberId} open={scanOpen} onOpenChange={setScanOpen} documentTypeId={scanDocType?.id} documentTypeName={scanDocType?.name} />
     </div>
   )

@@ -263,9 +263,10 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         }));
 
-    // Upload: per IP.
+    // Upload: per signed-in user (per IP when anonymous). Per IP alone, families behind one mobile-carrier NAT
+    // address shared 60 sends — not enough on the day the online fiche médicale goes out.
     options.AddPolicy("upload", ctx => RateLimitPartition.GetFixedWindowLimiter(
-        ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
+        FormKey(ctx), _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 60,
             Window = TimeSpan.FromMinutes(10),
