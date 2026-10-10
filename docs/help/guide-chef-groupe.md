@@ -206,7 +206,7 @@ gardé) puis envoie à la famille l'email d'accès avec cet identifiant. Plus be
 | **Statistiques** | Répartition des demandes (âge, genre, classe, école), taux d'acceptation, places par unité |
 | **Comptes d'inscription** | Les comptes des familles : valider un email à la main, réinitialiser un mot de passe, créer une **invitation de dernière minute** (lien qui permet à une famille précise de s'inscrire après la date limite) |
 | **Doublons de demandes** | Fusionner deux demandes faites pour le même enfant |
-| **Archives** | Les demandes des années précédentes (après clôture), pour vérifier une demande passée. Une nouvelle demande pour le même enfant est repérée **automatiquement** : badge « Déjà demandé » dans la liste, encadré « Demande précédente » sur la demande (année, réponse, motif), et mention dans la notification « Nouvelle demande » |
+| **Archives** | Les demandes des années précédentes (après clôture), pour vérifier une demande passée. Une nouvelle demande pour le même enfant est repérée **automatiquement** : badge « Déjà demandé » dans la liste, encadré « Demande précédente » sur la demande (année, réponse, motif), et mention dans la notification « Nouvelle demande ». Recherche à la main : nom de l'enfant, email du compte, nom du parent ou date de naissance ; lien **Chercher dans les archives** sur chaque demande |
 | **Relancer les non-soumis** | Email aux familles qui ont un brouillon non soumis |
 
 ![Comptes d'inscription](img/cg-demande-comptes.png)

@@ -1483,6 +1483,12 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
             <FieldRow label="Section" value={d.section} />
             <FieldRow label="Demande précédente" value={d.hasPreviousDemande ? `Oui${d.previousDemandeYear ? ` (${d.previousDemandeYear})` : ''}` : 'Non'} />
           </Grid>
+          {/* Manual check in the archive (new tab, the review stays open): by last name — the search page also takes
+              the account email or the birth date for a child spelled differently. */}
+          <a href={`/admin/demande-archives?q=${encodeURIComponent(d.lastName || d.accountEmail)}`} target="_blank" rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+            <History className="h-3.5 w-3.5" />Chercher dans les archives
+          </a>
         </Section>
 
         <Section icon={GraduationCap} title="École">

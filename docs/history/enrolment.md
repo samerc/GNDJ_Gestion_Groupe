@@ -1033,3 +1033,6 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
 - Dev archive is empty (2026 = first campaign): tested with 3 temporary archive rows (name+DOB with « El-Khoury »,
   same account + first name with another DOB, same DOB + other name = no match), then deleted. Review list of 251
   in 0.86 s.
+- Manual archive search (user, same day): `GetDemandeArchivesQuery` also matches the account email, the contact
+  name (hyphens = spaces in names), or a birth date when the search parses as JJ/MM/AAAA / JJ-MM-AAAA / AAAA-MM-JJ. Drawer link « Chercher dans
+  les archives » (new tab, `?q=<last name>`).

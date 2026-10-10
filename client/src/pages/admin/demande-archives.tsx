@@ -18,9 +18,10 @@ import { formatDate } from '@/lib/utils'
 const PAGE_SIZE = 50
 
 // CG page — browse the permanent demande archive (past campaigns). Purpose: history + verify a family's claim
-// that they applied before. Read-only; search by child name, filter by scout year, paginated.
+// that they applied before. Read-only; search by child name / account email / contact name / birth date, filter by
+// scout year, paginated.
 export default function DemandeArchivesPage() {
-  // ?q= pre-fills the search (link « Archives » from the « Décisions à vérifier » window).
+  // ?q= pre-fills the search (« Archives » in « Décisions à vérifier », « Chercher dans les archives » on a demande).
   const [params] = useSearchParams()
   const [search, setSearch] = useState(() => params.get('q') ?? '')
   // Route /admin/demande-archives (demande.view). Search / year changes reset to page 1.
@@ -49,7 +50,7 @@ export default function DemandeArchivesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           className="flex-1 min-w-56"
-          placeholder="Rechercher par nom d'enfant…"
+          placeholder="Nom de l'enfant, email du compte, parent ou date de naissance…"
           value={search}
           onChange={(v) => { setSearch(v); setPage(1) }}
         />
