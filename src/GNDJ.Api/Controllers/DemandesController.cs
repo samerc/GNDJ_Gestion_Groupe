@@ -210,6 +210,13 @@ public class DemandesController : BaseApiController
     public async Task<IActionResult> UndoAcceptance(Guid id, [FromBody] UndoAcceptanceBody body)
         => OkOrBadRequest(await Mediator.Send(new UndoDemandeAcceptanceCommand(id, body.DecisionNotes, body.SendRefusalNow)));
 
+    /// <summary>« Envoyer cette réponse »: sends one decided-but-unsent demande's answer now (after the batch).
+    /// demande.manage + group manager.</summary>
+    [HttpPost("{id:guid}/send-response")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> SendSingleResponse(Guid id)
+        => OkOrBadRequest(await Mediator.Send(new SendSingleDemandeResponseCommand(id)));
+
     /// <summary>« Soumettre pour la famille »: the CG submits a draft the family never submitted, optionally accepting /
     /// refusing it at once; once the year's answers went out, that answer is sent immediately (member created, emails).
     /// Requires demande.manage (+ group manager in the handler).</summary>
@@ -371,6 +378,29 @@ public class DemandesController : BaseApiController
     [HasPermission(Permissions.DemandeView)]
     public async Task<IActionResult> Archives([FromQuery] string? search, [FromQuery] string? scoutYear, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         => OkOrBadRequest(await Mediator.Send(new GetDemandeArchivesQuery(search, scoutYear, page, pageSize)));
+
+    /// <summary>« Listes des chefs d'unité »: per unit, how many new members of the year (today's data) + its chefs.
+    /// demande.view + group manager.</summary>
+    [HttpGet("unit-lists")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> UnitLists([FromQuery] string scoutYear)
+        => OkOrBadRequest(await Mediator.Send(new GetUnitNewMemberListsQuery(scoutYear ?? "")));
+
+    /// <summary>One unit's up-to-date new-members Excel (the file the chef d'unité receives).</summary>
+    [HttpGet("unit-lists/{unitId:guid}/xlsx")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> UnitListXlsx(Guid unitId, [FromQuery] string scoutYear)
+    {
+        var result = await Mediator.Send(new DownloadUnitNewMemberListQuery(scoutYear ?? "", unitId));
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return File(result.Value!.Content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.Value.FileName);
+    }
+
+    /// <summary>Emails the up-to-date list to the chefs d'unité of the given units (empty = all). demande.manage.</summary>
+    [HttpPost("unit-lists/send")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> SendUnitLists([FromBody] SendUnitNewMemberListsCommand command)
+        => OkOrBadRequest(await Mediator.Send(command));
 
     // ── Excel decisions round-trip (I) ───────────────────────────────────────────────────────────────
     /// <summary>Exports the submitted demandes to an .xlsx (Décision/Unité/Motif columns to fill). demande.view.</summary>

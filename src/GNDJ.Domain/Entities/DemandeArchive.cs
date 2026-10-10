@@ -4,8 +4,8 @@ namespace GNDJ.Domain.Entities;
 
 // A permanent snapshot of one demande + its outcome, written when a campaign is CLOSED (archive → delete →
 // disable). The live demande + all applicant-side data are deleted afterwards; this keeps a lean, denormalized
-// record so the CG can review past applications next year. Parent/guardian detail is intentionally NOT copied
-// (it lives on the created member); only the account email + contact name are kept to identify the applicant.
+// record so the CG can review past applications next year. Parents are kept as one readable line + their contact
+// keys (since 2026-10: to recognise the family next year — « Demande précédente » — and search by parent).
 public class DemandeArchive : BaseEntity
 {
     public string ScoutYear { get; set; } = string.Empty;
@@ -32,6 +32,10 @@ public class DemandeArchive : BaseEntity
     public string? AccountEmail { get; set; }
     public string? ContactName { get; set; }
     public string? AddressCity { get; set; }
+    // « Père : Jean KHOURY (70 123 456, jean@x.com) · Mère : … » — readable, shown in the archive.
+    public string? ParentsSummary { get; set; }
+    // Parents' phones (last 7 digits) and emails as space-separated keys « p:1234567 e:jean@x.com », for matching.
+    public string? ParentContactKeys { get; set; }
 
     // Outcome
     public string Status { get; set; } = string.Empty;   // Approved / Declined / (Draft/Submitted if never decided)

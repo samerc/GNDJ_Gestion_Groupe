@@ -127,3 +127,25 @@ public class SubmitDraftForFamilyCommandHandler(IApplicationDbContext context, I
             demande.SerialNumber ?? "", demande.Status, sendNow && sendError is null, sendError));
     }
 }
+
+// ============================================================
+// « Envoyer cette réponse » — once the year's answers went out, a demande decided (or re-decided) afterwards would only
+// leave with the next « Envoyer les réponses », which nobody presses after the batch. This sends that one answer now
+// (same single-demande send: member created for an acceptance, family email, chef d'unité's Excel).
+// ============================================================
+public record SendSingleDemandeResponseCommand(Guid Id) : IRequest<Result<SendDemandeResponsesResult>>;
+
+public class SendSingleDemandeResponseCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IMediator mediator)
+    : IRequestHandler<SendSingleDemandeResponseCommand, Result<SendDemandeResponsesResult>>
+{
+    public async ValueTask<Result<SendDemandeResponsesResult>> Handle(SendSingleDemandeResponseCommand request, CancellationToken ct)
+    {
+        if (!MemberAccess.IsGroupManager(currentUser)) return Result<SendDemandeResponsesResult>.Failure("Accès refusé.");
+        var d = await context.Demandes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+        if (d is null) return Result<SendDemandeResponsesResult>.Failure("Demande introuvable.");
+        if (d.ResponseSentAt is not null) return Result<SendDemandeResponsesResult>.Failure("La réponse a déjà été envoyée.");
+        if (d.Status is not (DemandeStatus.Approved or DemandeStatus.Declined or DemandeStatus.AlreadyMember))
+            return Result<SendDemandeResponsesResult>.Failure("Acceptez ou refusez d'abord la demande.");
+        return await mediator.Send(new SendDemandeResponsesCommand(d.ScoutYear, d.Id), ct);
+    }
+}

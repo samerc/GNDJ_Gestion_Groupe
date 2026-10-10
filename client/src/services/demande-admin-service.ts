@@ -210,6 +210,40 @@ export function useSubmitForFamily() {
   })
 }
 
+// « Envoyer cette réponse »: one decided-but-unsent demande answered now (after the batch) — member, emails.
+export function useSendSingleResponse() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiClient.post<{ approved: number; declined: number; alreadyMembers: number }>(`/demandes/${id}/send-response`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['demandes'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
+// « Listes des chefs d'unité »: the up-to-date new-members Excel of each unit (today's data) — download or resend.
+export interface UnitNewMemberList { unitId: string; unitName: string; count: number; chefNames: string[] }
+export function useUnitNewMemberLists(scoutYear: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['demandes', 'unit-lists', scoutYear],
+    queryFn: () => apiClient.get<UnitNewMemberList[]>('/demandes/unit-lists', { params: { scoutYear } }).then((r) => r.data),
+    enabled: enabled && !!scoutYear,
+    staleTime: 0,
+  })
+}
+export async function downloadUnitNewMemberList(scoutYear: string, unitId: string): Promise<Blob> {
+  const r = await apiClient.get(`/demandes/unit-lists/${unitId}/xlsx`, { params: { scoutYear }, responseType: 'blob' })
+  return r.data as Blob
+}
+export function useSendUnitNewMemberLists() {
+  return useMutation({
+    mutationFn: (data: { scoutYear: string; unitIds: string[] }) =>
+      apiClient.post<{ units: number; emails: number; unitsWithoutChef: string[] }>('/demandes/unit-lists/send', data).then((r) => r.data),
+  })
+}
+
 // « Annuler l'acceptation » (accepted + sent demande): preview of what goes away, then the undo (the member created by
 // the demande is deleted for good; refusal email now or with the next send).
 export interface UndoAcceptancePreview {
@@ -520,6 +554,7 @@ export interface DemandeArchive {
   accountEmail: string | null; contactName: string | null
   status: string; decidedUnitName: string | null; decisionNotes: string | null; responseSentAt: string | null
   createdMemberCardNumber: string | null; archivedAt: string
+  parentsSummary?: string | null // « Père : … (téléphone, email) · Mère : … » — archives written since 2026-10
 }
 export interface DemandeArchiveList { items: DemandeArchive[]; total: number; scoutYears: string[] }
 

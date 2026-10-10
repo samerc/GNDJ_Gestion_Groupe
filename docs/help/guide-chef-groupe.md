@@ -206,10 +206,19 @@ gardé) puis envoie à la famille l'email d'accès avec cet identifiant. Plus be
 | **Statistiques** | Répartition des demandes (âge, genre, classe, école), taux d'acceptation, places par unité |
 | **Comptes d'inscription** | Les comptes des familles : valider un email à la main, réinitialiser un mot de passe, créer une **invitation de dernière minute** (lien qui permet à une famille précise de s'inscrire après la date limite) |
 | **Doublons de demandes** | Fusionner deux demandes faites pour le même enfant |
-| **Archives** | Les demandes des années précédentes (après clôture), pour vérifier une demande passée. Une nouvelle demande pour le même enfant est repérée **automatiquement** : badge « Déjà demandé » dans la liste, encadré « Demande précédente » sur la demande (année, réponse, motif), et mention dans la notification « Nouvelle demande ». Recherche à la main : nom de l'enfant, email du compte, nom du parent ou date de naissance ; lien **Chercher dans les archives** sur chaque demande |
+| **Archives** | Les demandes des années précédentes (après clôture), pour vérifier une demande passée. Une nouvelle demande pour le même enfant est repérée **automatiquement** : badge « Déjà demandé » dans la liste, encadré « Demande précédente » sur la demande (année, réponse, motif), et mention dans la notification « Nouvelle demande ». Recherche à la main : nom de l'enfant, email du compte, nom ou téléphone d'un parent, date de naissance ; lien **Chercher dans les archives** sur chaque demande |
 | **Relancer les non-soumis** | Email aux familles qui ont un brouillon non soumis |
 
 ![Comptes d'inscription](img/cg-demande-comptes.png)
+
+**Une décision prise après l'envoi des réponses** (un enfant accepté en retard, un refus revu…) ne part pas toute
+seule : la demande affiche « Réponse pas encore envoyée » → **Envoyer cette réponse** (membre créé, email à la famille,
+fiche au chef d'unité).
+
+**Listes des chefs d'unité** (bouton dans les outils de la page Demandes, une fois les réponses envoyées) : la liste
+**à jour** des nouveaux membres de chaque unité, avec les données d'aujourd'hui (unité actuelle, fiche, parents). Pour
+chaque unité : **Excel** (télécharger) ou **Envoyer** au chef d'unité ; ou **Envoyer toutes les listes**. L'email
+précise que la liste remplace les précédentes.
 
 **Soumettre un brouillon pour la famille.** Une famille a rempli sa demande sans cliquer sur « Soumettre » ?
 **Comptes d'inscription → Voir le brouillon → Ouvrir la demande** (ou Demandes → Filtres → Statut **Brouillons**)
@@ -224,7 +233,8 @@ ouvre la demande complète. Vérifiez-la (**Modifier** pour compléter ce qui ma
 montre ce qui sera supprimé : la fiche créée à l'acceptation (matricule, unité, progression « Entrée »), son
 identifiant et son lien d'activation, les parents ajoutés pour cet enfant seulement, et, s'il y en a, les documents et
 cotisations déjà enregistrés. Donnez le motif et choisissez d'envoyer l'email de refus tout de suite, ou de ne
-**pas** envoyer d'email (la demande est alors marquée refusée sans prévenir la famille). Le chef d'unité a déjà reçu la fiche de l'enfant : prévenez-le. Pour un enfant
+**pas** envoyer d'email (la demande est alors marquée refusée sans prévenir la famille). Le chef d'unité reçoit
+automatiquement un email « Inscription annulée ». Pour un enfant
 qui était **déjà membre** (fiche existante réutilisée), ce n'est pas possible : terminez son affectation depuis sa fiche.
 
 > 💡 Si l'enfant ressemble à un membre du groupe (« Déjà membre ? »), soumettez sans décider puis répondez à la

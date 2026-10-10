@@ -30,6 +30,8 @@ public class DemandeArchiveConfiguration : IEntityTypeConfiguration<DemandeArchi
         builder.Property(e => e.AccountEmail).HasMaxLength(254);
         builder.Property(e => e.ContactName).HasMaxLength(200);
         builder.Property(e => e.AddressCity).HasMaxLength(100);
+        builder.Property(e => e.ParentsSummary).HasColumnType("text");
+        builder.Property(e => e.ParentContactKeys).HasColumnType("text");
         builder.Property(e => e.Status).HasMaxLength(20);
         builder.Property(e => e.DecidedUnitName).HasMaxLength(200);
         builder.Property(e => e.DecisionNotes).HasColumnType("text");

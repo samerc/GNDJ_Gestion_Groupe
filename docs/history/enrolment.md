@@ -1036,3 +1036,24 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
 - Manual archive search (user, same day): `GetDemandeArchivesQuery` also matches the account email, the contact
   name (hyphens = spaces in names), or a birth date when the search parses as JJ/MM/AAAA / JJ-MM-AAAA / AAAA-MM-JJ. Drawer link « Chercher dans
   les archives » (new tab, `?q=<last name>`).
+
+### 2026-10-10 — After-the-batch tools: single answer, CU lists, CU emails, parents in the archive
+- `SendSingleDemandeResponseCommand` (`POST /demandes/{id}/send-response`): a decided-unsent demande answered now via
+  `SendDemandeResponsesCommand(year, id)`. Drawer callout « Réponse pas encore envoyée » → « Envoyer cette réponse »
+  (only once the year's answers went out). A one-demande send emails the CU with the new template
+  `demande_unit_late_member` (batch keeps `demande_unit_new_members`).
+- Undo acceptance also emails the decided unit's CU(s): template `demande_unit_member_cancelled` (always, whatever
+  the family gets).
+- « Listes des chefs d'unité » (`Demandes/DemandeUnitListsHandlers.cs`): rows rebuilt from TODAY's member data —
+  accepted demandes of the year with a member file, in the unit of the member's current post (decided unit first),
+  parents from guardian links, siblings = same SiblingGroup with a current post in that unit. `GET /demandes/unit-lists`,
+  `GET /demandes/unit-lists/{unitId}/xlsx`, `POST /demandes/unit-lists/send {scoutYear, unitIds}` (template
+  `demande_unit_new_members_update`, « remplace les listes reçues avant »), audited « SendUnitLists ». UI dialog
+  `components/admin/unit-new-member-lists-dialog.tsx` (Outils, once responsesSent).
+- Archive keeps parents: `DemandeArchive.ParentsSummary` + `ParentContactKeys` (« p:<last 7 digits> e:<email> »),
+  migration `AddDemandeArchiveParents`, filled at campaign close. `DemandeArchiveMatch` adds « même parent (téléphone
+  ou email) et prénom ». Archive search: a phone (mostly digits, ≥7) matches the contact keys; names also search
+  ParentsSummary; the archive table shows the parents line. Older archives (none yet on prod) have no parents.
+- Live-tested on dev: single send (400 undecided → member + approved + late-member CU email → 400 again); lists (12
+  units, R1 xlsx, resend = 1 email); undo → « Inscription annulée » to the R1 CU, no family email, R1 28 → 27;
+  parent-phone match with another last-name spelling + DOB; search by phone and by parent name.

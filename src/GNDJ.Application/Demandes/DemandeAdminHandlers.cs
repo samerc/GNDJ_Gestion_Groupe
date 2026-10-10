@@ -276,7 +276,8 @@ static class DemandeReviewProjection
         // « Demande précédente » — the same child in the archive of earlier campaigns (with that year's answer).
         var archiveMatches = await DemandeArchiveMatch.FindAsync(context, demandes
             .Select(d => new DemandeArchiveInput(d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth,
-                accounts.GetValueOrDefault(d.ApplicantAccountId)?.Email)).ToList(), ct);
+                accounts.GetValueOrDefault(d.ApplicantAccountId)?.Email,
+                DemandeArchiveMatch.ContactKeys(guardians.GetValueOrDefault(d.ApplicantAccountId) ?? []))).ToList(), ct);
 
         return demandes.Select(d =>
         {
@@ -1618,7 +1619,9 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var unitsWithoutCu = new List<string>();
         try
         {
-            unitsWithoutCu = await NotifyUnitLeadersAsync(approved, memberByDemande, acctGuardians, acctSiblingRelations, unitNames, request.ScoutYear, ct);
+            // A one-demande send (a late acceptance) uses its own wording: « after the answers were sent ».
+            unitsWithoutCu = await NotifyUnitLeadersAsync(approved, memberByDemande, acctGuardians, acctSiblingRelations, unitNames, request.ScoutYear,
+                request.OnlyDemandeId is null ? "demande_unit_new_members" : "demande_unit_late_member", ct);
         }
         catch (Exception ex) { Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(logger, ex, "Envoi aux chefs d'unité des nouveaux membres échoué ({ScoutYear})", request.ScoutYear); }
         await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, AlreadyMembers = alreadyMembers.Count, request.ScoutYear, UnitsWithoutCu = unitsWithoutCu, OnlyDemande = request.OnlyDemandeId }, cancellationToken: ct);
@@ -1634,7 +1637,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
     private async Task<List<string>> NotifyUnitLeadersAsync(
         List<Demande> approved, Dictionary<Guid, Member> memberByDemande,
         Dictionary<Guid, List<ApplicantGuardian>> acctGuardians, Dictionary<Guid, List<ApplicantScoutRelation>> acctSiblingRelations,
-        Dictionary<Guid, string> unitNames, string scoutYear, CancellationToken ct)
+        Dictionary<Guid, string> unitNames, string scoutYear, string templateCode, CancellationToken ct)
     {
         var converted = approved.Where(d => d.DecidedUnitId.HasValue && memberByDemande.ContainsKey(d.Id)).ToList();
         if (converted.Count == 0) return [];
@@ -1683,7 +1686,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
             if (!heads.TryGetValue(unitId, out var recipients)) { noCu.Add(unitName); continue; }
             // One copy of the file per CU, deleted by the outbox sender as soon as that CU's email is sent.
-            jobs.AddRange(UnitNewMembersMail.BuildJobs("demande_unit_new_members", unitName, scoutYear, rows, recipients, unitSheet));
+            jobs.AddRange(UnitNewMembersMail.BuildJobs(templateCode, unitName, scoutYear, rows, recipients, unitSheet));
         }
         if (jobs.Count > 0) await emailQueue.EnqueueManyAsync(jobs, ct);
         return noCu;
@@ -1894,6 +1897,9 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
         var unitIds = demandes.Where(d => d.DecidedUnitId.HasValue).Select(d => d.DecidedUnitId!.Value).Distinct().ToList();
         var unitNames = await context.Units.Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
         var memberIds = demandes.Where(d => d.CreatedMemberId.HasValue).Select(d => d.CreatedMemberId!.Value).Distinct().ToList();
+        // The family's parents, kept in the archive (summary + contact keys) to recognise the family next year.
+        var guardiansByAccount = (await context.ApplicantGuardians.Where(g => accIds.Contains(g.ApplicantAccountId)).ToListAsync(ct))
+            .GroupBy(g => g.ApplicantAccountId).ToDictionary(g => g.Key, g => g.ToList());
         var memberCards = await context.Members.IgnoreQueryFilters().Where(m => memberIds.Contains(m.Id))
             .ToDictionaryAsync(m => m.Id, m => m.CardNumber, ct);
 
@@ -1909,6 +1915,8 @@ public class CloseDemandeCampaignCommandHandler(IApplicationDbContext context, I
                 MedicalNotes = d.MedicalNotes, Allergies = d.Allergies, PhoneNumber = d.PhoneNumber, Email = d.Email,
                 ParentNotes = d.ParentNotes, HasPreviousDemande = d.HasPreviousDemande, PreviousDemandeYear = d.PreviousDemandeYear,
                 AccountEmail = acc?.Email, ContactName = acc?.ContactName, AddressCity = acc?.AddressCity,
+                ParentsSummary = DemandeArchiveMatch.ParentsSummary(guardiansByAccount.GetValueOrDefault(d.ApplicantAccountId) ?? []),
+                ParentContactKeys = DemandeArchiveMatch.ContactKeys(guardiansByAccount.GetValueOrDefault(d.ApplicantAccountId) ?? []),
                 Status = d.Status,
                 DecidedUnitName = d.DecidedUnitId.HasValue ? unitNames.GetValueOrDefault(d.DecidedUnitId.Value) : null,
                 DecisionNotes = d.DecisionNotes, ResponseSentAt = d.ResponseSentAt, CreatedMemberId = d.CreatedMemberId,

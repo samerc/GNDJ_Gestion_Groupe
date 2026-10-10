@@ -322,7 +322,8 @@ Quand chaque membre a une ligne, cliquez sur **Terminer le passage de l'unité**
 
 > ✅ Quand le chef de groupe envoie les réponses aux demandes d'inscription, vous recevez aussi par email la liste
 > (Excel) des **nouveaux membres** acceptés dans votre unité. Un enfant accepté plus tard arrive dans un email à part,
-> avec sa propre liste.
+> avec sa propre fiche ; une acceptation annulée vous est signalée (« Inscription annulée »). Le chef de groupe peut
+> aussi vous renvoyer la **liste à jour** : elle remplace les précédentes.
 
 ## Organiser mon unité
 

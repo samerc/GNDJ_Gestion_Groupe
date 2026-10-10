@@ -974,6 +974,33 @@ public static class SeedData
             },
             new EmailTemplate
             {
+                // A child accepted AFTER the answers went out (one-demande send): his own Excel to the unit's CU.
+                Name = "Nouveau membre accepté après l'envoi (chefs d'unité)", Code = "demande_unit_late_member", Module = "demande",
+                Subject = "Nouveau membre accepté dans votre unité — {{unitName}}",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Après l'envoi des réponses aux demandes {{scoutYear}}, <strong>{{count}}</strong> nouveau membre vient d'être accepté dans l'unité <strong>{{unitName}}</strong>. Vous trouverez sa fiche en pièce jointe (fichier Excel).</p><p>Il apparaît déjà dans votre unité sur la plateforme : pensez à lui attribuer une équipe.</p><p>— Le Chef de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef d'unité\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"count\",\"label\":\"Nombre de nouveaux membres\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
+                // « Annuler l'acceptation »: the CU had the child in his list — he is told the child won't join.
+                Name = "Acceptation annulée (chefs d'unité)", Code = "demande_unit_member_cancelled", Module = "demande",
+                Subject = "Inscription annulée — {{childName}} ({{unitName}})",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>L'acceptation de <strong>{{childName}}</strong> dans l'unité <strong>{{unitName}}</strong> ({{scoutYear}}) a été annulée : cet enfant ne rejoindra pas l'unité et a été retiré de la plateforme.</p><p>Merci de ne plus tenir compte de son nom dans la liste des nouveaux membres reçue précédemment.</p><p>— Le Chef de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef d'unité\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"childName\",\"label\":\"Nom de l'enfant\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
+                // « Listes des chefs d'unité » → « Envoyer »: the up-to-date list of the unit's new members (replaces the old one).
+                Name = "Liste à jour des nouveaux membres (chefs d'unité)", Code = "demande_unit_new_members_update", Module = "demande",
+                Subject = "Liste à jour des nouveaux membres — {{unitName}}",
+                BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Voici la liste <strong>à jour</strong> des nouveaux membres {{scoutYear}} de l'unité <strong>{{unitName}}</strong> : <strong>{{count}}</strong> membre(s), en pièce jointe (fichier Excel).</p><p>Elle remplace les listes reçues précédemment.</p><p>— Le Chef de Groupe</p>",
+                Variables = "[{\"key\":\"leaderName\",\"label\":\"Nom du chef d'unité\"},{\"key\":\"unitName\",\"label\":\"Unité\"},{\"key\":\"count\",\"label\":\"Nombre de nouveaux membres\"},{\"key\":\"scoutYear\",\"label\":\"Année scoute\"}]",
+                IsActive = true
+            },
+            new EmailTemplate
+            {
                 Name = "Nouveaux membres de l'unité — passage (chefs d'unité)", Code = "passage_unit_new_members", Module = "passage",
                 Subject = "Nouveaux membres de votre unité après le passage — {{unitName}}",
                 BodyHtml = "<h2>Bonjour {{leaderName}},</h2><p>Le passage {{scoutYear}} vient d'être publié.</p><p><strong>{{count}}</strong> membre(s) rejoignent l'unité <strong>{{unitName}}</strong> depuis une autre unité. Vous trouverez leur liste en pièce jointe (fichier Excel), avec leur unité d'origine.</p><p>Ils apparaissent déjà dans votre unité sur la plateforme : pensez à leur attribuer une équipe.</p><p>— Le Chef de Groupe</p>",

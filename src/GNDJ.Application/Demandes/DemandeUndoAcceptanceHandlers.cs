@@ -16,6 +16,7 @@ namespace GNDJ.Application.Demandes;
 // since (documents, cotisations) — the same physical purge as the Corbeille (IMemberPurgeService), run at once so a
 // later re-acceptance starts clean. The demande becomes « Refusée »: the refusal email goes now (SendRefusalNow), or
 // no email at all — then it is marked answered (ResponseSentAt) so a later « Envoyer les réponses » never sends one.
+// The unit's chef(s) d'unité, who got the child in their new-members Excel, are emailed that he won't join.
 // A REUSED file (« Déjà membre ? » confirmed: former / active member) is refused: that person existed before the
 // demande, so their fiche is changed by hand (end the post), never deleted.
 // ============================================================
@@ -67,7 +68,7 @@ public class UndoDemandeAcceptanceCommandValidator : AbstractValidator<UndoDeman
 }
 
 public class UndoDemandeAcceptanceCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser,
-    IMemberPurgeService purge, IAuditService audit, IMediator mediator)
+    IMemberPurgeService purge, IAuditService audit, IMediator mediator, IEmailQueue emailQueue)
     : IRequestHandler<UndoDemandeAcceptanceCommand, Result<UndoDemandeAcceptanceResult>>
 {
     public async ValueTask<Result<UndoDemandeAcceptanceResult>> Handle(UndoDemandeAcceptanceCommand request, CancellationToken ct)
@@ -87,6 +88,7 @@ public class UndoDemandeAcceptanceCommandHandler(IApplicationDbContext context, 
         var memberName = $"{member.FirstName} {member.LastName}".Trim();
         var cardNumber = member.CardNumber;
         var unitName = await AuditNames.UnitAsync(context, d.DecidedUnitId, ct);
+        var decidedUnitId = d.DecidedUnitId;
 
         // Fratrie: leave the sibling group; a group left with one member is dissolved (same rule as « Retirer »).
         var groupId = member.SiblingGroupId;
@@ -125,6 +127,17 @@ public class UndoDemandeAcceptanceCommandHandler(IApplicationDbContext context, 
             newValues: new { Status = d.Status, Motif = d.DecisionNotes, EmailRefus = request.SendRefusalNow }, cancellationToken: ct);
         // Physical delete: login (+ sessions), posts, Entrée, documents, cotisations, contacts, parents nobody else uses.
         await purge.PurgeAsync(memberId, ct);
+
+        // Tell the unit's chef(s) d'unité (they had the child in their new-members Excel) — always, whatever the family gets.
+        if (decidedUnitId is Guid uid)
+        {
+            var heads = await UnitNewMembersMail.LoadUnitHeadsAsync(context, [uid], ct);
+            await emailQueue.EnqueueManyAsync((heads.GetValueOrDefault(uid) ?? []).Select(cu => new EmailJob("demande_unit_member_cancelled", cu.Email,
+                new Dictionary<string, string>
+                {
+                    ["leaderName"] = cu.Name, ["unitName"] = unitName ?? "", ["childName"] = memberName, ["scoutYear"] = d.ScoutYear,
+                })), ct);
+        }
 
         // Refusal email now (same single-demande send as « Soumettre pour la famille »); otherwise none.
         string? sendError = null;

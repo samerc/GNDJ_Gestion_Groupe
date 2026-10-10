@@ -15,7 +15,7 @@ public record DemandeArchiveDto(
     Guid Id, string ScoutYear, string FirstName, string LastName, string? DateOfBirth, string? Gender,
     string? Classe, string? School, string? AccountEmail, string? ContactName,
     string Status, string? DecidedUnitName, string? DecisionNotes, DateTime? ResponseSentAt,
-    string? CreatedMemberCardNumber, DateTime ArchivedAt);
+    string? CreatedMemberCardNumber, DateTime ArchivedAt, string? ParentsSummary = null);
 
 public record DemandeArchiveListDto(IReadOnlyList<DemandeArchiveDto> Items, int Total, IReadOnlyList<string> ScoutYears);
 
@@ -40,6 +40,13 @@ public class GetDemandeArchivesQueryHandler(IApplicationDbContext context) : IRe
             if (DateOnly.TryParseExact(s, ["dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "d-M-yyyy", "yyyy-MM-dd"],
                     System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dob))
                 q = q.Where(a => a.DateOfBirth == dob);
+            else if (new string(s.Where(char.IsDigit).ToArray()) is { Length: >= 7 } digits
+                     && digits.Length >= s.Count(c => !char.IsWhiteSpace(c)) - 2)
+            {
+                // A phone number (« 70 123 456 », « +961 70123456 »): a parent's phone, by its last 7 digits.
+                var key = "p:" + digits[^7..];
+                q = q.Where(a => a.ParentContactKeys != null && a.ParentContactKeys.Contains(key));
+            }
             else
             {
                 // Hyphens count as spaces in names (« el khoury » finds « El-Khoury »); the email keeps the raw text.
@@ -48,7 +55,8 @@ public class GetDemandeArchivesQueryHandler(IApplicationDbContext context) : IRe
                     DbFns.Unaccent((a.FirstName + " " + a.LastName).Replace("-", " ").ToLower()).Contains(DbFns.Unaccent(n)) ||
                     DbFns.Unaccent((a.LastName + " " + a.FirstName).Replace("-", " ").ToLower()).Contains(DbFns.Unaccent(n)) ||
                     (a.AccountEmail != null && a.AccountEmail.ToLower().Contains(s)) ||
-                    (a.ContactName != null && DbFns.Unaccent(a.ContactName.Replace("-", " ").ToLower()).Contains(DbFns.Unaccent(n))));
+                    (a.ContactName != null && DbFns.Unaccent(a.ContactName.Replace("-", " ").ToLower()).Contains(DbFns.Unaccent(n))) ||
+                    (a.ParentsSummary != null && DbFns.Unaccent(a.ParentsSummary.Replace("-", " ").ToLower()).Contains(DbFns.Unaccent(n))));
             }
         }
 
@@ -64,7 +72,7 @@ public class GetDemandeArchivesQueryHandler(IApplicationDbContext context) : IRe
                 a.DateOfBirth != null ? a.DateOfBirth.Value.ToString("dd/MM/yyyy") : null, a.Gender,
                 a.Classe, a.School, a.AccountEmail, a.ContactName,
                 a.Status, a.DecidedUnitName, a.DecisionNotes, a.ResponseSentAt,
-                a.CreatedMemberCardNumber, a.ArchivedAt))
+                a.CreatedMemberCardNumber, a.ArchivedAt, a.ParentsSummary))
             .ToListAsync(ct);
 
         // Distinct scout years present in the archive (for the filter dropdown).

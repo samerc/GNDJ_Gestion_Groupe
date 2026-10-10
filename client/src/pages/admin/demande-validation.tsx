@@ -13,7 +13,7 @@ import { useSearchParams } from 'react-router'
 import { useSetting, useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useSendResponsesPreview, useCloseCampaign,
-  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember, useSubmitForFamily,
+  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember, useSubmitForFamily, useSendSingleResponse,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
 } from '@/services/demande-admin-service'
@@ -32,6 +32,7 @@ import { ActionPreviewPanel } from '@/components/shared/action-preview'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { DemandeGrid } from '@/components/admin/demande-grid'
 import { UndoAcceptanceDialog } from '@/components/admin/undo-acceptance-dialog'
+import { UnitNewMemberListsDialog } from '@/components/admin/unit-new-member-lists-dialog'
 import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
 import { MemberMatchCard } from '@/components/admin/member-match-card'
 import { DemandeFlagReview, type FlagKind } from '@/components/admin/demande-flag-review'
@@ -472,6 +473,25 @@ export default function DemandeValidationPage() {
     } catch (err) { toast.error(parseApiError(err)); return false }
   }
 
+  // « Envoyer cette réponse » — after the batch, a decided demande would otherwise wait for a send nobody presses.
+  const sendSingleMutation = useSendSingleResponse()
+  const sendSingle = async (d: DemandeReview) => {
+    const child = `${d.firstName} ${d.lastName}`.trim()
+    if (!(await confirmAsync({
+      title: `Envoyer la réponse pour ${child} ?`,
+      description: d.status === 'Approved'
+        ? `Le membre est créé (identifiant, ${d.decidedUnitName ?? 'unité'}, parents), la famille reçoit l'email d'acceptation et le chef d'unité sa fiche. C'est définitif.`
+        : d.status === 'Declined' ? "La famille reçoit l'email de refus." : "La fiche du membre est mise à jour, sans email.",
+      confirmLabel: 'Envoyer',
+    }))) return
+    try {
+      await sendSingleMutation.mutateAsync(d.id)
+      emailToast(d.status === 'Approved' ? `${child} : membre créé, email d'acceptation en file d'envoi`
+        : d.status === 'Declined' ? `${child} : email de refus en file d'envoi` : `${child} : fiche mise à jour`)
+    } catch (err) { toast.error(parseApiError(err)) }
+  }
+  const [unitListsOpen, setUnitListsOpen] = useState(false) // « Listes des chefs d'unité »
+
   const confirmApprove = async () => { if (approveTarget && await decide(approveTarget, 'Approved', pickUnit, decisionNote)) setApproveTarget(null) }
   const confirmDecline = async () => { if (declineTarget && await decide(declineTarget, 'Declined', null, decisionNote)) setDeclineTarget(null) }
 
@@ -567,7 +587,7 @@ export default function DemandeValidationPage() {
   // Ready to close only once every demande is decided AND its response sent (nothing left to send/review).
   const canClose = all.length > 0 && undecided === 0 && pendingSend === 0
 
-  const busy = decideMutation.isPending || bulkMutation.isPending || deleteMutation.isPending || submitForFamilyMutation.isPending
+  const busy = decideMutation.isPending || bulkMutation.isPending || deleteMutation.isPending || submitForFamilyMutation.isPending || sendSingleMutation.isPending
 
   return (
     <Page>
@@ -638,6 +658,14 @@ export default function DemandeValidationPage() {
         </Button>
         <input ref={importInputRef} type="file" accept=".xlsx" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = '' }} />
+        {campaign?.responsesSent && (
+          <Tip content="La liste à jour des nouveaux membres de chaque unité (fichier Excel) : à télécharger ou à renvoyer aux chefs d'unité.">
+            <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => setUnitListsOpen(true)}>
+              <Users2 className="mr-2 h-4 w-4" />Listes des chefs d'unité
+            </Button>
+          </Tip>
+        )}
+        {unitListsOpen && <UnitNewMemberListsDialog scoutYear={scoutYear} onClose={() => setUnitListsOpen(false)} />}
         <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
           <Button variant="outline" size="sm" className="w-full sm:w-auto" disabled={remindersMutation.isPending || (unsubmittedCount ?? 0) === 0} onClick={() => setReminderConfirm(true)}>
             <MailWarning className="mr-2 h-4 w-4" />Relancer les non-soumis{unsubmittedCount ? ` (${unsubmittedCount})` : ''}
@@ -1067,6 +1095,7 @@ export default function DemandeValidationPage() {
               onNext={() => detailIndex < rows.length - 1 && setDetailId(rows[detailIndex + 1].id)}
               onDecide={decide}
               onSubmitForFamily={submitForFamily}
+              onSendNow={sendSingle}
               responsesSent={!!campaign?.responsesSent}
               onReset={resetTarget}
               onDelete={(dd) => setDeleteTarget(dd)}
@@ -1323,7 +1352,7 @@ function MemberMatchBadge({ d }: { d: DemandeReview }) {
   return <Tip content={`${m.reason} : ${m.name}${m.cardNumber ? ` (${m.cardNumber})` : ''} — à vérifier dans la fiche`}><Badge variant="warning" className="px-1.5 text-[10px]">Déjà membre ?</Badge></Tip>
 }
 
-function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onSubmitForFamily, responsesSent, onReset, onDelete }: {
+function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onSubmitForFamily, onSendNow, responsesSent, onReset, onDelete }: {
   d: DemandeReview
   occupancy: UnitOccupancy[]
   occByUnit: Record<string, UnitOccupancy>
@@ -1336,6 +1365,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   onNext: () => void
   onDecide: (d: DemandeReview, status: 'Approved' | 'Declined', unitId: string | null, note: string | null) => Promise<boolean>
   onSubmitForFamily: (d: DemandeReview, decision: 'Approved' | 'Declined' | null, unitId: string | null, note: string | null) => Promise<boolean>
+  onSendNow: (d: DemandeReview) => void
   responsesSent: boolean
   onReset: (d: DemandeReview) => Promise<boolean>
   onDelete: (d: DemandeReview) => void
@@ -1708,6 +1738,15 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
                 </div>
               </>
             ) : (<>
+            {/* Decided after the batch: answer it now instead of waiting for an « Envoyer les réponses » nobody presses. */}
+            {responsesSent && !d.responseSentAt && (d.status === 'Approved' || d.status === 'Declined' || d.status === 'AlreadyMember') && (
+              <Callout tone="warning" title="Réponse pas encore envoyée">
+                <p>Les réponses de l'année sont déjà parties : celle-ci attend.</p>
+                <Button size="sm" className="mt-2" disabled={busy} onClick={() => onSendNow(d)}>
+                  <Send className="mr-1 h-4 w-4" />Envoyer cette réponse
+                </Button>
+              </Callout>
+            )}
             <div className="flex gap-2">
               <Button variant="success" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
                 <Check className="mr-1 h-4 w-4" />{d.status === 'Approved' ? 'Mettre à jour' : 'Accepter'}

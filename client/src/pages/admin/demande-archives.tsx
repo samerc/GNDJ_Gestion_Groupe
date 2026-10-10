@@ -50,7 +50,7 @@ export default function DemandeArchivesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           className="flex-1 min-w-56"
-          placeholder="Nom de l'enfant, email du compte, parent ou date de naissance…"
+          placeholder="Enfant, email, parent, téléphone ou date de naissance…"
           value={search}
           onChange={(v) => { setSearch(v); setPage(1) }}
         />
@@ -94,6 +94,7 @@ export default function DemandeArchivesPage() {
                     <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">{a.dateOfBirth ? formatDate(a.dateOfBirth) : '—'}</TableCell>
                     <TableCell className="hidden text-muted-foreground lg:table-cell">
                       {a.contactName || a.accountEmail || '—'}
+                      {a.parentsSummary && <div className="mt-0.5 max-w-sm text-xs">{a.parentsSummary}</div>}
                     </TableCell>
                     <TableCell>
                       {statusBadge(a)}

@@ -73,7 +73,7 @@ export function UndoAcceptanceDialog({ d, reasons, onClose }: { d: DemandeReview
               Envoyer l'email de refus à la famille
             </label>
             {!sendNow && <p className="text-xs text-muted-foreground">Aucun email : la demande est marquée refusée sans prévenir la famille (elle ne partira pas non plus avec « Envoyer les réponses »).</p>}
-            <p className="text-xs text-muted-foreground">Le chef d'unité a déjà reçu la fiche de cet enfant : prévenez-le.</p>
+            <p className="text-xs text-muted-foreground">Le chef d'unité reçoit un email « Inscription annulée ».</p>
           </div>
         )}
         <DialogFooter>

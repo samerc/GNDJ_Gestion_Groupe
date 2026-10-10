@@ -1,3 +1,4 @@
+using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,14 +10,17 @@ namespace GNDJ.Application.Demandes;
 //   - the same birth date + the same name (accent/case/space-insensitive, first/last swapped) or the same last name
 //     with a close first name (« Mateo » / « Matteo »);
 //   - the same applicant-account email + a close first name (a typo in the birth date, same family);
-//   - the same full name when one side has no birth date.
+//   - the same full name when one side has no birth date;
+//   - a parent's phone (last 7 digits) or email in common + a close first name (the family, whatever the spelling of
+//     the last name / the birth date) — archives written since 2026-10 keep the parents (ParentContactKeys).
 // Nothing is stored: the archive is a read-only history.
 
 public record ArchiveMatchDto(
     string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string Status,
     string? DecidedUnitName, string? DecisionNotes, string? CreatedMemberCardNumber, string How);
 
-public record DemandeArchiveInput(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string? AccountEmail);
+public record DemandeArchiveInput(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth, string? AccountEmail,
+    string? ParentContactKeys = null);
 
 public static class DemandeArchiveMatch
 {
@@ -30,16 +34,16 @@ public static class DemandeArchiveMatch
         var emails = demandes.Where(d => !string.IsNullOrWhiteSpace(d.AccountEmail))
             .Select(d => d.AccountEmail!.Trim().ToLower()).Distinct().ToList();
         var years = demandes.Select(d => d.ScoutYear).Distinct().ToList();
-        // Candidates only (the archive grows by a few hundred rows a year): same birth date, same account email, or
-        // no birth date. Never the demande's own year (a campaign is archived only when it is closed).
+        // Candidates only (the archive grows by a few hundred rows a year): same birth date, same account email, no birth
+        // date, or parents on record (compared in memory). Never the demande's own year (archived only when closed).
         var candidates = await context.DemandeArchives.AsNoTracking()
             .Where(a => !years.Contains(a.ScoutYear)
-                && (a.DateOfBirth == null || dobs.Contains(a.DateOfBirth.Value)
+                && (a.DateOfBirth == null || dobs.Contains(a.DateOfBirth.Value) || a.ParentContactKeys != null
                     || (a.AccountEmail != null && emails.Contains(a.AccountEmail.Trim().ToLower()))))
             .Select(a => new
             {
                 a.ScoutYear, a.FirstName, a.LastName, a.DateOfBirth, a.AccountEmail, a.Status,
-                a.DecidedUnitName, a.DecisionNotes, a.CreatedMemberCardNumber,
+                a.DecidedUnitName, a.DecisionNotes, a.CreatedMemberCardNumber, a.ParentContactKeys,
             })
             .ToListAsync(ct);
         if (candidates.Count == 0) return result;
@@ -50,6 +54,7 @@ public static class DemandeArchiveMatch
             var last = DemandeMemberMatch.Key(d.LastName);
             if (first.Length == 0 && last.Length == 0) continue;
             var email = d.AccountEmail?.Trim().ToLowerInvariant();
+            var keys = SplitKeys(d.ParentContactKeys);
             var found = new List<ArchiveMatchDto>();
             foreach (var a in candidates)
             {
@@ -68,6 +73,9 @@ public static class DemandeArchiveMatch
                     how = "même compte d'inscription et prénom";
                 if (how is null && sameName && (a.DateOfBirth is null || d.DateOfBirth is null))
                     how = "même nom (date de naissance manquante)";
+                if (how is null && keys.Count > 0 && (af == first || DemandeMemberMatch.CloseNames(af, first))
+                    && SplitKeys(a.ParentContactKeys).Overlaps(keys))
+                    how = "même parent (téléphone ou email) et prénom";
                 if (how is null) continue;
                 found.Add(new ArchiveMatchDto(a.ScoutYear, a.FirstName, a.LastName, a.DateOfBirth, a.Status,
                     a.DecidedUnitName, a.DecisionNotes, a.CreatedMemberCardNumber, how));
@@ -75,6 +83,37 @@ public static class DemandeArchiveMatch
             if (found.Count > 0) result[d.Id] = found.OrderByDescending(x => x.ScoutYear).ToList();
         }
         return result;
+    }
+
+    // Parents' contacts as matching keys: phones by their last 7 digits (« p:1234567 »), emails lowercased (« e:… »).
+    public static string? ContactKeys(IEnumerable<Domain.Entities.ApplicantGuardian> guardians)
+    {
+        var keys = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var g in guardians)
+        {
+            var digits = PhoneNumbers.Digits(g.PhoneNumber);
+            if (digits.Length >= 7) keys.Add("p:" + digits[^7..]);
+            if (!string.IsNullOrWhiteSpace(g.Email)) keys.Add("e:" + g.Email.Trim().ToLowerInvariant());
+        }
+        return keys.Count == 0 ? null : string.Join(' ', keys);
+    }
+
+    private static HashSet<string> SplitKeys(string? keys)
+        => string.IsNullOrWhiteSpace(keys) ? [] : keys.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+
+    // « Père : Jean KHOURY (70 123 456, jean@x.com) · Mère : … » — the archive's readable parents line.
+    public static string? ParentsSummary(IEnumerable<Domain.Entities.ApplicantGuardian> guardians)
+    {
+        var parts = guardians
+            .OrderBy(g => ParentRoles.IsFather(g.Relationship) ? 0 : ParentRoles.IsMother(g.Relationship) ? 1 : 2)
+            .Select(g =>
+            {
+                var phone = string.IsNullOrWhiteSpace(g.PhoneNumber) ? null : $"{g.PhoneCountryCode} {g.PhoneNumber}".Trim();
+                var contacts = string.Join(", ", new[] { phone, g.Email }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                return $"{g.Relationship} : {g.FirstName} {g.LastName}".Trim()
+                    + (g.IsDeceased ? " (décédé·e)" : "") + (contacts.Length > 0 ? $" ({contacts})" : "");
+            }).ToList();
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 
     // One line for a notification: « 2025-2026 (refusée) ».

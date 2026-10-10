@@ -1337,7 +1337,8 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
                 .GetValueOrDefault(demande.Id);
             // « Demande précédente » — the same child in the archive of an earlier campaign: say it in the alert too.
             var previous = (await Demandes.DemandeArchiveMatch.FindAsync(context,
-                [new Demandes.DemandeArchiveInput(demande.Id, demande.ScoutYear, demande.FirstName, demande.LastName, demande.DateOfBirth, account.Email)], ct))
+                [new Demandes.DemandeArchiveInput(demande.Id, demande.ScoutYear, demande.FirstName, demande.LastName, demande.DateOfBirth, account.Email,
+                    Demandes.DemandeArchiveMatch.ContactKeys(guardians))], ct))
                 .GetValueOrDefault(demande.Id);
             await notifications.NotifyGroupManagersAsync(NotificationTypes.Demande,
                 match is null ? "Nouvelle demande d'inscription" : "Nouvelle demande — déjà membre ?",
