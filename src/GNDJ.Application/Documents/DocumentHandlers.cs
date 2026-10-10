@@ -517,7 +517,7 @@ public record UnitDocumentsMatrixDto(
     IReadOnlyList<MemberDocRowDto> Members
 );
 
-public record DocTypeColumnDto(Guid Id, string Name, string Code, bool RequiresExpiry, bool RequiresApproval);
+public record DocTypeColumnDto(Guid Id, string Name, string Code, bool RequiresExpiry, bool RequiresApproval, bool IsRequired = true);
 
 public record MemberDocRowDto(
     Guid MemberId, string FirstName, string LastName, string? TeamName,
@@ -563,7 +563,7 @@ public class GetUnitDocumentsMatrixQueryHandler(IApplicationDbContext context, I
         var docTypes = await context.DocumentTypes
             .Where(dt => dt.IsActive)
             .OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
-            .Select(dt => new DocTypeColumnDto(dt.Id, dt.Name, dt.Code, dt.RequiresExpiry, dt.RequiresApproval))
+            .Select(dt => new DocTypeColumnDto(dt.Id, dt.Name, dt.Code, dt.RequiresExpiry, dt.RequiresApproval, dt.IsRequired))
             .ToListAsync(ct);
 
         var docTypeIds = docTypes.Select(dt => dt.Id).ToList();

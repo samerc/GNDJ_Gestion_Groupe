@@ -54,7 +54,7 @@ public static class MemberTodo
         var yearStart = await ContactReview.YearStartAsync(context, ct);
 
         // Documents: the latest upload per active type (same checklist logic as « Mes documents »).
-        var types = await context.DocumentTypes.Where(d => d.IsActive).Select(d => d.Id).ToListAsync(ct);
+        var types = await context.DocumentTypes.Where(d => d.IsActive && d.IsRequired).Select(d => d.Id).ToListAsync(ct); // optional docs aren't a « to do »
         var docsByMember = (await context.MemberDocuments
                 .Where(d => ids.Contains(d.MemberId) && types.Contains(d.DocumentTypeId))
                 .Select(d => new { d.MemberId, d.DocumentTypeId, d.Status, d.ExpiryDate, d.CreatedAt })

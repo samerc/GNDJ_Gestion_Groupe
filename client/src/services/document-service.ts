@@ -159,6 +159,7 @@ export interface DocTypeColumnDto {
   code: string
   requiresExpiry: boolean
   requiresApproval: boolean
+  isRequired: boolean // optional column: never « à compléter »
 }
 
 export interface MemberDocRowDto {

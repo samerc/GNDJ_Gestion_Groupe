@@ -248,10 +248,10 @@ public class GetAdminDashboardQueryHandler : IRequestHandler<GetAdminDashboardQu
         // Doc compliance: how many active doc types each active member has. Computed ONCE over the full
         // active-member set and reused for BOTH the "missing documents" tile and the per-unit breakdown
         // (unit members are a subset of the active members), rather than scanning member_documents twice.
-        var activeDocTypeCount = await _context.DocumentTypes.CountAsync(dt => dt.IsActive, ct);
+        var activeDocTypeCount = await _context.DocumentTypes.CountAsync(dt => dt.IsActive && dt.IsRequired, ct); // required types only
         var docCountsByMember = activeDocTypeCount > 0
             ? await _context.MemberDocuments
-                .Where(d => activeMemberIds.Contains(d.MemberId) && d.DocumentType.IsActive)
+                .Where(d => activeMemberIds.Contains(d.MemberId) && d.DocumentType.IsActive && d.DocumentType.IsRequired)
                 .GroupBy(d => d.MemberId)
                 .Select(g => new { MemberId = g.Key, TypeCount = g.Select(d => d.DocumentTypeId).Distinct().Count() })
                 .ToDictionaryAsync(g => g.MemberId, g => g.TypeCount, ct)

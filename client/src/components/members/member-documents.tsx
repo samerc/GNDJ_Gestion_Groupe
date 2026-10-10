@@ -299,14 +299,15 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
   // A member may upload to their own dossier (unless campaign-blocked); otherwise it requires the create permission.
   const canUpload = (isOwnProfile || hasPermission(PERMISSIONS.DOCUMENTS_CREATE)) && !memberBlock
 
-  // Compute progress stats
-  const docStats = docTypes ? {
-    total: docTypes.length,
+  // Compute progress stats — over the REQUIRED types only: an optional document (bus form…) is never « manquant ».
+  const requiredTypes = docTypes?.filter(dt => dt.isRequired !== false)
+  const docStats = requiredTypes ? {
+    total: requiredTypes.length,
     // An accepted but EXPIRED document must be renewed: it doesn't count as accepted.
-    approved: docTypes.filter(dt => { const d = getDocForType(dt.id); return d?.status === 'Approved' && !d.isExpired }).length,
-    pending: docTypes.filter(dt => { const d = getDocForType(dt.id); return d && d.status !== 'Approved' && d.status !== 'Rejected'; }).length,
-    rejected: docTypes.filter(dt => getDocForType(dt.id)?.status === 'Rejected').length,
-    missing: docTypes.filter(dt => { const d = getDocForType(dt.id); return !d || (d.status === 'Approved' && d.isExpired) }).length,
+    approved: requiredTypes.filter(dt => { const d = getDocForType(dt.id); return d?.status === 'Approved' && !d.isExpired }).length,
+    pending: requiredTypes.filter(dt => { const d = getDocForType(dt.id); return d && d.status !== 'Approved' && d.status !== 'Rejected'; }).length,
+    rejected: requiredTypes.filter(dt => getDocForType(dt.id)?.status === 'Rejected').length,
+    missing: requiredTypes.filter(dt => { const d = getDocForType(dt.id); return !d || (d.status === 'Approved' && d.isExpired) }).length,
   } : null
 
   const statusColor = (doc: MemberDocumentDto | null) => {
@@ -389,6 +390,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-sm">{dt.name}</span>
+                    {dt.isRequired === false && <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">Facultatif</Badge>}
                     {doc ? statusBadge(doc.status, doc.isExpired) : (
                       <Badge variant="outline" className="gap-1 text-muted-foreground text-xs"><Minus className="h-3 w-3" />Manquant</Badge>
                     )}

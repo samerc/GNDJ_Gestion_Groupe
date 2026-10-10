@@ -174,24 +174,26 @@ export default function UnitDocumentsPage() {
   // who need something (a document to check, a document to send, a cotisation to collect) and search a name.
   const [memberFilter, setMemberFilter] = useState<MemberFilter>('all')
   const [memberSearch, setMemberSearch] = useState('')
+  // Required columns only count for « À compléter » (an optional document — bus form… — is never missing).
+  const requiredIds = useMemo(() => new Set((matrix?.docTypes ?? []).filter(dt => dt.isRequired !== false).map(dt => dt.id)), [matrix])
   const filterCounts = useMemo(() => {
     const members = matrix?.members ?? []
     return {
       all: members.length,
       pending: members.filter(m => m.documents.some(isPendingCell)).length,
-      todo: members.filter(m => m.documents.some(isTodoCell)).length,
+      todo: members.filter(m => m.documents.some(c => requiredIds.has(c.docTypeId) && isTodoCell(c))).length,
       cotisation: members.filter(isCotisationDue).length,
     }
-  }, [matrix])
+  }, [matrix, requiredIds])
   const visibleMembers = useMemo(() => {
     const q = normalizeName(memberSearch.trim())
     return (matrix?.members ?? []).filter(m => {
       if (memberFilter === 'pending' && !m.documents.some(isPendingCell)) return false
-      if (memberFilter === 'todo' && !m.documents.some(isTodoCell)) return false
+      if (memberFilter === 'todo' && !m.documents.some(c => requiredIds.has(c.docTypeId) && isTodoCell(c))) return false
       if (memberFilter === 'cotisation' && !isCotisationDue(m)) return false
       return !q || normalizeName(`${m.firstName} ${m.lastName}`).includes(q)
     })
-  }, [matrix, memberFilter, memberSearch])
+  }, [matrix, memberFilter, memberSearch, requiredIds])
 
   // ─── Review queue: "Vérifier les documents en attente" opens the pending documents one after another —
   // accepting / refusing (or skipping) a document opens the next one, no going back to the list each time.
@@ -706,6 +708,7 @@ export default function UnitDocumentsPage() {
                   {matrix.docTypes.map(dt => (
                     <th key={dt.id} className="px-2 py-3 text-center font-medium min-w-24">
                       <span className="text-sm leading-tight">{dt.name}</span>
+                      {dt.isRequired === false && <span className="block text-[10px] font-normal text-muted-foreground">facultatif</span>}
                     </th>
                   ))}
                   <th className="px-2 py-3 text-center font-medium min-w-28">

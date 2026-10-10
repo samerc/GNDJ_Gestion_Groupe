@@ -18,7 +18,7 @@ public static class MemberCompliance
         if (ids.Count == 0) return result;
 
         var activeDocTypeIds = await context.DocumentTypes
-            .Where(d => d.IsActive && !d.IsDeleted).Select(d => d.Id).ToListAsync(ct);
+            .Where(d => d.IsActive && d.IsRequired && !d.IsDeleted).Select(d => d.Id).ToListAsync(ct); // optional types never make a dossier incomplete
         var requiredCount = activeDocTypeIds.Count;
 
         var approvedTypeCount = requiredCount == 0

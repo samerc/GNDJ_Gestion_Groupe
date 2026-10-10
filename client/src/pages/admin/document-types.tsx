@@ -31,7 +31,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null, templateHtml: null, onlineFillable: false }
+const defaultForm: DocumentTypeFormData = { name: '', code: '', description: '', requiresExpiry: false, requiresApproval: true, isActive: true, displayOrder: 0, templateFileUrl: null, templateFileName: null, templateHtml: null, onlineFillable: false, isRequired: true }
 
 // `embedded` = rendered inside the Paramètres → Documents tab (suppresses the page's own big heading).
 export default function DocumentTypesPage({ embedded = false }: { embedded?: boolean } = {}) {
@@ -88,7 +88,7 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
   const openEdit = (item: DocumentTypeDto) => {
     setEditing(item)
     setSeededTemplateFor(null) // templateHtml is filled by the detail query once it loads
-    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName, templateHtml: null, onlineFillable: item.onlineFillable })
+    setForm({ name: item.name, code: item.code, description: item.description ?? '', requiresExpiry: item.requiresExpiry, requiresApproval: item.requiresApproval, isActive: item.isActive, displayOrder: item.displayOrder, templateFileUrl: item.templateFileUrl, templateFileName: item.templateFileName, templateHtml: null, onlineFillable: item.onlineFillable, isRequired: item.isRequired })
     setError(''); clearAll()
     setFormOpen(true)
   }
@@ -284,6 +284,13 @@ export default function DocumentTypesPage({ embedded = false }: { embedded?: boo
               </label>
               <div>
                 <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form.isRequired !== false} onChange={(e) => setForm(f => ({ ...f, isRequired: e.target.checked }))} />
+                  Obligatoire
+                </label>
+                <p className="text-xs text-muted-foreground ml-6">Décoché : document facultatif (ex. transport en bus) — le membre peut l'envoyer, mais il ne compte pas comme manquant (ni relances, ni dossier incomplet, ni mise en attente)</p>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={form.requiresExpiry} onChange={(e) => setForm(f => ({ ...f, requiresExpiry: e.target.checked }))} />
                   Date d'expiration requise
                 </label>
@@ -351,6 +358,11 @@ function SortableTypeRow({ item, canReorder, onEdit, onDelete }: { item: Documen
           {item.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}
           {/* Terse "Expiration"/"Approbation" confused users — spell out the meaning + explain on hover.
               (Badge isn't ref-forwarding, so wrap in a span for the tooltip trigger.) */}
+          {!item.isRequired && (
+            <Tip content="Document facultatif : il ne compte pas comme manquant (ni relances, ni dossier incomplet).">
+              <span className="inline-flex"><Badge variant="outline" className="border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300">Facultatif</Badge></span>
+            </Tip>
+          )}
           {item.requiresExpiry && (
             <Tip content="Le membre doit indiquer une date d'expiration en envoyant ce document.">
               <span className="inline-flex"><Badge variant="outline">Date d'expiration requise</Badge></span>

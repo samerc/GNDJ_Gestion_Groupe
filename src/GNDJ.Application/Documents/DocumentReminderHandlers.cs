@@ -79,7 +79,8 @@ public class GetDocumentReminderSummaryQueryHandler(IApplicationDbContext contex
             return Result<IReadOnlyList<UnitReminderSummaryDto>>.Failure("Accès réservé au Chef de Groupe.");
 
         var activeTypes = await context.DocumentTypes
-            .Where(dt => dt.IsActive).Select(dt => new { dt.Id, dt.Name, dt.Code }).ToListAsync(ct);
+            // Required types only: reminders never chase an optional document.
+            .Where(dt => dt.IsActive && dt.IsRequired).Select(dt => new { dt.Id, dt.Name, dt.Code }).ToListAsync(ct);
         if (activeTypes.Count == 0)
             return Result<IReadOnlyList<UnitReminderSummaryDto>>.Success(new List<UnitReminderSummaryDto>());
         var typeList = activeTypes.Select(t => (t.Id, t.Name, t.Code)).ToList();
@@ -149,7 +150,7 @@ public class GetDocumentReminderCandidatesQueryHandler(IApplicationDbContext con
             return Result<IReadOnlyList<DocReminderCandidateDto>>.Failure("Accès réservé au Chef de Groupe.");
 
         var activeTypes = await context.DocumentTypes
-            .Where(dt => dt.IsActive)
+            .Where(dt => dt.IsActive && dt.IsRequired) // reminders never chase an optional document
             .OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
             .Select(dt => new { dt.Id, dt.Name, dt.Code })
             .ToListAsync(ct);
@@ -253,7 +254,8 @@ public class SendDocumentRemindersCommandHandler(
 
         // Active doc types + these members' documents → recompute gaps server-side (never trust the client list).
         var activeTypes = await context.DocumentTypes
-            .Where(dt => dt.IsActive).OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
+            // Required types only: reminders never chase an optional document.
+            .Where(dt => dt.IsActive && dt.IsRequired).OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
             .Select(dt => new { dt.Id, dt.Name, dt.Code }).ToListAsync(ct);
         var typeList = activeTypes.Select(t => (t.Id, t.Name, t.Code)).ToList();
         var typeIds = typeList.Select(t => t.Id).ToList();

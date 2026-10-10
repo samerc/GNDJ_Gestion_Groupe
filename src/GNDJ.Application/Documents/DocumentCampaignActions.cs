@@ -34,7 +34,8 @@ public static class DocumentCampaignActions
         .Select(a => (a.MemberId, a.FirstName, a.LastName, a.UnitId, a.UnitName, a.UnitCode)).ToList();
 
     private static async Task<List<(Guid Id, string Name, string Code)>> ActiveTypesAsync(IApplicationDbContext ctx, CancellationToken ct) =>
-        (await ctx.DocumentTypes.Where(dt => dt.IsActive).OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
+        // Required types only: an optional document never triggers a campaign email or a hold.
+        (await ctx.DocumentTypes.Where(dt => dt.IsActive && dt.IsRequired).OrderBy(dt => dt.DisplayOrder).ThenBy(dt => dt.Name)
             .Select(dt => new { dt.Id, dt.Name, dt.Code }).ToListAsync(ct))
         .Select(t => (t.Id, t.Name, t.Code)).ToList();
 

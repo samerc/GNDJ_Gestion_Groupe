@@ -12,6 +12,9 @@ public class DocumentType : BaseEntity
     public bool RequiresExpiry { get; set; }   // document must carry an expiry date (tracked for renewals)
     public bool RequiresApproval { get; set; } // uploads start Pending and need CU/CG approve/reject
     public bool IsActive { get; set; } = true;
+    // Obligatoire: counts for the dossier (completeness, reminders, campaign / on hold, « à compléter »). Off = an
+    // OPTIONAL document members may send (e.g. the bus-service form): shown and uploadable, never chased.
+    public bool IsRequired { get; set; } = true;
     public int DisplayOrder { get; set; }
 
     // Optional blank form the member downloads, fills, and uploads back (e.g. an authorization form).

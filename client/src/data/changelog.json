@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-10", "text": "Types de documents : nouvelle case « Obligatoire ». Un document facultatif (ex. inscription au transport en bus) peut être envoyé par les membres mais ne compte jamais comme manquant : ni dossier incomplet, ni relance, ni mise en attente ; il est marqué « Facultatif » dans « Mes documents » et dans le tableau des documents de l'unité." },
       { "date": "2026-10-10", "text": "Modèles d'email : « Aperçu » de chaque modèle (dans la liste, ou pendant la modification avant d'enregistrer) tel qu'il sera reçu, avec des valeurs d'exemple et les années réelles ; une variable mal écrite est signalée en rouge. La liste des variables proposées est maintenant celle du modèle (plus les années), et non plus toutes celles du module." },
       { "date": "2026-10-10", "text": "Modèles d'email : variables d'années {{scoutYear}} (2026-2027), {{previousScoutYear}}, {{nextScoutYear}}, {{year}} (2026) et {{year+1}}, {{year+2}}… pour ne plus écrire d'année en dur dans un modèle (pour les demandes : l'année de la campagne)." },
       { "date": "2026-10-10", "text": "Éditeur de texte (emails, site) : nouveau menu « Couleur du texte » ; sans sélection il s'applique à tout le texte, et « Couleur par défaut » rend visible un texte collé en blanc." },

@@ -499,3 +499,12 @@ Reviewed (backend + frontend) and live-tested before switching FM to « Rempliss
   Nom / Prénom (user's choice — the rest stays optional). **Builder bug fixed**: the `save` attribute was declared on
   the spacer node instead of `fillBox`, so saving a template in the builder dropped the boxes' Médical link
   (antécédents / maladie chronique). Verified in the browser: open + save FM untouched keeps 3 required + 14 data-save.
+
+### 2026-10-10 — Optional document types (« Obligatoire »)
+- `DocumentType.IsRequired` (migration AddDocumentTypeIsRequired, existing rows default TRUE). Off = optional: listed
+  and uploadable (« Facultatif » badge in Mes documents, « facultatif » under the matrix column) but excluded from
+  every completeness measure — MemberCompliance (members list « documents incomplets »), CG dashboard, document
+  reminders (summary/candidates/send), campaign actions (error emails + on-hold), Ma rentrée to-do, member-documents
+  stats, matrix « À compléter » filter. Pending counts (« à vérifier ») still include optional types that need approval.
+- First use: the bus-service form (2026-27, school transport), to be built as an in-app template fillable online;
+  combine with « Validation par un chef » off = accepted on upload.
