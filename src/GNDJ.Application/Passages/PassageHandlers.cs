@@ -392,7 +392,8 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
 
         // Passage is open if enabled AND the requested year matches the configured year
         var isOpen = isEnabled && (string.IsNullOrEmpty(request.ScoutYear) || configuredYear == request.ScoutYear);
-        var published = isOpen && await Maitrises.MaitrisePlan.IsPublishedAsync(context, configuredYear, ct);
+        // Independent of the switch (the réunions year lock uses it too — MeetingYearLock).
+        var published = !string.IsNullOrEmpty(configuredYear) && await Maitrises.MaitrisePlan.IsPublishedAsync(context, configuredYear, ct);
 
         return Result<PassageStatusDto>.Success(new PassageStatusDto(isOpen, configuredYear, published));
     }

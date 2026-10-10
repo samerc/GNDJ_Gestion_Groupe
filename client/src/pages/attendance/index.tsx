@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react'
 import { parseApiError } from '@/lib/error-utils'
 import { toast } from 'sonner'
 import { calendarScoutYear, recentScoutYears } from '@/hooks/use-scout-year'
+import { useSettingValue } from '@/services/settings-service'
+import { usePassageStatus } from '@/services/passage-service'
 import { useTeams } from '@/services/team-service'
 import {
   useAttendanceScope, useMeetings, useMeetingAttendance,
@@ -25,7 +27,7 @@ import { SearchInput } from '@/components/shared/search-input'
 import { Callout } from '@/components/shared/callout'
 import { Tip } from '@/components/ui/tooltip'
 import { formatDate } from '@/lib/utils'
-import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users, Search } from 'lucide-react'
+import { CalendarCheck, Plus, Pencil, Trash2, CheckCircle2, Clock, ClipboardList, Users, Search, Lock } from 'lucide-react'
 import { DateInput } from '@/components/shared/date-input'
 
 // Réunions / Absences — the CU (and chef d'équipe) attendance screen. Pick a unit → list its réunions
@@ -59,6 +61,7 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
             {meeting.status === 'Pending' && (
               <Badge variant="warning" className="gap-1"><Clock className="h-3 w-3" />En attente</Badge>
             )}
+            {meeting.locked && <Badge variant="outline" className="gap-1 text-xs"><Lock className="h-3 w-3" />Année close</Badge>}
             {meeting.groupName ? (
               <Badge variant="outline" className="gap-1 text-xs"><Users className="h-3 w-3" />{meeting.groupName}</Badge>
             ) : meeting.teamName ? (
@@ -77,20 +80,20 @@ function MeetingCard({ meeting, onOpen, onEdit, onApprove, onDelete, busy }: {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {meeting.status === 'Pending' && meeting.canManage && (
+          {meeting.status === 'Pending' && meeting.canManage && !meeting.locked && (
             <Button size="sm" variant="outline" onClick={onApprove} disabled={busy}>
               <CheckCircle2 className="mr-1 h-4 w-4" />Accepter
             </Button>
           )}
           <Button size="sm" onClick={onOpen}><ClipboardList className="mr-1 h-4 w-4" />Présences</Button>
-          {meeting.canManage && (
+          {meeting.canManage && !meeting.locked && (
             <Tip content="Modifier la réunion">
               <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy} aria-label="Modifier la réunion">
                 <Pencil className="h-4 w-4" />
               </Button>
             </Tip>
           )}
-          {meeting.canManage && (
+          {meeting.canManage && !meeting.locked && (
             <Tip content="Supprimer la réunion">
               <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onDelete} disabled={busy} aria-label="Supprimer la réunion">
                 <Trash2 className="h-4 w-4" />
@@ -175,13 +178,13 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
                 return (
                   <div key={r.memberId} className="flex flex-col gap-2 p-2.5 sm:flex-row sm:items-center">
                     <label className="flex flex-1 items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" className="h-4 w-4 shrink-0 accent-destructive" checked={s.absent}
+                      <input type="checkbox" className="h-4 w-4 shrink-0 accent-destructive" checked={s.absent} disabled={data?.locked}
                         onChange={e => setRow(r.memberId, { absent: e.target.checked })} />
                       <span className={s.absent ? 'font-medium text-destructive' : ''}>{r.name}</span>
                       {r.teamName && <span className="text-xs text-muted-foreground">{r.teamName}</span>}
                     </label>
                     {s.absent && (
-                      <Input value={s.reason} onChange={e => setRow(r.memberId, { reason: e.target.value })}
+                      <Input value={s.reason} disabled={data?.locked} onChange={e => setRow(r.memberId, { reason: e.target.value })}
                         placeholder="Motif (optionnel)" className="h-8 text-sm sm:w-64" maxLength={300} />
                     )}
                   </div>
@@ -192,7 +195,7 @@ function AttendanceDialog({ meetingId, onClose }: { meetingId: string; onClose: 
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fermer</Button>
-          {data && data.roster.length > 0 && (
+          {data && data.roster.length > 0 && !data.locked && (
             <Button onClick={handleSave} disabled={save.isPending}>{save.isPending ? 'Enregistrement…' : 'Enregistrer les présences'}</Button>
           )}
         </DialogFooter>
@@ -339,6 +342,14 @@ export default function AttendancePage() {
   // A picker lets a leader switch to the next (pre-season) year so both run in parallel through the changeover.
   const yearOptions = useMemo(() => recentScoutYears(4), [])
   const [year, setYear] = useState<string>(() => calendarScoutYear())
+  // A year is CLOSED once the passage that ends it is published (server: MeetingYearLock) — read-only, no new réunion.
+  const passageYear = useSettingValue('passage.scout_year') ?? ''
+  const { data: passageStatus } = usePassageStatus(passageYear)
+  const yearClosed = useMemo(() => {
+    if (!passageYear || year >= passageYear) return false
+    const start = Number(passageYear.split('-')[0])
+    return !!passageStatus?.published || year < `${start - 1}-${start}`
+  }, [year, passageYear, passageStatus])
   const { data: scope, isLoading: scopeLoading } = useAttendanceScope()
   const approve = useApproveMeeting()
   const del = useDeleteMeeting()
@@ -419,9 +430,15 @@ export default function AttendancePage() {
         title="Réunions & absences"
         icon={CalendarCheck}
         description="Réunions, sorties et camps — suivez les présences."
-        actions={<Button onClick={() => setCreateOpen(true)} disabled={!sel}><Plus className="mr-1.5 h-4 w-4" />Nouvelle réunion</Button>}
+        actions={<Button onClick={() => setCreateOpen(true)} disabled={!sel || yearClosed}><Plus className="mr-1.5 h-4 w-4" />Nouvelle réunion</Button>}
       />
 
+      {yearClosed && (
+        <Callout tone="info" icon={Lock} title={`Année ${year} close`}>
+          Le passage est publié : les réunions et les présences de cette année ne peuvent plus être ajoutées ni modifiées.
+          Elles restent consultables.
+        </Callout>
+      )}
       {/* Scope (unit or member group) + scout-year pickers. The year lets a leader view/log two years in parallel. */}
       <div className="flex flex-wrap items-center gap-2">
         {(unitOptions.length + groups.length) > 1 && (

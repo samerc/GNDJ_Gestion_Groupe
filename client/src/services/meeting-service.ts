@@ -26,6 +26,7 @@ export interface MeetingDto {
   canManage: boolean // the caller can approve/delete (CU/CG) vs. only fill (chef d'équipe)
   memberGroupId: string | null // set for a member-group réunion (Grande Maîtrise, Chefs d'unité, …)
   groupName: string | null
+  locked?: boolean // its scout year is closed (passage published): read-only
 }
 
 // The caller's manageable units + led teams + usable member groups — drives what to create/fill réunions for.
@@ -61,6 +62,7 @@ export interface MeetingAttendanceDto {
   roster: AttendanceRosterRow[]
   memberGroupId: string | null
   groupName: string | null
+  locked?: boolean // its scout year is closed (passage published): read-only
 }
 
 export interface MemberAbsenceCount {

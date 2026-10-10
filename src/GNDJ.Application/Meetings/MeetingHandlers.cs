@@ -48,12 +48,49 @@ public static class AttendanceAccess
             .Select(u => (Guid?)u.Id).FirstOrDefaultAsync(ct);
 }
 
+// A scout year is CLOSED for réunions once the passage that ends it is published: with « Publier le passage » for
+// 2026-2027 done, nothing dated before 1 Oct 2026 can be created, edited, approved, deleted or have its absences
+// changed (the year's attendance is history). Older years are always closed; the year before the passage year
+// stays open until that passage is published (the changeover, when both years run in parallel).
+public static class MeetingYearLock
+{
+    public sealed record State(string PassageYear, bool Published)
+    {
+        public bool IsClosed(DateOnly date)
+        {
+            var year = ScoutYearHelper.Of(date);
+            if (string.IsNullOrEmpty(PassageYear) || string.CompareOrdinal(year, PassageYear) >= 0) return false;
+            var previous = int.TryParse(PassageYear.Split('-')[0], out var s) ? $"{s - 1}-{s}" : "";
+            return Published || string.CompareOrdinal(year, previous) < 0;
+        }
+
+        public string Message(DateOnly date) =>
+            $"L'année scoute {ScoutYearHelper.Of(date)} est close (passage publié) : on ne peut plus y ajouter ni modifier de réunion.";
+    }
+
+    public static async Task<State> LoadAsync(IApplicationDbContext context, CancellationToken ct)
+    {
+        var year = await context.Settings.Where(s => s.Key == "passage.scout_year").Select(s => s.Value).FirstOrDefaultAsync(ct) ?? "";
+        var published = !string.IsNullOrEmpty(year)
+            && await context.Passages.AnyAsync(p => p.ScoutYear == year && p.Status == PassageStatus.Finalized, ct);
+        return new State(year, published);
+    }
+
+    // The refusal message when a réunion on that date may not be written, else null.
+    public static async Task<string?> ErrorAsync(IApplicationDbContext context, DateOnly date, CancellationToken ct)
+    {
+        var state = await LoadAsync(context, ct);
+        return state.IsClosed(date) ? state.Message(date) : null;
+    }
+}
+
 // ── DTOs ───────────────────────────────────────────────────────────────────────
 public record MeetingDto(
     Guid Id, Guid UnitId, string UnitName, Guid? TeamId, string? TeamName,
     string Type, string? Title, DateOnly Date, DateOnly? EndDate, string Status,
     int RosterCount, int AbsentCount, bool CanManage,
-    Guid? MemberGroupId = null, string? GroupName = null); // set for a member-group réunion
+    Guid? MemberGroupId = null, string? GroupName = null, // set for a member-group réunion
+    bool Locked = false); // its scout year is closed (MeetingYearLock): read-only
 
 // The caller's manageable units + led teams (+ usable member groups) — drives the page.
 public record AttendanceScopeDto(IReadOnlyList<ScopeUnit> Units, IReadOnlyList<ScopeTeam> Teams,
@@ -68,7 +105,8 @@ public record MeetingAttendanceDto(
     Guid Id, Guid UnitId, string UnitName, Guid? TeamId, string? TeamName,
     string Type, string? Title, DateOnly Date, DateOnly? EndDate, string Status, bool CanManage,
     IReadOnlyList<AttendanceRosterRow> Roster,
-    Guid? MemberGroupId = null, string? GroupName = null);
+    Guid? MemberGroupId = null, string? GroupName = null,
+    bool Locked = false); // its scout year is closed (MeetingYearLock): read-only
 
 public record MemberAbsenceCount(Guid MemberId, int Count);
 
@@ -155,8 +193,10 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
             // The roster is the same for every meeting of a whole-group group → count distinct members once.
             var grpRosterCount = await MemberGroupResolver.RosterQuery(context, group)
                 .Select(a => a.MemberId).Distinct().CountAsync(ct);
+            var glock = await MeetingYearLock.LoadAsync(context, ct);
             var dres = dmeetings.Select(m => new MeetingDto(m.Id, m.UnitId, m.UnitName, null, group.Name,
-                m.Type, m.Title, m.Date, m.EndDate, m.Status, grpRosterCount, m.AbsentCount, true, group.Id, group.Name)).ToList();
+                m.Type, m.Title, m.Date, m.EndDate, m.Status, grpRosterCount, m.AbsentCount, true, group.Id, group.Name,
+                glock.IsClosed(m.Date))).ToList();
             return Result<IReadOnlyList<MeetingDto>>.Success(dres);
         }
 
@@ -209,11 +249,12 @@ public class GetMeetingsQueryHandler(IApplicationDbContext context, ICurrentUser
                 groupCounts[g.Id] = await MemberGroupResolver.RosterQuery(context, g)
                     .Where(a => a.UnitId == unitId).Select(a => a.MemberId).Distinct().CountAsync(ct);
 
+        var yearLock = await MeetingYearLock.LoadAsync(context, ct);
         var result = meetings.Select(m => new MeetingDto(m.Id, m.UnitId, m.UnitName, m.TeamId, m.TeamName, m.Type, m.Title,
             m.Date, m.EndDate, m.Status,
             m.MemberGroupId is Guid gid ? groupCounts.GetValueOrDefault(gid)
                 : m.TeamId is null ? unitRosterCount : teamRosterCount.GetValueOrDefault(m.TeamId.Value),
-            m.AbsentCount, canManage, m.MemberGroupId, m.GroupName)).ToList();
+            m.AbsentCount, canManage, m.MemberGroupId, m.GroupName, yearLock.IsClosed(m.Date))).ToList();
         return Result<IReadOnlyList<MeetingDto>>.Success(result);
     }
 
@@ -279,7 +320,7 @@ public class GetMeetingAttendanceQueryHandler(IApplicationDbContext context, ICu
 
         return Result<MeetingAttendanceDto>.Success(new MeetingAttendanceDto(
             m.Id, m.UnitId, m.Unit.Name, m.TeamId, m.Team?.Name, m.Type, m.Title, m.Date, m.EndDate, m.Status, canManage, rows,
-            m.MemberGroupId, m.MemberGroup?.Name));
+            m.MemberGroupId, m.MemberGroup?.Name, (await MeetingYearLock.LoadAsync(context, ct)).IsClosed(m.Date)));
     }
 }
 
@@ -376,6 +417,7 @@ public class CreateMeetingCommandHandler(IApplicationDbContext context, ICurrent
 {
     public async ValueTask<Result<Guid>> Handle(CreateMeetingCommand request, CancellationToken ct)
     {
+        if (await MeetingYearLock.ErrorAsync(context, request.Date, ct) is { } closed) return Result<Guid>.Failure(closed);
         Guid unitId;
         Guid? teamId;
         string status;
@@ -484,6 +526,9 @@ public class UpdateMeetingCommandHandler(IApplicationDbContext context, ICurrent
         // Only a CU/CG (manager of the unit) — or the group's manager for a member-group réunion — may edit.
         if (!(isGroup ? AttendanceAccess.CanManageGroupMeeting(currentUser, m.MemberGroup!.ScopeType, m.MemberGroup!.PerUnit, m.UnitId) : AttendanceAccess.CanManageUnit(currentUser, m.UnitId)))
             return Result<bool>.Failure("Seul le chef d'unité peut modifier une réunion.");
+        // Closed year: neither the réunion as it is, nor moving one INTO a closed year.
+        if (await MeetingYearLock.ErrorAsync(context, m.Date, ct) is { } closedFrom) return Result<bool>.Failure(closedFrom);
+        if (await MeetingYearLock.ErrorAsync(context, request.Date, ct) is { } closedTo) return Result<bool>.Failure(closedTo);
 
         // A member-group réunion keeps its computed group (no team); a normal one may set a team of its unit.
         if (!isGroup)
@@ -530,6 +575,7 @@ public class ApproveMeetingCommandHandler(IApplicationDbContext context, ICurren
         if (m is null) return Result<bool>.Failure("Réunion introuvable.");
         if (!AttendanceAccess.CanManageUnit(currentUser, m.UnitId))
             return Result<bool>.Failure("Seul le chef d'unité peut approuver une réunion.");
+        if (await MeetingYearLock.ErrorAsync(context, m.Date, ct) is { } closed) return Result<bool>.Failure(closed);
         m.Status = MeetingStatuses.Approved;
         await context.SaveChangesAsync(ct);
         await audit.LogAsync("Approve", "Meeting", m.Id, newValues: new
@@ -553,6 +599,7 @@ public class DeleteMeetingCommandHandler(IApplicationDbContext context, ICurrent
         // A team leader may delete their OWN still-pending réunion.
         var ownPending = m.Status == MeetingStatuses.Pending && m.CreatedByMemberId == currentUser.MemberId;
         if (!canManage && !ownPending) return Result<bool>.Failure("Accès non autorisé.");
+        if (await MeetingYearLock.ErrorAsync(context, m.Date, ct) is { } closed) return Result<bool>.Failure(closed);
         var unit = await AuditNames.UnitAsync(context, m.UnitId, ct);
         var label = new { Unit = unit, m.Type, Title = m.Title, Date = m.Date.ToString("yyyy-MM-dd") };
         context.Meetings.Remove(m);
@@ -590,6 +637,7 @@ public class SaveMeetingAttendanceCommandHandler(IApplicationDbContext context, 
         var ledTeamIds = await AttendanceAccess.LeadTeamIdsAsync(context, currentUser.MemberId, ct);
         var canFill = canManage || (m.TeamId != null && ledTeamIds.Contains(m.TeamId.Value));
         if (!canFill) return Result<bool>.Failure("Accès non autorisé à cette réunion.");
+        if (await MeetingYearLock.ErrorAsync(context, m.Date, ct) is { } closed) return Result<bool>.Failure(closed);
 
         // Only members actually in the réunion's roster may be marked absent (ignore anything else).
         var rosterQ = await GetMeetingsQueryHandler.RosterQueryForAsync(context, m, ct);

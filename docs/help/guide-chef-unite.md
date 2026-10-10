@@ -362,6 +362,9 @@ les absents (avec un motif si vous le connaissez).
 
 Le nombre d'absences de l'année s'affiche sur la fiche du membre et dans la liste de **Mon unité**.
 
+> 🔒 Une fois le passage publié, l'année précédente est **close** : ses réunions et ses présences restent
+> consultables, mais on ne peut plus en ajouter, en modifier ni en supprimer.
+
 Quand un membre manque **plusieurs réunions de suite** (3 par défaut, réglé par le chef de groupe), vous recevez
 une notification, et son nom apparaît dans **À traiter** jusqu'à ce qu'il revienne. Les parents ne sont pas prévenus.
 

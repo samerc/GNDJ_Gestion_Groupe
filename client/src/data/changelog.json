@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-10", "text": "Réunions & absences : une fois le passage publié, l'année précédente est close. Ses réunions et présences restent visibles (« Année close ») mais ne peuvent plus être ajoutées, modifiées, acceptées ni supprimées." },
       { "date": "2026-10-10", "text": "Réunions & absences : l'année suivante (ex. 2027-2028) n'est proposée dans le choix de l'année qu'en août et septembre, quand les deux années se chevauchent." },
       { "date": "2026-10-10", "text": "Organiser mon unité : une fois le passage publié, les déplacements modifient de nouveau directement l'équipe et la fonction (ils restaient des « propositions » refusées tant que le passage n'était pas fermé). La page Passage le rappelle aux chefs d'unité." },
       { "date": "2026-10-10", "text": "Demandes : une demande acceptée ou refusée après l'envoi des réponses affiche « Envoyer cette réponse » (membre créé, email à la famille, fiche au chef d'unité), au lieu d'attendre un envoi général." },

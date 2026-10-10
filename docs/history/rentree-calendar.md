@@ -318,3 +318,14 @@ What is reset when a scout year starts, run by the CG ONCE per scout year (marke
 - `recentScoutYears(count, withNext?, date?)` (`hooks/use-scout-year.ts`) started at NEXT year all year round, so
   Réunions & absences offered « 2027-2028 » in October 2026. Now next year only in August–September (the changeover);
   `withNext` keeps it for planning pages (document-verification campaign picker).
+
+### 2026-10-10 — Réunions: previous year closed once the passage is published
+- `MeetingYearLock` (`Meetings/MeetingHandlers.cs`): a réunion's year = `ScoutYearHelper.Of(date)`; closed when it is
+  before `passage.scout_year` AND that passage is published (a Finalized line), or older than the year before
+  (always closed). Create / Update (old and new date) / Approve / Delete / SaveAttendance refuse with « L'année
+  scoute … est close (passage publié) ». `MeetingDto.Locked` + `MeetingAttendanceDto.Locked` → card shows « Année
+  close » without approve/edit/delete; attendance dialog read-only; page callout + « Nouvelle réunion » disabled for
+  a closed selected year (client mirrors the rule from passage.scout_year + `PassageStatusDto.Published`, which no
+  longer depends on the passage switch being on).
+- Live-tested as a CU: create in 2025-2026 → 400; move an open réunion into it → 400; edit within 2026-2027 → 204;
+  an old réunion listed Locked, its attendance save / edit / delete → 400.
