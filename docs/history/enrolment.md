@@ -943,3 +943,14 @@ Dry run of « Envoyer les réponses » on a dev copy (161 accepted / 83 refused 
   profile refetch no longer overwrites typing); activation page `submitting` guard covers set-password + sign-in.
 - Live-tested: close refused (245 unsent); parent sees Submitted+locked; re-submit / delete refused; status kept.
 
+### Resend activation — corrected rule (2026-10-10, DEV until deploy)
+The first fix refused « Renvoyer l'email d'activation » for EVERY member who existed before the demande — wrong: a
+FORMER member brought back by the demande gets a new activation link in the acceptance email (same family address),
+so re-sending a lost one is legitimate. Rule now = re-send only what the acceptance email gave:
+- refused for « Déjà membre » (AlreadyMember) and for an ACTIVE member moved by the send (no link was sent; detected
+  as: one of their other posts ended on the day their post in the decided unit started);
+- refused when the account was signed in AFTER the answer (`LastLoginAt > ResponseSentAt`), not merely ever.
+Same "after the answer" rule for `MemberHasLoggedIn` on the portal result page — a former member who signed in years
+ago was shown as « déjà activé » (no steps, no resend button). Live-tested with a former member (allowed) and a
+sign-in after the answer (refused); the active-member case is reasoned, not live-tested.
+

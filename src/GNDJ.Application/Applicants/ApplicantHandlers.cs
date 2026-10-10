@@ -760,10 +760,10 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
             ? new Dictionary<Guid, string>()
             : await context.Units.Where(u => decidedUnitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Name, ct);
         var memberUsers = createdMemberIds.Count == 0
-            ? new Dictionary<Guid, (string Email, bool LoggedIn)>()
+            ? new Dictionary<Guid, (string Email, DateTime? LastLoginAt)>()
             : (await context.Users.Where(u => createdMemberIds.Contains(u.MemberId))
                     .Select(u => new { u.MemberId, u.Email, u.LastLoginAt }).ToListAsync(ct))
-                .ToDictionary(u => u.MemberId, u => (Email: u.Email, LoggedIn: u.LastLoginAt != null));
+                .ToDictionary(u => u.MemberId, u => (Email: u.Email, u.LastLoginAt));
 
         var demandes = demandeEntities.Select(d =>
         {
@@ -772,7 +772,10 @@ public class GetApplicantProfileQueryHandler(IApplicationDbContext context, ICur
             var unitName = d.DecidedUnitId != null ? unitNames.GetValueOrDefault(d.DecidedUnitId.Value) : null;
             var converted = d.CreatedMemberId != null;
             string? username = null; var loggedIn = false;
-            if (d.CreatedMemberId != null && memberUsers.TryGetValue(d.CreatedMemberId.Value, out var mu)) { username = mu.Email; loggedIn = mu.LoggedIn; }
+            // "Already activated" = signed in AFTER this answer. A former member brought back by the demande signed in
+            // years ago, yet just received a new activation link: they still need the steps and the resend button.
+            if (d.CreatedMemberId != null && memberUsers.TryGetValue(d.CreatedMemberId.Value, out var mu))
+            { username = mu.Email; loggedIn = mu.LastLoginAt != null && mu.LastLoginAt > d.ResponseSentAt; }
             return dto with { Converted = converted, DecidedUnitName = unitName, MemberUsername = username, MemberHasLoggedIn = loggedIn };
         }).ToList();
 
@@ -806,16 +809,31 @@ public class ResendMemberActivationCommandHandler(IApplicationDbContext context,
         if (demande.ResponseSentAt is null || demande.CreatedMemberId is null)
             return Result<bool>.Failure("Aucun compte membre n'est associé à cette demande.");
 
-        // Only for an account this demande CREATED and that nobody has activated yet. A reused member (confirmed
-        // « déjà membre » match) or an account already in use belongs to someone who may not be this applicant:
-        // minting a set-password link for it from the portal would let the account holder take over that login.
-        if (demande.Status == DemandeStatus.AlreadyMember || demande.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed)
-            return Result<bool>.Failure("Ce membre avait déjà un compte : utilisez « Mot de passe oublié » sur la page de connexion des membres.");
+        // Re-send ONLY what the acceptance email already gave this family: an activation link, nobody signed in since.
+        //  • New child → link sent: allowed.
+        //  • FORMER member brought back by the demande → their old account got a new link in the acceptance email:
+        //    allowed (same family address — re-sending exposes nothing new).
+        //  • ACTIVE member (« Déjà membre », or moved to another unit by the send) → the send left their login alone and
+        //    sent no link: refused, otherwise whoever holds this portal account could reset a login in daily use.
+        //  • Account already used after the answer → refused (« Mot de passe oublié » goes to the member's own file).
+        const string useForgot = "utilisez « Mot de passe oublié » sur la page de connexion des membres.";
+        if (demande.Status == DemandeStatus.AlreadyMember)
+            return Result<bool>.Failure("Ce membre avait déjà un compte : " + useForgot);
+        var memberId = demande.CreatedMemberId.Value;
+        if (demande.MemberMatchStatus == DemandeMemberMatchStatus.Confirmed && demande.DecidedUnitId is Guid unitId)
+        {
+            // Active at the send = the send ended one of their posts on the very day their new post in this unit started.
+            var starts = await context.MemberAssignments
+                .Where(a => a.MemberId == memberId && a.UnitId == unitId).Select(a => a.StartDate).ToListAsync(ct);
+            var wasActive = starts.Count > 0 && await context.MemberAssignments
+                .AnyAsync(a => a.MemberId == memberId && a.UnitId != unitId && a.EndDate != null && starts.Contains(a.EndDate.Value), ct);
+            if (wasActive) return Result<bool>.Failure("Ce membre avait déjà un compte : " + useForgot);
+        }
 
-        var user = await context.Users.FirstOrDefaultAsync(u => u.MemberId == demande.CreatedMemberId, ct);
+        var user = await context.Users.FirstOrDefaultAsync(u => u.MemberId == memberId, ct);
         if (user is null || !user.IsActive) return Result<bool>.Failure("Compte membre introuvable.");
-        if (user.LastLoginAt is not null)
-            return Result<bool>.Failure("Ce compte est déjà activé : utilisez « Mot de passe oublié » sur la page de connexion des membres.");
+        if (user.LastLoginAt is not null && user.LastLoginAt > demande.ResponseSentAt)
+            return Result<bool>.Failure("Ce compte est déjà activé : " + useForgot);
 
         // Activation-link validity is configurable (member.activation_link_days, default 30).
         var activationDays = int.TryParse(await ApplicantHelpers.Setting(context, "member.activation_link_days", ct), out var ad) && ad > 0 ? ad : 30;
