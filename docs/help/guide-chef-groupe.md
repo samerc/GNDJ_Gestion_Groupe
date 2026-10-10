@@ -214,7 +214,8 @@ gardé) puis envoie à la famille l'email d'accès avec cet identifiant. Plus be
 **Soumettre un brouillon pour la famille.** Une famille a rempli sa demande sans cliquer sur « Soumettre » ?
 **Comptes d'inscription → Voir le brouillon → Ouvrir la demande** (ou Demandes → Filtres → Statut **Brouillons**)
 ouvre la demande complète. Vérifiez-la (**Modifier** pour compléter ce qui manque), puis choisissez :
-- **Soumettre sans décider** : elle passe « À étudier » avec un numéro ; la famille reçoit l'email « demande reçue » ;
+- **Soumettre sans décider** : elle passe « À étudier » avec un numéro. Pendant la période de soumission, la famille
+  reçoit l'email « demande reçue » ; après, l'application vous demande s'il faut l'envoyer ;
 - **Soumettre et accepter** (avec l'unité) ou **Soumettre et refuser** : si les réponses de l'année sont **déjà
   envoyées**, la réponse part **tout de suite** (membre créé avec identifiant, unité, parents ; email à la famille ;
   fiche au chef d'unité). Sinon, la décision part avec **Envoyer les réponses**.

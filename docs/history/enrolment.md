@@ -996,3 +996,8 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
   saying whether the answer goes out now). Live-tested on the dev copy: incomplete → 400, decide on draft → 400,
   accept → F-1253 + login + R1 + Entrée + 2 parents + acceptance + CU email, refuse → refusal email, submit only →
   « demande reçue ».
+- « Demande reçue » email rule (user, same day): sent automatically only during the submission period
+  (`DemandeAdminHelpers.InSubmissionPeriodAsync` = `SubmissionsClosedError(config)` is null, group-wide, no late
+  grants; exposed as `DemandeCampaignStatusDto.InSubmissionPeriod`); outside it the UI asks « Envoyer l'email
+  « demande reçue » ? » (Envoyer / Ne pas envoyer) and passes `SendReceivedEmail`. Never sent when the answer goes out
+  at once. Live-tested outside the period: « Ne pas envoyer » → no email, « Envoyer » → one demande_submitted row.

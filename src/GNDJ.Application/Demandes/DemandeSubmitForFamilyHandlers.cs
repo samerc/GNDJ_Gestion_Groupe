@@ -22,7 +22,9 @@ namespace GNDJ.Application.Demandes;
 // ============================================================
 public record SubmitDraftForFamilyResult(string SerialNumber, string Status, bool ResponseSent, string? SendError);
 
-public record SubmitDraftForFamilyCommand(Guid Id, string? Decision, Guid? DecidedUnitId, string? DecisionNotes)
+// SendReceivedEmail: outside the submission period, whether the CG wants the « demande reçue » email sent (asked in the
+// UI). During the period it is always sent, like a family's own submit.
+public record SubmitDraftForFamilyCommand(Guid Id, string? Decision, Guid? DecidedUnitId, string? DecisionNotes, bool SendReceivedEmail = false)
     : IRequest<Result<SubmitDraftForFamilyResult>>;
 
 public class SubmitDraftForFamilyCommandValidator : AbstractValidator<SubmitDraftForFamilyCommand>
@@ -108,9 +110,10 @@ public class SubmitDraftForFamilyCommandHandler(IApplicationDbContext context, I
             var sent = await mediator.Send(new SendDemandeResponsesCommand(demande.ScoutYear, demande.Id), ct);
             if (!sent.IsSuccess) sendError = sent.Error;
         }
-        else
+        else if (await DemandeAdminHelpers.InSubmissionPeriodAsync(context, ct) || request.SendReceivedEmail)
         {
-            // Not answered now: the family gets the usual « demande reçue » confirmation (its answer comes with the send).
+            // Not answered now: the family gets the usual « demande reçue » confirmation (its answer comes with the send)
+            // — always during the submission period, outside it only when the CG said so.
             await emailQueue.EnqueueAsync(new EmailJob("demande_submitted", account.Email, new Dictionary<string, string>
             {
                 ["contactName"] = account.ContactName ?? "",

@@ -89,6 +89,11 @@ static class DemandeAdminHelpers
     public static Task<bool> ResponsesSentAsync(IApplicationDbContext context, string scoutYear, CancellationToken ct)
         => context.Demandes.AnyAsync(d => d.ScoutYear == scoutYear && d.ResponseSentAt != null, ct);
 
+    // Families can submit right now (portal open, submission window open, deadline not passed) — the group-wide
+    // period, without per-account late grants.
+    public static async Task<bool> InSubmissionPeriodAsync(IApplicationDbContext context, CancellationToken ct)
+        => ApplicantHelpers.SubmissionsClosedError(await ApplicantHelpers.BuildConfig(context, ct)) is null;
+
     // Compare month/day directly rather than building new DateOnly(on.Year, dob.Month, dob.Day): a 29 Feb birthday
     // in a non-leap year would throw ArgumentOutOfRangeException (and 22008 if ever translated to SQL make_date).
     public static int? AgeAt(DateOnly? dob, DateOnly on)
@@ -1958,7 +1963,9 @@ public class SetDemandeSubmissionsCommandHandler(IApplicationDbContext context, 
 // demandes", which archives + deletes them all). Drives the menu: when not active, only the archive is shown.
 // ResponsesSent = « Envoyer les réponses » already ran for this year (a demande got its answer): a draft the CG now
 // submits and decides gets its answer at once (SubmitDraftForFamilyCommand).
-public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear, bool Active, bool ResponsesSent = false);
+// InSubmissionPeriod = families can submit right now (switches + dates): « Soumettre pour la famille » then sends the
+// « demande reçue » email without asking.
+public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear, bool Active, bool ResponsesSent = false, bool InSubmissionPeriod = false);
 public record GetDemandeCampaignStatusQuery : IRequest<Result<DemandeCampaignStatusDto>>;
 
 public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
@@ -1974,6 +1981,7 @@ public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
         var year = map.GetValueOrDefault("demande.scout_year") ?? "";
         var active = enabled || await context.Demandes.AnyAsync(ct);
         var responsesSent = await DemandeAdminHelpers.ResponsesSentAsync(context, year, ct);
-        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year, active, responsesSent));
+        var inPeriod = await DemandeAdminHelpers.InSubmissionPeriodAsync(context, ct);
+        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year, active, responsesSent, inPeriod));
     }
 }

@@ -202,7 +202,7 @@ public class DemandesController : BaseApiController
     [HttpPost("{id:guid}/submit-for-family")]
     [HasPermission(Permissions.DemandeManage)]
     public async Task<IActionResult> SubmitForFamily(Guid id, [FromBody] SubmitForFamilyBody body)
-        => OkOrBadRequest(await Mediator.Send(new SubmitDraftForFamilyCommand(id, body.Decision, body.DecidedUnitId, body.DecisionNotes)));
+        => OkOrBadRequest(await Mediator.Send(new SubmitDraftForFamilyCommand(id, body.Decision, body.DecidedUnitId, body.DecisionNotes, body.SendReceivedEmail)));
 
     /// <summary>
     /// Converts approved demandes into real members (card number, login, deduped guardians, base-role assignment) and
@@ -406,7 +406,7 @@ public class DemandesController : BaseApiController
 
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
     public record SetUnitBody(Guid? DecidedUnitId);
-    public record SubmitForFamilyBody(string? Decision, Guid? DecidedUnitId, string? DecisionNotes);
+    public record SubmitForFamilyBody(string? Decision, Guid? DecidedUnitId, string? DecisionNotes, bool SendReceivedEmail = false);
     // CG edit body: the child fields (DemandeInput) + the shared household (SaveApplicantHouseholdCommand reused
     // as a plain data carrier — its own validator runs via AdminEditDemandeCommandValidator). Fully-qualified to
     // avoid pulling in the whole Applicants namespace (which also declares DeleteDemandeCommand /

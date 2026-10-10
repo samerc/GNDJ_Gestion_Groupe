@@ -443,17 +443,25 @@ export default function DemandeValidationPage() {
     if (!(await confirmAsync({
       title: decision === 'Approved' ? `Soumettre et accepter ${child} ?` : decision === 'Declined' ? `Soumettre et refuser ${child} ?` : `Soumettre la demande de ${child} ?`,
       description: !decision
-        ? "La demande passe « À étudier » avec un numéro, comme si la famille l'avait soumise ; la famille reçoit l'email « demande reçue »."
+        ? "La demande passe « À étudier » avec un numéro, comme si la famille l'avait soumise."
         : sendsNow
           ? (decision === 'Approved'
             ? "Les réponses ont déjà été envoyées : le membre est créé tout de suite (identifiant, unité, parents) et la famille reçoit l'email d'acceptation ; le chef d'unité reçoit sa fiche. C'est définitif."
             : "Les réponses ont déjà été envoyées : la famille reçoit l'email de refus tout de suite.")
-          : "La décision est enregistrée ; elle partira avec « Envoyer les réponses ». La famille reçoit l'email « demande reçue ».",
+          : "La décision est enregistrée ; elle partira avec « Envoyer les réponses ».",
       confirmLabel: decision === 'Approved' ? 'Soumettre et accepter' : decision === 'Declined' ? 'Soumettre et refuser' : 'Soumettre',
       destructive: decision === 'Declined',
     }))) return false
+    // « Demande reçue » email (only when the answer doesn't go out now): automatic during the submission period;
+    // outside it the CG chooses (closing the box = not sent).
+    const sendReceivedEmail = !sendsNow && !campaign?.inSubmissionPeriod && await confirmAsync({
+      title: "Envoyer l'email « demande reçue » ?",
+      description: "La période de soumission est terminée. Voulez-vous quand même envoyer à la famille l'email de confirmation « demande reçue » ?",
+      confirmLabel: "Envoyer l'email",
+      cancelLabel: 'Ne pas envoyer',
+    })
     try {
-      const r = await submitForFamilyMutation.mutateAsync({ id: d.id, decision, decidedUnitId: decision === 'Approved' ? unitId : null, decisionNotes: note || null })
+      const r = await submitForFamilyMutation.mutateAsync({ id: d.id, decision, decidedUnitId: decision === 'Approved' ? unitId : null, decisionNotes: note || null, sendReceivedEmail })
       // The demande leaves the « Brouillons » list: show all so its drawer stays open on the submitted demande.
       if (status === 'Draft') setStatus('all')
       if (r.sendError) toast.error(`Demande ${r.serialNumber} soumise et décidée, mais la réponse n'est pas partie : ${r.sendError} Utilisez « Envoyer les réponses ».`)

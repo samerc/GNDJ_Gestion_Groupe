@@ -194,9 +194,9 @@ export interface SubmitForFamilyResult { serialNumber: string; status: string; r
 export function useSubmitForFamily() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { id: string; decision: 'Approved' | 'Declined' | null; decidedUnitId?: string | null; decisionNotes?: string | null }) =>
+    mutationFn: (data: { id: string; decision: 'Approved' | 'Declined' | null; decidedUnitId?: string | null; decisionNotes?: string | null; sendReceivedEmail?: boolean }) =>
       apiClient.post<SubmitForFamilyResult>(`/demandes/${data.id}/submit-for-family`,
-        { decision: data.decision, decidedUnitId: data.decidedUnitId, decisionNotes: data.decisionNotes }).then((r) => r.data),
+        { decision: data.decision, decidedUnitId: data.decidedUnitId, decisionNotes: data.decisionNotes, sendReceivedEmail: !!data.sendReceivedEmail }).then((r) => r.data),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['demandes'] })
       if (r.responseSent) qc.invalidateQueries({ queryKey: ['members'] })
@@ -376,7 +376,8 @@ export function useCloseCampaign() {
 
 // active = the demande period is running (inscriptions open, or demandes not yet closed/archived) — drives the menu.
 // responsesSent = « Envoyer les réponses » already ran this year (a draft submitted + decided now is answered at once).
-export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string; active: boolean; responsesSent: boolean }
+// inSubmissionPeriod = families can submit right now (« demande reçue » sent without asking on « Soumettre pour la famille »).
+export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string; active: boolean; responsesSent: boolean; inSubmissionPeriod: boolean }
 
 // GET /demandes/campaign-status → portal open? submission window open? scout year (drives the CG toggle).
 export function useCampaignStatus(enabled = true) {
