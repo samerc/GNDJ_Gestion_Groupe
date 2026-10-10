@@ -1284,3 +1284,13 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
 - `/auth/refresh` 500s in the error log were `ConnectionResetException` (phone lost network while IIS read the body
   in `AbuseDetectionMiddleware`). `ExceptionHandlingMiddleware` now treats `ConnectionResetException` / IOException
   on an aborted request like the existing cancelled-request case: Information log, 499, no error reference/alert.
+
+### 2026-10-10 — Refresh race no longer reported as an error
+- Prod journal showed « Concurrency conflict on POST /api/v1/auth/refresh » (Warning) + « responded 500 » (Error) for the
+  same request: two tabs / browser + PWA refreshing the same device session at once. `UserSession.TokenHash` is a
+  concurrency token on purpose (one rotation wins); the loser is answered 409 and `api-client.ts` replays with the
+  tokens the winner stored — the user saw nothing. The « 500 » was the request logger seeing the exception before
+  ExceptionHandlingMiddleware turned it into 409.
+- Now: refresh races are logged at Information (no stack, out of the journal); `GetLevel` maps
+  `DbUpdateConcurrencyException` to Information (the middleware logs other conflicts as Warning itself). Live race
+  test: 1×409, 0×500, nothing in application_logs.

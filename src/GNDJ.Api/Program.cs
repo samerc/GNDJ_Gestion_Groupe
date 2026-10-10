@@ -592,6 +592,8 @@ app.UseSerilogRequestLogging(options =>
         // Client disconnected mid-request → the cancelled query is expected, not an error.
         if (ex is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested) return LogEventLevel.Information;
         if (ex is DbUpdateException { InnerException: Npgsql.PostgresException }) return LogEventLevel.Information;
+        // A concurrency conflict is answered 409 by ExceptionHandlingMiddleware (which logs it itself) — not a 500.
+        if (ex is DbUpdateConcurrencyException) return LogEventLevel.Information;
         if (ex is not null && ex.GetType().FullName?.StartsWith("QuestPDF", StringComparison.Ordinal) == true) return LogEventLevel.Information;
         if (ex is not null || httpContext.Response.StatusCode >= 500) return LogEventLevel.Error;
         return LogEventLevel.Information;

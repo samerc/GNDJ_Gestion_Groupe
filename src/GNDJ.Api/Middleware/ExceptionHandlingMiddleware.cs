@@ -60,7 +60,13 @@ public class ExceptionHandlingMiddleware
             // changed/removed. This is NOT a server fault: it's a transient conflict the user just retries.
             // (Must be caught BEFORE DbUpdateException below — it's a subclass with no PostgresException inner,
             // so it would otherwise fall through to an opaque 500.)
-            _logger.LogWarning(ex, "Concurrency conflict on {Method} {Path}", context.Request.Method, context.Request.Path);
+            // /auth/refresh: two tabs (or browser + installed app) refreshing the same device at the same instant — the
+            // token is a concurrency token, so the second rotation is refused ON PURPOSE and the client replays with the
+            // tokens the first one stored (api-client.ts, 409). Expected, so not a warning in the error journal.
+            if (context.Request.Path.StartsWithSegments("/api/v1/auth/refresh"))
+                _logger.LogInformation("Concurrent refresh of the same session on {Path} — second rotation refused (409)", context.Request.Path);
+            else
+                _logger.LogWarning(ex, "Concurrency conflict on {Method} {Path}", context.Request.Method, context.Request.Path);
             context.Response.StatusCode = 409;
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(JsonSerializer.Serialize(new { error = "Cette information vient d'être modifiée. Veuillez réessayer." }));
