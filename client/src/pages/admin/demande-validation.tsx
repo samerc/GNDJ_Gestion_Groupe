@@ -31,6 +31,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { ActionPreviewPanel } from '@/components/shared/action-preview'
 import { DemandeEditForm } from '@/components/admin/demande-edit-form'
 import { DemandeGrid } from '@/components/admin/demande-grid'
+import { UndoAcceptanceDialog } from '@/components/admin/undo-acceptance-dialog'
 import { LinkRelationDialog, type LinkTarget } from '@/components/admin/link-relation-dialog'
 import { MemberMatchCard } from '@/components/admin/member-match-card'
 import { DemandeFlagReview, type FlagKind } from '@/components/admin/demande-flag-review'
@@ -1324,6 +1325,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
 }) {
   const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
   const isDraft = d.status === 'Draft' // never submitted by the family: the footer offers « Soumettre pour la famille »
+  const [undoOpen, setUndoOpen] = useState(false) // « Annuler l'acceptation » (accepted + member created)
   // CG edit mode: swaps the whole read-only panel for the full edit form (child + household + parents + proches).
   // Reset when navigating to another applicant (keyed on d.id via the render-phase reset below).
   const [editing, setEditing] = useState(false)
@@ -1603,6 +1605,15 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
           <div className="text-sm text-muted-foreground">
             Réponse déjà envoyée le {formatDate(d.responseSentAt)}.
             {d.status === 'Approved' && d.decidedUnitName ? ` Accepté → ${d.decidedUnitName}.` : ''}
+            {/* Refuse after all: removes the member file the acceptance created (login, post…) and sends the refusal. */}
+            {d.status === 'Approved' && (
+              <div className="mt-3">
+                <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setUndoOpen(true)}>
+                  <X className="mr-1 h-4 w-4" />Annuler l'acceptation…
+                </Button>
+              </div>
+            )}
+            {undoOpen && <UndoAcceptanceDialog d={d} reasons={reasons} onClose={() => setUndoOpen(false)} />}
           </div>
         ) : (
           <div className="space-y-3">

@@ -196,6 +196,20 @@ public class DemandesController : BaseApiController
         return Ok(new { success = true });
     }
 
+    /// <summary>« Annuler l'acceptation »: what would be deleted (member created by the demande, login used, documents,
+    /// cotisations) or why it can't be done (reused existing file). demande.manage + group manager.</summary>
+    [HttpGet("{id:guid}/undo-acceptance/preview")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> UndoAcceptancePreview(Guid id)
+        => OkOrBadRequest(await Mediator.Send(new GetUndoAcceptancePreviewQuery(id)));
+
+    /// <summary>« Annuler l'acceptation »: refuses an accepted + sent demande — the member it created is deleted for good
+    /// (login, post, Entrée, data) and the refusal email goes now (sendRefusalNow) or with the next send.</summary>
+    [HttpPost("{id:guid}/undo-acceptance")]
+    [HasPermission(Permissions.DemandeManage)]
+    public async Task<IActionResult> UndoAcceptance(Guid id, [FromBody] UndoAcceptanceBody body)
+        => OkOrBadRequest(await Mediator.Send(new UndoDemandeAcceptanceCommand(id, body.DecisionNotes, body.SendRefusalNow)));
+
     /// <summary>« Soumettre pour la famille »: the CG submits a draft the family never submitted, optionally accepting /
     /// refusing it at once; once the year's answers went out, that answer is sent immediately (member created, emails).
     /// Requires demande.manage (+ group manager in the handler).</summary>
@@ -406,6 +420,7 @@ public class DemandesController : BaseApiController
 
     public record DecideBody(string Status, Guid? DecidedUnitId, string? DecisionNotes);
     public record SetUnitBody(Guid? DecidedUnitId);
+    public record UndoAcceptanceBody(string? DecisionNotes, bool SendRefusalNow);
     public record SubmitForFamilyBody(string? Decision, Guid? DecidedUnitId, string? DecisionNotes, bool SendReceivedEmail = false);
     // CG edit body: the child fields (DemandeInput) + the shared household (SaveApplicantHouseholdCommand reused
     // as a plain data carrier — its own validator runs via AdminEditDemandeCommandValidator). Fully-qualified to

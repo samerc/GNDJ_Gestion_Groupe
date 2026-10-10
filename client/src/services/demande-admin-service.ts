@@ -204,6 +204,33 @@ export function useSubmitForFamily() {
   })
 }
 
+// « Annuler l'acceptation » (accepted + sent demande): preview of what goes away, then the undo (the member created by
+// the demande is deleted for good; refusal email now or with the next send).
+export interface UndoAcceptancePreview {
+  memberName: string; cardNumber: string | null; unitName: string | null; loginUsed: boolean
+  documents: number; cotisations: number; otherPosts: number; blocker: string | null
+}
+export function useUndoAcceptancePreview(demandeId: string | null) {
+  return useQuery({
+    queryKey: ['demandes', 'undo-acceptance', demandeId],
+    queryFn: () => apiClient.get<UndoAcceptancePreview>(`/demandes/${demandeId}/undo-acceptance/preview`).then((r) => r.data),
+    enabled: !!demandeId,
+    staleTime: 0,
+  })
+}
+export function useUndoAcceptance() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; decisionNotes: string | null; sendRefusalNow: boolean }) =>
+      apiClient.post<{ refusalSent: boolean; sendError: string | null }>(`/demandes/${data.id}/undo-acceptance`,
+        { decisionNotes: data.decisionNotes, sendRefusalNow: data.sendRefusalNow }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['demandes'] })
+      qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
 // The shared household (address + situation + parents/tuteurs + proches scouts) as edited by the CG. Same shape
 // the applicant wizard saves; editing it here affects every sibling demande on the account.
 export interface AdminEditHousehold {

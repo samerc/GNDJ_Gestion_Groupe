@@ -1001,3 +1001,19 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
   grants; exposed as `DemandeCampaignStatusDto.InSubmissionPeriod`); outside it the UI asks « Envoyer l'email
   « demande reçue » ? » (Envoyer / Ne pas envoyer) and passes `SendReceivedEmail`. Never sent when the answer goes out
   at once. Live-tested outside the period: « Ne pas envoyer » → no email, « Envoyer » → one demande_submitted row.
+
+### 2026-10-10 — « Annuler l'acceptation » (refuse an accepted + sent demande)
+- Decide was locked once a member existed. New `Demandes/DemandeUndoAcceptanceHandlers.cs`:
+  `GET /demandes/{id}/undo-acceptance/preview` (member, matricule, unit, login used after the answer, documents,
+  cotisations, other posts, blocker) + `POST /demandes/{id}/undo-acceptance {decisionNotes, sendRefusalNow}`
+  (demande.manage + group manager).
+- Only for a file CREATED by the demande. Blocked when the file was reused (`MemberMatchStatus` Confirmed and
+  `MemberMatchId == CreatedMemberId`: a former / active member, incl. a confirm-after-send merge).
+- Steps: leave the sibling group (dissolved under 2), demande → Declined / unit null / CreatedMemberId null /
+  ResponseSentAt null / match cleared, member soft-deleted in the same save, audit « UndoAcceptance » with names, then
+  `IMemberPurgeService.PurgeAsync` right away (the Corbeille purge: user + sessions, posts, Entrée, documents + files,
+  cotisations, contacts, orphan parents; shared parents kept). Refusal email now via the single-demande send, or
+  with the next batch. Re-accepting later creates a fresh file. The chef d'unité is NOT told (the UI says so).
+- UI: `components/admin/undo-acceptance-dialog.tsx` from the drawer footer of an accepted + converted demande.
+  Live-tested: reused file (Sophia BADRO) → 400 with the blocker; Océane (F-1253): member/user/post/Entrée gone, 2
+  shared parents kept, demande Declined + refusal email queued; second call → 400.

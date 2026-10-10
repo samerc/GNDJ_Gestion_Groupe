@@ -220,6 +220,13 @@ ouvre la demande complète. Vérifiez-la (**Modifier** pour compléter ce qui ma
   envoyées**, la réponse part **tout de suite** (membre créé avec identifiant, unité, parents ; email à la famille ;
   fiche au chef d'unité). Sinon, la décision part avec **Envoyer les réponses**.
 
+**Refuser un enfant déjà accepté (réponse envoyée).** Ouvrez sa demande → **Annuler l'acceptation…**. La fenêtre
+montre ce qui sera supprimé : la fiche créée à l'acceptation (matricule, unité, progression « Entrée »), son
+identifiant et son lien d'activation, les parents ajoutés pour cet enfant seulement, et, s'il y en a, les documents et
+cotisations déjà enregistrés. Donnez le motif et choisissez d'envoyer l'email de refus tout de suite (ou avec le
+prochain **Envoyer les réponses**). Le chef d'unité a déjà reçu la fiche de l'enfant : prévenez-le. Pour un enfant
+qui était **déjà membre** (fiche existante réutilisée), ce n'est pas possible : terminez son affectation depuis sa fiche.
+
 > 💡 Si l'enfant ressemble à un membre du groupe (« Déjà membre ? »), soumettez sans décider puis répondez à la
 > question sur la demande, pour ne pas créer une deuxième fiche.
 
