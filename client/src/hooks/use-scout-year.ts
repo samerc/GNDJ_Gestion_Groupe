@@ -18,11 +18,15 @@ export function calendarScoutYear(date: Date = new Date()): string {
   return `${start}-${start + 1}`
 }
 
-// A short list of scout years around today (newest first) for a year picker — includes next year (the
-// pre-season configured year) so both parallel years are selectable during the changeover.
-export function recentScoutYears(count = 4): string[] {
-  const [curStart] = calendarScoutYear().split('-').map(Number)
+// A short list of scout years around today (newest first) for a year picker. During the pre-season (August –
+// September) it starts with NEXT year (the configured year), so both parallel years are selectable through the
+// changeover; from October on, next year isn't offered (it showed « 2027-2028 » in October 2026).
+// withNext: always offer next year (planning pages, e.g. setting up next year's document campaign early).
+export function recentScoutYears(count = 4, withNext = false, date: Date = new Date()): string[] {
+  const [curStart] = calendarScoutYear(date).split('-').map(Number)
+  const preSeason = date.getMonth() === 7 || date.getMonth() === 8 // August, September
+  const newest = preSeason || withNext ? curStart + 1 : curStart
   const years: string[] = []
-  for (let s = curStart + 1; s > curStart + 1 - count; s--) years.push(`${s}-${s + 1}`)
+  for (let s = newest; s > newest - count; s--) years.push(`${s}-${s + 1}`)
   return years
 }

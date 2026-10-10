@@ -313,3 +313,8 @@ What is reset when a scout year starts, run by the CG ONCE per scout year (marke
   is also the item's CanEdit); null start = all day. UI: « Modifier l'heure » in the calendar's detail dialog. The
   date itself is still changed in Paramètres.
 
+
+### 2026-10-10 — Year pickers: next year only in the pre-season
+- `recentScoutYears(count, withNext?, date?)` (`hooks/use-scout-year.ts`) started at NEXT year all year round, so
+  Réunions & absences offered « 2027-2028 » in October 2026. Now next year only in August–September (the changeover);
+  `withNext` keeps it for planning pages (document-verification campaign picker).

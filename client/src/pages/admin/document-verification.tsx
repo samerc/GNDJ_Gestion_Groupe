@@ -78,7 +78,7 @@ export default function DocumentVerificationPage({ embedded = false }: { embedde
   // box where a typo silently broke the campaign.
   const formYear = form?.scoutYear
   const yearOptions = useMemo(() => {
-    const list = recentScoutYears(5)
+    const list = recentScoutYears(5, true) // next year too: the campaign can be prepared ahead
     if (formYear && !list.includes(formYear)) list.unshift(formYear)
     return list
   }, [formYear])
