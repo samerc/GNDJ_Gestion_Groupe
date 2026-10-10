@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-10", "text": "Organiser mon unité : une fois le passage publié, les déplacements modifient de nouveau directement l'équipe et la fonction (ils restaient des « propositions » refusées tant que le passage n'était pas fermé). La page Passage le rappelle aux chefs d'unité." },
       { "date": "2026-10-10", "text": "Demandes : une demande acceptée ou refusée après l'envoi des réponses affiche « Envoyer cette réponse » (membre créé, email à la famille, fiche au chef d'unité), au lieu d'attendre un envoi général." },
       { "date": "2026-10-10", "text": "Demandes : nouvel outil « Listes des chefs d'unité » : la liste à jour des nouveaux membres de chaque unité (unité actuelle, fiche, parents), à télécharger en Excel ou à renvoyer aux chefs d'unité. Un enfant accepté en retard est envoyé seul au chef d'unité, et une acceptation annulée lui est signalée." },
       { "date": "2026-10-10", "text": "Archives des demandes : les parents (noms, téléphones, emails) sont gardés à la clôture. Une demande de l'année suivante est reconnue aussi par un parent en commun, et la recherche trouve un parent par son nom ou son téléphone." },

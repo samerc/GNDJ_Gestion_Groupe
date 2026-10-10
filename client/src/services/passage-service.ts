@@ -91,6 +91,7 @@ export interface PassageNewcomerGroup {
 export interface PassageStatusDto {
   isOpen: boolean
   scoutYear: string
+  published?: boolean // « Publier le passage » already ran this year: nothing left to propose
 }
 
 // ── "Next year" projection (CG simulation) ────────────────────────────────────────────────────────

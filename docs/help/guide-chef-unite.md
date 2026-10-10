@@ -334,7 +334,8 @@ Une vue d'ensemble de votre unité, équipe par équipe, pour déplacer rapideme
 - Glissez un membre d'une équipe à l'autre, ou utilisez le bouton ⇄ au bout de la ligne.
 - Cochez plusieurs membres pour les déplacer ensemble.
 - **Pendant la période de passage**, ces déplacements sont des **propositions** de passage (badges « Pas de
-  changement », « Quitte »…) ; le reste de l'année, ils modifient directement l'équipe et la fonction.
+  changement », « Quitte »…). **Dès que le passage est publié**, et le reste de l'année, ils modifient directement
+  l'équipe et la fonction : c'est ici que vous placez vos nouveaux membres et corrigez les équipes après le passage.
 
 ## Modifications à valider
 

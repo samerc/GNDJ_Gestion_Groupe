@@ -266,3 +266,11 @@ below had hit it (`deploy/diagnostics/passage-publish-check.sql`, run it on prod
   publish can't have its rolled-back edits saved by the status write; the status write is guarded and the managers
   are always notified.
 
+
+### 2026-10-10 — « Organiser mon unité » after the passage is published
+- CUs couldn't fix teams after the publish: `passage.enabled` stays true after « Publier le passage », so the board
+  stayed in proposal mode (Mode B) and every proposal was refused (lines Finalized / unit finished).
+- `PassageStatusDto.Published` (= `MaitrisePlan.IsPublishedAsync`: a Finalized line this year). Board proposal mode
+  = open AND not published → back to live moves (Mode A, edits the active assignment in place; no passage gate on
+  the server). Passage page: « Le passage est publié » callout → « Organiser mon unité », and the « unité terminée —
+  seule la Maîtrise… » callout is hidden once published. Checked as a real CU (R1) on the dev copy.

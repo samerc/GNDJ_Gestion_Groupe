@@ -692,7 +692,15 @@ export function PassageUnitPanel({ unitId: forcedUnitId, embedded = false }: { u
       )}
       </>)}
 
-      {unitLocked ? (
+      {/* Published: lines are final. Teams / functions are fixed live on « Organiser mon unité » (not proposals any more). */}
+      {passageStatus?.published && !embedded && (
+        <Callout tone="info" icon={LayoutGrid} title="Le passage est publié">
+          Pour corriger l'équipe ou la fonction d'un membre, utilisez{' '}
+          <button type="button" className="font-medium text-primary underline-offset-2 hover:underline" onClick={() => navigate('/organiser')}>Organiser mon unité</button>
+          {' '}: les changements y sont enregistrés immédiatement.
+        </Callout>
+      )}
+      {passageStatus?.published && !embedded ? null : unitLocked ? (
         <Callout tone="info" icon={Lock}>
           Vous avez terminé le passage de l'unité{unitStatus?.submittedAt ? ` le ${formatDate(unitStatus.submittedAt)}` : ''}.
           Seule la Maîtrise de Groupe peut encore modifier les lignes. Vous verrez ici ses décisions et leurs raisons.

@@ -380,7 +380,9 @@ public class GetPassageProjectionQueryHandler(IApplicationDbContext context, ICu
 
 // 4. IsPassageOpen — Checks if passage is enabled for this year
 public record IsPassageOpenQuery(string ScoutYear) : IRequest<Result<PassageStatusDto>>;
-public record PassageStatusDto(bool IsOpen, string ScoutYear);
+// Published = « Publier le passage » already ran for that year (lines Finalized): the passage switch can stay on, but
+// there is nothing left to propose — « Organiser mon unité » goes back to live team / function edits.
+public record PassageStatusDto(bool IsOpen, string ScoutYear, bool Published = false);
 
 public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequestHandler<IsPassageOpenQuery, Result<PassageStatusDto>>
 {
@@ -390,8 +392,9 @@ public class IsPassageOpenQueryHandler(IApplicationDbContext context) : IRequest
 
         // Passage is open if enabled AND the requested year matches the configured year
         var isOpen = isEnabled && (string.IsNullOrEmpty(request.ScoutYear) || configuredYear == request.ScoutYear);
+        var published = isOpen && await Maitrises.MaitrisePlan.IsPublishedAsync(context, configuredYear, ct);
 
-        return Result<PassageStatusDto>.Success(new PassageStatusDto(isOpen, configuredYear));
+        return Result<PassageStatusDto>.Success(new PassageStatusDto(isOpen, configuredYear, published));
     }
 }
 

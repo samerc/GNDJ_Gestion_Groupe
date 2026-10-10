@@ -77,10 +77,11 @@ export default function OrganizeUnitPage() {
 
   // ── Passage (Mode B) ── When the CG has OPENED the passage, the board becomes a PROPOSAL surface: moves are
   // saved as passage proposals (nothing is applied until the CG finalizes), with branch/quitte options. When
-  // passage is closed, the board is a live roster tidy (Mode A) exactly as before.
+  // passage is closed — or already PUBLISHED (the switch may stay on) — the board is a live roster tidy (Mode A):
+  // the CU fixes teams / functions after the passage (« passage fermé » complaints, 2026-10-10).
   const scoutYear = useCurrentScoutYear()
   const { data: passageStatus } = usePassageStatus(scoutYear)
-  const proposalMode = !!passageStatus?.isOpen && !!unitId
+  const proposalMode = !!passageStatus?.isOpen && !passageStatus.published && !!unitId
   const { data: unitPassages } = usePassagesByUnit(proposalMode ? unitId : '', scoutYear)
   const { data: allRoles } = useFunctionalRoles()
   const proposeMutation = useProposePassage()
