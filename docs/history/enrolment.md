@@ -954,3 +954,13 @@ Same "after the answer" rule for `MemberHasLoggedIn` on the portal result page �
 ago was shown as « déjà activé » (no steps, no resend button). Live-tested with a former member (allowed) and a
 sign-in after the answer (refused); the active-member case is reasoned, not live-tested.
 
+
+### 2026-10-10 — Full scheduled-send rehearsal on prod data + manual send clears the schedule
+- Dev synced from the 11:23 prod dump, send scheduled 4 min ahead: ran on its own, 177 accepted (169 new members +
+  8 linked, all placed in their decided unit with a login), 69 refused / 68 emails (Ella KASSAB = active member,
+  no refusal email by design), 12 CU emails with the Excel, managers' bell, no warnings. Activation link tested end
+  to end (set password → login with identifiant → link single-use). smtp4dev's default numberOfMessagesToKeep=100
+  silently pruned older mail → raised to 100000 (re-queued the pruned outbox rows).
+- `SendDemandeResponsesCommand` (by hand) now clears `demande.responses_scheduled_at` in its transaction — a pending
+  schedule no longer fires a second, empty run later. Same for the passage publish (`PassageFinalizeSchedule`).
+  (The scheduled run itself already cleared it before running.)

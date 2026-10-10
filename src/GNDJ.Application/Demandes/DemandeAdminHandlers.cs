@@ -1570,6 +1570,10 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                     ? "Fratrie inscrite ensemble (même compte d'inscription)" : "Fratrie détectée à l'inscription (proche déclaré)", ct);
         }
 
+        // The responses are out: a scheduled send still pending (this send was done by hand) has nothing left to do —
+        // clear it in the same transaction, so the job doesn't fire later and report a confusing second run.
+        await ScheduledRun.SaveAsync(context, DemandeResponsesSchedule.Keys, null, ct);
+
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 

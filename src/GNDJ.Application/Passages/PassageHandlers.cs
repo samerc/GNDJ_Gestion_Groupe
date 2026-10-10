@@ -1242,6 +1242,9 @@ public class FinalizePassagesCommandHandler(IApplicationDbContext context, ICurr
         // The maîtrise plan (Maîtrises page) is applied with the passage: same transaction, same date.
         var maitriseChanges = await GNDJ.Application.Maitrises.MaitrisePlan.ApplyAsync(context, request.ScoutYear, passageDate, ct);
 
+        // Published: a scheduled publication still pending (this one was done by hand) is cleared with it.
+        await ScheduledRun.SaveAsync(context, PassageFinalizeSchedule.Keys, null, ct);
+
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
