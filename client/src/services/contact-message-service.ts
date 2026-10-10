@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
 export interface ContactMessageDto {
+  deletedAt?: string | null // only in the « Supprimés » view
   id: string
   senderName: string
   senderEmail: string
@@ -45,7 +46,7 @@ export interface ContactMessageListDto {
   openCount: number
 }
 
-export type ContactMessageStatus = 'open' | 'resolved' | 'all'
+export type ContactMessageStatus = 'open' | 'resolved' | 'all' | 'deleted' // deleted = the bin (restorable)
 
 // GET /contact-messages — paged inbox (unread first, then newest). search + unreadOnly optional.
 export function useContactMessages(params: { search?: string; unreadOnly?: boolean; status?: ContactMessageStatus; page?: number; pageSize?: number }) {

@@ -234,3 +234,9 @@ Two items from the CG's live test of the public site.
       roles, senior first ("Assistant de Groupe · Trésorier de Groupe") — GroupBy on the rank-desc leaderRows.
       Builds clean; DEV until deploy.
 
+
+### 2026-10-10 — Contact messages: « Supprimés » bin
+- A CG deleted a family's message by mistake (restored by SQL on prod). The delete was already a soft delete with a
+  restore endpoint, but only reachable from the toast « Annuler ». Now `GET /contact-messages?status=deleted` lists the
+  soft-deleted ones (IgnoreQueryFilters, newest deletion first, `DeletedAt` in the DTO) and the page has a
+  « Supprimés » tab with « Restaurer ». Restore is audited (« Restore », sender + subject). Nothing purges them.

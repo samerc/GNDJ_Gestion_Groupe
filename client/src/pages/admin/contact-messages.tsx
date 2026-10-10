@@ -78,6 +78,7 @@ export default function ContactMessagesPage() {
             { value: 'open', label: <>À traiter{typeof data?.openCount === 'number' ? ` (${data.openCount})` : ''}</> },
             { value: 'resolved', label: 'Résolus' },
             { value: 'all', label: 'Tous' },
+            { value: 'deleted', label: 'Supprimés' },
           ]}
         />
         <SearchInput
@@ -105,10 +106,35 @@ export default function ContactMessagesPage() {
           description={debounced || unreadOnly ? 'Aucun message ne correspond à ce filtre.'
             : status === 'open' ? 'Tous les messages ont été traités.'
             : status === 'resolved' ? "Aucun message n'a encore été marqué comme résolu."
+            : status === 'deleted' ? 'Aucun message supprimé.'
             : "Vous n'avez pas encore reçu de message de contact."} />
       ) : (
         <div className="space-y-2">
-          {data.items.map((m) => (
+          {status === 'deleted' && (
+            <p className="text-xs text-muted-foreground">Les messages supprimés restent ici : « Restaurer » les remet dans la boîte de réception, avec leurs réponses.</p>
+          )}
+          {data.items.map((m) => m.deletedAt ? (
+            // In the bin: no detail dialog (nothing to do with it but restore it).
+            <div key={m.id} className="flex w-full items-start gap-3 rounded-lg border bg-muted/30 p-4">
+              <span className="mt-0.5 shrink-0 text-muted-foreground"><Trash2 className="h-5 w-5" /></span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <span className="truncate font-medium">{m.senderName}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">Reçu le {formatDateTime(m.createdAt)}</span>
+                </div>
+                <p className="truncate text-sm">{m.subject}</p>
+                <p className="truncate text-xs text-muted-foreground">{m.message}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Supprimé le {formatDateTime(m.deletedAt)}</p>
+              </div>
+              <Button size="sm" variant="outline" disabled={restore.isPending}
+                onClick={() => restore.mutate(m.id, {
+                  onSuccess: () => toast.success('Message restauré'),
+                  onError: (e) => toast.error(parseApiError(e)),
+                })}>
+                <RotateCcw className="mr-1.5 h-4 w-4" />Restaurer
+              </Button>
+            </div>
+          ) : (
             <button
               key={m.id}
               type="button"

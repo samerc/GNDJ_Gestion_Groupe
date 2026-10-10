@@ -19,14 +19,17 @@ public record ContactMessageDto(
     // (so the dialog can warn instead of pretending it will be delivered).
     string? ReplyToEmail = null,
     // Every reply sent, oldest first (a second reply no longer replaces the first one).
-    IReadOnlyList<ContactMessageReplyDto>? Replies = null);
+    IReadOnlyList<ContactMessageReplyDto>? Replies = null,
+    // Set only in the « Supprimés » view: when the message was deleted (it can be restored from there).
+    DateTime? DeletedAt = null);
 
 public record ContactMessageReplyDto(Guid Id, string Subject, string Body, string SentTo, string? RepliedByName, DateTime CreatedAt);
 
 public record ContactMessageListDto(IReadOnlyList<ContactMessageDto> Items, int Total, int UnreadCount, bool HasMore, int OpenCount = 0);
 
 // ── List (paged, unread first then newest) with accent-insensitive search ─────
-// Status: "open" (not resolved — the default inbox), "resolved", anything else = all.
+// Status: "open" (not resolved — the default inbox), "resolved", "deleted" (the bin: soft-deleted messages, restorable),
+// anything else = all (not deleted).
 public record GetContactMessagesQuery(string? Search = null, bool UnreadOnly = false, int Page = 1, int PageSize = 20, string? Status = null)
     : IRequest<ContactMessageListDto>;
 
@@ -38,7 +41,11 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
         var page = Math.Max(1, request.Page);
         var size = Math.Clamp(request.PageSize, 1, 100);
 
-        var q = context.ContactMessages.AsQueryable();
+        var deletedView = request.Status == "deleted";
+        // The bin reads past the soft-delete filter (deleted rows only); every other view keeps the filter.
+        var q = deletedView
+            ? context.ContactMessages.IgnoreQueryFilters().Where(m => m.IsDeleted)
+            : context.ContactMessages.AsQueryable();
 
         // Accent- + case-insensitive search across sender name/email/subject/message (same helper as member/audit
         // search). `s` stays a plain lowercased C# string; DbFns.Unaccent is applied INSIDE the expression on both
@@ -60,16 +67,18 @@ public class GetContactMessagesQueryHandler(IApplicationDbContext context)
         var total = await q.CountAsync(ct);
         if (request.UnreadOnly) q = q.Where(m => !m.IsRead);
 
-        var items = await q
-            .OrderBy(m => m.ResolvedAt != null)     // still to handle first
-            .ThenBy(m => m.IsRead)                  // then unread
-            .ThenByDescending(m => m.CreatedAt)     // then newest
+        var ordered = deletedView
+            ? q.OrderByDescending(m => m.DeletedAt) // most recently deleted first
+            : q.OrderBy(m => m.ResolvedAt != null)  // still to handle first
+               .ThenBy(m => m.IsRead)               // then unread
+               .ThenByDescending(m => m.CreatedAt); // then newest
+        var items = await ordered
             .Skip((page - 1) * size).Take(size + 1) // +1 to detect "has more"
             .Select(m => new ContactMessageDto(
                 m.Id, m.SenderName, m.SenderEmail, m.Subject, m.Message,
                 m.IsRead, m.CreatedAt, m.RepliedAt, m.ReplySubject, m.ReplyBody,
                 m.ClaimedByUserId, m.ClaimedByName, m.ClaimedAt,
-                m.ResolvedAt, m.ResolvedByName))
+                m.ResolvedAt, m.ResolvedByName, null, null, m.IsDeleted ? m.DeletedAt : null))
             .ToListAsync(ct);
 
         var hasMore = items.Count > size;
@@ -296,14 +305,19 @@ public class DeleteContactMessageCommandHandler(IApplicationDbContext context, I
 // by the soft-delete filter.
 public record RestoreContactMessageCommand(Guid Id) : IRequest<Result<bool>>;
 
-public class RestoreContactMessageCommandHandler(IApplicationDbContext context)
+public class RestoreContactMessageCommandHandler(IApplicationDbContext context, IAuditService audit)
     : IRequestHandler<RestoreContactMessageCommand, Result<bool>>
 {
     public async ValueTask<Result<bool>> Handle(RestoreContactMessageCommand request, CancellationToken ct)
     {
         var m = await context.ContactMessages.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == request.Id, ct);
         if (m is null) return Result<bool>.Failure("Message introuvable.");
-        if (m.IsDeleted) { m.IsDeleted = false; m.DeletedAt = null; m.DeletedBy = null; await context.SaveChangesAsync(ct); }
+        if (m.IsDeleted)
+        {
+            m.IsDeleted = false; m.DeletedAt = null; m.DeletedBy = null;
+            await context.SaveChangesAsync(ct);
+            await audit.LogAsync("Restore", "ContactMessage", m.Id, newValues: new { Expediteur = m.SenderName, Objet = m.Subject }, cancellationToken: ct);
+        }
         return Result<bool>.Success(true);
     }
 }
