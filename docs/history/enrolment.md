@@ -972,3 +972,9 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
   « Mes documents » (FM signed online, AUT prefilled download, ID), 23 Oct deadline, first meeting, meeting/pick-up
   points, uniform, transport → the optional « Fiche du service des transports » document. Years via {{scoutYear}} /
   {{year}}; days/times reviewed yearly by the CG. Refusal letter (`demande_declined`) was pasted by hand on prod.
+
+### 2026-10-10 — Draft-only accounts: « Voir le brouillon »
+- « Voir les demandes » on Comptes d'inscription opened an empty review list for accounts with drafts only (the review
+  list never shows drafts; the button keyed on `demandeCount`, which counts drafts). Now: « Voir les demandes » only when
+  `submittedCount > 0`; « Voir le brouillon » when drafts exist → read-only dialog (`demande-drafts-dialog.tsx`,
+  `GET /demandes/accounts/{id}/drafts`, group managers only).

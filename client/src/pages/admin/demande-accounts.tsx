@@ -22,7 +22,8 @@ import { SearchInput } from '@/components/shared/search-input'
 import { Tip } from '@/components/ui/tooltip'
 import { CopyButton } from '@/components/shared/copy-button'
 import { DemandeInvitesPanel } from '@/components/admin/demande-invites-panel'
-import { CheckCircle2, MailWarning, ShieldCheck, FileText, FileX, KeyRound, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck } from 'lucide-react'
+import { CheckCircle2, MailWarning, ShieldCheck, FileText, FileX, KeyRound, Trash2, ArrowUp, ArrowDown, ArrowUpDown, MailCheck, FilePen } from 'lucide-react'
+import { DemandeDraftsDialog } from '@/components/admin/demande-drafts-dialog'
 import { toast } from 'sonner'
 import type { DemandeAccount } from '@/services/demande-admin-service'
 
@@ -69,9 +70,9 @@ function DemandesSummary({ submitted, total, className }: { submitted: number; t
 // The per-account action buttons — shared by the desktop table cell (justify-end) and the mobile card
 // (flex-wrap). "Demandes" is the PRIMARY action (the only way into a account's demandes now that the row
 // isn't clickable) so it's filled; the rest are outline utilities. Each has a tooltip explaining what it does.
-function AccountActions({ a, clickable, onView, onReset, onVerify, onDelete, className }: {
+function AccountActions({ a, clickable, onView, onDrafts, onReset, onVerify, onDelete, className }: {
   a: DemandeAccount; clickable: boolean
-  onView: (a: DemandeAccount) => void; onReset: (a: DemandeAccount) => void
+  onView: (a: DemandeAccount) => void; onDrafts: (a: DemandeAccount) => void; onReset: (a: DemandeAccount) => void
   onVerify: (a: DemandeAccount) => void; onDelete: (a: DemandeAccount) => void; className?: string
 }) {
   return (
@@ -79,6 +80,12 @@ function AccountActions({ a, clickable, onView, onReset, onVerify, onDelete, cla
       {clickable && (
         <Tip content="Voir les demandes (enfants) de ce compte">
           <Button size="sm" onClick={() => onView(a)}><FileText className="mr-1.5 h-4 w-4" />Voir les demandes</Button>
+        </Tip>
+      )}
+      {/* Drafts never reach the review list (only submitted demandes do) — shown read-only here instead. */}
+      {a.demandeCount > a.submittedCount && (
+        <Tip content="Voir ce que la famille a commencé sans le soumettre">
+          <Button size="sm" variant="outline" onClick={() => onDrafts(a)}><FilePen className="mr-1.5 h-4 w-4" />Voir le brouillon</Button>
         </Tip>
       )}
       {!a.emailVerified && (
@@ -144,8 +151,9 @@ export default function DemandeAccountsPage() {
   }, [accounts, sortBy, sortDir])
 
   // Jump to the review page filtered to this account's demande(s).
+  const [draftsOf, setDraftsOf] = useState<DemandeAccount | null>(null)
   const viewDemandes = (a: DemandeAccount) => {
-    if (a.demandeCount === 0) return
+    if (a.submittedCount === 0) return
     navigate(`/admin/demandes?account=${a.id}`)
   }
 
@@ -240,7 +248,7 @@ export default function DemandeAccountsPage() {
               </TableHeader>
               <TableBody>
                 {sorted.map((a) => {
-                  const clickable = a.demandeCount > 0
+                  const clickable = a.submittedCount > 0 // the review list shows submitted demandes only
                   return (
                     <TableRow key={a.id}>
                       <TableCell className="py-1.5 text-sm font-medium break-all">{a.email}</TableCell>
@@ -248,7 +256,7 @@ export default function DemandeAccountsPage() {
                       <TableCell className="py-1.5"><StatusBadge verified={a.emailVerified} /></TableCell>
                       <TableCell className="py-1.5 text-center"><DemandesSummary submitted={a.submittedCount} total={a.demandeCount} /></TableCell>
                       <TableCell className="py-1.5 text-right">
-                        <AccountActions a={a} clickable={clickable} onView={viewDemandes} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="justify-end" />
+                        <AccountActions a={a} clickable={clickable} onView={viewDemandes} onDrafts={setDraftsOf} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="justify-end" />
                       </TableCell>
                     </TableRow>
                   )
@@ -260,7 +268,7 @@ export default function DemandeAccountsPage() {
           {/* Mobile: card list (the table columns squeeze the email into unreadable character-wrapping). */}
           <div className="space-y-2 md:hidden">
             {sorted.map((a) => {
-              const clickable = a.demandeCount > 0
+              const clickable = a.submittedCount > 0 // the review list shows submitted demandes only
               return (
                 <div key={a.id} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -271,7 +279,7 @@ export default function DemandeAccountsPage() {
                     </div>
                     <StatusBadge verified={a.emailVerified} />
                   </div>
-                  <AccountActions a={a} clickable={clickable} onView={viewDemandes} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="mt-2.5 flex-wrap" />
+                  <AccountActions a={a} clickable={clickable} onView={viewDemandes} onDrafts={setDraftsOf} onReset={(x) => setToReset(x)} onVerify={(x) => setToVerify(x)} onDelete={(x) => setToDelete(x)} className="mt-2.5 flex-wrap" />
                 </div>
               )
             })}
@@ -279,6 +287,7 @@ export default function DemandeAccountsPage() {
         </>
       )}
 
+      {draftsOf && <DemandeDraftsDialog account={draftsOf} onClose={() => setDraftsOf(null)} />}
       <ConfirmDialog
         open={!!toVerify}
         onOpenChange={(o) => !o && setToVerify(null)}

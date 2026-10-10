@@ -261,6 +261,13 @@ public class DemandesController : BaseApiController
     public async Task<IActionResult> Accounts([FromQuery] bool unverifiedOnly = false, [FromQuery] string? search = null, [FromQuery] bool notSubmittedOnly = false)
         => OkOrBadRequest(await Mediator.Send(new GetDemandeAccountsQuery(unverifiedOnly, search, notSubmittedOnly)));
 
+    /// <summary>The drafts (never submitted) of one applicant account, read-only. Requires demande.view (+ group
+    /// manager in the handler).</summary>
+    [HttpGet("accounts/{id:guid}/drafts")]
+    [HasPermission(Permissions.DemandeView)]
+    public async Task<IActionResult> AccountDrafts(Guid id)
+        => OkOrBadRequest(await Mediator.Send(new GetAccountDraftsQuery(id)));
+
     /// <summary>Manually marks an applicant account's email as verified (safety net when the verification email
     /// never arrived, so the parent can log in + submit). Requires demande.manage.</summary>
     [HttpPost("accounts/{id:guid}/verify-email")]

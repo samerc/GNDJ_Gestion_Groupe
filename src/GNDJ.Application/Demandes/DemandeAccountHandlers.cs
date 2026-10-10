@@ -187,3 +187,30 @@ public class VerifyApplicantEmailManuallyCommandHandler(
         return Result<bool>.Success(true);
     }
 }
+
+// The DRAFTS of one account (never submitted by the family), read-only — the review list only shows submitted /
+// decided demandes, so for an account with only drafts « Voir les demandes » used to open an empty page. Lets the
+// CG see what the family started and tell them what's missing.
+public record DemandeDraftDto(Guid Id, string ScoutYear, string FirstName, string LastName, DateOnly? DateOfBirth,
+    string? Gender, string? School, string? Classe, string? Section, string? ParentNotes,
+    DateTime CreatedAt, DateTime? LastEditedAt);
+
+public record GetAccountDraftsQuery(Guid AccountId) : IRequest<Result<IReadOnlyList<DemandeDraftDto>>>;
+
+public class GetAccountDraftsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUser)
+    : IRequestHandler<GetAccountDraftsQuery, Result<IReadOnlyList<DemandeDraftDto>>>
+{
+    public async ValueTask<Result<IReadOnlyList<DemandeDraftDto>>> Handle(GetAccountDraftsQuery request, CancellationToken ct)
+    {
+        // Same audience as the accounts list (group-wide parent data).
+        if (!MemberAccess.IsGroupManager(currentUser))
+            return Result<IReadOnlyList<DemandeDraftDto>>.Failure("Accès non autorisé.");
+        var drafts = await context.Demandes
+            .Where(d => d.ApplicantAccountId == request.AccountId && d.Status == GNDJ.Domain.Enums.DemandeStatus.Draft)
+            .OrderByDescending(d => d.LastEditedAt ?? d.CreatedAt)
+            .Select(d => new DemandeDraftDto(d.Id, d.ScoutYear, d.FirstName, d.LastName, d.DateOfBirth, d.Gender, d.School,
+                d.Classe, d.Section, d.ParentNotes, d.CreatedAt, d.LastEditedAt))
+            .ToListAsync(ct);
+        return Result<IReadOnlyList<DemandeDraftDto>>.Success(drafts);
+    }
+}

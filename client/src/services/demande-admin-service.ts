@@ -392,6 +392,19 @@ export interface DemandeAccount {
   createdAt: string
 }
 
+// GET /demandes/accounts/{id}/drafts → the account's never-submitted drafts (read-only).
+export interface DemandeDraft {
+  id: string; scoutYear: string; firstName: string; lastName: string; dateOfBirth: string | null
+  gender: string | null; school: string | null; classe: string | null; section: string | null; parentNotes: string | null
+  createdAt: string; lastEditedAt: string | null
+}
+export function useAccountDrafts(accountId: string) {
+  return useQuery({
+    queryKey: ['demandes', 'accounts', accountId, 'drafts'],
+    queryFn: () => apiClient.get<DemandeDraft[]>(`/demandes/accounts/${accountId}/drafts`).then((r) => r.data),
+  })
+}
+
 // GET /demandes/accounts → applicant accounts (incl. unverified ones with no demande, so a parent whose
 // verification email failed is visible). Optional unverifiedOnly + notSubmittedOnly + search.
 // notSubmittedOnly = accounts with no submitted demande (the "Relancer les non-soumis" audience).
