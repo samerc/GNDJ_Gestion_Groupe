@@ -412,3 +412,6 @@ Every member got their access in 2026, and new chefs are existing members, so th
   `demande.scout_year` for `demande*` templates (the campaign is for NEXT year) or `passage.scout_year`.
   Composer lists them under the demande variables. Reason: the refusal letter had 2025-2026 / 2026-2027 / 2027 /
   2028 typed in. Reminder: an unknown {{x}} is NOT removed — it reaches the family as literal text.
+- Système → configuration check (`ConfigurationChecks.EmailTemplatesAsync`) accepts the year variables for every
+  template and `{{year±N}}` as a well-formed placeholder (it flagged the new refusal letter as an error — caught
+  by the smoke suite before deploy).

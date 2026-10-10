@@ -114,7 +114,8 @@ public static partial class ConfigurationChecks
             var matches = PlaceholderRegex().Matches(text);
             var used = matches.Select(m => m.Groups[1].Value).Distinct().ToList();
             var declared = DeclaredKeys(t.Variables);
-            var unknown = declared is null ? [] : used.Where(u => !declared.Contains(u)).ToList();
+            // The year variables are filled for every template by EmailService, whatever the template declares.
+            var unknown = declared is null ? [] : used.Where(u => !declared.Contains(u) && !GlobalYearVariables.Contains(u) && !YearOffsetRegex().IsMatch(u)).ToList();
             if (unknown.Count > 0)
                 issues.Add(new("error",
                     $"Modèle « {t.Name} » : {string.Join(", ", unknown.Select(u => "{{" + u + "}}"))} ne sera pas remplacé (variable inconnue).",
@@ -129,6 +130,8 @@ public static partial class ConfigurationChecks
         }
         return issues;
     }
+
+    private static readonly HashSet<string> GlobalYearVariables = ["scoutYear", "previousScoutYear", "nextScoutYear", "year"];
 
     // null = the list can't be read (then no "unknown variable" is reported — we'd only be guessing).
     private static HashSet<string>? DeclaredKeys(string? json)
@@ -163,7 +166,9 @@ public static partial class ConfigurationChecks
     };
 
     [GeneratedRegex(@"^(\d{4})-(\d{4})$")] private static partial Regex ScoutYearRegex();
-    [GeneratedRegex(@"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")] private static partial Regex PlaceholderRegex();
+    // {{name}}, or {{year+N}} / {{year-N}} (the year offsets EmailService resolves).
+    [GeneratedRegex(@"\{\{\s*(year\s*[+-]\s*\d{1,2}|[A-Za-z0-9_]+)\s*\}\}")] private static partial Regex PlaceholderRegex();
+    [GeneratedRegex(@"^year\s*[+-]\s*\d{1,2}$")] private static partial Regex YearOffsetRegex();
     [GeneratedRegex(@"\{\{")] private static partial Regex OpenRegex();
     [GeneratedRegex(@"\}\}")] private static partial Regex CloseRegex();
 }
