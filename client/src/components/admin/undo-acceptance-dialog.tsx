@@ -28,7 +28,7 @@ export function UndoAcceptanceDialog({ d, reasons, onClose }: { d: DemandeReview
       const r = await undo.mutateAsync({ id: d.id, decisionNotes: motif.trim() || null, sendRefusalNow: sendNow })
       if (r.sendError) toast.error(`Acceptation annulée, mais l'email de refus n'est pas parti : ${r.sendError} Utilisez « Envoyer les réponses ».`)
       else if (r.refusalSent) emailToast(`Acceptation de ${child} annulée : fiche supprimée, email de refus en file d'envoi`)
-      else toast.success(`Acceptation de ${child} annulée : fiche supprimée. Le refus partira avec « Envoyer les réponses ».`)
+      else toast.success(`Acceptation de ${child} annulée : fiche supprimée, aucun email envoyé.`)
       onClose()
     } catch (err) { toast.error(parseApiError(err)) }
   }
@@ -69,10 +69,10 @@ export function UndoAcceptanceDialog({ d, reasons, onClose }: { d: DemandeReview
               </div>
             </div>
             <label className="flex items-center gap-2">
-              <Switch checked={sendNow} onCheckedChange={setSendNow} aria-label="Envoyer l'email de refus maintenant" />
-              Envoyer l'email de refus à la famille maintenant
+              <Switch checked={sendNow} onCheckedChange={setSendNow} aria-label="Envoyer l'email de refus à la famille" />
+              Envoyer l'email de refus à la famille
             </label>
-            {!sendNow && <p className="text-xs text-muted-foreground">Le refus partira avec le prochain « Envoyer les réponses ».</p>}
+            {!sendNow && <p className="text-xs text-muted-foreground">Aucun email : la demande est marquée refusée sans prévenir la famille (elle ne partira pas non plus avec « Envoyer les réponses »).</p>}
             <p className="text-xs text-muted-foreground">Le chef d'unité a déjà reçu la fiche de cet enfant : prévenez-le.</p>
           </div>
         )}

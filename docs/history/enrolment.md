@@ -1017,3 +1017,5 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
 - UI: `components/admin/undo-acceptance-dialog.tsx` from the drawer footer of an accepted + converted demande.
   Live-tested: reused file (Sophia BADRO) → 400 with the blocker; Océane (F-1253): member/user/post/Entrée gone, 2
   shared parents kept, demande Declined + refusal email queued; second call → 400.
+- Undo without email (user, same day): `SendRefusalNow=false` now means NO email — the demande is marked answered
+  (ResponseSentAt = now) so a later batch never sends a refusal. Dialog switch « Envoyer l'email de refus à la famille ».

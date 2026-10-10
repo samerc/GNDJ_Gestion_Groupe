@@ -14,8 +14,8 @@ namespace GNDJ.Application.Demandes;
 // Only for a member CREATED by this demande: the new file is removed for good with everything the send made for it
 // (login + sessions + activation link, post, Entrée, parents nobody else uses, fratrie link) plus anything added
 // since (documents, cotisations) — the same physical purge as the Corbeille (IMemberPurgeService), run at once so a
-// later re-acceptance starts clean. The demande becomes « Refusée », not sent; the refusal email goes now (optional)
-// or with the next « Envoyer les réponses ».
+// later re-acceptance starts clean. The demande becomes « Refusée »: the refusal email goes now (SendRefusalNow), or
+// no email at all — then it is marked answered (ResponseSentAt) so a later « Envoyer les réponses » never sends one.
 // A REUSED file (« Déjà membre ? » confirmed: former / active member) is refused: that person existed before the
 // demande, so their fiche is changed by hand (end the post), never deleted.
 // ============================================================
@@ -97,7 +97,8 @@ public class UndoDemandeAcceptanceCommandHandler(IApplicationDbContext context, 
         d.DecidedUnitId = null;
         d.DecisionNotes = request.DecisionNotes;
         d.CreatedMemberId = null;
-        d.ResponseSentAt = null;
+        // Email now → unsent here, the single-demande send below answers it. No email → answered as of now, silently.
+        d.ResponseSentAt = request.SendRefusalNow ? null : DateTime.UtcNow;
         d.MemberMatchId = null;
         d.MemberMatchStatus = null;
         d.ReviewedByUserId = currentUser.UserId;
@@ -121,11 +122,11 @@ public class UndoDemandeAcceptanceCommandHandler(IApplicationDbContext context, 
 
         // Audit BEFORE the purge (afterwards the member id points to nothing), with readable names.
         await audit.LogAsync("UndoAcceptance", "Demande", d.Id, oldValues: new { Membre = memberName, Matricule = cardNumber, Unite = unitName },
-            newValues: new { Status = d.Status, Motif = d.DecisionNotes }, cancellationToken: ct);
+            newValues: new { Status = d.Status, Motif = d.DecisionNotes, EmailRefus = request.SendRefusalNow }, cancellationToken: ct);
         // Physical delete: login (+ sessions), posts, Entrée, documents, cotisations, contacts, parents nobody else uses.
         await purge.PurgeAsync(memberId, ct);
 
-        // Refusal email now (same single-demande send as « Soumettre pour la famille »), or later with the batch.
+        // Refusal email now (same single-demande send as « Soumettre pour la famille »); otherwise none.
         string? sendError = null;
         if (request.SendRefusalNow)
         {
