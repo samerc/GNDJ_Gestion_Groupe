@@ -488,3 +488,7 @@ Reviewed (backend + frontend) and live-tested before switching FM to « Rempliss
   < 10 points = no signature. Button needs `hasHtmlTemplate`.
 - Not changed (decisions): no required fields; a chef filling for a family picks Père/Mère (no « chef » relation);
   a Pending document blocks a corrected re-send until the chef rejects it.
+- **Decision (same day): online signing = family only.** `OnlineFormGate` refuses when `user.MemberId != memberId`
+  (« Seule la famille peut signer ce document en ligne… »); the button shows only on the member's own fiche
+  (`isOwnProfile`, now also passed by the member panel when it's the viewer's own file). A chef helping a family
+  downloads the prefilled PDF — unsigned, the parent signs it. Chefs no longer need to fill for families (uploads work).

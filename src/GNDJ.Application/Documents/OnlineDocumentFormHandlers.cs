@@ -30,6 +30,10 @@ internal static class OnlineFormGate
         Guid memberId, Guid documentTypeId, CancellationToken ct)
     {
         if (!await DocumentAccessHelper.CanAccessMember(context, user, memberId, ct)) return (null, "Accès non autorisé à ce membre.");
+        // Signed online by the family only (the member's own account — a parent uses the child's account). A chef who
+        // helps a family downloads the prefilled PDF instead: it stays unsigned until the parent signs it.
+        if (user.MemberId != memberId)
+            return (null, "Seule la famille peut signer ce document en ligne. Téléchargez-le pour le faire signer sur papier.");
         var block = await DocumentAccessHelper.MemberUploadBlockReasonAsync(context, user, memberId, ct);
         if (block is not null) return (null, block);
         var dt = await context.DocumentTypes.FirstOrDefaultAsync(d => d.Id == documentTypeId && d.IsActive, ct);

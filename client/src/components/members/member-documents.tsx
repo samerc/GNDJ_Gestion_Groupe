@@ -429,14 +429,15 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                       data; otherwise a static uploaded file. The in-app template takes precedence. Shown only
                       when the member still needs to (re)submit (canDownloadTemplate). */}
                   {/* « Remplir en ligne »: fill the blanks on the phone + sign with a finger → the signed PDF arrives
-                      « à vérifier » like an upload. Only for types the admin made fillable online. */}
-                  {canDownloadTemplate && canUpload && dt.onlineFillable && dt.hasHtmlTemplate && (
+                      « à vérifier » like an upload. Only for types the admin made fillable online, and only on the
+                      member's own fiche: a chef helping a family downloads the prefilled PDF (unsigned) instead. */}
+                  {canDownloadTemplate && canUpload && isOwnProfile && dt.onlineFillable && dt.hasHtmlTemplate && (
                     <button type="button" onClick={() => setOnlineFormType(dt.id)}
                       className="mr-2 mt-2 inline-flex h-10 items-center gap-1.5 rounded-md border border-primary bg-primary px-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:h-9">
                       <PenLine className="h-4 w-4" />Remplir et signer en ligne
                     </button>
                   )}
-                  {canDownloadTemplate && dt.hasHtmlTemplate && dt.onlineFillable && canUpload ? (
+                  {canDownloadTemplate && dt.hasHtmlTemplate && dt.onlineFillable && canUpload && isOwnProfile ? (
                     // Online is the main way; paper stays available as a small link.
                     <button type="button" onClick={() => handleDownloadMemberTemplate(dt)} disabled={templatePdfLoadingId === dt.id}
                       className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60">
@@ -491,7 +492,7 @@ export function MemberDocuments({ memberId, isOwnProfile }: Props) {
                     <>
                       <Button
                         // Not the main action when the document can be signed online (the scan of a paper copy).
-                        variant={doc || (dt.onlineFillable && dt.hasHtmlTemplate) ? 'outline' : 'default'}
+                        variant={doc || (isOwnProfile && dt.onlineFillable && dt.hasHtmlTemplate) ? 'outline' : 'default'}
                         size="sm"
                         className={TEXT_BTN}
                         onClick={() => {

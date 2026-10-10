@@ -630,7 +630,7 @@ export function MemberDetailPanel({ memberId, onDeleted, initialTab, onBack }: {
           <TabsContent value="dossier" className="mt-0 space-y-8">
             <div>
               <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><FileSpreadsheet className="h-4 w-4 text-primary/70" />Documents</h4>
-              <MemberDocuments memberId={memberId} />
+              <MemberDocuments memberId={memberId} isOwnProfile={memberId === currentMemberId} />
             </div>
             <div>
               <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><CreditCard className="h-4 w-4 text-primary/70" />Cotisations</h4>
