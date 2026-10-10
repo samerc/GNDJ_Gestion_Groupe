@@ -1279,3 +1279,8 @@ Measured first (all API endpoints 1–235 ms on dev; page loads 1–1.6 s; compr
 - **Smoke suite**: default CG/CU accounts updated after the 2026 publish (christian.asmar / valerie.chedid.el.helou);
   62/62 API + 21/21 browser checks pass.
 
+
+### 2026-10-10 — Client disconnects no longer logged as 500
+- `/auth/refresh` 500s in the error log were `ConnectionResetException` (phone lost network while IIS read the body
+  in `AbuseDetectionMiddleware`). `ExceptionHandlingMiddleware` now treats `ConnectionResetException` / IOException
+  on an aborted request like the existing cancelled-request case: Information log, 499, no error reference/alert.

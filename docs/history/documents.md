@@ -456,3 +456,13 @@ Two related document items (all on main, DEV until deploy; migration-free — re
   old rows); receipt number = highest NUMBER + 1 (string max broke past 9999).
 - Live-tested: odd file name upload, 2 parallel uploads → 1 doc, page on accepted doc refused, zip valid.
 
+
+### 2026-10-10 — Template fonts after the QuestPDF 2026.9 upgrade
+- Prod log: every member-PDF of « Autorisation des parents » failed with `DocumentDrawingException: font families
+  not available: 'Times New Roman'`. QuestPDF ≥ 2026.9 no longer reads system fonts, and an unknown family FAILS
+  the document instead of falling back.
+- `Infrastructure/Services/PdfFonts`: at startup registers the template builder's families (Arial, Times New
+  Roman, Georgia, Verdana, Tahoma, Calibri, Courier New — client `FONT_FAMILIES`) from `%WINDIR%\Fonts`;
+  `DocumentTemplateRenderer.StyleSpan` applies a family only if `PdfFonts.IsAvailable`, else keeps Lato.
+  Adding a font to the builder = add its file prefix to `PdfFonts.FilePrefixes`.
+- Verified: the failing type/member now returns a PDF embedding TimesNewRomanPSMT + Bold.

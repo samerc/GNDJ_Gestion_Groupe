@@ -100,6 +100,15 @@ public class ExceptionHandlingMiddleware
             // (nobody reads it — the connection is gone).
             if (!context.Response.HasStarted) context.Response.StatusCode = 499;
         }
+        catch (IOException ex) when (ex is Microsoft.AspNetCore.Connections.ConnectionResetException
+                                     || context.RequestAborted.IsCancellationRequested)
+        {
+            // Same thing one step earlier: the phone dropped off the network while IIS was still reading the
+            // request body (seen on /auth/refresh from mobile). Not a server fault — no 500, no admin alert.
+            _logger.LogInformation("Client disconnected during {Method} {Path}: {Message}",
+                context.Request.Method, context.Request.Path, ex.Message);
+            if (!context.Response.HasStarted) context.Response.StatusCode = 499;
+        }
         catch (Exception ex)
         {
             // A genuine, unexpected server fault. Mint a short REFERENCE so the user, the logs and the admin

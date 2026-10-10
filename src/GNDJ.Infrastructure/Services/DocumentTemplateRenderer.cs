@@ -512,7 +512,8 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
         if (style.Italic) span.Italic();
         if (style.Underline) span.Underline();
         if (style.Strike) span.Strikethrough();
-        if (style.FontFamily is not null) span.FontFamily(style.FontFamily);
+        // Only a registered family: an unknown one would fail the whole PDF (QuestPDF ≥ 2026.9), so keep the default.
+        if (style.FontFamily is not null && PdfFonts.IsAvailable(style.FontFamily)) span.FontFamily(style.FontFamily);
         if (style.FontSize is not null) span.FontSize(style.FontSize.Value);
     }
 

@@ -105,6 +105,7 @@ public static class DependencyInjection
 
         // PDF services
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        PdfFonts.Register(); // the template builder's Windows fonts (QuestPDF no longer reads system fonts)
         services.AddSingleton<IReceiptService, ReceiptService>();
         services.AddSingleton<ITrombinoscoreService, TrombinoscoreService>();
         services.AddSingleton<IMemberCardService, MemberCardService>();
