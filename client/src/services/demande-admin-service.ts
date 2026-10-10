@@ -188,6 +188,22 @@ export function useDecideDemande() {
   })
 }
 
+// « Soumettre pour la famille »: the CG submits a draft (optionally accepting / refusing it at once). Once the year's
+// answers went out, the answer is sent right away (responseSent) — member created, emails queued.
+export interface SubmitForFamilyResult { serialNumber: string; status: string; responseSent: boolean; sendError: string | null }
+export function useSubmitForFamily() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { id: string; decision: 'Approved' | 'Declined' | null; decidedUnitId?: string | null; decisionNotes?: string | null }) =>
+      apiClient.post<SubmitForFamilyResult>(`/demandes/${data.id}/submit-for-family`,
+        { decision: data.decision, decidedUnitId: data.decidedUnitId, decisionNotes: data.decisionNotes }).then((r) => r.data),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['demandes'] })
+      if (r.responseSent) qc.invalidateQueries({ queryKey: ['members'] })
+    },
+  })
+}
+
 // The shared household (address + situation + parents/tuteurs + proches scouts) as edited by the CG. Same shape
 // the applicant wizard saves; editing it here affects every sibling demande on the account.
 export interface AdminEditHousehold {
@@ -359,7 +375,8 @@ export function useCloseCampaign() {
 }
 
 // active = the demande period is running (inscriptions open, or demandes not yet closed/archived) — drives the menu.
-export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string; active: boolean }
+// responsesSent = « Envoyer les réponses » already ran this year (a draft submitted + decided now is answered at once).
+export interface DemandeCampaignStatus { enabled: boolean; submissionsOpen: boolean; scoutYear: string; active: boolean; responsesSent: boolean }
 
 // GET /demandes/campaign-status → portal open? submission window open? scout year (drives the CG toggle).
 export function useCampaignStatus(enabled = true) {

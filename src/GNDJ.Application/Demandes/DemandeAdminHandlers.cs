@@ -85,6 +85,10 @@ public record DemandeStatisticsDto(
 
 static class DemandeAdminHelpers
 {
+    // The year's answers already went out (at least one demande was answered by « Envoyer les réponses »).
+    public static Task<bool> ResponsesSentAsync(IApplicationDbContext context, string scoutYear, CancellationToken ct)
+        => context.Demandes.AnyAsync(d => d.ScoutYear == scoutYear && d.ResponseSentAt != null, ct);
+
     // Compare month/day directly rather than building new DateOnly(on.Year, dob.Month, dob.Day): a 29 Feb birthday
     // in a non-leap year would throw ArgumentOutOfRangeException (and 22008 if ever translated to SQL make_date).
     public static int? AgeAt(DateOnly? dob, DateOnly on)
@@ -179,9 +183,12 @@ public static class DemandeReviewList
     {
         var today = LebanonClock.Today;
 
-        // Only show submitted / decided demandes (never drafts).
-        var query = context.Demandes.Where(d => d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft);
-        if (!string.IsNullOrEmpty(request.Status)) query = query.Where(d => d.Status == request.Status);
+        // Submitted / decided demandes only — drafts appear only when asked for (Status = Draft, « Brouillons »), so
+        // the CG can open one in full and submit it for the family (SubmitDraftForFamilyCommand).
+        var query = request.Status == DemandeStatus.Draft
+            ? context.Demandes.Where(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Draft)
+            : context.Demandes.Where(d => d.ScoutYear == request.ScoutYear && d.Status != DemandeStatus.Draft);
+        if (!string.IsNullOrEmpty(request.Status) && request.Status != DemandeStatus.Draft) query = query.Where(d => d.Status == request.Status);
         if (!string.IsNullOrEmpty(request.Gender)) query = query.Where(d => d.Gender == request.Gender);
         if (!string.IsNullOrEmpty(request.School)) query = query.Where(d => d.School == request.School);
         if (!string.IsNullOrEmpty(request.Classe)) query = query.Where(d => d.Classe == request.Classe);
@@ -793,6 +800,8 @@ public class DecideDemandeCommandValidator : AbstractValidator<DecideDemandeComm
 
 public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IAuditService audit) : IRequestHandler<DecideDemandeCommand, Result<bool>>
 {
+    public const string DraftNotSubmitted = "Cette demande est un brouillon : soumettez-la d'abord pour la famille.";
+
     public async ValueTask<Result<bool>> Handle(DecideDemandeCommand request, CancellationToken ct)
     {
         if (request.Status != DemandeStatus.Approved && request.Status != DemandeStatus.Declined && request.Status != DemandeStatus.Submitted)
@@ -800,6 +809,8 @@ public class DecideDemandeCommandHandler(IApplicationDbContext context, ICurrent
 
         var demande = await context.Demandes.FirstOrDefaultAsync(d => d.Id == request.Id, ct);
         if (demande is null) return Result<bool>.Failure("Demande introuvable.");
+        // A draft is decided through « Soumettre pour la famille » (number, checks, immediate send) — never directly.
+        if (demande.Status == DemandeStatus.Draft) return Result<bool>.Failure(DraftNotSubmitted);
         // A response already went out. Re-deciding is allowed ONLY when no member was created (a declined
         // applicant the CG now wants to reconsider): clearing ResponseSentAt re-enters it into the pending
         // queue so the next "Envoyer les réponses" processes just this one (an individual re-send). A
@@ -1013,6 +1024,7 @@ public class BulkDecideDemandeCommandHandler(IApplicationDbContext context, ICur
         foreach (var d in demandes)
         {
             if (d.ResponseSentAt is not null) { skipped++; continue; } // locked — already sent
+            if (d.Status == DemandeStatus.Draft) { skipped++; continue; }  // never submitted — see SubmitDraftForFamily
 
             if (approving)
             {
@@ -1070,7 +1082,10 @@ public class SetUnitIntakeQuotaCommandHandler(IApplicationDbContext context) : I
 // Send responses — convert approved demandes into members, mark all decided as sent
 // ============================================================
 public record SendDemandeResponsesResult(int Approved, int Declined, int AlreadyMembers = 0);
-public record SendDemandeResponsesCommand(string ScoutYear) : IRequest<Result<SendDemandeResponsesResult>>;
+// OnlyDemandeId: send just that one demande's answer (a draft the CG submitted and decided for the family after the
+// answers already went out — SubmitDraftForFamilyCommand). Other decided-unsent or undecided demandes are left alone,
+// and a pending schedule is kept.
+public record SendDemandeResponsesCommand(string ScoutYear, Guid? OnlyDemandeId = null) : IRequest<Result<SendDemandeResponsesResult>>;
 
 public class SendDemandeResponsesCommandValidator : AbstractValidator<SendDemandeResponsesCommand>
 {
@@ -1096,6 +1111,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         // emailed set-password link (see the activation token below), so this hash just makes the row valid.
         var preApprovedIds = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null && d.Status == DemandeStatus.Approved)
+            .Where(d => request.OnlyDemandeId == null || d.Id == request.OnlyDemandeId)
             .Select(d => d.Id).ToListAsync(ct);
         var creds = new System.Collections.Concurrent.ConcurrentDictionary<Guid, string>(); // demande id → password hash
         await Parallel.ForEachAsync(preApprovedIds, ct, async (id, c) =>
@@ -1110,7 +1126,8 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
         // Completeness gate: results cannot be posted while any submitted application is still
         // awaiting a decision. Every submitted demande must be Approved or Declined first.
-        var undecided = await context.Demandes
+        // (A single-demande send only needs that one decided — checked by the pending query below.)
+        var undecided = request.OnlyDemandeId is not null ? 0 : await context.Demandes
             .CountAsync(d => d.ScoutYear == request.ScoutYear && d.Status == DemandeStatus.Submitted && d.ResponseSentAt == null, ct);
         if (undecided > 0)
             return Result<SendDemandeResponsesResult>.Failure($"{undecided} demande(s) encore en attente de décision. Toutes les demandes doivent être acceptées ou refusées avant l'envoi des réponses.");
@@ -1118,6 +1135,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
         var pending = await context.Demandes
             .Where(d => d.ScoutYear == request.ScoutYear && d.ResponseSentAt == null
                 && (d.Status == DemandeStatus.Approved || d.Status == DemandeStatus.Declined || d.Status == DemandeStatus.AlreadyMember))
+            .Where(d => request.OnlyDemandeId == null || d.Id == request.OnlyDemandeId)
             .ToListAsync(ct);
 
         var approved = pending.Where(d => d.Status == DemandeStatus.Approved).ToList();
@@ -1574,7 +1592,9 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
 
         // The responses are out: a scheduled send still pending (this send was done by hand) has nothing left to do —
         // clear it in the same transaction, so the job doesn't fire later and report a confusing second run.
-        await ScheduledRun.SaveAsync(context, DemandeResponsesSchedule.Keys, null, ct);
+        // (Not for a single-demande send: the others are still to be sent by the schedule.)
+        if (request.OnlyDemandeId is null)
+            await ScheduledRun.SaveAsync(context, DemandeResponsesSchedule.Keys, null, ct);
 
         await context.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -1591,7 +1611,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
             unitsWithoutCu = await NotifyUnitLeadersAsync(approved, memberByDemande, acctGuardians, acctSiblingRelations, unitNames, request.ScoutYear, ct);
         }
         catch (Exception ex) { Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(logger, ex, "Envoi aux chefs d'unité des nouveaux membres échoué ({ScoutYear})", request.ScoutYear); }
-        await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, AlreadyMembers = alreadyMembers.Count, request.ScoutYear, UnitsWithoutCu = unitsWithoutCu }, cancellationToken: ct);
+        await audit.LogAsync("SendResponses", "Demande", null, newValues: new { Approved = approved.Count, Declined = declined.Count, AlreadyMembers = alreadyMembers.Count, request.ScoutYear, UnitsWithoutCu = unitsWithoutCu, OnlyDemande = request.OnlyDemandeId }, cancellationToken: ct);
 
         return Result<SendDemandeResponsesResult>.Success(new SendDemandeResponsesResult(approved.Count, declined.Count, alreadyMembers.Count));
     }
@@ -1936,7 +1956,9 @@ public class SetDemandeSubmissionsCommandHandler(IApplicationDbContext context, 
 // Campaign status for the CG review page: is the portal open, is the submission window open, and the year.
 // Active = the demande period is running: inscriptions open OR demandes still exist (not yet "Clôturer les
 // demandes", which archives + deletes them all). Drives the menu: when not active, only the archive is shown.
-public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear, bool Active);
+// ResponsesSent = « Envoyer les réponses » already ran for this year (a demande got its answer): a draft the CG now
+// submits and decides gets its answer at once (SubmitDraftForFamilyCommand).
+public record DemandeCampaignStatusDto(bool Enabled, bool SubmissionsOpen, string ScoutYear, bool Active, bool ResponsesSent = false);
 public record GetDemandeCampaignStatusQuery : IRequest<Result<DemandeCampaignStatusDto>>;
 
 public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
@@ -1951,6 +1973,7 @@ public class GetDemandeCampaignStatusQueryHandler(IApplicationDbContext context)
         var submissionsOpen = map.GetValueOrDefault("demande.submissions_open") != "false";
         var year = map.GetValueOrDefault("demande.scout_year") ?? "";
         var active = enabled || await context.Demandes.AnyAsync(ct);
-        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year, active));
+        var responsesSent = await DemandeAdminHelpers.ResponsesSentAsync(context, year, ct);
+        return Result<DemandeCampaignStatusDto>.Success(new DemandeCampaignStatusDto(enabled, submissionsOpen, year, active, responsesSent));
     }
 }

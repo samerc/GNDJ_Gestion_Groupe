@@ -211,6 +211,17 @@ gardé) puis envoie à la famille l'email d'accès avec cet identifiant. Plus be
 
 ![Comptes d'inscription](img/cg-demande-comptes.png)
 
+**Soumettre un brouillon pour la famille.** Une famille a rempli sa demande sans cliquer sur « Soumettre » ?
+**Comptes d'inscription → Voir le brouillon → Ouvrir la demande** (ou Demandes → Filtres → Statut **Brouillons**)
+ouvre la demande complète. Vérifiez-la (**Modifier** pour compléter ce qui manque), puis choisissez :
+- **Soumettre sans décider** : elle passe « À étudier » avec un numéro ; la famille reçoit l'email « demande reçue » ;
+- **Soumettre et accepter** (avec l'unité) ou **Soumettre et refuser** : si les réponses de l'année sont **déjà
+  envoyées**, la réponse part **tout de suite** (membre créé avec identifiant, unité, parents ; email à la famille ;
+  fiche au chef d'unité). Sinon, la décision part avec **Envoyer les réponses**.
+
+> 💡 Si l'enfant ressemble à un membre du groupe (« Déjà membre ? »), soumettez sans décider puis répondez à la
+> question sur la demande, pour ne pas créer une deuxième fiche.
+
 **Clôturer les demandes** (en fin de période) archive toutes les demandes puis **supprime** tous les comptes
 et données du portail d'inscription. Les membres déjà créés ne sont pas touchés. Irréversible : à faire quand
 toutes les réponses sont envoyées.

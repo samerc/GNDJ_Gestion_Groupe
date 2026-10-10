@@ -13,7 +13,7 @@ import { useSearchParams } from 'react-router'
 import { useSetting, useSettingValue, useSettingArray, useSchoolCode } from '@/services/settings-service'
 import {
   useDemandesForReview, useUnitOccupancy, useDecideDemande, useDeleteDemande, useBulkDecideDemande, useSetIntakeQuota, useSendResponses, useSendResponsesPreview, useCloseCampaign,
-  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember,
+  useCampaignStatus, useSetSubmissions, useSetDemandeUnit, useUnlinkRelationMember, useSubmitForFamily,
   useExportDecisions, useImportDecisions, useUnsubmittedCount, useSendSubmissionReminders, useRejectionReasons,
   type DemandeReview, type UnitOccupancy, type ImportDecisionsResult, type RejectionReason,
 } from '@/services/demande-admin-service'
@@ -111,6 +111,7 @@ function statusInfo(d: DemandeReview): { border: string; label: string } {
   if (d.status === 'Approved') return { border: 'border-l-green-500', label: d.responseSentAt ? 'Acceptée (envoyée)' : 'Acceptée' }
   if (d.status === 'Declined') return { border: 'border-l-red-500', label: d.responseSentAt ? 'Refusée (envoyée)' : 'Refusée' }
   if (d.status === 'AlreadyMember') return { border: 'border-l-sky-500', label: d.responseSentAt ? 'Déjà membre (fiche mise à jour)' : 'Déjà membre' }
+  if (d.status === 'Draft') return { border: 'border-l-slate-400', label: 'Brouillon' }
   return { border: 'border-l-amber-500', label: 'À étudier' }
 }
 
@@ -119,6 +120,7 @@ function statusBadgeClass(d: DemandeReview): string {
   if (d.status === 'Approved') return 'bg-success-subtle text-success'
   if (d.status === 'Declined') return 'bg-destructive-subtle text-destructive'
   if (d.status === 'AlreadyMember') return 'bg-info-subtle text-info'
+  if (d.status === 'Draft') return 'bg-muted text-muted-foreground'
   return 'bg-warning-subtle text-warning'
 }
 // Sort order for the "Statut" column: to-study first, then accepted, then declined.
@@ -166,8 +168,13 @@ export default function DemandeValidationPage() {
   const siblingsTogether = useSettingValue('demande.decide_siblings_together') === 'true'
   const schoolCode = useSchoolCode()
 
+  // Optional ?account=<id> — set when arriving from the "Comptes d'inscription" page to view one account's demandes
+  // (+ ?status=Draft&open=<id> from its « Brouillons » dialog: opens that draft straight away).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountFilter = searchParams.get('account') || undefined
+
   // Server-side filters (status/gender/classe/age) vs client-side search box (handled in `rows`).
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(() => searchParams.get('status') === 'Draft' ? 'Draft' : 'all')
   const [gender, setGender] = useState('all')
   const [classe, setClasse] = useState('')
   const [ageMin, setAgeMin] = useState('')
@@ -197,10 +204,6 @@ export default function DemandeValidationPage() {
   const gridSchools = useSettingArray('member.schools')
   const [sortKey, setSortKey] = useState<SortKey>('lastName')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-
-  // Optional ?account=<id> — set when arriving from the "Comptes d'inscription" page to view one account's demandes.
-  const [searchParams, setSearchParams] = useSearchParams()
-  const accountFilter = searchParams.get('account') || undefined
 
   const filters = useMemo(() => ({
     status: status === 'all' ? undefined : status,
@@ -256,7 +259,7 @@ export default function DemandeValidationPage() {
   const [sendOpen, setSendOpen] = useState(false)
   const sendPreview = useSendResponsesPreview(scoutYear, sendOpen)
   const [closeOpen, setCloseOpen] = useState(false)
-  const [detailId, setDetailId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(() => searchParams.get('open'))
   const [deleteTarget, setDeleteTarget] = useState<DemandeReview | null>(null)  // single delete confirm
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)                    // bulk delete confirm
 
@@ -402,7 +405,7 @@ export default function DemandeValidationPage() {
 
   // Selectable = visible & not locked. Only a CONVERTED demande (member created) is locked; a sent
   // *declined* one can be re-opened (re-deciding it clears the sent flag → re-enters the send queue).
-  const selectableIds = useMemo(() => rows.filter((d) => !d.createdMemberId).map((d) => d.id), [rows])
+  const selectableIds = useMemo(() => rows.filter((d) => !d.createdMemberId && d.status !== 'Draft').map((d) => d.id), [rows])
   const selectedCount = selected.size
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id))
   const someSelected = selectedCount > 0 && !allSelected
@@ -426,6 +429,36 @@ export default function DemandeValidationPage() {
     try {
       await decideMutation.mutateAsync({ id: d.id, status: newStatus, decidedUnitId: newStatus === 'Approved' ? unitId : null, decisionNotes: note || null })
       toast.success(newStatus === 'Approved' ? "Demande acceptée (en attente d'envoi)" : "Demande refusée (en attente d'envoi)")
+      return true
+    } catch (err) { toast.error(parseApiError(err)); return false }
+  }
+
+  // « Soumettre pour la famille » (a draft): submit, optionally deciding it. Once the year's answers went out, the
+  // decision is answered at once (member created, emails) — confirmed first, it can't be undone.
+  const submitForFamilyMutation = useSubmitForFamily()
+  const submitForFamily = async (d: DemandeReview, decision: 'Approved' | 'Declined' | null, unitId: string | null, note: string | null) => {
+    if (decision === 'Approved' && !unitId) { toast.error('Veuillez choisir une unité'); return false }
+    const child = `${d.firstName} ${d.lastName}`.trim()
+    const sendsNow = !!decision && !!campaign?.responsesSent
+    if (!(await confirmAsync({
+      title: decision === 'Approved' ? `Soumettre et accepter ${child} ?` : decision === 'Declined' ? `Soumettre et refuser ${child} ?` : `Soumettre la demande de ${child} ?`,
+      description: !decision
+        ? "La demande passe « À étudier » avec un numéro, comme si la famille l'avait soumise ; la famille reçoit l'email « demande reçue »."
+        : sendsNow
+          ? (decision === 'Approved'
+            ? "Les réponses ont déjà été envoyées : le membre est créé tout de suite (identifiant, unité, parents) et la famille reçoit l'email d'acceptation ; le chef d'unité reçoit sa fiche. C'est définitif."
+            : "Les réponses ont déjà été envoyées : la famille reçoit l'email de refus tout de suite.")
+          : "La décision est enregistrée ; elle partira avec « Envoyer les réponses ». La famille reçoit l'email « demande reçue ».",
+      confirmLabel: decision === 'Approved' ? 'Soumettre et accepter' : decision === 'Declined' ? 'Soumettre et refuser' : 'Soumettre',
+      destructive: decision === 'Declined',
+    }))) return false
+    try {
+      const r = await submitForFamilyMutation.mutateAsync({ id: d.id, decision, decidedUnitId: decision === 'Approved' ? unitId : null, decisionNotes: note || null })
+      // The demande leaves the « Brouillons » list: show all so its drawer stays open on the submitted demande.
+      if (status === 'Draft') setStatus('all')
+      if (r.sendError) toast.error(`Demande ${r.serialNumber} soumise et décidée, mais la réponse n'est pas partie : ${r.sendError} Utilisez « Envoyer les réponses ».`)
+      else if (r.responseSent) emailToast(decision === 'Approved' ? `Demande ${r.serialNumber} acceptée : membre créé, email d'acceptation en file d'envoi` : `Demande ${r.serialNumber} refusée : email de refus en file d'envoi`)
+      else toast.success(`Demande ${r.serialNumber} soumise${decision === 'Approved' ? ' et acceptée (en attente d\'envoi)' : decision === 'Declined' ? ' et refusée (en attente d\'envoi)' : ''}`)
       return true
     } catch (err) { toast.error(parseApiError(err)); return false }
   }
@@ -525,7 +558,7 @@ export default function DemandeValidationPage() {
   // Ready to close only once every demande is decided AND its response sent (nothing left to send/review).
   const canClose = all.length > 0 && undecided === 0 && pendingSend === 0
 
-  const busy = decideMutation.isPending || bulkMutation.isPending || deleteMutation.isPending
+  const busy = decideMutation.isPending || bulkMutation.isPending || deleteMutation.isPending || submitForFamilyMutation.isPending
 
   return (
     <Page>
@@ -698,6 +731,7 @@ export default function DemandeValidationPage() {
               <SelectItem value="Approved">Acceptées</SelectItem>
               <SelectItem value="Declined">Refusées</SelectItem>
               <SelectItem value="AlreadyMember">Déjà membres</SelectItem>
+              <SelectItem value="Draft">Brouillons (non soumis)</SelectItem>
             </SelectContent></Select></div>
         <div className="w-full space-y-1 sm:w-auto"><label className="text-xs font-medium">Genre</label>
           <Select value={gender} onValueChange={setGender}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -907,8 +941,12 @@ export default function DemandeValidationPage() {
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       {!locked && (
                         <div className="flex justify-end gap-1">
+                          {d.status === 'Draft' ? (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => setDetailId(d.id)}><Send className="mr-1 h-3.5 w-3.5" />Soumettre…</Button>
+                          ) : (<>
                           <Tip content="Accepter"><Button size="sm" variant={d.status === 'Approved' ? 'success' : 'outline'} className="h-8 px-2" aria-label="Accepter" onClick={() => openApprove(d)}><Check className="h-4 w-4" /></Button></Tip>
                           <Tip content="Refuser"><Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'} className="h-8 px-2" aria-label="Refuser" onClick={() => openDecline(d)}><X className="h-4 w-4" /></Button></Tip>
+                          </>)}
                           {(d.status === 'Approved' || d.status === 'Declined') && (
                             <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-8 px-2" aria-label="Remettre à étudier" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
                           )}
@@ -966,12 +1004,16 @@ export default function DemandeValidationPage() {
                   </div>
                   {!locked && (
                     <div className="flex flex-wrap gap-1.5 border-t bg-muted/30 px-3 py-2">
+                      {d.status === 'Draft' ? (
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setDetailId(d.id)}><Send className="mr-1 h-4 w-4" />Vérifier et soumettre</Button>
+                      ) : (<>
                       <Button size="sm" variant={d.status === 'Approved' ? 'success' : 'outline'}
                         className={cn('flex-1', d.status !== 'Approved' && 'border-success-border text-success hover:bg-success-subtle')}
                         onClick={() => openApprove(d)}><Check className="mr-1 h-4 w-4" />Accepter</Button>
                       <Button size="sm" variant={d.status === 'Declined' ? 'destructive' : 'outline'}
                         className={cn('flex-1', d.status !== 'Declined' && 'border-destructive-border text-destructive hover:bg-destructive-subtle')}
                         onClick={() => openDecline(d)}><X className="mr-1 h-4 w-4" />Refuser</Button>
+                      </>)}
                       {(d.status === 'Approved' || d.status === 'Declined') && (
                         <Tip content="Remettre à étudier"><Button size="sm" variant="outline" className="h-9 w-9 p-0" aria-label="Remettre à étudier" disabled={busy} onClick={() => resetTarget(d)}><RotateCcw className="h-4 w-4" /></Button></Tip>
                       )}
@@ -1013,6 +1055,8 @@ export default function DemandeValidationPage() {
               onPrev={() => detailIndex > 0 && setDetailId(rows[detailIndex - 1].id)}
               onNext={() => detailIndex < rows.length - 1 && setDetailId(rows[detailIndex + 1].id)}
               onDecide={decide}
+              onSubmitForFamily={submitForFamily}
+              responsesSent={!!campaign?.responsesSent}
               onReset={resetTarget}
               onDelete={(dd) => setDeleteTarget(dd)}
             />
@@ -1158,6 +1202,7 @@ function StatusBadge({ d }: { d: DemandeReview }) {
   if (d.status === 'Approved') return <Badge variant="success"><Check className="mr-1 h-3 w-3" />Acceptée</Badge>
   if (d.status === 'Declined') return <Badge variant="danger"><X className="mr-1 h-3 w-3" />Refusée</Badge>
   if (d.status === 'AlreadyMember') return <Badge variant="info"><UserCheck className="mr-1 h-3 w-3" />Déjà membre</Badge>
+  if (d.status === 'Draft') return <Badge variant="outline"><Pencil className="mr-1 h-3 w-3" />Brouillon</Badge>
   return <Badge variant="info"><Clock className="mr-1 h-3 w-3" />À étudier</Badge>
 }
 
@@ -1252,7 +1297,7 @@ function MemberMatchBadge({ d }: { d: DemandeReview }) {
   return <Tip content={`${m.reason} : ${m.name}${m.cardNumber ? ` (${m.cardNumber})` : ''} — à vérifier dans la fiche`}><Badge variant="warning" className="px-1.5 text-[10px]">Déjà membre ?</Badge></Tip>
 }
 
-function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onReset, onDelete }: {
+function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons, hasPrev, hasNext, onPrev, onNext, onDecide, onSubmitForFamily, responsesSent, onReset, onDelete }: {
   d: DemandeReview
   occupancy: UnitOccupancy[]
   occByUnit: Record<string, UnitOccupancy>
@@ -1264,10 +1309,13 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
   onPrev: () => void
   onNext: () => void
   onDecide: (d: DemandeReview, status: 'Approved' | 'Declined', unitId: string | null, note: string | null) => Promise<boolean>
+  onSubmitForFamily: (d: DemandeReview, decision: 'Approved' | 'Declined' | null, unitId: string | null, note: string | null) => Promise<boolean>
+  responsesSent: boolean
   onReset: (d: DemandeReview) => Promise<boolean>
   onDelete: (d: DemandeReview) => void
 }) {
   const locked = !!d.createdMemberId // only a converted demande is locked; a sent-declined one can be re-opened
+  const isDraft = d.status === 'Draft' // never submitted by the family: the footer offers « Soumettre pour la famille »
   // CG edit mode: swaps the whole read-only panel for the full edit form (child + household + parents + proches).
   // Reset when navigating to another applicant (keyed on d.id via the render-phase reset below).
   const [editing, setEditing] = useState(false)
@@ -1304,12 +1352,13 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
       if (e.key === 'ArrowLeft' && hasPrev) { e.preventDefault(); onPrev() }
       else if (e.key === 'ArrowRight' && hasNext) { e.preventDefault(); onNext() }
       // Guard A/R against a busy mutation so a held/repeated key can't fire multiple decisions for the same demande.
+      else if (isDraft) return // a draft is decided only through the explicit « Soumettre… » buttons
       else if (!locked && !busy && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); onDecide(d, 'Approved', unit, note) }
       else if (!locked && !busy && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); onDecide(d, 'Declined', null, motif) }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [d, unit, note, motif, locked, busy, editing, hasPrev, hasNext, onPrev, onNext, onDecide])
+  }, [d, unit, note, motif, locked, isDraft, busy, editing, hasPrev, hasNext, onPrev, onNext, onDecide])
 
   // Save the chosen unit as a pre-selection WITHOUT deciding — so the CG can lock in / change the unit and come
   // back later (they don't have to click Accepter, which they might not be ready to do). Shown when the picked
@@ -1352,6 +1401,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
           {miss.length > 0 && <span title={`Dossier incomplet : ${miss.join(', ')}`}><AlertTriangle className="h-4 w-4 text-amber-500" /></span>}
         </h2>
         {d.serialNumber && <p className="font-mono text-xs text-muted-foreground">Demande N° {d.serialNumber}</p>}
+        {isDraft && <p className="text-xs font-medium text-muted-foreground">Brouillon — jamais soumis par la famille</p>}
         <p className="text-sm text-muted-foreground">
           {d.age != null ? `${d.age} ans` : 'âge inconnu'}
           {d.dateOfBirth ? ` (${formatDate(d.dateOfBirth)})` : ''} · {d.gender}
@@ -1576,6 +1626,29 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <ReasonPicker reasons={reasons} onPick={setMotif} className="h-9 w-40 shrink-0" />
               <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif de refus (optionnel, inclus dans l'email)" />
             </div>
+            {isDraft ? (
+              <>
+                <Callout tone={responsesSent ? 'warning' : 'info'}>
+                  {responsesSent
+                    ? "Les réponses ont déjà été envoyées : « Soumettre et accepter » crée le membre et envoie l'email d'acceptation tout de suite ; « Soumettre et refuser » envoie le refus tout de suite."
+                    : "Vérifiez le dossier (« Modifier » pour compléter), puis soumettez-le pour la famille. Une décision prise ici partira avec « Envoyer les réponses »."}
+                </Callout>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="success" className="flex-1" disabled={busy} onClick={() => onSubmitForFamily(d, 'Approved', unit, note)}>
+                    <Check className="mr-1 h-4 w-4" />Soumettre et accepter
+                  </Button>
+                  <Button variant="destructive" className="flex-1" disabled={busy} onClick={() => onSubmitForFamily(d, 'Declined', null, motif)}>
+                    <X className="mr-1 h-4 w-4" />Soumettre et refuser
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" disabled={busy} onClick={() => onSubmitForFamily(d, null, null, null)}>
+                    <Send className="mr-1 h-4 w-4" />Soumettre sans décider
+                  </Button>
+                  <Tip content="Supprimer le brouillon"><Button variant="outline" className="shrink-0 text-destructive hover:bg-destructive/10" aria-label="Supprimer le brouillon" disabled={busy} onClick={() => onDelete(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
+                </div>
+              </>
+            ) : (<>
             <div className="flex gap-2">
               <Button variant="success" className="flex-1" disabled={busy} onClick={() => onDecide(d, 'Approved', unit, note)}>
                 <Check className="mr-1 h-4 w-4" />{d.status === 'Approved' ? 'Mettre à jour' : 'Accepter'}
@@ -1589,6 +1662,7 @@ function DetailPanel({ d, occupancy, occByUnit, siblingsTogether, busy, reasons,
               <Tip content="Supprimer la demande"><Button variant="outline" className="shrink-0 text-destructive hover:bg-destructive/10" aria-label="Supprimer la demande" disabled={busy} onClick={() => onDelete(d)}><Trash2 className="h-4 w-4" /></Button></Tip>
             </div>
             <p className="hidden text-center text-xs text-muted-foreground sm:block">Raccourcis : <kbd>A</kbd> accepter · <kbd>R</kbd> refuser · <kbd>←</kbd>/<kbd>→</kbd> naviguer</p>
+            </>)}
           </div>
         )}
       </div>

@@ -1,6 +1,8 @@
 // The DRAFTS of one applicant account (never submitted by the family), read-only. The review list only shows
 // submitted / decided demandes, so for an account with drafts only this is the way to see what the family started.
-import { FilePen } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { ExternalLink, FilePen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Callout } from '@/components/shared/callout'
 import { LoadingSpinner } from '@/components/shared/loading-spinner'
@@ -12,6 +14,7 @@ const EMPTY = <span className="italic text-muted-foreground">non renseigné</spa
 
 export function DemandeDraftsDialog({ account, onClose }: { account: DemandeAccount; onClose: () => void }) {
   const { data, error, isLoading } = useAccountDrafts(account.id)
+  const navigate = useNavigate()
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -25,7 +28,15 @@ export function DemandeDraftsDialog({ account, onClose }: { account: DemandeAcco
           <div className="space-y-3">
             {data.map((d) => (
               <div key={d.id} className="rounded-lg border p-3 text-sm">
-                <div className="font-semibold">{`${d.firstName} ${d.lastName}`.trim() || EMPTY}</div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-semibold">{`${d.firstName} ${d.lastName}`.trim() || EMPTY}</div>
+                  {/* The whole file in the review drawer: check it, complete it (« Modifier »), then submit it for the
+                      family — with « Soumettre et accepter / refuser » (immediate answer once the answers went out). */}
+                  <Button size="sm" variant="outline" className="h-7 shrink-0"
+                    onClick={() => navigate(`/admin/demandes?account=${account.id}&status=Draft&open=${d.id}`)}>
+                    <ExternalLink className="mr-1 h-3.5 w-3.5" />Ouvrir la demande
+                  </Button>
+                </div>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                   <dt className="text-muted-foreground">Année</dt><dd>{d.scoutYear}</dd>
                   <dt className="text-muted-foreground">Naissance</dt><dd>{d.dateOfBirth ? formatDate(d.dateOfBirth) : EMPTY}</dd>
@@ -38,7 +49,7 @@ export function DemandeDraftsDialog({ account, onClose }: { account: DemandeAcco
                 </dl>
               </div>
             ))}
-            <Callout tone="info">Un brouillon n'est pas une demande : la famille doit cliquer sur « Soumettre » dans le portail pour qu'elle apparaisse dans la liste des demandes.</Callout>
+            <Callout tone="info">Un brouillon n'est pas une demande : la famille doit cliquer sur « Soumettre » dans le portail. Vous pouvez aussi « Ouvrir la demande », la vérifier et la soumettre pour elle (avec ou sans décision).</Callout>
           </div>
         )}
       </DialogContent>

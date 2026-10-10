@@ -978,3 +978,21 @@ sign-in after the answer (refused); the active-member case is reasoned, not live
   list never shows drafts; the button keyed on `demandeCount`, which counts drafts). Now: « Voir les demandes » only when
   `submittedCount > 0`; « Voir le brouillon » when drafts exist → read-only dialog (`demande-drafts-dialog.tsx`,
   `GET /demandes/accounts/{id}/drafts`, group managers only).
+
+### 2026-10-10 — « Soumettre pour la famille » (CG submits a draft, optionally deciding it)
+- `SubmitDraftForFamilyCommand` (`Demandes/DemandeSubmitForFamilyHandlers.cs`, `POST /demandes/{id}/submit-for-family`
+  {decision: null|Approved|Declined, decidedUnitId, decisionNotes}; demande.manage + group manager): Draft only;
+  same completeness rules as the family's submit (extracted to `ApplicantHelpers.IncompleteForSubmit`), but no window
+  / verified-email / terms gate. Assigns the INS number (retry on the unique index), audited « SubmitForFamily ».
+- Answers already out (`DemandeAdminHelpers.ResponsesSentAsync`: a demande of the year has ResponseSentAt) + a decision
+  → `SendDemandeResponsesCommand(year, OnlyDemandeId)` right after the commit: the single-demande mode skips the
+  « undecided » gate, processes only that demande (member, login, post, Entrée, parents, fratrie, family email, CU
+  Excel) and keeps a pending schedule. Send failure → the demande stays decided-unsent (`SendError` in the result).
+  Otherwise the family gets « demande reçue ». A decision is refused while « Déjà membre ? » is unanswered.
+- Guards: Decide / BulkDecide / member-match confirm refuse drafts. Review list: `status=Draft` = drafts only (never
+  mixed into the normal list). `DemandeCampaignStatusDto.ResponsesSent`.
+- UI: drafts dialog « Ouvrir la demande » → `/admin/demandes?account=…&status=Draft&open=<id>`; status filter
+  « Brouillons »; drawer footer for a draft = Soumettre et accepter / et refuser / sans décider (+ confirm text
+  saying whether the answer goes out now). Live-tested on the dev copy: incomplete → 400, decide on draft → 400,
+  accept → F-1253 + login + R1 + Entrée + 2 parents + acceptance + CU email, refuse → refusal email, submit only →
+  « demande reçue ».

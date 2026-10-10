@@ -36,6 +36,8 @@ public class ConfirmDemandeMemberMatchCommandHandler(IApplicationDbContext conte
 
         var d = await context.Demandes.FirstOrDefaultAsync(x => x.Id == request.DemandeId, ct);
         if (d is null) return Result<ConfirmMemberMatchResult>.Failure("Demande introuvable.");
+        // A draft can't become « Déjà membre » (no number, never submitted): submit it for the family first.
+        if (d.Status == DemandeStatus.Draft) return Result<ConfirmMemberMatchResult>.Failure(DecideDemandeCommandHandler.DraftNotSubmitted);
         var keeper = await context.Members.AsNoTracking().FirstOrDefaultAsync(m => m.Id == request.MemberId, ct);
         if (keeper is null) return Result<ConfirmMemberMatchResult>.Failure("Membre introuvable.");
         // Another demande of this year already tied to the same member → almost certainly a duplicate demande.

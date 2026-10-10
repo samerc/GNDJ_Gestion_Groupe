@@ -3,6 +3,7 @@
     "version": "3.1.0",
     "date": "2026-09-10",
     "changes": [
+      { "date": "2026-10-10", "text": "Demandes : le CG peut soumettre un brouillon pour la famille (Comptes d'inscription → Voir le brouillon → « Ouvrir la demande », ou le filtre « Brouillons »). Il vérifie la demande complète puis choisit « Soumettre sans décider », « Soumettre et accepter » ou « Soumettre et refuser » ; une fois les réponses de l'année envoyées, la réponse part tout de suite (membre créé, emails à la famille et au chef d'unité)." },
       { "date": "2026-10-10", "text": "Messages de contact : nouvel onglet « Supprimés » ; un message supprimé par erreur se restaure à tout moment avec « Restaurer » (avec ses réponses). La restauration est notée dans le journal d'audit." },
       { "date": "2026-10-10", "text": "Comptes d'inscription : pour un compte qui n'a que des brouillons, « Voir les demandes » (qui ouvrait une liste vide) est remplacé par « Voir le brouillon » : ce que la famille a commencé sans le soumettre (enfant, naissance, école, classe, remarques, dates)." },
       { "date": "2026-10-10", "text": "Types de documents : nouvelle case « Obligatoire ». Un document facultatif (ex. inscription au transport en bus) peut être envoyé par les membres mais ne compte jamais comme manquant : ni dossier incomplet, ni relance, ni mise en attente ; il est marqué « Facultatif » dans « Mes documents » et dans le tableau des documents de l'unité." },

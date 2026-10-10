@@ -240,6 +240,30 @@ static class ApplicantHelpers
         => d.ResponseSentAt != null || d.ReviewedAt != null
            || d.Status is not (DemandeStatus.Draft or DemandeStatus.Submitted);
 
+    // What a demande needs before it can be submitted (by the family, or by the CG for them — SubmitDraftForFamily):
+    // the member-equivalent child fields, at least one parent, a phone for every living parent, the parents'
+    // situation. Null = complete.
+    public static string? IncompleteForSubmit(Demande demande, ApplicantAccount account, IReadOnlyList<ApplicantGuardian> guardians)
+    {
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(demande.FirstName)) missing.Add("prénom");
+        if (string.IsNullOrWhiteSpace(demande.LastName)) missing.Add("nom");
+        if (demande.DateOfBirth is null) missing.Add("date de naissance");
+        if (string.IsNullOrWhiteSpace(demande.Gender)) missing.Add("genre");
+        if (string.IsNullOrWhiteSpace(demande.Nationality)) missing.Add("nationalité");
+        if (string.IsNullOrWhiteSpace(demande.School)) missing.Add("école");
+        if (string.IsNullOrWhiteSpace(demande.Classe)) missing.Add("classe");
+        if (missing.Count > 0) return $"Informations manquantes : {string.Join(", ", missing)}.";
+        if (guardians.Count == 0) return "Veuillez renseigner au moins un parent/tuteur avant de soumettre.";
+        // #3 — every living parent/tuteur must have a phone number.
+        if (guardians.Any(g => !g.IsDeceased && string.IsNullOrWhiteSpace(g.PhoneNumber)))
+            return "Le numéro de téléphone de chaque parent/tuteur est obligatoire.";
+        // #4 — the parents' situation (unis / séparés / divorcés) is required.
+        if (string.IsNullOrWhiteSpace(account.ParentsSituation))
+            return "Veuillez préciser la situation des parents (unis / séparés / divorcés).";
+        return null;
+    }
+
     // Deliberately neutral: must not reveal whether the CG accepted or refused before the answers are sent.
     public const string LockedMessage = "Cette demande est en cours d'étude par le groupe et ne peut plus être modifiée.";
 
@@ -1262,33 +1286,16 @@ public class SubmitDemandeCommandHandler(IApplicationDbContext context, ICurrent
         // CG's decision (Approved / Declined / « Déjà membre ») with Submitted, or reopen a sent one.
         if (ApplicantHelpers.IsLockedForFamily(demande)) return Result<string>.Failure(ApplicantHelpers.LockedMessage);
 
-        // Required member-equivalent fields
-        var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(demande.FirstName)) missing.Add("prénom");
-        if (string.IsNullOrWhiteSpace(demande.LastName)) missing.Add("nom");
-        if (demande.DateOfBirth is null) missing.Add("date de naissance");
-        if (string.IsNullOrWhiteSpace(demande.Gender)) missing.Add("genre");
-        if (string.IsNullOrWhiteSpace(demande.Nationality)) missing.Add("nationalité");
-        if (string.IsNullOrWhiteSpace(demande.School)) missing.Add("école");
-        if (string.IsNullOrWhiteSpace(demande.Classe)) missing.Add("classe");
-        if (missing.Count > 0)
-            return Result<string>.Failure($"Informations manquantes : {string.Join(", ", missing)}.");
+        // Required member-equivalent fields + parents (shared with the CG's « Soumettre pour la famille »)
+        var guardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
+        if (ApplicantHelpers.IncompleteForSubmit(demande, account, guardians) is { } incomplete)
+            return Result<string>.Failure(incomplete);
 
         // Enrolment cut-off: a configured grade (default 6ème) cannot submit. The wizard already hides it
         // from the dropdown; this rejects a crafted submission too (defense-in-depth).
         if (!string.IsNullOrWhiteSpace(config.ExcludedClasse) &&
             string.Equals(demande.Classe?.Trim(), config.ExcludedClasse.Trim(), StringComparison.OrdinalIgnoreCase))
             return Result<string>.Failure($"Un enfant en {config.ExcludedClasse} ne peut pas s'inscrire.");
-
-        var guardians = await context.ApplicantGuardians.Where(g => g.ApplicantAccountId == id).ToListAsync(ct);
-        if (guardians.Count == 0)
-            return Result<string>.Failure("Veuillez renseigner au moins un parent/tuteur avant de soumettre.");
-        // #3 — every living parent/tuteur must have a phone number.
-        if (guardians.Any(g => !g.IsDeceased && string.IsNullOrWhiteSpace(g.PhoneNumber)))
-            return Result<string>.Failure("Le numéro de téléphone de chaque parent/tuteur est obligatoire.");
-        // #4 — the parents' situation (unis / séparés / divorcés) is required.
-        if (string.IsNullOrWhiteSpace(account.ParentsSituation))
-            return Result<string>.Failure("Veuillez préciser la situation des parents (unis / séparés / divorcés).");
 
         // Only send the confirmation on the first Draft → Submitted transition (not on a re-submit).
         var wasSubmitted = demande.Status == DemandeStatus.Submitted;
