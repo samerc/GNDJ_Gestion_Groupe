@@ -243,7 +243,8 @@ Cliquez sur une case orange : le document s'affiche. Vérifiez qu'il est lisible
 
 > 💡 Un document **rempli et signé en ligne** par la famille arrive comme les autres, « à vérifier » : c'est un PDF
 > avec les réponses et la signature (« Signé électroniquement par … »). Vérifiez-le et acceptez-le ou refusez-le
-> de la même façon ; s'il est refusé, la famille peut le remplir à nouveau.
+> de la même façon ; s'il est refusé, la famille peut le remplir à nouveau. Seule la famille signe en ligne (depuis
+> le compte du membre) : pour aider une famille, téléchargez le document pré-rempli, qu'un parent signera sur papier.
 
 Vous pouvez aussi **déposer un document à la place d'une famille** (depuis l'onglet **Documents & cotisations** de
 la fiche, bouton **Envoyer**). Sur ordinateur, le bouton **Scanner avec le téléphone** affiche un QR code :

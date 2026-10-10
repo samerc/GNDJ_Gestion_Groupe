@@ -344,9 +344,13 @@ Dans l'éditeur du modèle, **cliquez sur une ligne ou un cadre à remplir** : u
 - **Enregistrer dans la fiche** : **Allergies**, **Remarques médicales** ou **Groupe sanguin** (une liste des
   8 groupes, déjà remplie avec celui de la fiche). Quand la famille signe en ligne, ses
   réponses sont aussi écrites dans l'onglet **Médical** du membre (une ligne par réponse, « Libellé : réponse »).
-  Une partie laissée vide ne touche pas ce qui est déjà sur la fiche. Les lignes liées apparaissent teintées dans
+  Une partie laissée vide ne touche pas ce qui est déjà sur la fiche, et un texte saisi autrement (par un chef)
+  est gardé sous « Notes précédentes ». Les lignes liées apparaissent teintées dans
   l'éditeur. La fiche médicale est déjà réglée ainsi (groupe sanguin, vaccins en dates, allergies, antécédents,
   médecin…) ; cochez « Remplissable en ligne » pour l'ouvrir aux familles.
+- **Obligatoire (en ligne)** : la famille ne peut pas envoyer le formulaire tant que ce champ est vide (il est
+  marqué en rouge). Sur la fiche médicale : médecin de famille, personne à contacter en cas d'urgence et nom du
+  signataire.
 - **D'une année à l'autre** : le formulaire s'ouvre déjà rempli avec les réponses données la dernière fois (et le
   dernier signataire) ; la famille vérifie, corrige si besoin et signe. La date de signature est celle du jour.
 

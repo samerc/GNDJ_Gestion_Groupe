@@ -126,7 +126,7 @@ Chaque année, le groupe demande quelques documents (autorisation des parents, f
    Quand le bouton **Remplir et signer en ligne** apparaît, vous pouvez tout faire sur votre téléphone : complétez
    les champs, indiquez votre nom et qui vous êtes (père, mère…), cochez « Je certifie », **signez avec le doigt**
    dans le cadre, puis **Signer et envoyer**. Le document signé arrive directement dans le dossier : pas besoin
-   d'imprimer ni de scanner. Les dates s'écrivent jour/mois/année (JJ/MM/AAAA) ; si vous ne connaissez que le mois et l'année (06/2019) ou seulement l'année (2019), c'est accepté. Pour la fiche médicale, le groupe
+   d'imprimer ni de scanner. Les dates s'écrivent jour/mois/année (JJ/MM/AAAA, ou les chiffres à la suite : 01062019) ; si vous ne connaissez que le mois et l'année (06/2019) ou seulement l'année (2019), c'est accepté. Les champs marqués **obligatoire** (en rouge) doivent être remplis avant l'envoi. Si vous fermez le formulaire avant de l'envoyer, vos réponses restent sur votre téléphone et sont reprises à la prochaine ouverture. Pour la fiche médicale, le groupe
    sanguin, les allergies et les remarques indiquées sont aussi enregistrés dans votre fiche (onglet Médical).
    L'année suivante, le formulaire s'ouvre déjà rempli avec vos réponses : vérifiez, corrigez si besoin et signez.
    Vous préférez le papier ? Le lien « ou télécharger pour remplir sur papier » donne le modèle à imprimer.
