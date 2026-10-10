@@ -404,3 +404,11 @@ Every member got their access in 2026, and new chefs are existing members, so th
   le texte du modèle" link to the CG. Live-tested: CG list/read/update 200 (code/module/SMTP unchanged), create/delete/
   SMTP 403, CU 403.
 
+
+### 2026-10-10 — Year variables in every email template
+- `EmailService.WithYearVariablesAsync`: when a template uses them, fills {{scoutYear}} (2026-2027),
+  {{previousScoutYear}}, {{nextScoutYear}}, {{year}} (first year) and `ReplaceVariables` resolves {{year+N}} /
+  {{year-N}}. Base = the sender's `scoutYear` variable (the demande send passes its campaign year), else
+  `demande.scout_year` for `demande*` templates (the campaign is for NEXT year) or `passage.scout_year`.
+  Composer lists them under the demande variables. Reason: the refusal letter had 2025-2026 / 2026-2027 / 2027 /
+  2028 typed in. Reminder: an unknown {{x}} is NOT removed — it reaches the family as literal text.

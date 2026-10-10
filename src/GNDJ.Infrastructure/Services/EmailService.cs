@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using GNDJ.Application.Common;
 using GNDJ.Application.Common.Interfaces;
 using GNDJ.Infrastructure.Persistence;
@@ -64,6 +65,7 @@ public class EmailService : IEmailService
             variables = variables.Where(kv => kv.Key != EmailOverride.SubjectKey && kv.Key != EmailOverride.BodyKey)
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
 
+        variables = await WithYearVariablesAsync(templateCode, variables, subjectSource + bodySource, ct);
         var subject = ReplaceVariables(subjectSource, variables, htmlEncode: false);
         var body = ReplaceVariables(bodySource, variables, htmlEncode: true);
 
@@ -236,6 +238,38 @@ public class EmailService : IEmailService
             var safe = htmlEncode ? WebUtility.HtmlEncode(value) : value;
             template = template.Replace($"{{{{{key}}}}}", safe);
         }
+        // {{year+1}}, {{year+2}}, {{year-1}}… = the scout year's first year shifted (a letter that says « réitérez
+        // votre demande en septembre {{year+1}} » stays right every year).
+        if (variables.TryGetValue("year", out var y) && int.TryParse(y, out var year))
+            template = YearOffset.Replace(template, m => (m.Groups[1].Value == "+" ? year + int.Parse(m.Groups[2].Value) : year - int.Parse(m.Groups[2].Value)).ToString());
         return template;
+    }
+
+    private static readonly Regex YearOffset = new(@"\{\{\s*year\s*([+-])\s*(\d{1,2})\s*\}\}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200));
+    private static readonly Regex YearToken = new(@"\{\{\s*(scoutYear|previousScoutYear|nextScoutYear|year)\b", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200));
+
+    // Year variables any template may use, so no year is ever typed into a template:
+    //   {{scoutYear}} 2026-2027 · {{previousScoutYear}} 2025-2026 · {{nextScoutYear}} 2027-2028 · {{year}} 2026
+    //   · {{year+N}} / {{year-N}}.
+    // Based on the scoutYear the sender passed (the demande send passes its campaign year), else the setting:
+    // demande.scout_year for the demande emails (the campaign is for NEXT year while the group is still in the
+    // current one), passage.scout_year for everything else. Only looked up when the template uses one.
+    private async Task<Dictionary<string, string>> WithYearVariablesAsync(string templateCode, Dictionary<string, string> variables,
+        string text, CancellationToken ct)
+    {
+        if (!YearToken.IsMatch(text)) return variables;
+        var scoutYear = variables.GetValueOrDefault("scoutYear");
+        if (string.IsNullOrWhiteSpace(scoutYear))
+        {
+            var key = templateCode.StartsWith("demande", StringComparison.OrdinalIgnoreCase) ? "demande.scout_year" : "passage.scout_year";
+            scoutYear = await _context.Settings.Where(s => s.Key == key).Select(s => s.Value).FirstOrDefaultAsync(ct);
+        }
+        if (!int.TryParse(scoutYear?.Split('-')[0].Trim(), out var start)) return variables;
+        var v = new Dictionary<string, string>(variables);
+        v["scoutYear"] = $"{start}-{start + 1}";
+        v.TryAdd("previousScoutYear", $"{start - 1}-{start}");
+        v.TryAdd("nextScoutYear", $"{start + 1}-{start + 2}");
+        v.TryAdd("year", start.ToString());
+        return v;
     }
 }

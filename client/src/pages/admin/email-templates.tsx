@@ -71,6 +71,13 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
     { key: 'tempPassword', label: 'Mot de passe temporaire' },
     { key: 'loginUrl', label: 'Lien de connexion' },
     { key: 'reason', label: 'Motif (refus)' },
+    // Years (any template): from the scout year of the email (the demande campaign's year for demandes).
+    { key: 'scoutYear', label: 'Année scoute (ex. 2026-2027)' },
+    { key: 'previousScoutYear', label: 'Année scoute précédente (ex. 2025-2026)' },
+    { key: 'nextScoutYear', label: 'Année scoute suivante (ex. 2027-2028)' },
+    { key: 'year', label: 'Année (ex. 2026)' },
+    { key: 'year+1', label: 'Année + 1 (ex. 2027)' },
+    { key: 'year+2', label: 'Année + 2 (ex. 2028)' },
   ],
   general: [
     { key: 'senderName', label: "Nom de l'expéditeur" },

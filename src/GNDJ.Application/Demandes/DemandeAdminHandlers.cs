@@ -1488,6 +1488,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 ["activationLink"] = activationLink,
                 ["loginUrl"] = loginUrl,
                 ["expiryDays"] = activationExpiryDays.ToString(),
+                ["scoutYear"] = request.ScoutYear, // base of {{year}}, {{year+1}}, {{previousScoutYear}}…
             };
             foreach (var to in Recipients(d, acc))
                 emailJobs.Add(("demande_approved", to, approvedVars));
@@ -1511,6 +1512,7 @@ public class SendDemandeResponsesCommandHandler(IApplicationDbContext context, I
                 ["childName"] = $"{d.FirstName} {d.LastName}",
                 ["demandeNumber"] = d.SerialNumber ?? "",
                 ["reason"] = string.IsNullOrWhiteSpace(d.DecisionNotes) ? "" : d.DecisionNotes!,
+                ["scoutYear"] = request.ScoutYear, // base of {{year}}, {{year+1}}, {{previousScoutYear}}…
             };
             foreach (var to in Recipients(d, acc))
                 emailJobs.Add(("demande_declined", to, declinedVars));
