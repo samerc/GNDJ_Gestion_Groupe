@@ -231,6 +231,13 @@ public class EmailService : IEmailService
         return overrideTo;
     }
 
+    public async Task<(string Subject, string BodyHtml)> RenderAsync(string templateCode, string subject, string bodyHtml,
+        Dictionary<string, string> variables, CancellationToken ct = default)
+    {
+        variables = await WithYearVariablesAsync(templateCode, variables, subject + bodyHtml, ct);
+        return (ReplaceVariables(subject, variables, htmlEncode: false), ReplaceVariables(bodyHtml, variables, htmlEncode: true));
+    }
+
     private static string ReplaceVariables(string template, Dictionary<string, string> variables, bool htmlEncode)
     {
         foreach (var (key, value) in variables)

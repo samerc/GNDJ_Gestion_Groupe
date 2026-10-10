@@ -15,6 +15,11 @@ public interface IEmailService
     // server id and apply rate-limiting before dispatch. Returns null if no template/server can be resolved
     // (the actual send will then fail and be recorded); resolution is cached exactly like SendAsync's.
     Task<EmailRoute?> ResolveRouteAsync(string templateCode, CancellationToken ct = default);
+
+    // Renders a subject + body exactly as SendAsync would (year variables, {{year+N}}, HTML-encoded values in the
+    // body) WITHOUT sending — the template « Aperçu ». templateCode picks the default scout year (demande*).
+    Task<(string Subject, string BodyHtml)> RenderAsync(string templateCode, string subject, string bodyHtml,
+        Dictionary<string, string> variables, CancellationToken ct = default);
 }
 
 // The delivery route for a template: the resolved SMTP server + its optional emails/hour cap (null = unlimited).

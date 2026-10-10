@@ -91,6 +91,13 @@ public class EmailController : BaseApiController
         return Ok(result);
     }
 
+    /// <summary>Preview of a template (the text being edited, saved or not): subject + body rendered like a real send,
+    /// with example values for its variables, and the {{placeholders}} that would stay unreplaced. Admins or Chef de
+    /// Groupe (checked in the handler).</summary>
+    [HttpPost("templates/preview")]
+    public async Task<IActionResult> PreviewTemplate([FromBody] PreviewEmailTemplateQuery query)
+        => OkOrBadRequest(await Mediator.Send(query));
+
     /// <summary>Creates an email template. Requires associations.manage.</summary>
     [HttpPost("templates")]
     [ProducesResponseType(201)]

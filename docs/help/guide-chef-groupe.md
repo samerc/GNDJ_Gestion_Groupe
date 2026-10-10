@@ -246,6 +246,13 @@ texte pour cet envoi si besoin, et envoyez.
 Les modèles d'email sont rangés par catégorie dans **Paramètres → Modèles d'email** ; chaque modèle indique s'il
 part **automatiquement** ou par **envoi manuel**, et à quel moment.
 
+L'œil **Aperçu** (dans la liste, ou le bouton **Aperçu** en modifiant un modèle, même avant d'enregistrer) montre
+l'email tel qu'il sera reçu, avec des valeurs d'exemple. Les variables proposées sont celles que ce modèle reçoit,
+plus les années : `{{scoutYear}}` (2026-2027), `{{previousScoutYear}}`, `{{nextScoutYear}}`, `{{year}}` (2026),
+`{{year+1}}`, `{{year+2}}`… — n'écrivez jamais une année en dur. Une variable mal écrite est signalée en rouge dans
+l'aperçu : elle arriverait telle quelle chez le destinataire. Le menu **Couleur du texte** de l'éditeur, sans
+sélection, s'applique à tout le texte (« Couleur par défaut » rend visible un texte collé en blanc).
+
 > ⚠️ Faites d'abord un envoi test à la maîtrise de groupe. Les envois partent progressivement (limite horaire de
 > chaque fournisseur d'email) : un gros envoi peut prendre plusieurs heures. Le suivi est dans **File d'emails**
 > (super-administrateur).

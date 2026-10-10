@@ -29,7 +29,9 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { RequiredLabel } from '@/components/shared/required-label'
 import { Tip } from '@/components/ui/tooltip'
-import { Plus, Trash2, Pencil, FileText, Paperclip, Upload, X, Mail } from 'lucide-react'
+import { Plus, Trash2, Pencil, FileText, Paperclip, Upload, X, Mail, Eye } from 'lucide-react'
+import { EmailPreviewDialog } from '@/components/admin/email-preview-dialog'
+import type { EmailPreviewInput } from '@/services/email-service'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { PERMISSIONS } from '@/lib/constants'
@@ -39,6 +41,25 @@ import { EMAIL_CATEGORIES, templateInfo } from '@/lib/email-template-catalog'
 // -- Module variables --
 // Per-module set of {{placeholders}} the backend will substitute. Keyed by template.module; selecting a
 // module in the form swaps which chips/insert-dropdown entries are shown. Keys must match server expansion.
+// Years, filled in by the server for EVERY template (the demande emails use the campaign's year).
+const YEAR_VARIABLES = [
+  { key: 'scoutYear', label: 'Année scoute (ex. 2026-2027)' },
+  { key: 'previousScoutYear', label: 'Année scoute précédente (ex. 2025-2026)' },
+  { key: 'nextScoutYear', label: 'Année scoute suivante (ex. 2027-2028)' },
+  { key: 'year', label: 'Année (ex. 2026)' },
+  { key: 'year+1', label: 'Année + 1 (ex. 2027)' },
+  { key: 'year+2', label: 'Année + 2 (ex. 2028)' },
+]
+
+// The variables a template really receives = the list stored on it ([{key,label}]); null when it can't be read.
+function declaredVariables(json: string | null | undefined): { key: string; label: string }[] | null {
+  if (!json) return null
+  try {
+    const list = JSON.parse(json) as { key?: string; label?: string }[]
+    return Array.isArray(list) ? list.filter((v) => v.key).map((v) => ({ key: v.key!, label: v.label ?? v.key! })) : null
+  } catch { return null }
+}
+
 const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
   auth: [
     { key: 'memberName', label: 'Nom du membre' },
@@ -71,13 +92,6 @@ const MODULE_VARIABLES: Record<string, { key: string; label: string }[]> = {
     { key: 'tempPassword', label: 'Mot de passe temporaire' },
     { key: 'loginUrl', label: 'Lien de connexion' },
     { key: 'reason', label: 'Motif (refus)' },
-    // Years (any template): from the scout year of the email (the demande campaign's year for demandes).
-    { key: 'scoutYear', label: 'Année scoute (ex. 2026-2027)' },
-    { key: 'previousScoutYear', label: 'Année scoute précédente (ex. 2025-2026)' },
-    { key: 'nextScoutYear', label: 'Année scoute suivante (ex. 2027-2028)' },
-    { key: 'year', label: 'Année (ex. 2026)' },
-    { key: 'year+1', label: 'Année + 1 (ex. 2027)' },
-    { key: 'year+2', label: 'Année + 2 (ex. 2028)' },
   ],
   general: [
     { key: 'senderName', label: "Nom de l'expéditeur" },
@@ -238,8 +252,13 @@ function TemplatesTab() {
     }))
     .filter((g) => g.items.length > 0), [templates])
 
-  // Variables for the selected module — fed to both the reference chips and the editor insert dropdown.
-  const currentVariables = MODULE_VARIABLES[form.module] ?? []
+  // Variables this template receives (its own list — a variable of another email of the same module would reach
+  // the family as raw {{…}}), else the module's, + the years. Fed to the chips and the editor's insert dropdown.
+  const currentVariables = useMemo(() => {
+    const own = declaredVariables(form.variables) ?? MODULE_VARIABLES[form.module] ?? []
+    return [...own, ...YEAR_VARIABLES.filter((y) => !own.some((v) => v.key === y.key))]
+  }, [form.variables, form.module])
+  const [previewing, setPreviewing] = useState<(EmailPreviewInput & { attachments?: { name: string }[] }) | null>(null)
 
   if (isLoading) return <LoadingSpinner variant="table" />
 
@@ -293,6 +312,9 @@ function TemplatesTab() {
                           <TableCell>{tpl.isActive ? <Badge variant="success">Actif</Badge> : <Badge variant="secondary">Inactif</Badge>}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
+                              <Tip content="Aperçu"><Button variant="ghost" size="icon" aria-label="Aperçu"
+                                onClick={() => setPreviewing({ code: tpl.code, subject: tpl.subject, bodyHtml: tpl.bodyHtml, variables: tpl.variables, attachments: tpl.attachments ?? [] })}>
+                                <Eye className="h-4 w-4" /></Button></Tip>
                               <Tip content="Modifier"><Button variant="ghost" size="icon" aria-label="Modifier" onClick={() => openEdit(tpl)}><Pencil className="h-4 w-4" /></Button></Tip>
                               {isAdmin && <Tip content="Supprimer"><Button variant="ghost" size="icon" aria-label="Supprimer" onClick={() => setDeleting(tpl)}><Trash2 className="h-4 w-4 text-destructive" /></Button></Tip>}
                             </div>
@@ -358,7 +380,7 @@ function TemplatesTab() {
             {/* Variables reference */}
             {currentVariables.length > 0 && (
               <div className="rounded-md bg-muted/50 border p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Variables disponibles pour ce module :</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Variables disponibles pour ce modèle :</p>
                 <div className="flex flex-wrap gap-2">
                   {currentVariables.map(v => (
                     <code key={v.key} className="rounded bg-background px-1.5 py-0.5 text-xs font-mono border">
@@ -412,6 +434,11 @@ function TemplatesTab() {
               Actif
             </label>
             <DialogFooter>
+              {/* Preview of the text as edited (not saved yet). */}
+              <Button variant="outline" type="button" className="sm:mr-auto" disabled={!form.code}
+                onClick={() => setPreviewing({ code: form.code, subject: form.subject, bodyHtml: form.bodyHtml, variables: form.variables || null, attachments: form.attachments })}>
+                <Eye className="mr-1.5 h-4 w-4" />Aperçu
+              </Button>
               <Button variant="outline" type="button" onClick={() => setFormOpen(false)}>Annuler</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                 {(createMutation.isPending || updateMutation.isPending) ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Créer'}
@@ -420,6 +447,8 @@ function TemplatesTab() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {previewing && <EmailPreviewDialog input={previewing} onClose={() => setPreviewing(null)} />}
 
       {/* Delete confirm */}
       <ConfirmDialog

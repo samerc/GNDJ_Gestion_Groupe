@@ -415,3 +415,13 @@ Every member got their access in 2026, and new chefs are existing members, so th
 - Système → configuration check (`ConfigurationChecks.EmailTemplatesAsync`) accepts the year variables for every
   template and `{{year±N}}` as a well-formed placeholder (it flagged the new refusal letter as an error — caught
   by the smoke suite before deploy).
+
+### 2026-10-10 — Email template « Aperçu »
+- `POST /email/templates/preview` (`Email/EmailTemplatePreview.cs`, CG/admin via `SettingsAccess.CanEditEmailTemplates`):
+  renders the posted (unsaved) subject/body through `IEmailService.RenderAsync` — the same year variables +
+  HTML-encoding as a real send — with example values for each DECLARED variable (fictitious Khoury family; unknown
+  ones = « [label] »; year keys left to the server) and returns the leftover `{{…}}` (= would reach the recipient).
+- Client: eye button per template + « Aperçu » in the editor (`components/admin/email-preview-dialog.tsx`, white
+  card via RichContent/DOMPurify). The variable chips/insert menu now use the template's own declared list (+ the
+  year variables) instead of the whole module's list — inserting another email's variable left raw {{…}}.
+- Run over all 26 templates on prod data: 0 leftovers.

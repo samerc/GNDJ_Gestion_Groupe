@@ -92,6 +92,15 @@ export function useUpdateEmailTemplate() {
   })
 }
 
+// POST /email/templates/preview → the template (as being edited) rendered like a real send, with example values.
+export interface EmailPreviewInput { code: string; subject: string; bodyHtml: string; variables?: string | null }
+export interface EmailPreview { subject: string; bodyHtml: string; unreplaced: string[] }
+export function usePreviewEmailTemplate() {
+  return useMutation({
+    mutationFn: (input: EmailPreviewInput) => apiClient.post<EmailPreview>('/email/templates/preview', input).then((r) => r.data),
+  })
+}
+
 // DELETE /email/templates/{id} → delete; invalidates the list.
 export function useDeleteEmailTemplate() {
   const qc = useQueryClient()
