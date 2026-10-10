@@ -123,7 +123,8 @@ public partial class DocumentTemplateRenderer : IDocumentTemplateRenderer
             if (kind == "signature") n.SetAttributeValue("data-signature", "1");
             var save = kind is "fill" or "date" or "box" ? n.GetAttributeValue("data-save", "") : "";
             var label = FillLabel(n).Trim(' ', ':', ' ', '.', '-', '—');
-            list.Add(new TemplateFormField(key, kind, save.Length > 0 ? save : null, label));
+            var required = kind is "fill" or "date" or "box" && n.Attributes.Contains("data-required");
+            list.Add(new TemplateFormField(key, kind, save.Length > 0 ? save : null, label, required));
         }
         return list;
     }

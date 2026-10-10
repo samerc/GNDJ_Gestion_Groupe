@@ -158,7 +158,7 @@ function BlankOptions({ editor }: { editor: Editor }) {
       // A clicked atom node is a NodeSelection, which carries `.node` (duck-typed: @tiptap/pm isn't a direct dependency).
       const node = (e.state.selection as { node?: { type: { name: string }; attrs: Record<string, unknown> } }).node ?? null
       if (!node || (node.type.name !== 'fillLine' && node.type.name !== 'fillBox')) return null
-      return { type: node.type.name, date: !!node.attrs.date, save: (node.attrs.save as string | null) ?? '' }
+      return { type: node.type.name, date: !!node.attrs.date, save: (node.attrs.save as string | null) ?? '', required: !!node.attrs.required }
     },
   })
   if (!sel) return null
@@ -172,6 +172,10 @@ function BlankOptions({ editor }: { editor: Editor }) {
           Date (calendrier)
         </label>
       )}
+      <label className="flex cursor-pointer items-center gap-1.5">
+        <input type="checkbox" checked={sel.required} onChange={(e) => update({ required: e.target.checked })} />
+        Obligatoire (en ligne)
+      </label>
       <span className="flex items-center gap-1.5">
         Enregistrer dans la fiche :
         <Select value={sel.save || 'none'} onValueChange={(v) => update({ save: v === 'none' ? null : v })}>

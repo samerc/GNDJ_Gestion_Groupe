@@ -492,3 +492,10 @@ Reviewed (backend + frontend) and live-tested before switching FM to « Rempliss
   (« Seule la famille peut signer ce document en ligne… »); the button shows only on the member's own fiche
   (`isOwnProfile`, now also passed by the member panel when it's the viewer's own file). A chef helping a family
   downloads the prefilled PDF — unsigned, the parent signs it. Chefs no longer need to fill for families (uploads work).
+- **Required blanks (same day).** `data-required` on a line/box (builder: « Obligatoire (en ligne) » in the selected-
+  blank bar) → `TemplateFormField.Required`; the dialog marks it (red, « obligatoire ») and refuses to send, scrolling
+  to the first empty one; the server refuses too (« Champ obligatoire : Médecin de famille », label cleaned). Patch
+  `044_fiche_medicale_required_fields.sql`: FM's médecin de famille, personne à contacter en cas d'urgence and
+  Nom / Prénom (user's choice — the rest stays optional). **Builder bug fixed**: the `save` attribute was declared on
+  the spacer node instead of `fillBox`, so saving a template in the builder dropped the boxes' Médical link
+  (antécédents / maladie chronique). Verified in the browser: open + save FM untouched keeps 3 required + 14 data-save.

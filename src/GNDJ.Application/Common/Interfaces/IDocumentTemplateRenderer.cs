@@ -20,7 +20,8 @@ public interface IDocumentTemplateRenderer
 // lines), "checkbox", or "signature" (a fill line labelled « Signature » — the drawn signature is printed there
 // instead of in a block at the end). Save = the member-file field the answer is saved into when signed online
 // (allergies | medicalNotes), Label = the text just before the blank (or the heading above a box).
-public record TemplateFormField(string Key, string Kind, string? Save = null, string? Label = null);
+// Required = the blank must be answered to sign online (data-required, set per blank in the template builder).
+public record TemplateFormField(string Key, string Kind, string? Save = null, string? Label = null, bool Required = false);
 public record TemplateForm(string Html, IReadOnlyList<TemplateFormField> Fields);
 
 // The signature printed at the bottom of an online-filled form: the drawn image (PNG) + who signed and when.

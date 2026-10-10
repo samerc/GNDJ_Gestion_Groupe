@@ -67,6 +67,11 @@ export const FillLineNode = Node.create({
         parseHTML: (el) => el.getAttribute('data-save'),
         renderHTML: (attrs) => (attrs.save ? { 'data-save': attrs.save } : {}),
       },
+      required: {
+        default: false,
+        parseHTML: (el) => el.hasAttribute('data-required'),
+        renderHTML: (attrs) => (attrs.required ? { 'data-required': '1' } : {}),
+      },
     }
   },
   parseHTML() {
@@ -104,11 +109,6 @@ export const SpacerNode = Node.create({
         default: 20,
         parseHTML: (el) => parseInt(el.getAttribute('data-h') || '20', 10) || 20,
         renderHTML: (attrs) => ({ 'data-h': attrs.h }),
-      },
-      save: {
-        default: null,
-        parseHTML: (el) => el.getAttribute('data-save'),
-        renderHTML: (attrs) => (attrs.save ? { 'data-save': attrs.save } : {}),
       },
     }
   },
@@ -149,6 +149,18 @@ export const FillBoxNode = Node.create({
         default: 70,
         parseHTML: (el) => parseInt(el.getAttribute('data-h') || '70', 10) || 70,
         renderHTML: (attrs) => ({ 'data-h': attrs.h }),
+      },
+      // Linked to the member's file (data-save). It used to sit on the spacer by mistake, so saving a template in
+      // the builder dropped the box's link to the Médical tab.
+      save: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-save'),
+        renderHTML: (attrs) => (attrs.save ? { 'data-save': attrs.save } : {}),
+      },
+      required: {
+        default: false,
+        parseHTML: (el) => el.hasAttribute('data-required'),
+        renderHTML: (attrs) => (attrs.required ? { 'data-required': '1' } : {}),
       },
     }
   },

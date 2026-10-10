@@ -29,7 +29,7 @@ interface OnlineForm {
   documentTypeName: string
   memberName: string
   html: string
-  fields: { key: string; kind: 'fill' | 'date' | 'box' | 'checkbox' | 'signature'; save?: string | null; label?: string | null }[]
+  fields: { key: string; kind: 'fill' | 'date' | 'box' | 'checkbox' | 'signature'; save?: string | null; label?: string | null; required?: boolean }[]
   templateHash: string
   prefill?: Record<string, string> | null // last time's answers / blood type / today for the signing date
   signerName?: string | null
@@ -148,6 +148,17 @@ export function OnlineFormDialog({ memberId, documentTypeId, onClose, isOwnProfi
   }, [nodes, answers])
 
   const send = () => {
+    // Required blanks first (they're in the form above): name the first empty one and bring it into view.
+    const missing = form!.fields.find((f) => f.required && !(answers[f.key] ?? '').trim())
+    if (missing) {
+      // « — du médecin de famille » → « Médecin de famille » (same cleanup as the server's message).
+      const label = (missing.label ?? '').replace(/^[\s—–-]+/, '').replace(/^(de la |de l'|de l’|du |des |de )/i, '')
+      toast.error(`Champ obligatoire${label ? ` : ${label.charAt(0).toUpperCase()}${label.slice(1)}` : ''}.`)
+      const el = document.getElementById(`of-${missing.key}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.focus({ preventScroll: true })
+      return
+    }
     if (!signerName.trim()) { toast.error('Indiquez votre nom.'); return }
     if (!relation) { toast.error('Indiquez qui signe.'); return }
     if (!certified) { toast.error("Cochez « Je certifie l'exactitude des informations »."); return }
@@ -256,7 +267,7 @@ function toReact(node: Node, key: string, answers: Record<string, string>, set: 
   if (fieldKey && el.hasAttribute('data-fill') && el.hasAttribute('data-date')) {
     const v = answers[fieldKey] ?? ''
     const bad = normalizeFormDate(v) === null
-    return <input key={key} type="text" inputMode="numeric" aria-label="Date (JJ/MM/AAAA, MM/AAAA ou année)" placeholder="JJ/MM/AAAA"
+    return <input key={key} id={`of-${fieldKey}`} type="text" inputMode="numeric" aria-label="Date (JJ/MM/AAAA, MM/AAAA ou année)" placeholder="JJ/MM/AAAA" required={el.hasAttribute('data-required')}
       value={v} maxLength={10} onChange={(e) => set(fieldKey, e.target.value)}
       // Once left, show how it was read (01062019 → 01/06/2019) so the parent can check it.
       onBlur={() => { const n = normalizeFormDate(v); if (n && displayFormDate(n) !== v) set(fieldKey, displayFormDate(n)) }}
@@ -265,13 +276,16 @@ function toReact(node: Node, key: string, answers: Record<string, string>, set: 
   // The blanks to fill.
   if (fieldKey && el.hasAttribute('data-fill')) {
     const w = Number(el.getAttribute('data-w') ?? 200)
-    return <input key={key} type="text" aria-label="Champ à remplir" value={answers[fieldKey] ?? ''} maxLength={2000}
+    const required = el.hasAttribute('data-required')
+    return <input key={key} id={`of-${fieldKey}`} type="text" aria-label={required ? 'Champ obligatoire' : 'Champ à remplir'} required={required}
+      placeholder={required ? 'obligatoire' : undefined} value={answers[fieldKey] ?? ''} maxLength={2000}
       onChange={(e) => set(fieldKey, e.target.value)}
-      className="mx-1 inline-block min-w-24 border-0 border-b-2 border-dashed border-primary/50 bg-primary/5 px-1 py-0.5 align-baseline text-gray-900 outline-none focus:border-primary"
+      className={`mx-1 inline-block min-w-24 border-0 border-b-2 border-dashed px-1 py-0.5 align-baseline text-gray-900 outline-none placeholder:text-xs placeholder:italic placeholder:text-red-400 focus:border-primary ${required && !(answers[fieldKey] ?? '').trim() ? 'border-red-400 bg-red-50' : 'border-primary/50 bg-primary/5'}`}
       style={{ width: `min(${Math.max(w, 120)}px, 100%)` }} />
   }
   if (fieldKey && el.hasAttribute('data-box')) {
-    return <Textarea key={key} aria-label="Réponse" value={answers[fieldKey] ?? ''} maxLength={2000}
+    return <Textarea key={key} id={`of-${fieldKey}`} aria-label={el.hasAttribute('data-required') ? 'Réponse obligatoire' : 'Réponse'} required={el.hasAttribute('data-required')}
+      placeholder={el.hasAttribute('data-required') ? 'obligatoire' : undefined} value={answers[fieldKey] ?? ''} maxLength={2000}
       onChange={(e) => set(fieldKey, e.target.value)} rows={Math.max(2, Math.round(Number(el.getAttribute('data-h') ?? 70) / 24))}
       className="my-1 border-primary/40 bg-primary/5 text-gray-900" />
   }

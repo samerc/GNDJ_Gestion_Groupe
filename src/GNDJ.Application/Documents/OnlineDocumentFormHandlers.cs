@@ -166,6 +166,11 @@ public class SubmitOnlineDocumentFormCommandHandler(IApplicationDbContext contex
         var fields = renderer.PrepareForm(dt.TemplateHtml!, values).Fields;
         // A date blank holds a full date (yyyy-MM-dd), a month/year (MM/yyyy) or a year (yyyy): parents often only
         // know the year of a vaccine booster. The client converts the typed JJ/MM/AAAA into these forms.
+        // Blanks the template marks « obligatoire » (the client checks first; this is the authority).
+        var missing = fields.FirstOrDefault(f => f.Required
+            && (!request.Answers.TryGetValue(f.Key, out var rv) || string.IsNullOrWhiteSpace(rv)));
+        if (missing is not null)
+            return Result<Guid>.Failure($"Champ obligatoire{(string.IsNullOrWhiteSpace(missing.Label) ? "" : $" : {CleanLabel(missing.Label)}")}.");
         foreach (var f in fields.Where(f => f.Kind == "date"))
             if (request.Answers.TryGetValue(f.Key, out var dv) && !string.IsNullOrWhiteSpace(dv) && !TemplateFormAnswers.IsFormDate(dv.Trim()))
                 return Result<Guid>.Failure($"Date invalide{(string.IsNullOrWhiteSpace(f.Label) ? "" : $" : {f.Label}")}.");
